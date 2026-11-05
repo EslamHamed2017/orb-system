@@ -15,6 +15,7 @@
 - Q: If the same customer signs a new independent sales contract, is it a new Project? → A: Yes. Every independent sales contract creates a new Project; amendments to the same contract remain in the existing Project.
 - Q: What is the cut line for the first usable release? → A: Release 1 contains Core Trade only; bank matching, tax pack, and historical migration follow in subsequent releases.
 - Q: When are shipments and Projects closed? → A: A shipment becomes Financially Closed when fully collected even if documents or claims remain open. A Project becomes Financially Closed after all sales shipments are collected, but Final Closed requires documents, claims, supplier obligations, expenses, and other closure controls to be complete or exceptionally approved.
+- Q: How are shipment quantity and weight tolerances controlled? → A: Quantity and weight tolerances are defined per contract; omitted tolerance defaults to zero, and any excess requires recorded approval and reason.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -233,7 +234,7 @@ The data model and controls MUST anticipate subsequent releases, but Release 1 a
 - **FR-014**: The system MUST track document completeness by route, destination, customer, product, and Incoterm.
 - **FR-015**: The system MUST store Incoterm and named place/port on contracts and shipments.
 - **FR-016**: The system MUST handle short shipment, over shipment, rollover, cancellation, quality variance, weight variance, rejection, claim, discount, replacement, and compensation.
-- **FR-017**: Quantity and weight tolerances MUST be explicit and require approval when exceeded.
+- **FR-017**: Sales and purchase contracts MUST define quantity and weight tolerances separately. An omitted tolerance MUST default to zero; confirming a shipment outside the applicable tolerance MUST require authorized approval and a recorded reason.
 - **FR-018**: Shipment execution, financial settlement, document completeness, and claims MUST have independent statuses.
 
 #### Collections, Payments, Expenses, and Statements
