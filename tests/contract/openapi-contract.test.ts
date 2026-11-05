@@ -164,10 +164,10 @@ export function parseYaml(source) {
       if (record.indent < contentIndent) break;
       end++;
     }
-    if (contentIndent === null) { cursor = end; return ''; }
     const body = [];
     for (let i = start; i < end; i++) {
       const record = records[i];
+      // split() creates one non-content sentinel after a final line break.
       if (i === records.length - 1 && record.raw === '' && source.endsWith('\n')) continue;
       if (!record.raw.trim()) body.push('');
       else {
@@ -176,6 +176,8 @@ export function parseYaml(source) {
       }
     }
     cursor = end;
+    const blankOnly = contentIndent === null;
+    if (blankOnly) return marker.endsWith('+') ? '\n'.repeat(body.length) : '';
     if (marker[0] === '>' && body.some((line) => line === '' || /^\s/.test(line))) fail('Complex folded block scalars are unsupported', number);
     let result = (marker[0] === '|' ? body.join('\n') : body.join(' ')) + (body.length ? '\n' : '');
     if (marker.endsWith('-')) result = result.replace(/\n+$/, '');
@@ -246,11 +248,15 @@ export function parseYaml(source) {
   if (cursor !== records.length) fail('Unparsed YAML', records[cursor].number);
   return result;
 }
+function decodePointerToken(raw, reference) {
+  assert.doesNotMatch(raw, /~(?:[^01]|$)/, 'Invalid JSON Pointer escape in local ref: ' + reference);
+  return raw.replace(/~1/g, '/').replace(/~0/g, '~');
+}
 function pointerValue(document, reference) {
   assert.match(reference, /^#\//, 'Only local JSON Pointer refs are accepted: ' + reference);
   let current = document;
   for (const raw of reference.slice(2).split('/')) {
-    const token = raw.replace(/~1/g, '/').replace(/~0/g, '~');
+    const token = decodePointerToken(raw, reference);
     assert.ok(current !== null && typeof current === 'object' && Object.hasOwn(current, token), 'Unresolvable local ref: ' + reference);
     current = current[token];
   }
@@ -356,6 +362,11 @@ safe:
   assert.equal(parseYaml('a: >-\n  first\n  second').a, 'first second');
   assert.equal(parseYaml('a: >\n  first\n  second').a, 'first second\n');
   assert.equal(parseYaml('a: >+\n  first\n  second').a, 'first second\n');
+  for (const marker of ['|', '|-', '>', '>-']) assert.equal(parseYaml('a: ' + marker + '\n\n\nb: z\n').a, '', marker + ' blank-only chomping');
+  for (const marker of ['|+', '>+']) assert.equal(parseYaml('a: ' + marker + '\n\n\nb: z\n').a, '\n\n', marker + ' blank-only keep');
+  assert.equal(parseYaml('a: |+\n  \n\nb: z\n').a, '\n\n', 'blank-only indentation before dedent');
+  assert.equal(parseYaml('a: |+\n\n').a, '\n', 'blank-only keep at EOF');
+  assert.deepEqual({ ...parseYaml('a: |+\n\n\nb: z\n') }, { a: '\n\n', b: 'z' });
 });
 test('YAML subset parser fails closed on malformed, duplicate, ambiguous and unsupported syntax', () => {
   const rejected = [
@@ -398,6 +409,11 @@ test('control semantic and inventory mutation probes fail closed', () => {
   for (const [mutated, expected] of cases) assert.match(controlViolations(mutated).join('\n'), expected);
 });
 test('broken refs, duplicate IDs, missing and duplicate roles fail closed', () => {
+  const escaped = { components: { schemas: { 'Slash/Name': { marker: 'slash' }, 'Tilde~Name': { marker: 'tilde' }, 'Secondary~1Source': { marker: 'single-pass' } } } };
+  assert.equal(pointerValue(escaped, '#/components/schemas/Slash~1Name').marker, 'slash');
+  assert.equal(pointerValue(escaped, '#/components/schemas/Tilde~0Name').marker, 'tilde');
+  assert.equal(pointerValue(escaped, '#/components/schemas/Secondary~01Source').marker, 'single-pass');
+  for (const malformed of ['#/components/schemas/Bad~2Name', '#/components/schemas/Bad~']) assert.throws(() => pointerValue(escaped, malformed), /Invalid JSON Pointer escape/);
   const broken = structuredClone(document); broken.paths['/projects'].get.responses['200'] = { [REF]: '#/components/responses/DoesNotExist' }; assert.throws(() => validateAndCountLocalRefs(broken), /Unresolvable/);
   const duplicate = structuredClone(document); const entries = operations(duplicate); entries[1].operation.operationId = entries[0].operation.operationId; assert.match(contractViolations(duplicate).join('\n'), /duplicate operationId/);
   const missing = structuredClone(document); delete operation(missing, 'listProjects')['x-required-roles']; assert.match(contractViolations(missing).join('\n'), /missing\/non-array/);

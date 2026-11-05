@@ -9,7 +9,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const BASE = resolve(ROOT, 'specs/001-orb-trade-operations');
 const METHODS = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'trace']);
 function text(path) { return readFileSync(resolve(BASE, path), 'utf8'); }
-function normalized(value) { return String(value).toLowerCase().replace(/[^a-z0-9]+/g, ''); }
+function normalized(value) { return String(value).replace(/~[01]/g, '/').toLowerCase().replace(/[^a-z0-9]+/g, ''); }
 const FORBIDDEN = [
   ['multiple/secondary shipment sources or source allocation', /(?:multi(?:ple)?(?:shipment|supplier)?sources?|secondary(?:shipment|supplier)?source|secondarysource|sources?allocation|allocationsource)/],
   ['shared-expense allocation', /(sharedexpenses?|expenseallocation)/],
@@ -26,32 +26,56 @@ function deferredFindings(surfaces) {
     if (pattern.test(normalized(value))) findings.push({ kind, value, feature });
   return findings;
 }
-function schemaIdentifiers(schema, prefix, out) {
-  if (Array.isArray(schema)) { schema.forEach((item, i) => schemaIdentifiers(item, prefix + '[' + i + ']', out)); return; }
+function decodeReferenceTokens(reference) {
+  assert.match(reference, /^#\//, 'Only local JSON Pointer refs are accepted: ' + reference);
+  return reference.slice(2).split('/').map((raw) => {
+    assert.doesNotMatch(raw, /~(?:[^01]|$)/, 'Invalid JSON Pointer escape in local ref: ' + reference);
+    return raw.replace(/~1/g, '/').replace(/~0/g, '~');
+  });
+}
+const PROSE_ONLY = new Set(['description', 'summary', 'title', 'example', 'examples', 'externalDocs']);
+const IDENTIFIER_VALUES = new Set(['name', 'operationId', 'required', 'enum', 'const', 'propertyName', 'tags', 'type', 'format', 'in']);
+function addStrings(value, prefix, target) {
+  if (typeof value === 'string') target.push(prefix + ':' + value);
+  else if (Array.isArray(value)) value.forEach((item, index) => addStrings(item, prefix + '[' + index + ']', target));
+}
+function schemaIdentifiers(schema, prefix, out, parentKey = '') {
+  if (Array.isArray(schema)) { schema.forEach((item, i) => schemaIdentifiers(item, prefix + '[' + i + ']', out, parentKey)); return; }
   if (!schema || typeof schema !== 'object') return;
-  const proseKeys = new Set(['description', 'title', 'example', 'examples', 'summary']);
   for (const [name, value] of Object.entries(schema)) {
-    if (proseKeys.has(name)) continue;
     const qualified = prefix + '.' + name;
     out.schemaKeys.push(qualified);
-    if (prefix.endsWith('.properties') || name === 'properties') out.propertyNames.push(qualified);
-    if (name === 'enum' && Array.isArray(value)) for (const item of value) out.enumValues.push(prefix + ':' + item);
-    if (name === 'propertyName' && typeof value === 'string') out.discriminators.push(prefix + ':' + value);
-    if (prefix.endsWith('.mapping')) {
-      out.discriminators.push(qualified);
-      if (typeof value === 'string') out.discriminators.push(qualified + ':' + value);
+    if (parentKey === 'properties') out.propertyNames.push(qualified);
+    if (PROSE_ONLY.has(name)) continue;
+    if (name === '$ref') {
+      assert.equal(typeof value, 'string', qualified + ' must be a string');
+      for (const token of decodeReferenceTokens(value)) out.schemaReferences.push(qualified + ':' + token);
+      continue;
     }
+    // Every non-prose string is structural data; named buckets retain useful diagnostics.
+    addStrings(value, qualified, out.structuralValues);
+    if (IDENTIFIER_VALUES.has(name)) addStrings(value, qualified, name === 'enum' || name === 'const' ? out.enumValues : out.structuralValues);
+    if (name === 'dependentRequired' && value && typeof value === 'object' && !Array.isArray(value)) {
+      for (const [dependent, dependencies] of Object.entries(value)) {
+        out.structuralValues.push(qualified + ':' + dependent);
+        addStrings(dependencies, qualified + '.' + dependent, out.structuralValues);
+      }
+    }
+    if (parentKey === 'mapping') {
+      out.discriminators.push(qualified);
+      if (typeof value === 'string') for (const token of decodeReferenceTokens(value)) out.discriminators.push(qualified + ':' + token);
+    }
+    if (name === 'propertyName' && typeof value === 'string') out.discriminators.push(qualified + ':' + value);
+    if (parentKey === 'security') out.securityNames.push(qualified);
     if (/^(action|actionId|actions|control|transition|command)$/i.test(name)) {
       out.actionIdentifiers.push(qualified);
-      if (typeof value === 'string') out.actionIdentifiers.push(qualified + ':' + value);
-      if (Array.isArray(value)) out.actionIdentifiers.push(...value.filter((item) => typeof item === 'string').map((item) => qualified + ':' + item));
+      addStrings(value, qualified, out.actionIdentifiers);
     }
-    if (name === '$ref' && typeof value === 'string') out.schemaReferences.push(qualified + ':' + value);
-    schemaIdentifiers(value, qualified, out);
+    schemaIdentifiers(value, qualified, out, name);
   }
 }
 function openApiSurfaces(api) {
-  const out = { paths: Object.keys(api.paths || {}), operationIds: [], schemaNames: Object.keys(api.components?.schemas || {}), schemaKeys: [], schemaReferences: [], propertyNames: [], enumValues: [], discriminators: [], actionIdentifiers: [] };
+  const out = { paths: Object.keys(api.paths || {}), operationIds: [], schemaNames: Object.keys(api.components?.schemas || {}), schemaKeys: [], schemaReferences: [], propertyNames: [], enumValues: [], discriminators: [], actionIdentifiers: [], structuralValues: [], securityNames: [] };
   for (const [path, item] of Object.entries(api.paths || {})) for (const [method, operation] of Object.entries(item || {})) if (METHODS.has(method.toLowerCase())) {
     out.operationIds.push(operation.operationId || '');
     schemaIdentifiers(operation, 'operation:' + (operation.operationId || path), out);
@@ -125,6 +149,57 @@ test('representative OpenAPI path, operation, schema property and action mutatio
   discriminatorKey.components.schemas.DeferredDiscriminatorProbe = { discriminator: { propertyName: 'kind', mapping: { secondarySource: '#/components/schemas/Error' } } };
   assert.ok(deferredFindings(openApiSurfaces(discriminatorKey)).some((finding) => finding.kind === 'schemaKeys' && finding.value.endsWith('.secondarySource')));
 });
+test('identifier-bearing OpenAPI values are scanned while prose-only values are excluded', () => {
+  const probes = [
+    ['required', { type: 'object', required: ['secondarySource'], properties: { safe: { type: 'string' } } }],
+    ['dependentRequired-key', { type: 'object', dependentRequired: { secondarySource: ['safe'] } }],
+    ['dependentRequired-value', { type: 'object', dependentRequired: { safe: ['secondarySource'] } }],
+    ['propertyNames', { type: 'object', propertyNames: { const: 'secondarySource' } }],
+    ['enum', { type: 'string', enum: ['secondarySource'] }],
+    ['const', { type: 'string', const: 'secondarySource' }],
+    ['discriminator-propertyName', { discriminator: { propertyName: 'secondarySource' } }],
+    ['discriminator-mapping', { discriminator: { propertyName: 'kind', mapping: { safe: '#/components/schemas/SecondarySource' } } }],
+  ];
+  for (const [label, schema] of probes) {
+    const mutated = structuredClone(api); mutated.components.schemas.IdentifierValueProbe = schema;
+    assert.ok(deferredFindings(openApiSurfaces(mutated)).length, label + ' escaped structured-value detection');
+  }
+  const operationValues = structuredClone(api);
+  const firstOperation = Object.values(operationValues.paths)[0];
+  const firstMethod = Object.keys(firstOperation).find((method) => METHODS.has(method.toLowerCase()));
+  firstOperation[firstMethod].tags = ['secondarySource'];
+  firstOperation[firstMethod].security = [{ secondarySource: [] }];
+  const operationFindings = deferredFindings(openApiSurfaces(operationValues));
+  assert.ok(operationFindings.some((finding) => finding.kind === 'structuralValues'));
+  assert.ok(operationFindings.some((finding) => finding.kind === 'securityNames'));
+
+  const prose = structuredClone(api);
+  prose.components.schemas.ProseProbe = {
+    type: 'object', description: 'secondarySource', summary: 'secondarySource', title: 'secondarySource',
+    example: { secondarySource: true }, examples: [{ secondarySource: true }], externalDocs: { description: 'secondarySource', url: 'https://example.test/secondarySource' },
+  };
+  assert.deepEqual(deferredFindings(openApiSurfaces(prose)), []);
+});
+test('JSON Pointer refs decode slash and tilde tokens, reject malformed escapes, and cannot hide deferred identifiers', () => {
+  const escaped = structuredClone(api);
+  escaped.components.schemas['Slash/Name'] = { type: 'string' };
+  escaped.components.schemas['Tilde~Name'] = { type: 'string' };
+  escaped.components.schemas.RefProbe = { allOf: [{ $ref: '#/components/schemas/Slash~1Name' }, { $ref: '#/components/schemas/Tilde~0Name' }] };
+  assert.deepEqual(deferredFindings(openApiSurfaces(escaped)), []);
+
+  const hidden = structuredClone(api);
+  hidden.components.schemas['Secondary~1Source'] = { type: 'string' };
+  hidden.components.schemas.RefProbe = { $ref: '#/components/schemas/Secondary~01Source' };
+  const findings = deferredFindings(openApiSurfaces(hidden));
+  assert.ok(findings.some((finding) => finding.kind === 'schemaNames' && finding.value === 'Secondary~1Source'));
+  assert.ok(findings.some((finding) => finding.kind === 'schemaReferences' && finding.value.endsWith(':Secondary~1Source')));
+
+  for (const reference of ['#/components/schemas/Bad~2Name', '#/components/schemas/Bad~']) {
+    const malformed = structuredClone(api); malformed.components.schemas.RefProbe = { $ref: reference };
+    assert.throws(() => openApiSurfaces(malformed), /Invalid JSON Pointer escape/);
+  }
+});
+
 test('representative UI control and executable task file/action mutations are rejected', () => {
   const uiMutation = ui.replace('| `/projects` | Project list |', '| `/projects` | Project list | `configurableApprovalRuleEditor`;');
   assert.ok(deferredFindings(uiSurfaces(uiMutation)).some((finding) => finding.kind === 'uiControlIdentifiers'));
