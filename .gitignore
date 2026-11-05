@@ -1,0 +1,29 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*credentials*
+*secrets*
+.agents/**/auth*
+
+# Dependencies/build
+node_modules/
+.next/
+dist/
+build/
+coverage/
+
+# Runtime/user data
+uploads/
+private-storage/
+backups/
+*.log
+
+# Editor/OS
+.DS_Store
+.vscode/
+.idea/
