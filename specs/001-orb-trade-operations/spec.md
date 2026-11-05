@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-05
 
-**Status**: Clarified — ready for planning review
+**Status**: Clarified — two-week pilot plan revision required
 
 **Input**: User description: "Create a focused, standalone, bilingual ORB international coffee trade operations system. A Project contains one primary sales contract, multiple sales shipments, purchase contracts and supplier shipments, documents, advances, receipts, payments, expenses, bank matching, profit analysis, tax evidence packs, and historical migration from 2024. No Odoo and no accounting ledger."
 
@@ -17,6 +17,7 @@
 - Q: When are shipments and Projects closed? → A: A shipment becomes Financially Closed when fully collected even if documents or claims remain open. A Project becomes Financially Closed after all sales shipments are collected, but Final Closed requires documents, claims, supplier obligations, expenses, and other closure controls to be complete or exceptionally approved.
 - Q: How are shipment quantity and weight tolerances controlled? → A: Quantity and weight tolerances are defined per contract; omitted tolerance defaults to zero, and any excess requires recorded approval and reason.
 - Q: Which trade routes must Core Trade support in Release 1? → A: Foreign-to-Foreign, UAE Free Zone Re-export, and UAE Import.
+- Q: What must be delivered within the fixed two-week opportunity window? → A: A sales-ready working pilot by 2026-11-19 that demonstrates one complete Core Trade cycle; production hardening and advanced workflows follow after the offer milestone.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -175,23 +176,36 @@ A migration reviewer processes original historical emails, PDF, image, spreadshe
 
 ## Release Sequencing
 
-### Release 1 — Core Trade
+### Two-Week Offer Pilot — Deadline 2026-11-19
 
-- Projects and one primary sales contract per Project.
-- Purchase contracts and supplier shipments.
-- Sales shipments and supplier-source linking.
-- CINV, Packing List, transport/customs evidence, and revisions.
-- Customer advances/receipts, supplier advances/payments, operational statements, and expenses.
-- Claims, tolerances, statuses, risk-based approvals, closure, and Project Profit Center.
-- Arabic/English experience, ORB identity, audit history, security baseline, and tested backups.
+The deadline is fixed. The pilot MUST be a deployed, working application rather than static screens. It MUST demonstrate one complete traceable cycle:
 
-### Subsequent Releases
+1. Sign in using fixed pilot roles: Owner/Admin, Operations, and Finance/Viewer.
+2. Maintain essential customer, supplier, coffee, route, currency, and expense masters.
+3. Create one Project for one independent sales contract and attach one or more purchase contracts.
+4. Create sales and supplier shipments using one primary supplier source per sales shipment.
+5. Use fixed checklists for Foreign-to-Foreign, UAE Free Zone Re-export, and UAE Import.
+6. Generate versioned English, Arabic, or bilingual CINV and Packing List from one shipment dataset.
+7. Record customer/supplier advances, receipts/payments, and direct shipment/Project expenses.
+8. Show basic customer, supplier, shipment, and Project operational statements.
+9. Show expected, committed, actual operational margin, and cash position separately.
+10. Show shipment Financially Closed on full customer collection and basic Project Final Close blockers.
+11. Demonstrate Arabic RTL and English LTR Material Design 3 workflows with ORB identity.
+12. Preserve stable identities, document revisions, source hashes, role restrictions, and an auditable history.
 
-- Bank statement import, validation, matching, and reconciliation.
-- Tax evidence pack and review-first adviser delivery.
+### Deferred Until After the Offer Pilot
+
+- Multiple supplier sources for one sales shipment.
+- Configurable approval-policy designer; the pilot uses a fixed reviewed approval matrix.
+- Advanced claim settlement methods; the pilot records, tracks, resolves, and blocks closure with a simple controlled workflow.
+- Quantity/value/manual shared-expense allocation; the pilot assigns an expense directly to one shipment or Project.
+- Dynamic route-rule designer; the pilot uses three versioned fixed route checklists.
+- Advanced report builder, broad performance tuning, and non-critical UX variants.
+- Bank statement import and matching.
+- Tax evidence pack and adviser delivery.
 - Controlled historical migration from 1 January 2024.
 
-The data model and controls MUST anticipate subsequent releases, but Release 1 acceptance and deployment MUST NOT depend on completing them.
+Deferred items MUST NOT appear as active pilot controls or block pilot acceptance. The pilot is not represented as the final production release. Security baseline, data integrity, review-first external delivery, tested backup, and critical acceptance tests are not waived by the deadline.
 
 ## Scope Boundaries
 
