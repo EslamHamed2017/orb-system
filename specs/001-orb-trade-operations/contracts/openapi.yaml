@@ -787,7 +787,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ApprovalPage'
+                $ref: '#/components/schemas/ApprovalInboxPage'
         default:
           $ref: '#/components/responses/Problem'
       x-required-roles:
@@ -1749,12 +1749,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Session'
+                $ref: '#/components/schemas/SessionTermination'
         default:
           $ref: '#/components/responses/Problem'
       x-required-roles:
       - OWNER_ADMIN
       - OPERATIONS
+      - FINANCE_VIEWER
       summary: Sign out current session
   /users:
     get:
@@ -3061,6 +3062,7 @@ components:
       - lastSeenAt
       - idleExpiresAt
       - absoluteExpiresAt
+      - version
       properties:
         sessionId:
           $ref: '#/components/schemas/Uuid'
@@ -3088,6 +3090,9 @@ components:
           format: date-time
         mfaRequired:
           type: boolean
+        version:
+          type: integer
+          minimum: 1
     RoleAssignmentInput:
       type: object
       additionalProperties: false
@@ -3274,6 +3279,8 @@ components:
       - destination
       - incoterm
       - namedPlace
+      - containerNumbers
+      - sealNumbers
       - transport
       properties:
         reference:
@@ -3431,26 +3438,34 @@ components:
       type: object
       additionalProperties: false
       required:
-      - reason
+      - changeReason
       - dataset
       properties:
-        reason:
+        changeReason:
           type: string
           minLength: 3
         dataset:
-          $ref: '#/components/schemas/SupplierShipmentCreateInput'
+          $ref: '#/components/schemas/SupplierShipmentDatasetRevisionFields'
+        evidenceId:
+          oneOf:
+          - $ref: '#/components/schemas/Uuid'
+          - type: 'null'
     SalesShipmentDatasetRevisionInput:
       type: object
       additionalProperties: false
       required:
-      - reason
+      - changeReason
       - dataset
       properties:
-        reason:
+        changeReason:
           type: string
           minLength: 3
         dataset:
-          $ref: '#/components/schemas/SalesShipmentCreateInput'
+          $ref: '#/components/schemas/SalesShipmentDatasetRevisionFields'
+        evidenceId:
+          oneOf:
+          - $ref: '#/components/schemas/Uuid'
+          - type: 'null'
     SupplierShipmentDataset:
       type: object
       additionalProperties: false
@@ -3464,7 +3479,6 @@ components:
       - createdAt
       - purchaseContractId
       - supplierId
-      - reference
       - coffeeSpecificationId
       - supplierLotReference
       - quantity
@@ -3478,11 +3492,12 @@ components:
       - incoterm
       - namedPlace
       - transport
+      - shipmentId
+      - containerNumbers
+      - sealNumbers
+      - revisionReason
+      - invalidatedApprovalIds
       properties:
-        reference:
-          type: string
-          minLength: 1
-          maxLength: 100
         coffeeSpecificationId:
           $ref: '#/components/schemas/Uuid'
         quantity:
@@ -3564,13 +3579,21 @@ components:
           type: string
           format: date-time
         revisionReason:
-          type:
-          - string
-          - 'null'
+          type: string
+          minLength: 1
         approvalId:
           oneOf:
           - $ref: '#/components/schemas/Uuid'
           - type: 'null'
+        shipmentId:
+          $ref: '#/components/schemas/Uuid'
+        invalidatedApprovalIds:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Uuid'
+      description: Immutable dataset revision. Shipment reference and aggregate identity are intentionally absent; use the enclosing
+        workspace.
     SalesShipmentDataset:
       type: object
       additionalProperties: false
@@ -3583,7 +3606,6 @@ components:
       - createdBy
       - createdAt
       - salesContractId
-      - reference
       - coffeeSpecificationId
       - productDescription
       - quantity
@@ -3600,11 +3622,10 @@ components:
       - containerNumbers
       - sealNumbers
       - transport
+      - shipmentId
+      - revisionReason
+      - invalidatedApprovalIds
       properties:
-        reference:
-          type: string
-          minLength: 1
-          maxLength: 100
         coffeeSpecificationId:
           $ref: '#/components/schemas/Uuid'
         quantity:
@@ -3692,13 +3713,21 @@ components:
           type: string
           format: date-time
         revisionReason:
-          type:
-          - string
-          - 'null'
+          type: string
+          minLength: 1
         approvalId:
           oneOf:
           - $ref: '#/components/schemas/Uuid'
           - type: 'null'
+        shipmentId:
+          $ref: '#/components/schemas/Uuid'
+        invalidatedApprovalIds:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Uuid'
+      description: Immutable dataset revision. Shipment reference and aggregate identity are intentionally absent; use the enclosing
+        workspace.
     QuantitySummary:
       type: object
       additionalProperties: false
@@ -3728,6 +3757,8 @@ components:
       required:
       - id
       - projectId
+      - purchaseContractId
+      - reference
       - version
       - executionState
       - activeDataset
@@ -3762,12 +3793,20 @@ components:
           oneOf:
           - $ref: '#/components/schemas/Uuid'
           - type: 'null'
+        reference:
+          type: string
+          minLength: 1
+          maxLength: 100
+        purchaseContractId:
+          $ref: '#/components/schemas/Uuid'
     SalesShipmentWorkspace:
       type: object
       additionalProperties: false
       required:
       - id
       - projectId
+      - salesContractId
+      - reference
       - version
       - executionState
       - financialState
@@ -3833,6 +3872,12 @@ components:
           oneOf:
           - $ref: '#/components/schemas/Uuid'
           - type: 'null'
+        reference:
+          type: string
+          minLength: 1
+          maxLength: 100
+        salesContractId:
+          $ref: '#/components/schemas/Uuid'
     EvidenceMetadata:
       type: object
       additionalProperties: false
@@ -3847,6 +3892,8 @@ components:
       - uploadedAt
       - sourceLinks
       - immutable
+      - verifiedAt
+      - verifiedBy
       properties:
         id:
           $ref: '#/components/schemas/Uuid'
@@ -3909,11 +3956,46 @@ components:
           - string
           - 'null'
           format: date-time
+      allOf:
+      - if:
+          properties:
+            verificationState:
+              const: VERIFIED
+          required:
+          - verificationState
+        then:
+          properties:
+            verifiedAt:
+              type: string
+              format: date-time
+            verifiedBy:
+              $ref: '#/components/schemas/ActorSnapshot'
+          required:
+          - verifiedAt
+          - verifiedBy
+      - if:
+          properties:
+            verificationState:
+              const: PENDING
+          required:
+          - verificationState
+        then:
+          properties:
+            verifiedAt:
+              type: 'null'
+              const: null
+            verifiedBy:
+              type: 'null'
+              const: null
+          required:
+          - verifiedAt
+          - verifiedBy
     AuditEvent:
       type: object
       additionalProperties: false
       required:
       - id
+      - projectId
       - sequenceNo
       - actor
       - sessionId
@@ -3924,8 +4006,11 @@ components:
       - beforeHash
       - afterHash
       - previousEventHash
-      - eventHash
       - occurredAt
+      - reason
+      - correlationId
+      - idempotencyKey
+      - eventHash
       properties:
         id:
           $ref: '#/components/schemas/Uuid'
@@ -3973,23 +4058,71 @@ components:
         correlationId:
           type: string
           minLength: 1
+        projectId:
+          $ref: '#/components/schemas/Uuid'
+        idempotencyKey:
+          type:
+          - string
+          - 'null'
+      description: 'eventHash excludes eventHash itself and is lowercase-hex(SHA-256(UTF-8(JCS(hashPayload)))) where hashPayload
+        is exactly the RFC 8785 JSON object containing, once each, in any source order: id, projectId, sequenceNo, actor, sessionId,
+        action, aggregateType, aggregateId, aggregateVersion, beforeHash, afterHash, previousEventHash, occurredAt, reason, correlationId,
+        idempotencyKey. All keys are present; absent optional values are JSON null. JCS determines member order and number/string
+        serialization.'
     AuditEventPage:
       type: object
       additionalProperties: false
       required:
       - projectId
       - order
-      - chainAlgorithm
+      - canonicalizationStandard
+      - textEncoding
+      - hashAlgorithm
+      - eventHashFormula
+      - genesisPreviousEventHash
+      - nullAndOmissionRule
+      - pageStartPreviousEventHash
+      - pageEndEventHash
       - items
+      - nextCursor
       properties:
         projectId:
           $ref: '#/components/schemas/Uuid'
         order:
           type: string
           const: sequenceNo ASC
-        chainAlgorithm:
+        canonicalizationStandard:
           type: string
-          const: SHA-256(canonical-event || previousEventHash)
+          const: RFC 8785 JSON Canonicalization Scheme (JCS)
+        textEncoding:
+          type: string
+          const: UTF-8
+        hashAlgorithm:
+          type: string
+          const: SHA-256
+        eventHashFormula:
+          type: string
+          const: lowercase-hex(SHA-256(UTF-8(JCS(hashPayload))))
+        genesisPreviousEventHash:
+          type: 'null'
+          const: null
+        nullAndOmissionRule:
+          type: string
+          const: Every enumerated hashPayload key is present; unavailable optional values are JSON null; no additional keys are
+            hashed.
+        pageStartPreviousEventHash:
+          oneOf:
+          - type: string
+            pattern: ^[a-f0-9]{64}$
+          - type: 'null'
+          description: Must equal items[0].previousEventHash. Null only when the page starts with sequenceNo 1.
+        pageEndEventHash:
+          oneOf:
+          - type: string
+            pattern: ^[a-f0-9]{64}$
+          - type: 'null'
+          description: Must equal the final item eventHash, or pageStartPreviousEventHash for an empty page; pass as the continuity
+            anchor for the next page.
         items:
           type: array
           items:
@@ -3998,6 +4131,9 @@ components:
           type:
           - string
           - 'null'
+      description: For sequenceNo 1 previousEventHash is JSON null. For every later event it equals the immediately preceding
+        project eventHash, including across page boundaries. Clients recompute each event using the exact AuditEvent hash-payload
+        fields and verify both page anchors.
     PilotUser:
       type: object
       additionalProperties: false
@@ -4071,6 +4207,10 @@ components:
       - idleExpiresAt
       - absoluteExpiresAt
       - revoked
+      - revokedAt
+      - revokedBy
+      - revocationReason
+      - version
       properties:
         sessionId:
           $ref: '#/components/schemas/Uuid'
@@ -4097,10 +4237,6 @@ components:
           - string
           - 'null'
           format: date-time
-        revokedByUserId:
-          oneOf:
-          - $ref: '#/components/schemas/Uuid'
-          - type: 'null'
         ipAddressMasked:
           type:
           - string
@@ -4109,6 +4245,60 @@ components:
           type:
           - string
           - 'null'
+        revokedBy:
+          oneOf:
+          - $ref: '#/components/schemas/ActorSnapshot'
+          - type: 'null'
+        revocationReason:
+          type:
+          - string
+          - 'null'
+          minLength: 1
+        version:
+          type: integer
+          minimum: 1
+      allOf:
+      - if:
+          properties:
+            revoked:
+              const: true
+          required:
+          - revoked
+        then:
+          properties:
+            revokedAt:
+              type: string
+              format: date-time
+            revokedBy:
+              $ref: '#/components/schemas/ActorSnapshot'
+            revocationReason:
+              type: string
+              minLength: 1
+          required:
+          - revokedAt
+          - revokedBy
+          - revocationReason
+      - if:
+          properties:
+            revoked:
+              const: false
+          required:
+          - revoked
+        then:
+          properties:
+            revokedAt:
+              type: 'null'
+              const: null
+            revokedBy:
+              type: 'null'
+              const: null
+            revocationReason:
+              type: 'null'
+              const: null
+          required:
+          - revokedAt
+          - revokedBy
+          - revocationReason
     UserSessionPage:
       type: object
       additionalProperties: false
@@ -4166,20 +4356,6 @@ components:
         occurredAt:
           type: string
           format: date-time
-    ApprovalPage:
-      type: object
-      additionalProperties: false
-      required:
-      - items
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Approval'
-        nextCursor:
-          type:
-          - string
-          - 'null'
     SupplierShipmentDatasetVersion:
       type: object
       additionalProperties: false
@@ -4193,7 +4369,6 @@ components:
       - createdAt
       - purchaseContractId
       - supplierId
-      - reference
       - coffeeSpecificationId
       - supplierLotReference
       - quantity
@@ -4207,15 +4382,14 @@ components:
       - incoterm
       - namedPlace
       - transport
-      - changeReason
-      - approvalInvalidated
+      - shipmentId
+      - containerNumbers
+      - sealNumbers
+      - revisionReason
       - invalidatedApprovalIds
+      - approvalInvalidated
       - approvalLinks
       properties:
-        reference:
-          type: string
-          minLength: 1
-          maxLength: 100
         coffeeSpecificationId:
           $ref: '#/components/schemas/Uuid'
         quantity:
@@ -4297,22 +4471,21 @@ components:
           type: string
           format: date-time
         revisionReason:
-          type:
-          - string
-          - 'null'
+          type: string
+          minLength: 1
         approvalId:
           oneOf:
           - $ref: '#/components/schemas/Uuid'
           - type: 'null'
-        changeReason:
-          type: string
-          minLength: 1
-        approvalInvalidated:
-          type: boolean
+        shipmentId:
+          $ref: '#/components/schemas/Uuid'
         invalidatedApprovalIds:
           type: array
+          uniqueItems: true
           items:
             $ref: '#/components/schemas/Uuid'
+        approvalInvalidated:
+          type: boolean
         approvalLinks:
           type: array
           items:
@@ -4342,6 +4515,7 @@ components:
               subjectHash:
                 type: string
                 pattern: ^[a-f0-9]{64}$
+      description: Immutable historical dataset revision; aggregate reference is available only on the shipment workspace.
     SupplierShipmentDatasetHistory:
       type: object
       additionalProperties: false
@@ -4371,7 +4545,6 @@ components:
       - createdBy
       - createdAt
       - salesContractId
-      - reference
       - coffeeSpecificationId
       - productDescription
       - quantity
@@ -4388,15 +4561,12 @@ components:
       - containerNumbers
       - sealNumbers
       - transport
-      - changeReason
-      - approvalInvalidated
+      - shipmentId
+      - revisionReason
       - invalidatedApprovalIds
+      - approvalInvalidated
       - approvalLinks
       properties:
-        reference:
-          type: string
-          minLength: 1
-          maxLength: 100
         coffeeSpecificationId:
           $ref: '#/components/schemas/Uuid'
         quantity:
@@ -4484,22 +4654,21 @@ components:
           type: string
           format: date-time
         revisionReason:
-          type:
-          - string
-          - 'null'
+          type: string
+          minLength: 1
         approvalId:
           oneOf:
           - $ref: '#/components/schemas/Uuid'
           - type: 'null'
-        changeReason:
-          type: string
-          minLength: 1
-        approvalInvalidated:
-          type: boolean
+        shipmentId:
+          $ref: '#/components/schemas/Uuid'
         invalidatedApprovalIds:
           type: array
+          uniqueItems: true
           items:
             $ref: '#/components/schemas/Uuid'
+        approvalInvalidated:
+          type: boolean
         approvalLinks:
           type: array
           items:
@@ -4529,6 +4698,7 @@ components:
               subjectHash:
                 type: string
                 pattern: ^[a-f0-9]{64}$
+      description: Immutable historical dataset revision; aggregate reference is available only on the shipment workspace.
     SalesShipmentDatasetHistory:
       type: object
       additionalProperties: false
@@ -4601,6 +4771,371 @@ components:
           minLength: 1
         body:
           $ref: '#/components/schemas/OutboundBody'
+    SupplierShipmentDatasetRevisionFields:
+      type: object
+      additionalProperties: false
+      description: Dataset facts only. Aggregate identity, reference, project/contract and source-linkage identifiers are copied
+        by the server and cannot be changed here.
+      required:
+      - coffeeSpecificationId
+      - supplierLotReference
+      - quantity
+      - bagCount
+      - bagWeight
+      - netWeight
+      - grossWeight
+      - origin
+      - loadLocation
+      - destination
+      - incoterm
+      - namedPlace
+      - containerNumbers
+      - sealNumbers
+      - transport
+      properties:
+        coffeeSpecificationId:
+          $ref: '#/components/schemas/Uuid'
+        quantity:
+          $ref: '#/components/schemas/Decimal'
+        bagCount:
+          type: integer
+          minimum: 1
+        bagWeight:
+          $ref: '#/components/schemas/Decimal'
+        netWeight:
+          $ref: '#/components/schemas/Decimal'
+        grossWeight:
+          $ref: '#/components/schemas/Decimal'
+        origin:
+          $ref: '#/components/schemas/TradeLocation'
+        loadLocation:
+          $ref: '#/components/schemas/TradeLocation'
+        dischargeLocation:
+          $ref: '#/components/schemas/TradeLocation'
+        destination:
+          $ref: '#/components/schemas/TradeLocation'
+        incoterm:
+          type: string
+          minLength: 3
+          maxLength: 20
+        namedPlace:
+          type: string
+          minLength: 1
+        containerNumbers:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+        sealNumbers:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+        transport:
+          $ref: '#/components/schemas/TransportDetails'
+        plannedShipmentAt:
+          type: string
+          format: date-time
+        notes:
+          type:
+          - string
+          - 'null'
+          maxLength: 2000
+        supplierLotReference:
+          type: string
+          minLength: 1
+    SalesShipmentDatasetRevisionFields:
+      type: object
+      additionalProperties: false
+      description: Dataset facts only. Aggregate identity, reference, project/contract and source-linkage identifiers are copied
+        by the server and cannot be changed here.
+      required:
+      - coffeeSpecificationId
+      - productDescription
+      - quantity
+      - bagCount
+      - bagWeight
+      - netWeight
+      - grossWeight
+      - origin
+      - loadLocation
+      - dischargeLocation
+      - destination
+      - incoterm
+      - namedPlace
+      - containerNumbers
+      - sealNumbers
+      - transport
+      properties:
+        coffeeSpecificationId:
+          $ref: '#/components/schemas/Uuid'
+        quantity:
+          $ref: '#/components/schemas/Decimal'
+        bagCount:
+          type: integer
+          minimum: 1
+        bagWeight:
+          $ref: '#/components/schemas/Decimal'
+        netWeight:
+          $ref: '#/components/schemas/Decimal'
+        grossWeight:
+          $ref: '#/components/schemas/Decimal'
+        origin:
+          $ref: '#/components/schemas/TradeLocation'
+        loadLocation:
+          $ref: '#/components/schemas/TradeLocation'
+        dischargeLocation:
+          $ref: '#/components/schemas/TradeLocation'
+        destination:
+          $ref: '#/components/schemas/TradeLocation'
+        incoterm:
+          type: string
+          minLength: 3
+          maxLength: 20
+        namedPlace:
+          type: string
+          minLength: 1
+        containerNumbers:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+        sealNumbers:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+        transport:
+          $ref: '#/components/schemas/TransportDetails'
+        plannedShipmentAt:
+          type: string
+          format: date-time
+        notes:
+          type:
+          - string
+          - 'null'
+          maxLength: 2000
+        productDescription:
+          type: string
+          minLength: 1
+        customerPurchaseOrderReference:
+          type:
+          - string
+          - 'null'
+        marksAndNumbers:
+          type:
+          - string
+          - 'null'
+    ApprovalInboxItem:
+      type: object
+      additionalProperties: false
+      required:
+      - approvalId
+      - actionCode
+      - subjectType
+      - subjectId
+      - subjectReference
+      - subjectVersion
+      - subjectHash
+      - changedFields
+      - evidence
+      - detectedConflicts
+      - requester
+      - requestedAt
+      - requiredRole
+      - decisionContext
+      - approvalState
+      - approvalVersion
+      properties:
+        approvalId:
+          $ref: '#/components/schemas/Uuid'
+        actionCode:
+          type: string
+          enum:
+          - CONTRACT_VERSION
+          - SUPPLIER_SHIPMENT_CONFIRMATION
+          - SALES_SHIPMENT_CONFIRMATION
+          - TOLERANCE_EXCEPTION
+          - SUPPLIER_INVOICE_CONFIRMATION
+          - DIRECT_EXPENSE
+          - EXPENSE_CORRECTION
+          - DOCUMENT_OUTPUT
+          - EXTERNAL_SEND
+          - CLAIM_OUTCOME
+          - CLOSURE_EXCEPTION
+          - FINAL_CLOSE
+          - REOPEN
+        subjectType:
+          type: string
+          enum:
+          - CONTRACT_VERSION
+          - SUPPLIER_SHIPMENT_DATASET
+          - SALES_SHIPMENT_DATASET
+          - TOLERANCE_EXCEPTION
+          - SUPPLIER_INVOICE
+          - DIRECT_EXPENSE
+          - EXPENSE_CORRECTION
+          - DOCUMENT_REVISION
+          - OUTBOUND_MANIFEST
+          - CLAIM_OUTCOME_PROPOSAL
+          - CLOSURE_ASSESSMENT
+          - PROJECT
+        subjectId:
+          $ref: '#/components/schemas/Uuid'
+        subjectReference:
+          type: string
+          minLength: 1
+        subjectVersion:
+          type: integer
+          minimum: 1
+        subjectHash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        changedFields:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - fieldPath
+            - before
+            - after
+            - displayLabel
+            properties:
+              fieldPath:
+                type: string
+                minLength: 1
+              displayLabel:
+                type: string
+                minLength: 1
+              before: {}
+              after: {}
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceMetadata'
+        detectedConflicts:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - code
+            - severity
+            - message
+            - subjectType
+            - subjectId
+            properties:
+              code:
+                type: string
+                minLength: 1
+              severity:
+                type: string
+                enum:
+                - INFO
+                - WARNING
+                - BLOCKING
+              message:
+                type: string
+                minLength: 1
+              subjectType:
+                type: string
+                minLength: 1
+              subjectId:
+                $ref: '#/components/schemas/Uuid'
+        requester:
+          $ref: '#/components/schemas/ActorSnapshot'
+        requestedAt:
+          type: string
+          format: date-time
+        requiredRole:
+          type: string
+          const: OWNER_ADMIN
+        decisionContext:
+          type: object
+          additionalProperties: false
+          required:
+          - summary
+          - reason
+          - consequences
+          - proposedOutcome
+          - selfApprovalAllowed
+          properties:
+            summary:
+              type: string
+              minLength: 1
+            reason:
+              type:
+              - string
+              - 'null'
+            consequences:
+              type: array
+              items:
+                type: string
+                minLength: 1
+            proposedOutcome:
+              type:
+              - string
+              - 'null'
+            selfApprovalAllowed:
+              type: boolean
+              const: false
+        approvalState:
+          type: string
+          enum:
+          - PENDING
+          - APPROVED
+          - REJECTED
+          - EXPIRED
+        approvalVersion:
+          type: integer
+          minimum: 1
+    ApprovalInboxPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      - nextCursor
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalInboxItem'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+    SessionTermination:
+      type: object
+      additionalProperties: false
+      required:
+      - sessionId
+      - revoked
+      - revokedAt
+      - revokedBy
+      - revocationReason
+      - version
+      properties:
+        sessionId:
+          $ref: '#/components/schemas/Uuid'
+        revoked:
+          type: boolean
+          const: true
+        revokedAt:
+          type: string
+          format: date-time
+        revokedBy:
+          $ref: '#/components/schemas/ActorSnapshot'
+        revocationReason:
+          type: string
+          const: USER_SIGN_OUT
+        version:
+          type: integer
+          minimum: 1
 x-cookie-auth-policy:
   cookie:
     name: __Host-orb_session

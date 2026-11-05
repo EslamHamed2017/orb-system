@@ -1,21 +1,23 @@
-ORB Plan Gate focused repair validation
-UTC: 2026-11-05T20:04:34+00:00
-Baseline HEAD: 835fdd07a82e403e7f2aa1359ed76652c84c3a3d
+ORB Plan Gate final contract repair validation
+UTC: 2026-11-05T20:18:09+00:00
+Baseline HEAD: a5a9b4142aa49c282235beefc427d27f7b0b88e5
 Branch: 001-orb-trade-operations
 Candidate state: pre-commit working tree; independent Plan Gate review remains required
 
 Results:
 PASS OpenAPI YAML 3.1 parse: 75 paths / 79 operations
-PASS local refs: 705 occurrences resolved
+PASS local refs: 745 occurrences resolved
 PASS operationId uniqueness: 79
-PASS Redocly OpenAPI lint: zero errors and zero warnings
-PASS mutation controls: 58 mutations with Idempotency-Key; 57 cookie-authenticated mutations with CSRF; all existing-aggregate mutations with If-Match
-PASS fixed authorization: explicit role list on all 79 operations
-PASS strict schemas: distinct supplier/sales create, revision, read workspace and full immutable history; typed evidence, audit, users, sessions and exact outbound snapshots
-PASS cookie security: Secure HttpOnly SameSite=Strict __Host cookie; CSRF; Origin/Referer fail-closed; rotation and expiry
-PASS deferred-scope path/schema-name check
+PASS Redocly validity: zero errors. Built-in recommended style emitted 80 pre-existing-style warnings (one missing info.license and 79 operation-4xx-response because the shared RFC 9457 `default` response is not counted as an explicit 4XX); no new unused-component warning remains.
+PASS mutation controls: 58/58 mutations with Idempotency-Key; 57/57 authenticated mutations with CSRF; 53 existing-aggregate mutations with If-Match; only five new/root commands omit If-Match
+PASS fixed authorization: signIn is the only public operation; all authenticated roles can signOutCurrentSession; comparison to baseline confirms no other role list changed
+PASS strict shipment schemas: aggregate reference confined to workspace; active/history datasets require shipmentId and invalidatedApprovalIds; supplier containerNumbers/sealNumbers and all authoritative non-optional supplier/sales fields required; revision payloads are strict dataset-only and reject identity/linkage fields
+PASS fixed approval inbox: explicit ApprovalInboxItem/Page requires exact subject binding, diff, evidence metadata/links, conflicts, requester/time, role, context and approval state/version; obsolete generic ApprovalPage removed
+PASS OpenAPI 3.1 conditionals exercised: VERIFIED evidence requires non-null verifiedAt/verifiedBy and PENDING requires nulls; revoked sessions require non-null revokedAt/revokedBy/reason while active sessions expose nulls; sign-in/list/termination expose session versions
+PASS RFC 8785 audit definition: exact payload fields, UTF-8, SHA-256 formula, JSON-null genesis/optional policy and cursor page anchors asserted
 PASS traceability: 20 R1 + 7 INV rows and all 79 active operationIds in acceptance inventory
+PASS deferred-scope path check
 PASS git diff --check
-PASS changed-file scope: 7 files, all under specs/001-orb-trade-operations; no tasks.md
+PASS changed-file scope: planning/spec files only under specs/001-orb-trade-operations; no tasks.md or code
 
 No Plan Gate ACCEPT is claimed. Runtime, deployment, security, recovery and real-use evidence remain future acceptance work.
