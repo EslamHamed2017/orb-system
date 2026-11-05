@@ -23,3 +23,7 @@ Bank import, tax pack, historical migration, multi-source allocation, shared-exp
 ## Consequences
 
 All Phase 1 artifacts must implement only this cut. “Pilot” does not mean mock screens: the daily cycle must persist, authorize, audit, recover, and execute end to end. Production-scale hardening beyond the stated baseline follows later. The exact dependency compatibility spike remains a blocking gate and is not accepted by this ADR.
+
+## Current evidence note (2026-11-05)
+
+The compatibility prerequisite described above subsequently passed the limited retained clean-install/generate/typecheck/build spike. Independent functional Plan Gate re-review remains pending; this note does not amend scope or claim acceptance.

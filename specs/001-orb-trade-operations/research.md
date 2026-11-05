@@ -1,6 +1,6 @@
 # Phase 0 Research: ORB Limited Daily-Use Operational Beta
 
-Each decision below is authoritative for Release 1 design; exact ecosystem compatibility remains unproven as stated in `plan.md`.
+Each decision below is authoritative for Release 1 design. Exact ecosystem compatibility passed the retained limited spike in `plan.md`; functional completeness and independent Plan Gate acceptance remain separate and pending.
 
 ## Architecture
 
@@ -34,19 +34,19 @@ Each decision below is authoritative for Release 1 design; exact ecosystem compa
 
 ## Documents, evidence, and outbound control
 
-**Decision**: stream evidence to object storage, calculate/verify SHA-256, retain immutable version metadata, and audit view/download. Generate CINV and Packing List from the same approved shipment dataset. Bind approval to an immutable send manifest containing output version/hash, To/Cc, attachment IDs/versions/hashes, subject and body digest.
+**Decision**: stream evidence to object storage, calculate/verify SHA-256, retain immutable version metadata, and audit view/download. Generate CINV and Packing List from the same approved shipment dataset. Bind approval to an immutable canonical send manifest containing channel, output ID/version/hash, ordered To/Cc, attachment IDs/versions/exact filenames/byte sizes/hashes, exact subject, and exact body bytes/media type/byte size/hash. Send reads only approved stored bytes, re-verifies all bindings, fails closed, and appends attempts/results.
 **Rationale**: this makes “approve what is sent” testable and prevents recipient/attachment substitution.
 **Alternatives**: mutable files, approval by document ID alone, or automatic sending are rejected.
 
 ## Money, statements, margin, and direct expense
 
-**Decision**: operational movements and allocations, not accounting entries; same-party/same-currency allocation with locked total checks. Direct expense has exactly one Project or shipment scope. Keep four margin/cash measures separate and source-drillable.
+**Decision**: operational movements and allocations, not accounting entries; same-party/same-currency allocation with locked total checks. Allocation reversal is a compensating append-only row that atomically recalculates available/outstanding balances and closure. Approved expenses are corrected only by exact-approved cancellation/replacement. Direct expense has exactly one Project or shipment scope. Keep four margin/cash measures separate and source-drillable.
 **Rationale**: supports normal advance-before-invoice behavior and avoids false profit/cash equivalence.
 **Alternatives**: ledger design and shared-expense allocation are outside Release 1.
 
 ## Claims and closure
 
-**Decision**: simple claim lifecycle records outcome/evidence only. Financial closure is computed from customer outstanding balance independently from final-closure dimensions. Final closure uses a persisted assessment and blocker-specific exact-version exceptions.
+**Decision**: simple claim lifecycle records outcome/evidence only; Operations proposes a terminal outcome and a different Owner/Admin approves the exact version before a separate apply command can reach it. No direct terminal transition exists. Financial closure is computed from customer outstanding balance independently from final-closure dimensions. Final closure uses a persisted assessment and blocker-specific exact-version exceptions.
 **Rationale**: ORB can see commercial risk without implementing advanced settlement.
 **Alternatives**: automatic discount/replacement/compensation/netting is deferred.
 
@@ -70,4 +70,4 @@ Each decision below is authoritative for Release 1 design; exact ecosystem compa
 
 ## Resolved unknowns
 
-Business scope and rules are resolved by `spec.md`. The only deliberate unresolved implementation prerequisite is exact dependency compatibility. It is a blocking evidence task, not a research conclusion and not claimed passed.
+Business scope and rules are resolved by `spec.md`. No business-rule unknown is deliberately left open. The compatibility spike passed only the documented dependency/toolchain checks. Independent Plan Gate review, implementation, deployed integration, security, recovery, and real-use acceptance remain unperformed.

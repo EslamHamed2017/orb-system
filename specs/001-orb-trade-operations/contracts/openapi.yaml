@@ -4,191 +4,246 @@ info:
   version: 1.0.0-beta-plan
   description: Authoritative Release 1 API. Deferred features have no paths.
 servers:
-  - url: /api/v1
+- url: /api/v1
 security:
-  - sessionCookie: []
+- sessionCookie: []
 tags:
-  - {name: Masters}
-  - {name: Projects}
-  - {name: Contracts}
-  - {name: Shipments}
-  - {name: Routes}
-  - {name: Evidence}
-  - {name: Documents}
-  - {name: Approvals}
-  - {name: SupplierInvoices}
-  - {name: Money}
-  - {name: Expenses}
-  - {name: Statements}
-  - {name: Claims}
-  - {name: Closure}
-  - {name: Audit}
+- name: Recovery
+- name: Access
+- name: Masters
+- name: Projects
+- name: Contracts
+- name: Shipments
+- name: Routes
+- name: Evidence
+- name: Documents
+- name: Approvals
+- name: SupplierInvoices
+- name: Money
+- name: Expenses
+- name: Statements
+- name: Claims
+- name: Closure
+- name: Audit
 paths:
   /masters/{masterType}:
     parameters:
-      - $ref: '#/components/parameters/MasterType'
+    - $ref: '#/components/parameters/MasterType'
     get:
-      tags: [Masters]
+      tags:
+      - Masters
       operationId: listMasterRecords
       responses:
-        '200': {$ref: '#/components/responses/EntityPage'}
-        default: {$ref: '#/components/responses/Problem'}
+        '200':
+          $ref: '#/components/responses/EntityPage'
+        default:
+          $ref: '#/components/responses/Problem'
     post:
-      tags: [Masters]
+      tags:
+      - Masters
       operationId: createMasterRecord
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody: {$ref: '#/components/requestBodies/EntityInput'}
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/EntityInput'
       responses:
-        '201': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '201':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /masters/{masterType}/{recordId}:
     parameters:
-      - $ref: '#/components/parameters/MasterType'
-      - $ref: '#/components/parameters/RecordId'
+    - $ref: '#/components/parameters/MasterType'
+    - $ref: '#/components/parameters/RecordId'
     patch:
-      tags: [Masters]
+      tags:
+      - Masters
       operationId: updateMasterRecord
       parameters:
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody: {$ref: '#/components/requestBodies/EntityInput'}
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/EntityInput'
       responses:
-        '200': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '200':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /projects:
     get:
-      tags: [Projects]
+      tags:
+      - Projects
       operationId: listProjects
       parameters:
-        - $ref: '#/components/parameters/Cursor'
-        - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
       responses:
-        '200': {$ref: '#/components/responses/EntityPage'}
-        default: {$ref: '#/components/responses/Problem'}
+        '200':
+          $ref: '#/components/responses/EntityPage'
+        default:
+          $ref: '#/components/responses/Problem'
     post:
-      tags: [Projects]
+      tags:
+      - Projects
       operationId: createProjectWithSalesContract
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
           application/json:
-            schema: {$ref: '#/components/schemas/CreateProject'}
+            schema:
+              $ref: '#/components/schemas/CreateProject'
       responses:
-        '201': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '201':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /projects/{projectId}:
     parameters:
-      - $ref: '#/components/parameters/ProjectId'
+    - $ref: '#/components/parameters/ProjectId'
     get:
-      tags: [Projects]
+      tags:
+      - Projects
       operationId: getProject
       responses:
-        '200': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '200':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /projects/{projectId}/purchase-contracts:
     post:
-      tags: [Contracts]
+      tags:
+      - Contracts
       operationId: createPurchaseContract
       parameters:
-        - $ref: '#/components/parameters/ProjectId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody: {$ref: '#/components/requestBodies/ContractInput'}
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/ContractInput'
       responses:
-        '201': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '201':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /contracts/{contractId}/amendments:
     post:
-      tags: [Contracts]
+      tags:
+      - Contracts
       operationId: createContractAmendment
       parameters:
-        - $ref: '#/components/parameters/ContractId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/ContractId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               allOf:
-                - $ref: '#/components/schemas/ContractInput'
-                - type: object
-                  required: [reason, effectiveDate]
-                  properties:
-                    reason: {type: string, minLength: 3}
-                    effectiveDate: {type: string, format: date}
+              - $ref: '#/components/schemas/ContractInput'
+              - type: object
+                required:
+                - reason
+                - effectiveDate
+                properties:
+                  reason:
+                    type: string
+                    minLength: 3
+                  effectiveDate:
+                    type: string
+                    format: date
       responses:
-        '201': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '201':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /contracts/{contractId}/submit:
     post:
-      tags: [Contracts]
+      tags:
+      - Contracts
       operationId: submitContractForApproval
       parameters:
-        - $ref: '#/components/parameters/ContractId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/ContractId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       responses:
-        '202': {$ref: '#/components/responses/Approval'}
-        default: {$ref: '#/components/responses/Problem'}
+        '202':
+          $ref: '#/components/responses/Approval'
+        default:
+          $ref: '#/components/responses/Problem'
   /projects/{projectId}/supplier-shipments:
     post:
-      tags: [Shipments]
+      tags:
+      - Shipments
       operationId: createSupplierShipment
       parameters:
-        - $ref: '#/components/parameters/ProjectId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody: {$ref: '#/components/requestBodies/ShipmentInput'}
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/ShipmentInput'
       responses:
-        '201': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '201':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /supplier-shipments/{shipmentId}/submit:
     post:
-      tags: [Shipments]
+      tags:
+      - Shipments
       operationId: submitSupplierShipmentConfirmation
       parameters:
-        - $ref: '#/components/parameters/ShipmentId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/ShipmentId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       responses:
-        '202': {$ref: '#/components/responses/Approval'}
-        default: {$ref: '#/components/responses/Problem'}
+        '202':
+          $ref: '#/components/responses/Approval'
+        default:
+          $ref: '#/components/responses/Problem'
   /supplier-shipments/{shipmentId}/confirm:
     post:
-      tags: [Shipments]
+      tags:
+      - Shipments
       operationId: confirmSupplierShipment
       parameters:
-        - $ref: '#/components/parameters/ShipmentId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody: {$ref: '#/components/requestBodies/ApprovalBinding'}
+      - $ref: '#/components/parameters/ShipmentId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/ApprovalBinding'
       responses:
-        '200': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '200':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /projects/{projectId}/sales-shipments:
     post:
-      tags: [Shipments]
+      tags:
+      - Shipments
       operationId: createSalesShipment
       parameters:
-        - $ref: '#/components/parameters/ProjectId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody: {$ref: '#/components/requestBodies/ShipmentInput'}
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/ShipmentInput'
       responses:
-        '201': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '201':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /sales-shipments/{shipmentId}/primary-source:
     put:
-      tags: [Shipments]
+      tags:
+      - Shipments
       operationId: setPrimarySupplierSource
       parameters:
-        - $ref: '#/components/parameters/ShipmentId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/ShipmentId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -196,67 +251,86 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [supplierShipmentId]
+              required:
+              - supplierShipmentId
               properties:
-                supplierShipmentId: {$ref: '#/components/schemas/Uuid'}
+                supplierShipmentId:
+                  $ref: '#/components/schemas/Uuid'
       responses:
-        '200': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '200':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /sales-shipments/{shipmentId}/tolerance-exceptions:
     post:
-      tags: [Approvals]
+      tags:
+      - Approvals
       operationId: requestToleranceException
       parameters:
-        - $ref: '#/components/parameters/ShipmentId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/ShipmentId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [reason, breachedFields]
+              required:
+              - reason
+              - breachedFields
               properties:
-                reason: {type: string, minLength: 3}
-                breachedFields: {type: array, minItems: 1, items: {type: string}}
+                reason:
+                  type: string
+                  minLength: 3
+                breachedFields:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
       responses:
-        '202': {$ref: '#/components/responses/Approval'}
-        default: {$ref: '#/components/responses/Problem'}
+        '202':
+          $ref: '#/components/responses/Approval'
+        default:
+          $ref: '#/components/responses/Problem'
   /sales-shipments/{shipmentId}/confirm:
     post:
-      tags: [Shipments]
+      tags:
+      - Shipments
       operationId: confirmSalesShipment
       parameters:
-        - $ref: '#/components/parameters/ShipmentId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/ShipmentId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
-        required: false
-        content:
-          application/json:
-            schema: {$ref: '#/components/schemas/OptionalApprovalBinding'}
+        $ref: '#/components/requestBodies/ApprovalBinding'
       responses:
-        '200': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '200':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /sales-shipments/{shipmentId}/route-checklist:
     get:
-      tags: [Routes]
+      tags:
+      - Routes
       operationId: getFixedRouteChecklist
       parameters:
-        - $ref: '#/components/parameters/ShipmentId'
+      - $ref: '#/components/parameters/ShipmentId'
       responses:
-        '200': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '200':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /sales-shipments/{shipmentId}/route-items/{itemId}:
     patch:
-      tags: [Routes]
+      tags:
+      - Routes
       operationId: updateRouteEvidenceOrMilestone
       parameters:
-        - $ref: '#/components/parameters/ShipmentId'
-        - $ref: '#/components/parameters/ItemId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/ShipmentId'
+      - $ref: '#/components/parameters/ItemId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
@@ -264,546 +338,1280 @@ paths:
             schema:
               type: object
               properties:
-                state: {type: string, enum: [IN_PROGRESS, SATISFIED]}
-                evidenceId: {$ref: '#/components/schemas/Uuid'}
-                milestoneAt: {type: string, format: date-time}
+                state:
+                  type: string
+                  enum:
+                  - IN_PROGRESS
+                  - SATISFIED
+                evidenceId:
+                  $ref: '#/components/schemas/Uuid'
+                milestoneAt:
+                  type: string
+                  format: date-time
       responses:
-        '200': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '200':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /evidence:
     post:
-      tags: [Evidence]
+      tags:
+      - Evidence
       operationId: uploadEvidence
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
-        - name: X-Content-SHA256
-          in: header
-          required: true
-          schema: {type: string, pattern: '^[a-f0-9]{64}$'}
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - name: X-Content-SHA256
+        in: header
+        required: true
+        schema:
+          type: string
+          pattern: ^[a-f0-9]{64}$
       requestBody:
         required: true
         content:
           multipart/form-data:
             schema:
               type: object
-              required: [file, subjectType, subjectId, purpose]
+              required:
+              - file
+              - subjectType
+              - subjectId
+              - purpose
               properties:
-                file: {type: string, format: binary}
-                subjectType: {type: string}
-                subjectId: {$ref: '#/components/schemas/Uuid'}
-                purpose: {type: string}
+                file:
+                  type: string
+                  format: binary
+                subjectType:
+                  type: string
+                subjectId:
+                  $ref: '#/components/schemas/Uuid'
+                purpose:
+                  type: string
       responses:
-        '201': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '201':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /evidence/{evidenceId}:
     get:
-      tags: [Evidence]
+      tags:
+      - Evidence
       operationId: getEvidenceMetadata
       parameters:
-        - $ref: '#/components/parameters/EvidenceId'
+      - $ref: '#/components/parameters/EvidenceId'
       responses:
-        '200': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '200':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /evidence/{evidenceId}/content:
     get:
-      tags: [Evidence]
+      tags:
+      - Evidence
       operationId: viewOrDownloadEvidence
       parameters:
-        - $ref: '#/components/parameters/EvidenceId'
-        - name: disposition
-          in: query
-          schema: {type: string, enum: [inline, attachment], default: inline}
+      - $ref: '#/components/parameters/EvidenceId'
+      - name: disposition
+        in: query
+        schema:
+          type: string
+          enum:
+          - inline
+          - attachment
+          default: inline
       responses:
         '200':
           description: Authorized immutable bytes; access is audited
           content:
             application/octet-stream:
-              schema: {type: string, format: binary}
-        default: {$ref: '#/components/responses/Problem'}
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/Problem'
   /sales-shipments/{shipmentId}/documents:
     post:
-      tags: [Documents]
+      tags:
+      - Documents
       operationId: generateShipmentDocument
       parameters:
-        - $ref: '#/components/parameters/ShipmentId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/ShipmentId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
           application/json:
-            schema: {$ref: '#/components/schemas/GenerateDocument'}
+            schema:
+              $ref: '#/components/schemas/GenerateDocument'
       responses:
-        '202': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '202':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /documents/{documentId}/status:
     get:
-      tags: [Documents]
+      tags:
+      - Documents
       operationId: getDocumentGenerationStatus
       parameters:
-        - $ref: '#/components/parameters/DocumentId'
+      - $ref: '#/components/parameters/DocumentId'
       responses:
-        '200': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '200':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /documents/{documentId}/revisions:
     post:
-      tags: [Documents]
+      tags:
+      - Documents
       operationId: reviseDocument
       parameters:
-        - $ref: '#/components/parameters/DocumentId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody: {$ref: '#/components/requestBodies/Reason'}
+      - $ref: '#/components/parameters/DocumentId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/Reason'
       responses:
-        '201': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '201':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /documents/{documentId}/submit:
     post:
-      tags: [Documents]
+      tags:
+      - Documents
       operationId: submitDocumentForApproval
       parameters:
-        - $ref: '#/components/parameters/DocumentId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/DocumentId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       responses:
-        '202': {$ref: '#/components/responses/Approval'}
-        default: {$ref: '#/components/responses/Problem'}
+        '202':
+          $ref: '#/components/responses/Approval'
+        default:
+          $ref: '#/components/responses/Problem'
   /documents/{documentId}/cancel:
     post:
-      tags: [Documents]
+      tags:
+      - Documents
       operationId: cancelDocumentRevision
       parameters:
-        - $ref: '#/components/parameters/DocumentId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody: {$ref: '#/components/requestBodies/Reason'}
+      - $ref: '#/components/parameters/DocumentId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/Reason'
       responses:
-        '200': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '200':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /documents/{documentId}/outbound-manifests:
     post:
-      tags: [Documents]
+      tags:
+      - Documents
       operationId: createOutboundManifest
       parameters:
-        - $ref: '#/components/parameters/DocumentId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/DocumentId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
           application/json:
-            schema: {$ref: '#/components/schemas/OutboundManifestInput'}
+            schema:
+              $ref: '#/components/schemas/OutboundManifestInput'
       responses:
-        '201': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '201':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /outbound-manifests/{manifestId}/submit:
     post:
-      tags: [Documents]
+      tags:
+      - Documents
       operationId: submitOutboundManifestForApproval
       parameters:
-        - $ref: '#/components/parameters/ManifestId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/ManifestId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       responses:
-        '202': {$ref: '#/components/responses/Approval'}
-        default: {$ref: '#/components/responses/Problem'}
+        '202':
+          $ref: '#/components/responses/Approval'
+        default:
+          $ref: '#/components/responses/Problem'
   /outbound-manifests/{manifestId}/send:
     post:
-      tags: [Documents]
+      tags:
+      - Documents
       operationId: sendApprovedOutboundManifest
       parameters:
-        - $ref: '#/components/parameters/ManifestId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody: {$ref: '#/components/requestBodies/ApprovalBinding'}
+      - $ref: '#/components/parameters/ManifestId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/ApprovalBinding'
       responses:
-        '200': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '201':
+          description: Immutable send attempt/result; retries create another attempt and never mutate approved bytes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendAttempt'
+        default:
+          $ref: '#/components/responses/Problem'
   /outbound-manifests/{manifestId}/cancel:
     post:
-      tags: [Documents]
+      tags:
+      - Documents
       operationId: cancelOutboundManifest
       parameters:
-        - $ref: '#/components/parameters/ManifestId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody: {$ref: '#/components/requestBodies/Reason'}
+      - $ref: '#/components/parameters/ManifestId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/Reason'
       responses:
-        '200': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '200':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /approvals:
     get:
-      tags: [Approvals]
+      tags:
+      - Approvals
       operationId: listFixedApprovalInbox
       responses:
-        '200': {$ref: '#/components/responses/EntityPage'}
-        default: {$ref: '#/components/responses/Problem'}
+        '200':
+          $ref: '#/components/responses/EntityPage'
+        default:
+          $ref: '#/components/responses/Problem'
   /approvals/{approvalId}/decision:
     post:
-      tags: [Approvals]
+      tags:
+      - Approvals
       operationId: decideFixedApproval
       parameters:
-        - $ref: '#/components/parameters/ApprovalId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/ApprovalId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
           application/json:
-            schema: {$ref: '#/components/schemas/ApprovalDecision'}
+            schema:
+              $ref: '#/components/schemas/ApprovalDecision'
       responses:
-        '200': {$ref: '#/components/responses/Approval'}
-        default: {$ref: '#/components/responses/Problem'}
+        '200':
+          $ref: '#/components/responses/Approval'
+        default:
+          $ref: '#/components/responses/Problem'
   /supplier-shipments/{shipmentId}/invoices:
     post:
-      tags: [SupplierInvoices]
+      tags:
+      - SupplierInvoices
       operationId: createSupplierInvoice
       parameters:
-        - $ref: '#/components/parameters/ShipmentId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/ShipmentId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
           application/json:
-            schema: {$ref: '#/components/schemas/SupplierInvoiceInput'}
+            schema:
+              $ref: '#/components/schemas/SupplierInvoiceInput'
       responses:
-        '201': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '201':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /supplier-invoices/{invoiceId}/submit:
     post:
-      tags: [SupplierInvoices]
+      tags:
+      - SupplierInvoices
       operationId: submitSupplierInvoice
       parameters:
-        - $ref: '#/components/parameters/InvoiceId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/InvoiceId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       responses:
-        '202': {$ref: '#/components/responses/Approval'}
-        default: {$ref: '#/components/responses/Problem'}
+        '202':
+          $ref: '#/components/responses/Approval'
+        default:
+          $ref: '#/components/responses/Problem'
   /supplier-invoices/{invoiceId}/confirm:
     post:
-      tags: [SupplierInvoices]
+      tags:
+      - SupplierInvoices
       operationId: confirmSupplierInvoice
       parameters:
-        - $ref: '#/components/parameters/InvoiceId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody: {$ref: '#/components/requestBodies/ApprovalBinding'}
+      - $ref: '#/components/parameters/InvoiceId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/ApprovalBinding'
       responses:
-        '200': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '200':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /projects/{projectId}/money-movements:
     post:
-      tags: [Money]
+      tags:
+      - Money
       operationId: recordMoneyMovement
       parameters:
-        - $ref: '#/components/parameters/ProjectId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
           application/json:
-            schema: {$ref: '#/components/schemas/MoneyMovementInput'}
+            schema:
+              $ref: '#/components/schemas/MoneyMovementInput'
       responses:
-        '201': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '201':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /money-movements/{movementId}/allocations:
     post:
-      tags: [Money]
+      tags:
+      - Money
       operationId: allocateMoneyMovement
       parameters:
-        - $ref: '#/components/parameters/MovementId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/MovementId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
           application/json:
-            schema: {$ref: '#/components/schemas/SettlementAllocationInput'}
+            schema:
+              $ref: '#/components/schemas/SettlementAllocationInput'
       responses:
-        '201': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '201':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /money-movements/{movementId}/reverse:
     post:
-      tags: [Money]
+      tags:
+      - Money
       operationId: reverseMoneyMovement
       parameters:
-        - $ref: '#/components/parameters/MovementId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody: {$ref: '#/components/requestBodies/Reason'}
+      - $ref: '#/components/parameters/MovementId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/Reason'
       responses:
-        '201': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '201':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /projects/{projectId}/expenses:
     post:
-      tags: [Expenses]
+      tags:
+      - Expenses
       operationId: createDirectExpense
       parameters:
-        - $ref: '#/components/parameters/ProjectId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
           application/json:
-            schema: {$ref: '#/components/schemas/DirectExpenseInput'}
+            schema:
+              $ref: '#/components/schemas/DirectExpenseInput'
       responses:
-        '201': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '201':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /expenses/{expenseId}/submit:
     post:
-      tags: [Expenses]
+      tags:
+      - Expenses
       operationId: submitDirectExpense
       parameters:
-        - $ref: '#/components/parameters/ExpenseId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/ExpenseId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       responses:
-        '202': {$ref: '#/components/responses/Approval'}
-        default: {$ref: '#/components/responses/Problem'}
+        '202':
+          $ref: '#/components/responses/Approval'
+        default:
+          $ref: '#/components/responses/Problem'
   /statements/{statementType}/{subjectId}:
     get:
-      tags: [Statements]
+      tags:
+      - Statements
       operationId: getOperationalStatement
       parameters:
-        - $ref: '#/components/parameters/StatementType'
-        - $ref: '#/components/parameters/SubjectId'
-        - {name: asOf, in: query, schema: {type: string, format: date}}
+      - $ref: '#/components/parameters/StatementType'
+      - $ref: '#/components/parameters/SubjectId'
+      - name: asOf
+        in: query
+        schema:
+          type: string
+          format: date
       responses:
         '200':
           description: Currency-partitioned source-linked operational statement
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Statement'}
-        default: {$ref: '#/components/responses/Problem'}
+              schema:
+                $ref: '#/components/schemas/Statement'
+        default:
+          $ref: '#/components/responses/Problem'
   /projects/{projectId}/profit:
     get:
-      tags: [Statements]
+      tags:
+      - Statements
       operationId: getProjectMarginAndCash
       parameters:
-        - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/ProjectId'
       responses:
         '200':
           description: Four separate formula-disclosed measures
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/ProfitView'}
-        default: {$ref: '#/components/responses/Problem'}
+              schema:
+                $ref: '#/components/schemas/ProfitView'
+        default:
+          $ref: '#/components/responses/Problem'
   /projects/{projectId}/claims:
     post:
-      tags: [Claims]
+      tags:
+      - Claims
       operationId: openSimpleClaim
       parameters:
-        - $ref: '#/components/parameters/ProjectId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
           application/json:
-            schema: {$ref: '#/components/schemas/ClaimInput'}
+            schema:
+              $ref: '#/components/schemas/ClaimInput'
       responses:
-        '201': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '201':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /claims/{claimId}/transition:
     post:
-      tags: [Claims]
-      operationId: transitionSimpleClaim
+      tags:
+      - Claims
+      operationId: moveClaimUnderReview
       parameters:
-        - $ref: '#/components/parameters/ClaimId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/ClaimId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [toState, reason]
+              additionalProperties: false
+              required:
+              - toState
+              - reason
               properties:
-                toState: {type: string, enum: [UNDER_REVIEW, RESOLVED, REJECTED]}
-                reason: {type: string, minLength: 3}
-                evidenceId: {$ref: '#/components/schemas/Uuid'}
-                approvalId: {$ref: '#/components/schemas/Uuid'}
+                toState:
+                  type: string
+                  enum:
+                  - UNDER_REVIEW
+                reason:
+                  type: string
+                  minLength: 3
       responses:
-        '200': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '200':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /claims/{claimId}/submit-outcome:
     post:
-      tags: [Claims]
+      tags:
+      - Claims
       operationId: submitClaimOutcomeForApproval
       parameters:
-        - $ref: '#/components/parameters/ClaimId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody: {$ref: '#/components/requestBodies/Reason'}
+      - $ref: '#/components/parameters/ClaimId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/ClaimOutcomeInput'
       responses:
-        '202': {$ref: '#/components/responses/Approval'}
-        default: {$ref: '#/components/responses/Problem'}
+        '202':
+          $ref: '#/components/responses/Approval'
+        default:
+          $ref: '#/components/responses/Problem'
   /projects/{projectId}/closure-assessment:
     post:
-      tags: [Closure]
+      tags:
+      - Closure
       operationId: assessProjectClosure
       parameters:
-        - $ref: '#/components/parameters/ProjectId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '201':
           description: Current reproducible assessment with every blocker
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/ClosureAssessment'}
-        default: {$ref: '#/components/responses/Problem'}
+              schema:
+                $ref: '#/components/schemas/ClosureAssessment'
+        default:
+          $ref: '#/components/responses/Problem'
   /projects/{projectId}/closure-exceptions:
     post:
-      tags: [Closure]
+      tags:
+      - Closure
       operationId: requestClosureException
       parameters:
-        - $ref: '#/components/parameters/ProjectId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [assessmentId, blockerIds, reason]
+              required:
+              - assessmentId
+              - blockerIds
+              - reason
               properties:
-                assessmentId: {$ref: '#/components/schemas/Uuid'}
-                blockerIds: {type: array, minItems: 1, items: {$ref: '#/components/schemas/Uuid'}}
-                reason: {type: string, minLength: 3}
+                assessmentId:
+                  $ref: '#/components/schemas/Uuid'
+                blockerIds:
+                  type: array
+                  minItems: 1
+                  items:
+                    $ref: '#/components/schemas/Uuid'
+                reason:
+                  type: string
+                  minLength: 3
       responses:
-        '202': {$ref: '#/components/responses/Approval'}
-        default: {$ref: '#/components/responses/Problem'}
+        '202':
+          $ref: '#/components/responses/Approval'
+        default:
+          $ref: '#/components/responses/Problem'
   /projects/{projectId}/final-close:
     post:
-      tags: [Closure]
+      tags:
+      - Closure
       operationId: finalCloseProject
       parameters:
-        - $ref: '#/components/parameters/ProjectId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [assessmentId, approvalId]
+              required:
+              - assessmentId
+              - approvalId
               properties:
-                assessmentId: {$ref: '#/components/schemas/Uuid'}
-                approvalId: {$ref: '#/components/schemas/Uuid'}
+                assessmentId:
+                  $ref: '#/components/schemas/Uuid'
+                approvalId:
+                  $ref: '#/components/schemas/Uuid'
       responses:
-        '200': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '200':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /projects/{projectId}/final-close/submit:
     post:
-      tags: [Closure]
+      tags:
+      - Closure
       operationId: submitFinalCloseForApproval
       parameters:
-        - $ref: '#/components/parameters/ProjectId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [assessmentId]
-              properties: {assessmentId: {$ref: '#/components/schemas/Uuid'}}
+              required:
+              - assessmentId
+              properties:
+                assessmentId:
+                  $ref: '#/components/schemas/Uuid'
       responses:
-        '202': {$ref: '#/components/responses/Approval'}
-        default: {$ref: '#/components/responses/Problem'}
+        '202':
+          $ref: '#/components/responses/Approval'
+        default:
+          $ref: '#/components/responses/Problem'
   /projects/{projectId}/reopen:
     post:
-      tags: [Closure]
+      tags:
+      - Closure
       operationId: reopenProject
       parameters:
-        - $ref: '#/components/parameters/ProjectId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [reason, approvalId]
+              required:
+              - reason
+              - approvalId
               properties:
-                reason: {type: string, minLength: 3}
-                approvalId: {$ref: '#/components/schemas/Uuid'}
+                reason:
+                  type: string
+                  minLength: 3
+                approvalId:
+                  $ref: '#/components/schemas/Uuid'
       responses:
-        '200': {$ref: '#/components/responses/Entity'}
-        default: {$ref: '#/components/responses/Problem'}
+        '200':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
   /projects/{projectId}/reopen/submit:
     post:
-      tags: [Closure]
+      tags:
+      - Closure
       operationId: submitReopenForApproval
       parameters:
-        - $ref: '#/components/parameters/ProjectId'
-        - $ref: '#/components/parameters/IfMatch'
-        - $ref: '#/components/parameters/IdempotencyKey'
-      requestBody: {$ref: '#/components/requestBodies/Reason'}
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/Reason'
       responses:
-        '202': {$ref: '#/components/responses/Approval'}
-        default: {$ref: '#/components/responses/Problem'}
+        '202':
+          $ref: '#/components/responses/Approval'
+        default:
+          $ref: '#/components/responses/Problem'
   /projects/{projectId}/audit-events:
     get:
-      tags: [Audit]
+      tags:
+      - Audit
       operationId: listProjectAuditEvents
       parameters:
-        - $ref: '#/components/parameters/ProjectId'
-        - $ref: '#/components/parameters/Cursor'
-        - $ref: '#/components/parameters/Limit'
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/Cursor'
+      - $ref: '#/components/parameters/Limit'
       responses:
-        '200': {$ref: '#/components/responses/EntityPage'}
-        default: {$ref: '#/components/responses/Problem'}
+        '200':
+          $ref: '#/components/responses/EntityPage'
+        default:
+          $ref: '#/components/responses/Problem'
+  /supplier-shipments/{shipmentId}/datasets:
+    post:
+      tags:
+      - Shipments
+      operationId: reviseSupplierShipmentDataset
+      parameters:
+      - $ref: '#/components/parameters/ShipmentId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/ShipmentDatasetRevisionInput'
+      responses:
+        '201':
+          description: Successful command result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
+  /sales-shipments/{shipmentId}/datasets:
+    post:
+      tags:
+      - Shipments
+      operationId: reviseSalesShipmentDataset
+      parameters:
+      - $ref: '#/components/parameters/ShipmentId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/ShipmentDatasetRevisionInput'
+      responses:
+        '201':
+          description: Successful command result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
+  /supplier-shipments/{shipmentId}/execution-transitions:
+    post:
+      tags:
+      - Shipments
+      operationId: transitionSupplierShipmentExecution
+      parameters:
+      - $ref: '#/components/parameters/ShipmentId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/ShipmentExecutionTransitionInput'
+      responses:
+        '200':
+          description: Successful command result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
+  /sales-shipments/{shipmentId}/execution-transitions:
+    post:
+      tags:
+      - Shipments
+      operationId: transitionSalesShipmentExecution
+      parameters:
+      - $ref: '#/components/parameters/ShipmentId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/ShipmentExecutionTransitionInput'
+      responses:
+        '200':
+          description: Successful command result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
+  /allocations/{allocationId}/reverse:
+    post:
+      tags:
+      - Money
+      operationId: reverseSettlementAllocation
+      parameters:
+      - $ref: '#/components/parameters/AllocationId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/AllocationReversalInput'
+      responses:
+        '201':
+          description: Successful command result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
+  /expenses/{expenseId}/corrections/submit:
+    post:
+      tags:
+      - Expenses
+      operationId: submitApprovedExpenseCorrection
+      parameters:
+      - $ref: '#/components/parameters/ExpenseId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/ExpenseCorrectionInput'
+      responses:
+        '202':
+          description: Approval request created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Approval'
+        default:
+          $ref: '#/components/responses/Problem'
+  /expenses/{expenseId}/corrections/apply:
+    post:
+      tags:
+      - Expenses
+      operationId: applyApprovedExpenseCorrection
+      parameters:
+      - $ref: '#/components/parameters/ExpenseId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/ApprovalBinding'
+      responses:
+        '200':
+          description: Successful command result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
+  /projects/{projectId}/cancel:
+    post:
+      tags:
+      - Projects
+      operationId: cancelUnexecutedProject
+      parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/Reason'
+      responses:
+        '200':
+          description: Successful command result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
+  /claims/{claimId}/apply-outcome:
+    post:
+      tags:
+      - Claims
+      operationId: applyApprovedClaimOutcome
+      parameters:
+      - $ref: '#/components/parameters/ClaimId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/ApprovalBinding'
+      responses:
+        '200':
+          description: Successful command result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
+  /outbound-manifests/{manifestId}:
+    get:
+      tags:
+      - Documents
+      operationId: getOutboundManifestExactPreview
+      parameters:
+      - $ref: '#/components/parameters/ManifestId'
+      responses:
+        '200':
+          description: Successful command result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutboundManifest'
+        default:
+          $ref: '#/components/responses/Problem'
+  /outbound-manifests/{manifestId}/revisions:
+    post:
+      tags:
+      - Documents
+      operationId: reviseOutboundManifest
+      parameters:
+      - $ref: '#/components/parameters/ManifestId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/OutboundManifestInput'
+      responses:
+        '201':
+          description: Successful command result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutboundManifest'
+        default:
+          $ref: '#/components/responses/Problem'
+  /outbound-manifests/{manifestId}/send-attempts:
+    get:
+      tags:
+      - Documents
+      operationId: listOutboundSendAttempts
+      parameters:
+      - $ref: '#/components/parameters/ManifestId'
+      responses:
+        '200':
+          description: Successful command result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendAttemptPage'
+        default:
+          $ref: '#/components/responses/Problem'
+  /sales-shipments/{shipmentId}/submit:
+    post:
+      tags:
+      - Shipments
+      operationId: submitSalesShipmentConfirmation
+      parameters:
+      - $ref: '#/components/parameters/ShipmentId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          $ref: '#/components/responses/Approval'
+        default:
+          $ref: '#/components/responses/Problem'
+  /supplier-invoices/{invoiceId}/cancel:
+    post:
+      tags:
+      - SupplierInvoices
+      operationId: cancelUnallocatedSupplierInvoice
+      parameters:
+      - $ref: '#/components/parameters/InvoiceId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/Reason'
+      responses:
+        '200':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
+  /sessions:
+    post:
+      tags:
+      - Access
+      operationId: signIn
+      security: []
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/AuthenticationInput'
+      responses:
+        '201':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        default:
+          $ref: '#/components/responses/Problem'
+  /sessions/current:
+    delete:
+      tags:
+      - Access
+      operationId: signOutCurrentSession
+      parameters:
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        default:
+          $ref: '#/components/responses/Problem'
+  /users:
+    get:
+      tags:
+      - Access
+      operationId: listPilotUsers
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntityPage'
+        default:
+          $ref: '#/components/responses/Problem'
+  /users/{userId}/roles:
+    put:
+      tags:
+      - Access
+      operationId: assignFixedPilotRoles
+      parameters:
+      - $ref: '#/components/parameters/UserId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/RoleAssignmentInput'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
+  /users/{userId}/sessions/{sessionId}/revoke:
+    post:
+      tags:
+      - Access
+      operationId: revokePilotUserSession
+      parameters:
+      - $ref: '#/components/parameters/UserId'
+      - $ref: '#/components/parameters/SessionId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
+  /recovery/backup-status:
+    get:
+      tags:
+      - Recovery
+      operationId: getBackupRecoveryStatus
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupStatus'
+        default:
+          $ref: '#/components/responses/Problem'
+  /recovery/restore-tests:
+    post:
+      tags:
+      - Recovery
+      operationId: startIsolatedRestoreTest
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/RestoreTestInput'
+      responses:
+        '202':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RestoreTest'
+        default:
+          $ref: '#/components/responses/Problem'
+  /recovery/restore-tests/{restoreTestId}:
+    get:
+      tags:
+      - Recovery
+      operationId: getIsolatedRestoreTest
+      parameters:
+      - $ref: '#/components/parameters/RestoreTestId'
+      responses:
+        '200':
+          description: Restore test status and retained evidence link
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RestoreTest'
+        default:
+          $ref: '#/components/responses/Problem'
 components:
   securitySchemes:
-    sessionCookie: {type: apiKey, in: cookie, name: __Host-orb_session}
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: __Host-orb_session
   parameters:
-    ProjectId: {name: projectId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
-    ContractId: {name: contractId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
-    ShipmentId: {name: shipmentId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
-    DocumentId: {name: documentId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
-    ManifestId: {name: manifestId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
-    EvidenceId: {name: evidenceId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
-    ApprovalId: {name: approvalId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
-    InvoiceId: {name: invoiceId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
-    MovementId: {name: movementId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
-    ExpenseId: {name: expenseId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
-    ClaimId: {name: claimId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
-    ItemId: {name: itemId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
-    RecordId: {name: recordId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
-    SubjectId: {name: subjectId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
-    MasterType: {name: masterType, in: path, required: true, schema: {type: string, enum: [customers, suppliers, coffee, currencies, expense-categories]}}
-    StatementType: {name: statementType, in: path, required: true, schema: {type: string, enum: [customer, supplier, sales-shipment, supplier-shipment, project]}}
-    IfMatch: {name: If-Match, in: header, required: true, description: Quoted current aggregate version, schema: {type: string, pattern: '^"[1-9][0-9]*"$'}}
-    IdempotencyKey: {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 16, maxLength: 128}}
-    Cursor: {name: cursor, in: query, schema: {type: string}}
-    Limit: {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 200, default: 50}}
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    ContractId:
+      name: contractId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    ShipmentId:
+      name: shipmentId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    DocumentId:
+      name: documentId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    ManifestId:
+      name: manifestId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    EvidenceId:
+      name: evidenceId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    ApprovalId:
+      name: approvalId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    InvoiceId:
+      name: invoiceId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    MovementId:
+      name: movementId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    ExpenseId:
+      name: expenseId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    ClaimId:
+      name: claimId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    ItemId:
+      name: itemId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    RecordId:
+      name: recordId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    SubjectId:
+      name: subjectId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    MasterType:
+      name: masterType
+      in: path
+      required: true
+      schema:
+        type: string
+        enum:
+        - customers
+        - suppliers
+        - coffee
+        - currencies
+        - expense-categories
+    StatementType:
+      name: statementType
+      in: path
+      required: true
+      schema:
+        type: string
+        enum:
+        - customer
+        - supplier
+        - sales-shipment
+        - supplier-shipment
+        - project
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: Quoted current aggregate version
+      schema:
+        type: string
+        pattern: ^"[1-9][0-9]*"$
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    AllocationId:
+      name: allocationId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    AttemptId:
+      name: attemptId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    RestoreTestId:
+      name: restoreTestId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
   requestBodies:
     EntityInput:
       required: true
       content:
         application/json:
-          schema: {type: object, minProperties: 1, additionalProperties: true}
+          schema:
+            type: object
+            minProperties: 1
+            additionalProperties: true
     ContractInput:
       required: true
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/ContractInput'}
+          schema:
+            $ref: '#/components/schemas/ContractInput'
     ShipmentInput:
       required: true
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/ShipmentInput'}
+          schema:
+            $ref: '#/components/schemas/ShipmentInput'
     Reason:
       required: true
       content:
@@ -811,274 +1619,1022 @@ components:
           schema:
             type: object
             additionalProperties: false
-            required: [reason]
-            properties: {reason: {type: string, minLength: 3}}
+            required:
+            - reason
+            properties:
+              reason:
+                type: string
+                minLength: 3
     ApprovalBinding:
       required: true
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/ApprovalBinding'}
+          schema:
+            $ref: '#/components/schemas/ApprovalBinding'
+    ShipmentDatasetRevisionInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ShipmentDatasetRevisionInput'
+    ShipmentExecutionTransitionInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ShipmentExecutionTransitionInput'
+    AllocationReversalInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AllocationReversalInput'
+    ExpenseCorrectionInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ExpenseCorrectionInput'
+    ClaimOutcomeInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ClaimOutcomeInput'
+    OutboundManifestInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/OutboundManifestInput'
+    AuthenticationInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AuthenticationInput'
+    RoleAssignmentInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RoleAssignmentInput'
+    RestoreTestInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RestoreTestInput'
   responses:
     Problem:
       description: RFC 9457; stable codes are defined in problem-details.md
       content:
         application/problem+json:
-          schema: {$ref: '#/components/schemas/Problem'}
+          schema:
+            $ref: '#/components/schemas/Problem'
     Entity:
       description: Permission-shaped entity with current version
       headers:
-        ETag: {description: Quoted current version, schema: {type: string}}
+        ETag:
+          description: Quoted current version
+          schema:
+            type: string
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/Entity'}
+          schema:
+            $ref: '#/components/schemas/Entity'
     EntityPage:
       description: Cursor page
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/EntityPage'}
+          schema:
+            $ref: '#/components/schemas/EntityPage'
     Approval:
       description: Fixed-matrix exact-version approval
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/Approval'}
+          schema:
+            $ref: '#/components/schemas/Approval'
   schemas:
-    Uuid: {type: string, format: uuid}
-    Decimal: {type: string, pattern: '^-?[0-9]+(\.[0-9]+)?$'}
-    Currency: {type: string, pattern: '^[A-Z]{3}$'}
-    TradeRoute: {type: string, enum: [FOREIGN_TO_FOREIGN, UAE_FREE_ZONE_REEXPORT, UAE_IMPORT]}
+    Uuid:
+      type: string
+      format: uuid
+    Decimal:
+      type: string
+      pattern: ^-?[0-9]+(\.[0-9]+)?$
+    Currency:
+      type: string
+      pattern: ^[A-Z]{3}$
+    TradeRoute:
+      type: string
+      enum:
+      - FOREIGN_TO_FOREIGN
+      - UAE_FREE_ZONE_REEXPORT
+      - UAE_IMPORT
     Entity:
       type: object
-      required: [id, version]
+      required:
+      - id
+      - version
       properties:
-        id: {$ref: '#/components/schemas/Uuid'}
-        version: {type: integer, minimum: 1}
+        id:
+          $ref: '#/components/schemas/Uuid'
+        version:
+          type: integer
+          minimum: 1
       additionalProperties: true
     EntityPage:
       type: object
-      required: [items]
+      required:
+      - items
       properties:
-        items: {type: array, items: {$ref: '#/components/schemas/Entity'}}
-        nextCursor: {type: [string, 'null']}
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Entity'
+        nextCursor:
+          type:
+          - string
+          - 'null'
     CreateProject:
       type: object
       additionalProperties: false
-      required: [customerId, salesContract]
+      required:
+      - customerId
+      - salesContract
       properties:
-        customerId: {$ref: '#/components/schemas/Uuid'}
-        salesContract: {$ref: '#/components/schemas/ContractInput'}
+        customerId:
+          $ref: '#/components/schemas/Uuid'
+        salesContract:
+          $ref: '#/components/schemas/ContractInput'
     ContractInput:
       type: object
-      required: [counterpartyId, coffeeSpecificationId, quantity, unitPrice, currency, route, incoterm, namedPlace]
+      required:
+      - counterpartyId
+      - coffeeSpecificationId
+      - quantity
+      - unitPrice
+      - currency
+      - route
+      - incoterm
+      - namedPlace
       properties:
-        counterpartyId: {$ref: '#/components/schemas/Uuid'}
-        coffeeSpecificationId: {$ref: '#/components/schemas/Uuid'}
-        quantity: {$ref: '#/components/schemas/Decimal'}
-        unitPrice: {$ref: '#/components/schemas/Decimal'}
-        currency: {$ref: '#/components/schemas/Currency'}
-        route: {$ref: '#/components/schemas/TradeRoute'}
-        incoterm: {type: string, minLength: 3}
-        namedPlace: {type: string, minLength: 1}
+        counterpartyId:
+          $ref: '#/components/schemas/Uuid'
+        coffeeSpecificationId:
+          $ref: '#/components/schemas/Uuid'
+        quantity:
+          $ref: '#/components/schemas/Decimal'
+        unitPrice:
+          $ref: '#/components/schemas/Decimal'
+        currency:
+          $ref: '#/components/schemas/Currency'
+        route:
+          $ref: '#/components/schemas/TradeRoute'
+        incoterm:
+          type: string
+          minLength: 3
+        namedPlace:
+          type: string
+          minLength: 1
         tolerances:
           type: object
           description: Omitted values persist as zero
           properties:
-            quantityUnder: {$ref: '#/components/schemas/Decimal'}
-            quantityOver: {$ref: '#/components/schemas/Decimal'}
-            netWeightUnder: {$ref: '#/components/schemas/Decimal'}
-            netWeightOver: {$ref: '#/components/schemas/Decimal'}
-            grossWeightUnder: {$ref: '#/components/schemas/Decimal'}
-            grossWeightOver: {$ref: '#/components/schemas/Decimal'}
+            quantityUnder:
+              $ref: '#/components/schemas/Decimal'
+            quantityOver:
+              $ref: '#/components/schemas/Decimal'
+            netWeightUnder:
+              $ref: '#/components/schemas/Decimal'
+            netWeightOver:
+              $ref: '#/components/schemas/Decimal'
+            grossWeightUnder:
+              $ref: '#/components/schemas/Decimal'
+            grossWeightOver:
+              $ref: '#/components/schemas/Decimal'
     ShipmentInput:
       type: object
-      required: [contractId, quantity, netWeight, grossWeight]
+      required:
+      - contractId
+      - quantity
+      - netWeight
+      - grossWeight
       properties:
-        contractId: {$ref: '#/components/schemas/Uuid'}
-        quantity: {$ref: '#/components/schemas/Decimal'}
-        netWeight: {$ref: '#/components/schemas/Decimal'}
-        grossWeight: {$ref: '#/components/schemas/Decimal'}
-        bags: {type: integer, minimum: 0}
-        logistics: {type: object, additionalProperties: true}
+        contractId:
+          $ref: '#/components/schemas/Uuid'
+        quantity:
+          $ref: '#/components/schemas/Decimal'
+        netWeight:
+          $ref: '#/components/schemas/Decimal'
+        grossWeight:
+          $ref: '#/components/schemas/Decimal'
+        bags:
+          type: integer
+          minimum: 0
+        logistics:
+          type: object
+          additionalProperties: true
     GenerateDocument:
       type: object
       additionalProperties: false
-      required: [kind, language, sourceDatasetId]
+      required:
+      - kind
+      - language
+      - sourceDatasetId
       properties:
-        kind: {type: string, enum: [CINV, PACKING_LIST]}
-        language: {type: string, enum: [AR, EN, BILINGUAL]}
-        sourceDatasetId: {$ref: '#/components/schemas/Uuid'}
+        kind:
+          type: string
+          enum:
+          - CINV
+          - PACKING_LIST
+        language:
+          type: string
+          enum:
+          - AR
+          - EN
+          - BILINGUAL
+        sourceDatasetId:
+          $ref: '#/components/schemas/Uuid'
     OutboundManifestInput:
       type: object
       additionalProperties: false
-      required: [documentRevisionId, outputSha256, to, cc, attachments, subject, bodyDigest]
+      required:
+      - documentRevisionId
+      - documentRevisionVersion
+      - outputSha256
+      - channel
+      - to
+      - cc
+      - attachments
+      - subject
+      - body
       properties:
-        documentRevisionId: {$ref: '#/components/schemas/Uuid'}
-        outputSha256: {type: string, pattern: '^[a-f0-9]{64}$'}
-        to: {type: array, minItems: 1, uniqueItems: true, items: {type: string, format: email}}
-        cc: {type: array, uniqueItems: true, items: {type: string, format: email}}
+        documentRevisionId:
+          $ref: '#/components/schemas/Uuid'
+        documentRevisionVersion:
+          type: integer
+          minimum: 1
+        outputSha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        channel:
+          type: string
+          enum:
+          - EMAIL
+        to:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            format: email
+        cc:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            format: email
         attachments:
           type: array
+          minItems: 1
           items:
-            type: object
-            required: [id, version, sha256]
-            properties:
-              id: {$ref: '#/components/schemas/Uuid'}
-              version: {type: integer, minimum: 1}
-              sha256: {type: string, pattern: '^[a-f0-9]{64}$'}
-        subject: {type: string, minLength: 1}
-        bodyDigest: {type: string, pattern: '^[a-f0-9]{64}$'}
+            $ref: '#/components/schemas/OutboundAttachment'
+        subject:
+          type: string
+          minLength: 1
+        body:
+          $ref: '#/components/schemas/OutboundBody'
+      description: Server verifies all lengths/hashes, canonicalizes ordered recipient/attachment fields, and computes manifestHash.
+        Approved manifests are immutable.
     ApprovalBinding:
       type: object
       additionalProperties: false
-      required: [approvalId]
-      properties: {approvalId: {$ref: '#/components/schemas/Uuid'}}
+      required:
+      - approvalId
+      properties:
+        approvalId:
+          $ref: '#/components/schemas/Uuid'
     OptionalApprovalBinding:
       type: object
       additionalProperties: false
-      properties: {approvalId: {$ref: '#/components/schemas/Uuid'}}
+      properties:
+        approvalId:
+          $ref: '#/components/schemas/Uuid'
     ApprovalDecision:
       type: object
       additionalProperties: false
-      required: [decision, comment]
+      required:
+      - decision
+      - comment
       properties:
-        decision: {type: string, enum: [APPROVED, REJECTED]}
-        comment: {type: string, minLength: 1}
+        decision:
+          type: string
+          enum:
+          - APPROVED
+          - REJECTED
+        comment:
+          type: string
+          minLength: 1
     Approval:
       type: object
-      required: [id, actionCode, subjectId, subjectVersion, subjectHash, requesterId, decision, version]
+      required:
+      - id
+      - actionCode
+      - subjectId
+      - subjectVersion
+      - subjectHash
+      - requesterId
+      - decision
+      - version
       properties:
-        id: {$ref: '#/components/schemas/Uuid'}
-        actionCode: {type: string, enum: [CONTRACT_VERSION, SUPPLIER_SHIPMENT_CONFIRMATION, TOLERANCE_EXCEPTION, SUPPLIER_INVOICE_CONFIRMATION, DIRECT_EXPENSE, DOCUMENT_OUTPUT, EXTERNAL_SEND, CLAIM_OUTCOME, CLOSURE_EXCEPTION, FINAL_CLOSE, REOPEN]}
-        subjectId: {$ref: '#/components/schemas/Uuid'}
-        subjectVersion: {type: integer, minimum: 1}
-        subjectHash: {type: string}
-        requesterId: {$ref: '#/components/schemas/Uuid'}
-        decision: {type: string, enum: [PENDING, APPROVED, REJECTED, EXPIRED]}
-        version: {type: integer, minimum: 1}
+        id:
+          $ref: '#/components/schemas/Uuid'
+        actionCode:
+          type: string
+          enum:
+          - CONTRACT_VERSION
+          - SUPPLIER_SHIPMENT_CONFIRMATION
+          - SALES_SHIPMENT_CONFIRMATION
+          - TOLERANCE_EXCEPTION
+          - SUPPLIER_INVOICE_CONFIRMATION
+          - DIRECT_EXPENSE
+          - EXPENSE_CORRECTION
+          - DOCUMENT_OUTPUT
+          - EXTERNAL_SEND
+          - CLAIM_OUTCOME
+          - CLOSURE_EXCEPTION
+          - FINAL_CLOSE
+          - REOPEN
+        subjectId:
+          $ref: '#/components/schemas/Uuid'
+        subjectVersion:
+          type: integer
+          minimum: 1
+        subjectHash:
+          type: string
+        requesterId:
+          $ref: '#/components/schemas/Uuid'
+        decision:
+          type: string
+          enum:
+          - PENDING
+          - APPROVED
+          - REJECTED
+          - EXPIRED
+        version:
+          type: integer
+          minimum: 1
     SupplierInvoiceInput:
       type: object
       additionalProperties: false
-      required: [supplierId, reference, invoiceDate, amount, currency, evidenceId]
+      required:
+      - supplierId
+      - reference
+      - invoiceDate
+      - amount
+      - currency
+      - evidenceId
       properties:
-        supplierId: {$ref: '#/components/schemas/Uuid'}
-        reference: {type: string}
-        invoiceDate: {type: string, format: date}
-        amount: {$ref: '#/components/schemas/Decimal'}
-        currency: {$ref: '#/components/schemas/Currency'}
-        evidenceId: {$ref: '#/components/schemas/Uuid'}
+        supplierId:
+          $ref: '#/components/schemas/Uuid'
+        reference:
+          type: string
+        invoiceDate:
+          type: string
+          format: date
+        amount:
+          $ref: '#/components/schemas/Decimal'
+        currency:
+          $ref: '#/components/schemas/Currency'
+        evidenceId:
+          $ref: '#/components/schemas/Uuid'
     MoneyMovementInput:
       type: object
-      required: [partyId, contractId, kind, amount, currency, occurredOn, reference]
+      required:
+      - partyId
+      - contractId
+      - kind
+      - amount
+      - currency
+      - occurredOn
+      - reference
       properties:
-        partyId: {$ref: '#/components/schemas/Uuid'}
-        contractId: {$ref: '#/components/schemas/Uuid'}
-        kind: {type: string, enum: [CUSTOMER_ADVANCE, CUSTOMER_RECEIPT, CUSTOMER_REFUND, SUPPLIER_ADVANCE, SUPPLIER_PAYMENT, SUPPLIER_REFUND]}
-        amount: {$ref: '#/components/schemas/Decimal'}
-        currency: {$ref: '#/components/schemas/Currency'}
-        occurredOn: {type: string, format: date}
-        reference: {type: string}
-        evidenceId: {$ref: '#/components/schemas/Uuid'}
+        partyId:
+          $ref: '#/components/schemas/Uuid'
+        contractId:
+          $ref: '#/components/schemas/Uuid'
+        kind:
+          type: string
+          enum:
+          - CUSTOMER_ADVANCE
+          - CUSTOMER_RECEIPT
+          - CUSTOMER_REFUND
+          - SUPPLIER_ADVANCE
+          - SUPPLIER_PAYMENT
+          - SUPPLIER_REFUND
+        amount:
+          $ref: '#/components/schemas/Decimal'
+        currency:
+          $ref: '#/components/schemas/Currency'
+        occurredOn:
+          type: string
+          format: date
+        reference:
+          type: string
+        evidenceId:
+          $ref: '#/components/schemas/Uuid'
     SettlementAllocationInput:
       type: object
       additionalProperties: false
-      required: [targetType, targetId, amount, currency]
+      required:
+      - targetType
+      - targetId
+      - amount
+      - currency
       properties:
-        targetType: {type: string, enum: [CINV, SUPPLIER_INVOICE]}
-        targetId: {$ref: '#/components/schemas/Uuid'}
-        amount: {$ref: '#/components/schemas/Decimal'}
-        currency: {$ref: '#/components/schemas/Currency'}
+        targetType:
+          type: string
+          enum:
+          - CINV
+          - SUPPLIER_INVOICE
+        targetId:
+          $ref: '#/components/schemas/Uuid'
+        amount:
+          $ref: '#/components/schemas/Decimal'
+        currency:
+          $ref: '#/components/schemas/Currency'
     DirectExpenseInput:
       type: object
       additionalProperties: false
-      required: [scope, vendorId, categoryCode, amount, currency, occurredOn, evidenceId]
+      required:
+      - scope
+      - vendorId
+      - categoryCode
+      - amount
+      - currency
+      - occurredOn
+      - evidenceId
       properties:
-        scope: {type: string, enum: [PROJECT, SALES_SHIPMENT]}
-        salesShipmentId: {$ref: '#/components/schemas/Uuid'}
-        vendorId: {$ref: '#/components/schemas/Uuid'}
-        categoryCode: {type: string}
-        amount: {$ref: '#/components/schemas/Decimal'}
-        currency: {$ref: '#/components/schemas/Currency'}
-        occurredOn: {type: string, format: date}
-        evidenceId: {$ref: '#/components/schemas/Uuid'}
+        scope:
+          type: string
+          enum:
+          - PROJECT
+          - SALES_SHIPMENT
+        salesShipmentId:
+          $ref: '#/components/schemas/Uuid'
+        vendorId:
+          $ref: '#/components/schemas/Uuid'
+        categoryCode:
+          type: string
+        amount:
+          $ref: '#/components/schemas/Decimal'
+        currency:
+          $ref: '#/components/schemas/Currency'
+        occurredOn:
+          type: string
+          format: date
+        evidenceId:
+          $ref: '#/components/schemas/Uuid'
     Statement:
       type: object
-      required: [subjectId, currencySections]
+      required:
+      - subjectId
+      - currencySections
       properties:
-        subjectId: {$ref: '#/components/schemas/Uuid'}
+        subjectId:
+          $ref: '#/components/schemas/Uuid'
         currencySections:
           type: array
           items:
             type: object
-            required: [currency, lines, balance]
+            required:
+            - currency
+            - lines
+            - balance
             properties:
-              currency: {$ref: '#/components/schemas/Currency'}
-              lines: {type: array, items: {$ref: '#/components/schemas/Entity'}}
-              balance: {$ref: '#/components/schemas/Decimal'}
+              currency:
+                $ref: '#/components/schemas/Currency'
+              lines:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Entity'
+              balance:
+                $ref: '#/components/schemas/Decimal'
     ProfitView:
       type: object
-      required: [expectedMargin, committedMargin, actualOperationalMargin, cashPosition, formulaVersion, sources]
+      required:
+      - expectedMargin
+      - committedMargin
+      - actualOperationalMargin
+      - cashPosition
+      - formulaVersion
+      - sources
       properties:
-        expectedMargin: {$ref: '#/components/schemas/Money'}
-        committedMargin: {$ref: '#/components/schemas/Money'}
-        actualOperationalMargin: {$ref: '#/components/schemas/Money'}
-        cashPosition: {$ref: '#/components/schemas/Money'}
-        formulaVersion: {type: string}
-        sources: {type: array, items: {$ref: '#/components/schemas/Entity'}}
+        expectedMargin:
+          $ref: '#/components/schemas/Money'
+        committedMargin:
+          $ref: '#/components/schemas/Money'
+        actualOperationalMargin:
+          $ref: '#/components/schemas/Money'
+        cashPosition:
+          $ref: '#/components/schemas/Money'
+        formulaVersion:
+          type: string
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/Entity'
     Money:
       type: object
-      required: [amount, currency]
+      required:
+      - amount
+      - currency
       properties:
-        amount: {$ref: '#/components/schemas/Decimal'}
-        currency: {$ref: '#/components/schemas/Currency'}
+        amount:
+          $ref: '#/components/schemas/Decimal'
+        currency:
+          $ref: '#/components/schemas/Currency'
     ClaimInput:
       type: object
-      required: [type, claimantId, respondentId, description]
+      required:
+      - type
+      - claimantId
+      - respondentId
+      - description
       properties:
-        salesShipmentId: {$ref: '#/components/schemas/Uuid'}
-        supplierShipmentId: {$ref: '#/components/schemas/Uuid'}
-        type: {type: string, enum: [QUANTITY, WEIGHT, QUALITY, DELIVERY, PRICE, DOCUMENT]}
-        claimantId: {$ref: '#/components/schemas/Uuid'}
-        respondentId: {$ref: '#/components/schemas/Uuid'}
-        description: {type: string, minLength: 3}
-        quantity: {$ref: '#/components/schemas/Decimal'}
-        amount: {$ref: '#/components/schemas/Decimal'}
-        currency: {$ref: '#/components/schemas/Currency'}
-        evidenceId: {$ref: '#/components/schemas/Uuid'}
+        salesShipmentId:
+          $ref: '#/components/schemas/Uuid'
+        supplierShipmentId:
+          $ref: '#/components/schemas/Uuid'
+        type:
+          type: string
+          enum:
+          - QUANTITY
+          - WEIGHT
+          - QUALITY
+          - DELIVERY
+          - PRICE
+          - DOCUMENT
+        claimantId:
+          $ref: '#/components/schemas/Uuid'
+        respondentId:
+          $ref: '#/components/schemas/Uuid'
+        description:
+          type: string
+          minLength: 3
+        quantity:
+          $ref: '#/components/schemas/Decimal'
+        amount:
+          $ref: '#/components/schemas/Decimal'
+        currency:
+          $ref: '#/components/schemas/Currency'
+        evidenceId:
+          $ref: '#/components/schemas/Uuid'
     ClosureAssessment:
       type: object
-      required: [id, projectId, projectVersion, blockers, assessedAt]
+      required:
+      - id
+      - projectId
+      - projectVersion
+      - blockers
+      - assessedAt
       properties:
-        id: {$ref: '#/components/schemas/Uuid'}
-        projectId: {$ref: '#/components/schemas/Uuid'}
-        projectVersion: {type: integer, minimum: 1}
-        assessedAt: {type: string, format: date-time}
+        id:
+          $ref: '#/components/schemas/Uuid'
+        projectId:
+          $ref: '#/components/schemas/Uuid'
+        projectVersion:
+          type: integer
+          minimum: 1
+        assessedAt:
+          type: string
+          format: date-time
         blockers:
           type: array
           items:
             type: object
-            required: [id, code, subjectId, exceptionEligible]
+            required:
+            - id
+            - code
+            - subjectId
+            - exceptionEligible
             properties:
-              id: {$ref: '#/components/schemas/Uuid'}
-              code: {type: string}
-              subjectId: {$ref: '#/components/schemas/Uuid'}
-              exceptionEligible: {type: boolean}
-              coveredByApprovalId: {$ref: '#/components/schemas/Uuid'}
+              id:
+                $ref: '#/components/schemas/Uuid'
+              code:
+                type: string
+              subjectId:
+                $ref: '#/components/schemas/Uuid'
+              exceptionEligible:
+                type: boolean
+              coveredByApprovalId:
+                $ref: '#/components/schemas/Uuid'
     Problem:
       type: object
-      required: [type, title, status, code, correlationId]
+      required:
+      - type
+      - title
+      - status
+      - code
+      - correlationId
       properties:
-        type: {type: string, format: uri-reference}
-        title: {type: string}
-        status: {type: integer, minimum: 400, maximum: 599}
-        detail: {type: string}
-        code: {type: string}
-        correlationId: {type: string}
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        detail:
+          type: string
+        code:
+          type: string
+        correlationId:
+          type: string
         errors:
           type: array
           items:
             type: object
-            required: [pointer, code, message]
+            required:
+            - pointer
+            - code
+            - message
             properties:
-              pointer: {type: string}
-              code: {type: string}
-              message: {type: string}
+              pointer:
+                type: string
+              code:
+                type: string
+              message:
+                type: string
       additionalProperties: true
+    ShipmentDatasetRevisionInput:
+      type: object
+      additionalProperties: false
+      required:
+      - reason
+      - dataset
+      properties:
+        reason:
+          type: string
+          minLength: 3
+        dataset:
+          $ref: '#/components/schemas/ShipmentInput'
+      description: Creates immutable active dataset revision; expires dataset-bound approvals and resets CONFIRMED shipment
+        to DRAFT. Revisions are forbidden once IN_TRANSIT or terminal.
+    ShipmentExecutionTransitionInput:
+      type: object
+      additionalProperties: false
+      required:
+      - toState
+      - reason
+      properties:
+        toState:
+          type: string
+          enum:
+          - IN_TRANSIT
+          - DELIVERED
+          - RECEIVED
+          - CANCELLED
+          - REJECTED
+        reason:
+          type: string
+          minLength: 3
+        evidenceId:
+          $ref: '#/components/schemas/Uuid'
+        occurredAt:
+          type: string
+          format: date-time
+      description: 'Server enforces aggregate-specific state graph: sales uses DELIVERED; supplier uses RECEIVED. Cancellation/rejection
+        preserve quantities and trigger balance/closure recomputation.'
+    AllocationReversalInput:
+      type: object
+      additionalProperties: false
+      required:
+      - reason
+      properties:
+        reason:
+          type: string
+          minLength: 3
+      description: Creates a compensating allocation row; original and all audit/statement history remain immutable.
+    ExpenseCorrectionInput:
+      type: object
+      additionalProperties: false
+      required:
+      - reason
+      - replacement
+      properties:
+        reason:
+          type: string
+          minLength: 3
+        replacement:
+          $ref: '#/components/schemas/DirectExpenseInput'
+      description: Exact cancellation-and-replacement bundle. Approval atomically cancels the approved original and approves
+        the immutable replacement; never edits/deletes either.
+    ClaimOutcomeInput:
+      type: object
+      additionalProperties: false
+      required:
+      - outcome
+      - reason
+      properties:
+        outcome:
+          type: string
+          enum:
+          - RESOLVED
+          - REJECTED
+        reason:
+          type: string
+          minLength: 3
+        evidenceId:
+          $ref: '#/components/schemas/Uuid'
+      description: Proposed terminal outcome, bound to claim version/hash. Submission does not change claim terminal state.
+    OutboundBody:
+      type: object
+      additionalProperties: false
+      required:
+      - mediaType
+      - contentBase64
+      - byteLength
+      - sha256
+      properties:
+        mediaType:
+          type: string
+          enum:
+          - text/plain; charset=utf-8
+          - text/html; charset=utf-8
+        contentBase64:
+          type: string
+          contentEncoding: base64
+        byteLength:
+          type: integer
+          minimum: 0
+        sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+    OutboundAttachment:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - version
+      - filename
+      - byteLength
+      - sha256
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        version:
+          type: integer
+          minimum: 1
+        filename:
+          type: string
+          minLength: 1
+        byteLength:
+          type: integer
+          minimum: 1
+        sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+    OutboundManifest:
+      allOf:
+      - $ref: '#/components/schemas/Entity'
+      - type: object
+        required:
+        - state
+        - manifestHash
+        - documentRevisionId
+        - documentRevisionVersion
+        - outputSha256
+        - channel
+        - to
+        - cc
+        - attachments
+        - subject
+        - body
+        properties:
+          state:
+            type: string
+            enum:
+            - DRAFT
+            - PENDING_APPROVAL
+            - APPROVED
+            - SENT
+            - CANCELLED
+            - SUPERSEDED
+          manifestHash:
+            type: string
+            pattern: ^[a-f0-9]{64}$
+          documentRevisionId:
+            $ref: '#/components/schemas/Uuid'
+          documentRevisionVersion:
+            type: integer
+          outputSha256:
+            type: string
+          channel:
+            type: string
+            enum:
+            - EMAIL
+          to:
+            type: array
+            items:
+              type: string
+          cc:
+            type: array
+            items:
+              type: string
+          attachments:
+            type: array
+            items:
+              $ref: '#/components/schemas/OutboundAttachment'
+          subject:
+            type: string
+          body:
+            $ref: '#/components/schemas/OutboundBody'
+          approvalId:
+            $ref: '#/components/schemas/Uuid'
+          approvalSubjectVersion:
+            type: integer
+    SendAttempt:
+      type: object
+      required:
+      - id
+      - manifestId
+      - manifestVersion
+      - manifestHash
+      - attemptNo
+      - requestedAt
+      - result
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        manifestId:
+          $ref: '#/components/schemas/Uuid'
+        manifestVersion:
+          type: integer
+          minimum: 1
+        manifestHash:
+          type: string
+        approvalId:
+          $ref: '#/components/schemas/Uuid'
+        attemptNo:
+          type: integer
+          minimum: 1
+        requestedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        result:
+          type: string
+          enum:
+          - ACCEPTED
+          - DELIVERED
+          - FAILED
+          - UNKNOWN
+        providerReference:
+          type:
+          - string
+          - 'null'
+        failureCode:
+          type:
+          - string
+          - 'null'
+        correlationId:
+          type: string
+    SendAttemptPage:
+      type: object
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SendAttempt'
+    AuthenticationInput:
+      type: object
+      additionalProperties: false
+      required:
+      - login
+      - credential
+      properties:
+        login:
+          type: string
+          minLength: 1
+        credential:
+          type: string
+          minLength: 1
+          writeOnly: true
+        mfaCode:
+          type: string
+          minLength: 6
+          maxLength: 12
+          writeOnly: true
+      description: Credential is handled only by the configured authentication boundary, never logged or returned.
+    Session:
+      allOf:
+      - $ref: '#/components/schemas/Entity'
+      - type: object
+        required:
+        - userId
+        - expiresAt
+        properties:
+          userId:
+            $ref: '#/components/schemas/Uuid'
+          expiresAt:
+            type: string
+            format: date-time
+          mfaRequired:
+            type: boolean
+    RoleAssignmentInput:
+      type: object
+      additionalProperties: false
+      required:
+      - roles
+      properties:
+        roles:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            enum:
+            - OWNER_ADMIN
+            - OPERATIONS
+            - FINANCE_VIEWER
+    BackupStatus:
+      type: object
+      required:
+      - lastSuccessfulBackupAt
+      - rpoMinutes
+      - encrypted
+      - separateCopy
+      - lastRestoreTest
+      properties:
+        lastSuccessfulBackupAt:
+          type: string
+          format: date-time
+        rpoMinutes:
+          type: integer
+          minimum: 0
+        encrypted:
+          type: boolean
+        separateCopy:
+          type: boolean
+        lastRestoreTest:
+          $ref: '#/components/schemas/RestoreTest'
+    RestoreTestInput:
+      type: object
+      additionalProperties: false
+      required:
+      - backupId
+      - objectSnapshotId
+      - isolatedEnvironment
+      properties:
+        backupId:
+          type: string
+          minLength: 1
+        objectSnapshotId:
+          type: string
+          minLength: 1
+        isolatedEnvironment:
+          type: string
+          minLength: 1
+    RestoreTest:
+      allOf:
+      - $ref: '#/components/schemas/Entity'
+      - type: object
+        required:
+        - state
+        - requestedAt
+        properties:
+          state:
+            type: string
+            enum:
+            - QUEUED
+            - RUNNING
+            - PASSED
+            - FAILED
+          requestedAt:
+            type: string
+            format: date-time
+          completedAt:
+            type:
+            - string
+            - 'null'
+            format: date-time
+          rpoMinutes:
+            type:
+            - integer
+            - 'null'
+          rtoMinutes:
+            type:
+            - integer
+            - 'null'
+          evidenceId:
+            $ref: '#/components/schemas/Uuid'

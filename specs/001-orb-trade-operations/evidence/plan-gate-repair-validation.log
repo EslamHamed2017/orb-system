@@ -1,0 +1,27 @@
+ORB Plan Gate repair validation
+UTC: 2026-11-05T19:49:30Z
+Reviewed failed baseline: 3dff582b650584da42596bd3e9ef86331a68e462
+Candidate state: pre-commit working tree; independent re-review still required
+
+Commands (run from /home/hermesops/orb-system):
+- date -u; git rev-parse HEAD; assert baseline equals 3dff582...
+- Python yaml.safe_load OpenAPI 3.1 structural/ref/operation/header/deferred-surface/targeted-regression checks
+- git diff --check
+- Python changed-file scope/no-tasks and UI route inventory checks
+
+Results:
+PASS baseline: 3dff582b650584da42596bd3e9ef86331a68e462
+PASS OpenAPI YAML 3.1 parse: 72 paths / 74 operations
+PASS local refs: 502 occurrences resolved
+PASS operationId uniqueness: 74
+PASS mutation headers: 58 mutations have Idempotency-Key; every existing-aggregate mutation has If-Match (only root master creation, atomic Project creation, evidence upload, sign-in, and restore-test creation are exempt from If-Match)
+PASS targeted functional gates: immutable shipment dataset revision and execution transitions; allocation reversal; approved-expense correction; non-bypassable claim outcome sequence; exact outbound bytes/metadata
+PASS active deferred-surface check: forbidden path/schema-component names absent for bank ingestion/integration, tax engine/pack, legacy migration, multiple-source allocation, shared-expense allocation, configurable approvals, and route designer
+PASS git diff --check
+PASS changed-file scope: 10 files including this log, all below specs/001-orb-trade-operations; no tasks.md
+PASS UI inventory: 21 route-pattern rows
+
+Notes:
+- Validation is planning-contract validation, not implementation/runtime acceptance.
+- The retained compatibility spike remains the source for dependency install/generate/typecheck/build evidence.
+- No Plan Gate ACCEPT is claimed. Independent re-review is required.

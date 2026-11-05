@@ -2,7 +2,7 @@
 
 **Feature Branch**: `001-orb-trade-operations`
 **Created**: 2026-11-05
-**Status**: Planning repaired; Plan Gate blocked only by compatibility evidence and independent review
+**Status**: Plan Gate repair candidate; compatibility evidence retained; independent re-review required
 **Release authority**: This file is the authoritative Release 1 scope. If another planning artifact conflicts, this file and ADR-001 control.
 
 ## Fixed delivery milestones
@@ -50,7 +50,7 @@ Given essential masters, Operations can create a Project and its one primary sal
 
 ### A2 — Supplier and sales shipment execution
 
-Operations creates and confirms a supplier shipment against an approved purchase contract, then creates a sales shipment against the approved sales contract and chooses exactly one confirmed supplier shipment as its primary source. Confirmation displays contracted, confirmed, delivered/cancelled, and remaining quantities. Outside-tolerance confirmation is blocked until Owner/Admin approves the exact shipment dataset and recorded reason.
+Operations creates a supplier-shipment dataset against an approved purchase contract, submits its exact version, and Owner/Admin approves it before confirmation. Operations then records `IN_TRANSIT` and `RECEIVED`, or a reasoned `CANCELLED`/`REJECTED`, through explicit versioned commands. A sales shipment similarly selects exactly one confirmed supplier shipment as primary source, confirms, and records `IN_TRANSIT` and `DELIVERED`, or a reasoned `CANCELLED`/`REJECTED`. Every command is idempotent, requires the current aggregate version, and emits audit. Confirmation displays contracted, confirmed, delivered/cancelled/rejected, and remaining quantities. Outside-tolerance confirmation is blocked until Owner/Admin approves the exact sales-shipment dataset and reason. A pre-transit dataset correction creates an immutable revision, expires all dataset-bound approvals, resets a confirmed shipment to `DRAFT`, and requires the full applicable submit/approve/confirm sequence again; dataset revision is forbidden after transit or terminal execution.
 
 ### A3 — Fixed route checklist and evidence
 
@@ -68,15 +68,15 @@ Users upload, view, and download authorized evidence. Uploads are immutable and 
 
 CINV and Packing List are generated from the same exact approved shipment dataset in Arabic, English, or bilingual mode. Generation has a status endpoint. An exact output version moves `DRAFT -> PENDING_APPROVAL -> APPROVED -> SENT` or `CANCELLED`; approved/sent bytes are immutable and correction creates a new version with reason.
 
-Before approval and again before send, the system freezes and displays: output ID/version and SHA-256, recipient list (To/Cc), attachment IDs/versions/SHA-256, subject, and body digest. Owner/Admin approval binds that exact manifest. Any recipient, attachment, body, subject, output, or output-version change invalidates approval and requires a new approval. Send is always an explicit human command after preview; there is no automatic delivery.
+Before approval and again before send, the system freezes and displays: channel, output ID/version/SHA-256, ordered To/Cc, every attachment ID/version/exact filename/byte size/SHA-256, exact subject, and exact body bytes/media type/byte size/SHA-256. Owner/Admin approval binds the canonical manifest hash and version. Approved manifests and body bytes are immutable. Any controlled change creates a superseding manifest, expires applicability of the old approval, and requires reapproval. Send accepts only the approved stored bytes—never caller-supplied or regenerated body/attachments—fails closed on any hash/version/availability mismatch, and appends each attempt and result (including failure/unknown) without erasing prior evidence. Send is an explicit human command after exact preview; there is no scheduled or automatic delivery.
 
 ### A5 — Supplier invoice and settlement
 
-Finance/Viewer records a simple supplier invoice against one supplier shipment and confirms it after fixed approval. Users record customer advances/receipts and supplier advances/payments before or after invoices. Allocations may be partial and many-to-many across eligible documents in the same party/currency, never exceeding movement availability or document outstanding value. Reversal preserves history. Supplier-shipment confirmation and supplier-invoice balance appear in supplier and Project statements.
+Finance/Viewer records a simple supplier invoice against one supplier shipment and confirms it after fixed approval. Users record customer advances/receipts and supplier advances/payments before or after invoices. Allocations may be partial and many-to-many across eligible documents in the same party/currency, never exceeding movement availability or document outstanding value. Allocation reversal is an explicit command against one active allocation; it appends a compensating allocation row, never edits the original, recalculates movement availability and target outstanding exactly in the same locked transaction, updates statements, and reopens shipment/Project financial closure when customer invoice outstanding becomes non-zero. Money-movement reversal likewise preserves history and reverses active allocations atomically or fails closed. Supplier-shipment confirmation and supplier-invoice balance appear in supplier and Project statements.
 
 ### A6 — Direct expense and approval
 
-Operations records an expense with vendor, category, amount/currency, proof, and exactly one scope: Project or sales shipment. Owner/Admin approves/rejects the exact version. Approved expense corrections use cancellation/replacement. Release 1 has no shared-expense distribution.
+Operations records an expense with vendor, category, amount/currency, proof, and exactly one scope: Project or sales shipment. Owner/Admin approves/rejects the exact version. Approved expense corrections use an exact-version correction approval: one approved command atomically cancels the immutable original and records the approved replacement linked both ways, with reason, evidence, actor, and audit. No edit/delete of an approved expense is possible. Cancellation/replacement recomputes statements, margin, closure assessment, and reopens Final Close for review if it invalidates the closed basis. Release 1 has no shared-expense distribution.
 
 ### A7 — Statements, margin, and cash
 
@@ -84,13 +84,13 @@ Authorized users view customer, supplier, sales-shipment, supplier-shipment, and
 
 ### A8 — Simple claims
 
-Operations opens a quantity, weight, quality, delivery, price, or document claim with party, shipment, description, optional quantity/amount, and evidence. Owner/Admin may move it through review to resolved or rejected with reason/evidence. Open/under-review claims block Project Final Close unless an exact blocker-specific closure exception is approved. Release 1 records the outcome only; it does not automate discounts, replacement logistics, compensation, or netting.
+Operations opens a quantity, weight, quality, delivery, price, or document claim with party, shipment, description, optional quantity/amount, and evidence. Operations may move it to review and submit an exact proposed `RESOLVED` or `REJECTED` outcome with reason/evidence. Submission never changes terminal state. A different Owner/Admin must approve the bound claim version/hash through the fixed matrix; only a subsequent idempotent apply command carrying that approval reaches the proposed terminal state. There is no direct terminal transition. Open/under-review claims block Project Final Close unless an exact blocker-specific closure exception is approved. Release 1 records the outcome only; it does not automate discounts, replacement logistics, compensation, or netting.
 
 ### A9 — Financial and final closure
 
 A non-cancelled shipment becomes `FINANCIALLY_CLOSED` automatically when its customer invoice balance is exactly zero; documents, route items, or claims may remain visibly open. It reopens financially after an authorized reversal/refund makes the balance non-zero. A Project becomes `FINANCIALLY_CLOSED` when all non-cancelled sales shipments are financially closed.
 
-Project `FINAL_CLOSED` is blocked until quantity/delivery, required route milestones/evidence, CINV/Packing List, supplier shipment/invoice obligations, direct expenses, claims, and required approvals are complete. Assessment returns every blocker. Owner/Admin may approve only eligible named blocker exceptions against the exact Project version, with reason. Final close and reopen require a fresh assessment, exact version, Owner/Admin command, reason for reopen, and immutable audit.
+Project `FINAL_CLOSED` is blocked until every non-cancelled sales shipment is delivered and financially closed; every non-cancelled supplier shipment is received; each non-cancelled received supplier shipment has at least one confirmed non-cancelled supplier invoice and every such invoice has exactly zero outstanding balance; required route milestones/evidence are complete; every non-cancelled sales shipment has approved non-cancelled CINV and Packing List revisions and the CINV customer outstanding is exactly zero; every direct expense is approved or validly cancelled/replaced; every claim is terminal through approved outcome; and no required approval is pending, rejected, expired, or version-stale. Assessment returns every blocker. Owner/Admin may approve only eligible named blocker exceptions against the exact Project version, with reason. Final close and reopen require a fresh assessment, exact version, Owner/Admin approval/application sequence, reason for reopen, and immutable audit. Any later authorized allocation/movement reversal, refund, document cancellation/revision, expense correction, claim reopening/new claim, or shipment cancellation/rejection that changes the assessed basis atomically invalidates the assessment and exceptions and reopens Final Close to `OPEN`; financial state is independently recalculated from exact customer outstanding balances.
 
 ### A10 — Bilingual MD3, security, audit, and recovery
 
@@ -125,11 +125,12 @@ Supplier shipment execution is `DRAFT -> CONFIRMED -> IN_TRANSIT -> RECEIVED`, w
 |---|---|---|---|
 | Sales/purchase contract or amendment | Operations | Owner/Admin | contract version; reason for amendment |
 | Supplier shipment confirmation | Operations | Owner/Admin | supplier-shipment dataset and source evidence |
+| Sales shipment confirmation | Operations | Owner/Admin | exact shipment dataset and primary-source binding |
 | Sales shipment tolerance exception | Operations | Owner/Admin | shipment dataset, breached fields/values, reason |
 | Supplier invoice confirmation | Finance/Viewer | Owner/Admin | invoice version and invoice evidence |
 | Direct expense | Operations | Owner/Admin | expense version and proof |
 | CINV/Packing List output | Operations | Owner/Admin | output version/hash and source dataset |
-| External send | Operations | Owner/Admin | exact output version/hash, To/Cc, attachment IDs/versions/hashes, subject/body digest |
+| External send | Operations | Owner/Admin | channel, exact output version/hash, ordered To/Cc, attachment IDs/versions/names/sizes/hashes, exact subject and body bytes/type/size/hash |
 | Claim resolution/rejection | Operations | Owner/Admin | claim version, reason, evidence |
 | Closure exception/final close/reopen | Operations or Finance/Viewer | Owner/Admin | Project version, named blocker(s), current assessment; reason mandatory for exception/reopen |
 
@@ -163,3 +164,17 @@ Bank import/matching, tax evidence pack, historical migration, multiple supplier
 ## Assumptions and boundaries
 
 AED, USD, and SAR are initial currencies. ORB is an operational trade system, not a ledger: no chart of accounts, journals, trial balance, inventory valuation, automated tax determination/filing, portals, or automated external email. The compatibility spike in `plan.md` remains blocking until a clean install and typecheck using exact pins is captured; this specification does not claim it passed.
+
+## Release 1 integrity invariants
+
+- **INV-01 — execution**: only the declared shipment graphs are reachable; each transition uses `If-Match`, `Idempotency-Key`, actor/time/reason/evidence, and append-only audit. Dataset revision is immutable, pre-transit only, expires approvals, and forces reapproval.
+- **INV-02 — settlement**: allocations and reversals are append-only same-party/same-currency decimals. One serializable transaction recalculates movement availability, document outstanding, statement balance, shipment financial state, Project financial state, and any final-close invalidation.
+- **INV-03 — approved expense**: correction is cancellation plus linked replacement under an exact-version Owner/Admin approval; destructive update/delete is absent.
+- **INV-04 — claim outcome**: `OPEN -> UNDER_REVIEW -> outcome proposed -> approved -> RESOLVED|REJECTED`; generic approval rejection rejects the proposal, not the claim itself. No API/UI path skips this sequence.
+- **INV-05 — final closure**: assessment is a versioned snapshot of reachable states. Only explicitly eligible named blockers may be excepted; money balance, required supplier invoice balance, immutable/audit, approval, and security blockers are never exception-eligible.
+- **INV-06 — outbound**: approval covers immutable exact stored output/body bytes and complete delivery metadata. Send reuses those bytes, verifies all hashes/lengths/version/approval, fails closed, and appends attempts/results.
+- **INV-07 — Release boundary**: no bank ingestion/integration, tax engine/pack, legacy migration, multiple shipment sources, shared-expense allocation, configurable approval rules, dynamic route design, or advanced claim settlement exists.
+
+## Acceptance traceability
+
+The executable source of truth is: requirements/journeys here -> operationIds in `contracts/openapi.yaml` -> named UI actions in `contracts/ui-workflows.md` -> numbered checks and retained evidence in `quickstart.md`. `quickstart.md` contains the complete R1-001–R1-020 and INV-01–INV-07 matrix; narrative alone earns no acceptance credit. Day-7 evidence is deployed smoke plus first controlled real entry and unresolved-risk log, not a claim that a week has elapsed. Day-14 evidence requires the full 2026-11-12–18 observation record and the frozen 2026-11-19 rerun. Dates never waive a failed control.

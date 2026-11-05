@@ -1,6 +1,6 @@
 # Implementation Plan: ORB Limited Daily-Use Operational Beta
 
-**Branch**: `001-orb-trade-operations` | **HEAD**: `e9c6a60` | **Date**: 2026-11-05 | **Spec**: [spec.md](spec.md)
+**Branch**: `001-orb-trade-operations` | **Reviewed failed baseline**: `3dff582` | **Repair candidate**: current branch commit (verify with `git rev-parse HEAD`) | **Date**: 2026-11-05 | **Spec**: [spec.md](spec.md)
 
 ## Summary and release strategy
 
@@ -72,4 +72,10 @@ tests/{unit,contract,integration,acceptance}
 
 ## Post-design Plan Gate
 
-**BLOCKED.** Functional artifacts are designed to be internally consistent, but task generation and implementation remain prohibited until (1) the compatibility spike has clean install and typecheck evidence and (2) an independent Plan Gate accepts the repaired artifacts. The schedule does not convert either condition into a pass.
+**PENDING INDEPENDENT RE-REVIEW.** The retained compatibility spike passes its limited clean-install/generate/typecheck/build purpose. This repair does not claim Plan Gate acceptance. Task generation and implementation remain prohibited until an independent reviewer accepts the complete functional and traceability design. The schedule does not convert any failed functional, security, integrity, recovery, or acceptance condition into a pass.
+
+## Contract surface inventory and repair scope
+
+The repaired OpenAPI contract has **72 paths / 74 operations**. New active surfaces cover immutable supplier/sales shipment dataset revisions, execution transitions, allocation reversal, approved-expense correction apply, claim outcome apply, exact outbound preview/revision/send-attempt history, and safe Project cancellation. Every mutation is idempotent; every mutation of an existing aggregate requires `If-Match`. Counts must be regenerated during review rather than trusted from prose. The pre-commit repair checks and exact results are retained in [evidence/plan-gate-repair-validation.log](evidence/plan-gate-repair-validation.log).
+
+Compatibility is a dependency/toolchain gate only. Its PASS does not imply functional completeness, acceptance traceability, runtime integration, security, recovery, or Plan Gate acceptance.

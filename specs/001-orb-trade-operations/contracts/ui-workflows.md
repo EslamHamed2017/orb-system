@@ -9,16 +9,16 @@
 | `/masters/{customers|suppliers|coffee|currencies|expense-categories}` | Essential masters | list/create/edit/archive subject to role |
 | `/projects` | Project list | filter/search; create Project |
 | `/projects/new` | Create Project wizard | customer -> sales contract/route/tolerances -> review/create |
-| `/projects/{id}/overview` | Project overview | states, quantities, money, blockers, audit summary |
+| `/projects/{id}/overview` | Project overview | states, quantities, money, blockers, audit summary; Owner/Admin reasoned cancel only before execution |
 | `/projects/{id}/contracts` | Contracts | view/version/submit sales contract; add/version/submit purchase contract |
-| `/projects/{id}/shipments` | Shipments | create sales/supplier shipment; confirm; choose one primary source |
+| `/projects/{id}/shipments` | Shipments | create/revise exact datasets; submit/approve/confirm; choose one primary source; record transit/delivery/receipt/cancel/reject |
 | `/sales-shipments/{id}` | Sales shipment workspace | Dataset, Route checklist, Evidence, Documents, Settlement, Expense, Claims, Closure tabs |
-| `/supplier-shipments/{id}` | Supplier shipment workspace | dataset/confirm, evidence, invoice, payment, statement |
-| `/projects/{id}/money` | Money | advances/receipts/payments; settlement allocation/reversal |
-| `/projects/{id}/expenses` | Direct expenses | draft, proof, submit, approve/reject/cancel |
+| `/supplier-shipments/{id}` | Supplier shipment workspace | dataset/submit/approve/confirm/transitions, evidence, invoice submit/approve/confirm or unallocated cancel, payment, statement |
+| `/projects/{id}/money` | Money | advances/receipts/payments; allocate; reverse a selected allocation with reason; inspect exact recalculated balances |
+| `/projects/{id}/expenses` | Direct expenses | draft/proof/submit/approve; approved correction by exact cancellation/replacement approval; inspect immutable pair |
 | `/projects/{id}/statements` | Statements | customer/supplier/sales-shipment/supplier-shipment/Project views |
 | `/projects/{id}/profit` | Profit and cash | four measures, formula, source drill-down |
-| `/projects/{id}/claims` | Claims | open, review, resolve/reject with evidence |
+| `/projects/{id}/claims` | Claims | open; move to review; propose outcome; Owner/Admin approve; apply approved resolution/rejection |
 | `/projects/{id}/closure` | Closure | assessment/blockers, exception request/approval, final close/reopen |
 | `/approvals` | Fixed approval inbox | inspect exact version/hash/diff/evidence; approve/reject |
 | `/documents/{id}` | Document workspace | generate/status/preview/revise/submit/approve, manifest/send/cancel |
@@ -44,7 +44,9 @@ Create Project is atomic with one sales-contract draft. Tolerances default visib
 
 ### Supplier and sales shipment
 
-Supplier shipment must be confirmed through approval before it is selectable as source. Sales shipment shows remaining contract quantity and exactly one primary-source picker. Confirm performs route/source/tolerance assessment. A tolerance failure shows each limit/actual and offers “Request exception”; approval is exact-dataset only.
+Supplier shipment must be submitted and approved before Confirm makes it selectable as source. Both shipment workspaces expose an immutable Dataset history and `Revise dataset` only in Draft/Confirmed; revision requires reason, shows old/new diff, expires approval/exception badges, resets Confirmed to Draft, and forces reapproval. There is no revision control in transit/terminal states. Sales shipment shows contracted, confirmed, delivered, cancelled/rejected, remaining quantity and exactly one primary-source picker. Submit binds the exact dataset/source for different Owner/Admin approval; Confirm requires it. Confirm performs route/source/tolerance assessment. A tolerance failure shows each limit/actual and offers “Request exception”; approval is exact-dataset only.
+
+Execution controls are explicit and graph-aware: supplier `Confirm -> Mark in transit -> Mark received`, sales `Confirm -> Mark in transit -> Mark delivered`; eligible Draft/Confirmed records offer Cancel, and Confirmed/In-transit records offer Reject. Each dialog shows current/target state and version, requires reason (and evidence/time where applicable), sends `If-Match` plus idempotency, and displays the resulting audit event and quantity/closure impact. Invalid target buttons are absent and server rejection is still handled.
 
 ### Fixed route checklist and evidence
 
@@ -54,15 +56,17 @@ The route and template version are read-only. Items display Not started/In progr
 
 Generate asks kind and language, identifies the exact shipment dataset, returns to a status panel (`Queued/Rendering/Ready/Failed`), and enables preview only when ready. CINV/Packing List shared-field comparison must show zero mismatch. Submit/approve binds revision/version/hash. Revise/cancel requires reason and preserves earlier bytes.
 
-Send uses a separate manifest step: editable To/Cc, subject/body, and attachment selector; preview displays every attachment ID/version/hash and the output ID/version/hash. Submit creates a manifest hash. Owner/Admin approves that exact manifest. Any edit marks approval expired. `Send now` requires a fresh preview and exact approval, shows final recipients/attachments, and records sent/failed delivery; there is no scheduled/automatic send.
+Send uses a separate manifest step with channel, ordered To/Cc, exact subject, exact body bytes/media type/byte size/SHA-256, and attachments. Preview displays every attachment ID/version/exact outbound filename/byte size/SHA-256 plus output ID/version/hash. Submit freezes a canonical manifest version/hash. Owner/Admin approves that exact version. Approved fields are read-only; Revise creates a superseding manifest and marks prior approval inapplicable. `Send now` refreshes the stored exact preview, accepts no editable payload, verifies every byte/hash/version and approval, fails closed on drift/unavailability, and appends attempt number/time/result/provider reference or safe failure code. Retry creates another attempt. There is no scheduled/automatic send.
 
 ### Supplier invoice, money, and expense
 
-Supplier invoice is one shipment/reference/date/amount/currency/evidence with submit/approve. Money capture permits customer/supplier advance before invoice. Allocation shows available and target outstanding, same party/currency, supports partial rows, and previews post-balance. Reversal creates a compensating record. Direct expense selects Project or one shipment—not both—then proof and fixed approval. No allocation controls appear.
+Supplier invoice is one shipment/reference/date/amount/currency/evidence with submit/approve. Money capture permits customer/supplier advance before invoice and reasoned movement reversal where eligible. Allocation shows available and target outstanding, same party/currency, supports partial rows, and previews post-balance. Reverse allocation selects one active row, requires reason/current version, previews movement availability plus invoice/shipment/Project balances, and then displays immutable original/compensating rows and any financial/final-close reopening. Direct expense selects Project or one shipment—not both—then proof and fixed approval. An approved expense has no Edit/Delete: Correct creates an old/new diff and reason, submits the exact pair, and only approved Apply atomically cancels old and approves linked replacement; both evidence sets remain viewable. No allocation controls appear on expense screens.
 
 ### Statements, profit, claims, and closure
 
-Statements have fixed tabs and separate currency sections; every row drills to source. Profit has exactly four visually distinct cards with as-of/formula/source lines. Claims capture the simple lifecycle only. Closure always refreshes assessment before action, groups all blockers, and allows exceptions only for items flagged eligible. Final close/reopen dialogs name Project version/state and require applicable reasons.
+Statements have fixed tabs and separate currency sections; every row drills to source. Profit has exactly four visually distinct cards with as-of/formula/source lines. Claims capture the simple lifecycle only: Operations can move Open to Under review and submit a proposed Resolved/Rejected outcome; terminal buttons do not exist. The approval inbox shows proposed outcome, exact claim version/hash, reason/evidence and self-approval denial. Apply appears only after approval and is the sole terminal action. A rejected approval leaves the claim Under review.
+
+Closure always refreshes assessment before action, groups all blockers from reachable states, and allows exceptions only for items flagged eligible; financial balance, immutable/audit, approval-integrity, and security blockers never show exception controls. Reversal/refund, shipment cancellation/rejection, document cancellation/revision, expense correction, or new/reopened claim shows an immediate `Final close reopened/assessment stale` result and links to the new assessment. Final close/reopen dialogs name Project version/state and require applicable reasons.
 
 ## ORB Material Design 3 visual acceptance
 
