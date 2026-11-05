@@ -1,6 +1,6 @@
 # Specification Quality Checklist: ORB Trade Operations Core
 
-**Purpose**: Validate specification completeness and quality before proceeding to clarification
+**Purpose**: Validate specification completeness and quality after completed clarification and before planning
 **Created**: 2026-11-05
 **Feature**: [spec.md](../spec.md)
 
@@ -31,5 +31,6 @@
 
 ## Notes
 
-- Clarification remains mandatory before planning because the independent Plan Gate found material domain, security, bank, and migration risks.
+- Clarification completed on 2026-11-05 with five decisions encoded directly in spec.md.
+- Independent planning review remains required before implementation.
 - The specification intentionally keeps tax treatment adviser-controlled and excludes accounting and automated filing.
