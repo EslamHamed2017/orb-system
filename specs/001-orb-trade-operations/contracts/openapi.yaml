@@ -2,29 +2,50 @@ openapi: 3.1.0
 info:
   title: ORB Release 1 Operational Beta API
   version: 1.0.0-beta-plan
-  description: Authoritative Release 1 API. Deferred features have no paths.
+  description: Authoritative Release 1 API. Deferred features have no paths. Cookie sessions use __Host-orb_session with Secure,
+    HttpOnly, Path=/ and SameSite=Strict; no Domain attribute. The server fails closed on missing/mismatched Origin and Referer
+    for cookie-authenticated mutations, requires a session-bound X-CSRF-Token, rotates both session and CSRF tokens at sign-in,
+    privilege change and reauthentication, expires idle sessions after 30 minutes and absolute sessions after 12 hours, and
+    invalidates both tokens on logout or revocation.
 servers:
 - url: /api/v1
 security:
 - sessionCookie: []
 tags:
 - name: Recovery
+  description: Recovery operations in the fixed Release 1 pilot.
 - name: Access
+  description: Access operations in the fixed Release 1 pilot.
 - name: Masters
+  description: Masters operations in the fixed Release 1 pilot.
 - name: Projects
+  description: Projects operations in the fixed Release 1 pilot.
 - name: Contracts
+  description: Contracts operations in the fixed Release 1 pilot.
 - name: Shipments
+  description: Shipments operations in the fixed Release 1 pilot.
 - name: Routes
+  description: Routes operations in the fixed Release 1 pilot.
 - name: Evidence
+  description: Evidence operations in the fixed Release 1 pilot.
 - name: Documents
+  description: Documents operations in the fixed Release 1 pilot.
 - name: Approvals
+  description: Approvals operations in the fixed Release 1 pilot.
 - name: SupplierInvoices
+  description: SupplierInvoices operations in the fixed Release 1 pilot.
 - name: Money
+  description: Money operations in the fixed Release 1 pilot.
 - name: Expenses
+  description: Expenses operations in the fixed Release 1 pilot.
 - name: Statements
+  description: Statements operations in the fixed Release 1 pilot.
 - name: Claims
+  description: Claims operations in the fixed Release 1 pilot.
 - name: Closure
+  description: Closure operations in the fixed Release 1 pilot.
 - name: Audit
+  description: Audit operations in the fixed Release 1 pilot.
 paths:
   /masters/{masterType}:
     parameters:
@@ -38,12 +59,18 @@ paths:
           $ref: '#/components/responses/EntityPage'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: List master records
     post:
       tags:
       - Masters
       operationId: createMasterRecord
       parameters:
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         $ref: '#/components/requestBodies/EntityInput'
       responses:
@@ -51,6 +78,10 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Create master record
   /masters/{masterType}/{recordId}:
     parameters:
     - $ref: '#/components/parameters/MasterType'
@@ -62,6 +93,7 @@ paths:
       parameters:
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         $ref: '#/components/requestBodies/EntityInput'
       responses:
@@ -69,6 +101,10 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Update master record
   /projects:
     get:
       tags:
@@ -82,12 +118,18 @@ paths:
           $ref: '#/components/responses/EntityPage'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: List projects
     post:
       tags:
       - Projects
       operationId: createProjectWithSalesContract
       parameters:
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         required: true
         content:
@@ -99,6 +141,10 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Create project with sales contract
   /projects/{projectId}:
     parameters:
     - $ref: '#/components/parameters/ProjectId'
@@ -111,6 +157,11 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: Get project
   /projects/{projectId}/purchase-contracts:
     post:
       tags:
@@ -120,6 +171,7 @@ paths:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         $ref: '#/components/requestBodies/ContractInput'
       responses:
@@ -127,6 +179,10 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Create purchase contract
   /contracts/{contractId}/amendments:
     post:
       tags:
@@ -136,6 +192,7 @@ paths:
       - $ref: '#/components/parameters/ContractId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         required: true
         content:
@@ -159,6 +216,10 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Create contract amendment
   /contracts/{contractId}/submit:
     post:
       tags:
@@ -168,11 +229,16 @@ paths:
       - $ref: '#/components/parameters/ContractId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       responses:
         '202':
           $ref: '#/components/responses/Approval'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Submit contract for approval
   /projects/{projectId}/supplier-shipments:
     post:
       tags:
@@ -182,13 +248,22 @@ paths:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
-        $ref: '#/components/requestBodies/ShipmentInput'
+        $ref: '#/components/requestBodies/SupplierShipmentCreateInput'
       responses:
         '201':
-          $ref: '#/components/responses/Entity'
+          description: Typed response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierShipmentWorkspace'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Create supplier shipment
   /supplier-shipments/{shipmentId}/submit:
     post:
       tags:
@@ -198,11 +273,16 @@ paths:
       - $ref: '#/components/parameters/ShipmentId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       responses:
         '202':
           $ref: '#/components/responses/Approval'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Submit supplier shipment confirmation
   /supplier-shipments/{shipmentId}/confirm:
     post:
       tags:
@@ -212,13 +292,22 @@ paths:
       - $ref: '#/components/parameters/ShipmentId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         $ref: '#/components/requestBodies/ApprovalBinding'
       responses:
         '200':
-          $ref: '#/components/responses/Entity'
+          description: Typed response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierShipmentWorkspace'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Confirm supplier shipment
   /projects/{projectId}/sales-shipments:
     post:
       tags:
@@ -228,13 +317,22 @@ paths:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
-        $ref: '#/components/requestBodies/ShipmentInput'
+        $ref: '#/components/requestBodies/SalesShipmentCreateInput'
       responses:
         '201':
-          $ref: '#/components/responses/Entity'
+          description: Typed response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesShipmentWorkspace'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Create sales shipment
   /sales-shipments/{shipmentId}/primary-source:
     put:
       tags:
@@ -244,6 +342,7 @@ paths:
       - $ref: '#/components/parameters/ShipmentId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         required: true
         content:
@@ -258,9 +357,17 @@ paths:
                   $ref: '#/components/schemas/Uuid'
       responses:
         '200':
-          $ref: '#/components/responses/Entity'
+          description: Typed response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesShipmentWorkspace'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Set primary supplier source
   /sales-shipments/{shipmentId}/tolerance-exceptions:
     post:
       tags:
@@ -270,6 +377,7 @@ paths:
       - $ref: '#/components/parameters/ShipmentId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         required: true
         content:
@@ -293,6 +401,10 @@ paths:
           $ref: '#/components/responses/Approval'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Request tolerance exception
   /sales-shipments/{shipmentId}/confirm:
     post:
       tags:
@@ -302,13 +414,22 @@ paths:
       - $ref: '#/components/parameters/ShipmentId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         $ref: '#/components/requestBodies/ApprovalBinding'
       responses:
         '200':
-          $ref: '#/components/responses/Entity'
+          description: Typed response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesShipmentWorkspace'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Confirm sales shipment
   /sales-shipments/{shipmentId}/route-checklist:
     get:
       tags:
@@ -321,6 +442,11 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: Get fixed route checklist
   /sales-shipments/{shipmentId}/route-items/{itemId}:
     patch:
       tags:
@@ -331,6 +457,7 @@ paths:
       - $ref: '#/components/parameters/ItemId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         required: true
         content:
@@ -353,6 +480,10 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Update route evidence or milestone
   /evidence:
     post:
       tags:
@@ -366,6 +497,7 @@ paths:
         schema:
           type: string
           pattern: ^[a-f0-9]{64}$
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         required: true
         content:
@@ -389,9 +521,17 @@ paths:
                   type: string
       responses:
         '201':
-          $ref: '#/components/responses/Entity'
+          description: Immutable uploaded evidence metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvidenceMetadata'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Upload evidence
   /evidence/{evidenceId}:
     get:
       tags:
@@ -401,9 +541,18 @@ paths:
       - $ref: '#/components/parameters/EvidenceId'
       responses:
         '200':
-          $ref: '#/components/responses/Entity'
+          description: Immutable evidence metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvidenceMetadata'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: Get evidence metadata
   /evidence/{evidenceId}/content:
     get:
       tags:
@@ -429,6 +578,11 @@ paths:
                 format: binary
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: View or download evidence
   /sales-shipments/{shipmentId}/documents:
     post:
       tags:
@@ -438,6 +592,7 @@ paths:
       - $ref: '#/components/parameters/ShipmentId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         required: true
         content:
@@ -449,6 +604,10 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Generate shipment document
   /documents/{documentId}/status:
     get:
       tags:
@@ -461,6 +620,11 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: Get document generation status
   /documents/{documentId}/revisions:
     post:
       tags:
@@ -470,6 +634,7 @@ paths:
       - $ref: '#/components/parameters/DocumentId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         $ref: '#/components/requestBodies/Reason'
       responses:
@@ -477,6 +642,10 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Revise document
   /documents/{documentId}/submit:
     post:
       tags:
@@ -486,11 +655,16 @@ paths:
       - $ref: '#/components/parameters/DocumentId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       responses:
         '202':
           $ref: '#/components/responses/Approval'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Submit document for approval
   /documents/{documentId}/cancel:
     post:
       tags:
@@ -500,6 +674,7 @@ paths:
       - $ref: '#/components/parameters/DocumentId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         $ref: '#/components/requestBodies/Reason'
       responses:
@@ -507,6 +682,10 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Cancel document revision
   /documents/{documentId}/outbound-manifests:
     post:
       tags:
@@ -516,6 +695,7 @@ paths:
       - $ref: '#/components/parameters/DocumentId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         required: true
         content:
@@ -527,6 +707,10 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Create outbound manifest
   /outbound-manifests/{manifestId}/submit:
     post:
       tags:
@@ -536,11 +720,16 @@ paths:
       - $ref: '#/components/parameters/ManifestId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       responses:
         '202':
           $ref: '#/components/responses/Approval'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Submit outbound manifest for approval
   /outbound-manifests/{manifestId}/send:
     post:
       tags:
@@ -550,6 +739,7 @@ paths:
       - $ref: '#/components/parameters/ManifestId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         $ref: '#/components/requestBodies/ApprovalBinding'
       responses:
@@ -561,6 +751,10 @@ paths:
                 $ref: '#/components/schemas/SendAttempt'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Send approved outbound manifest
   /outbound-manifests/{manifestId}/cancel:
     post:
       tags:
@@ -570,6 +764,7 @@ paths:
       - $ref: '#/components/parameters/ManifestId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         $ref: '#/components/requestBodies/Reason'
       responses:
@@ -577,6 +772,10 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Cancel outbound manifest
   /approvals:
     get:
       tags:
@@ -584,9 +783,16 @@ paths:
       operationId: listFixedApprovalInbox
       responses:
         '200':
-          $ref: '#/components/responses/EntityPage'
+          description: Typed response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalPage'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      summary: List fixed approval inbox
   /approvals/{approvalId}/decision:
     post:
       tags:
@@ -596,6 +802,7 @@ paths:
       - $ref: '#/components/parameters/ApprovalId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         required: true
         content:
@@ -607,6 +814,9 @@ paths:
           $ref: '#/components/responses/Approval'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      summary: Decide fixed approval
   /supplier-shipments/{shipmentId}/invoices:
     post:
       tags:
@@ -616,6 +826,7 @@ paths:
       - $ref: '#/components/parameters/ShipmentId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         required: true
         content:
@@ -627,6 +838,10 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - FINANCE_VIEWER
+      summary: Create supplier invoice
   /supplier-invoices/{invoiceId}/submit:
     post:
       tags:
@@ -636,11 +851,16 @@ paths:
       - $ref: '#/components/parameters/InvoiceId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       responses:
         '202':
           $ref: '#/components/responses/Approval'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - FINANCE_VIEWER
+      summary: Submit supplier invoice
   /supplier-invoices/{invoiceId}/confirm:
     post:
       tags:
@@ -650,6 +870,7 @@ paths:
       - $ref: '#/components/parameters/InvoiceId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         $ref: '#/components/requestBodies/ApprovalBinding'
       responses:
@@ -657,6 +878,10 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - FINANCE_VIEWER
+      summary: Confirm supplier invoice
   /projects/{projectId}/money-movements:
     post:
       tags:
@@ -666,6 +891,7 @@ paths:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         required: true
         content:
@@ -677,6 +903,10 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - FINANCE_VIEWER
+      summary: Record money movement
   /money-movements/{movementId}/allocations:
     post:
       tags:
@@ -686,6 +916,7 @@ paths:
       - $ref: '#/components/parameters/MovementId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         required: true
         content:
@@ -697,6 +928,10 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - FINANCE_VIEWER
+      summary: Allocate money movement
   /money-movements/{movementId}/reverse:
     post:
       tags:
@@ -706,6 +941,7 @@ paths:
       - $ref: '#/components/parameters/MovementId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         $ref: '#/components/requestBodies/Reason'
       responses:
@@ -713,6 +949,10 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - FINANCE_VIEWER
+      summary: Reverse money movement
   /projects/{projectId}/expenses:
     post:
       tags:
@@ -722,6 +962,7 @@ paths:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         required: true
         content:
@@ -733,6 +974,10 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Create direct expense
   /expenses/{expenseId}/submit:
     post:
       tags:
@@ -742,11 +987,16 @@ paths:
       - $ref: '#/components/parameters/ExpenseId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       responses:
         '202':
           $ref: '#/components/responses/Approval'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Submit direct expense
   /statements/{statementType}/{subjectId}:
     get:
       tags:
@@ -769,6 +1019,11 @@ paths:
                 $ref: '#/components/schemas/Statement'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: Get operational statement
   /projects/{projectId}/profit:
     get:
       tags:
@@ -785,6 +1040,11 @@ paths:
                 $ref: '#/components/schemas/ProfitView'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: Get project margin and cash
   /projects/{projectId}/claims:
     post:
       tags:
@@ -794,6 +1054,7 @@ paths:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         required: true
         content:
@@ -805,6 +1066,10 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Open simple claim
   /claims/{claimId}/transition:
     post:
       tags:
@@ -814,6 +1079,7 @@ paths:
       - $ref: '#/components/parameters/ClaimId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         required: true
         content:
@@ -837,6 +1103,10 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Move claim under review
   /claims/{claimId}/submit-outcome:
     post:
       tags:
@@ -846,6 +1116,7 @@ paths:
       - $ref: '#/components/parameters/ClaimId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         $ref: '#/components/requestBodies/ClaimOutcomeInput'
       responses:
@@ -853,6 +1124,10 @@ paths:
           $ref: '#/components/responses/Approval'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Submit claim outcome for approval
   /projects/{projectId}/closure-assessment:
     post:
       tags:
@@ -862,6 +1137,7 @@ paths:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       responses:
         '201':
           description: Current reproducible assessment with every blocker
@@ -871,6 +1147,10 @@ paths:
                 $ref: '#/components/schemas/ClosureAssessment'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Assess project closure
   /projects/{projectId}/closure-exceptions:
     post:
       tags:
@@ -880,6 +1160,7 @@ paths:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         required: true
         content:
@@ -906,6 +1187,11 @@ paths:
           $ref: '#/components/responses/Approval'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: Request closure exception
   /projects/{projectId}/final-close:
     post:
       tags:
@@ -915,6 +1201,7 @@ paths:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         required: true
         content:
@@ -934,6 +1221,9 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      summary: Final close project
   /projects/{projectId}/final-close/submit:
     post:
       tags:
@@ -943,6 +1233,7 @@ paths:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         required: true
         content:
@@ -959,6 +1250,11 @@ paths:
           $ref: '#/components/responses/Approval'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: Submit final close for approval
   /projects/{projectId}/reopen:
     post:
       tags:
@@ -968,6 +1264,7 @@ paths:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         required: true
         content:
@@ -988,6 +1285,9 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      summary: Reopen project
   /projects/{projectId}/reopen/submit:
     post:
       tags:
@@ -997,6 +1297,7 @@ paths:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         $ref: '#/components/requestBodies/Reason'
       responses:
@@ -1004,6 +1305,11 @@ paths:
           $ref: '#/components/responses/Approval'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: Submit reopen for approval
   /projects/{projectId}/audit-events:
     get:
       tags:
@@ -1015,10 +1321,39 @@ paths:
       - $ref: '#/components/parameters/Limit'
       responses:
         '200':
-          $ref: '#/components/responses/EntityPage'
+          description: Ordered verifiable project audit chain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEventPage'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: List project audit events
   /supplier-shipments/{shipmentId}/datasets:
+    get:
+      tags:
+      - Shipments
+      operationId: listSupplierShipmentDatasetHistory
+      parameters:
+      - $ref: '#/components/parameters/ShipmentId'
+      responses:
+        '200':
+          description: Immutable ordered supplier dataset history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierShipmentDatasetHistory'
+        default:
+          $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: List supplier shipment dataset history
     post:
       tags:
       - Shipments
@@ -1027,18 +1362,43 @@ paths:
       - $ref: '#/components/parameters/ShipmentId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
-        $ref: '#/components/requestBodies/ShipmentDatasetRevisionInput'
+        $ref: '#/components/requestBodies/SupplierShipmentDatasetRevisionInput'
       responses:
         '201':
-          description: Successful command result
+          description: Typed response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Entity'
+                $ref: '#/components/schemas/SupplierShipmentWorkspace'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Revise supplier shipment dataset
   /sales-shipments/{shipmentId}/datasets:
+    get:
+      tags:
+      - Shipments
+      operationId: listSalesShipmentDatasetHistory
+      parameters:
+      - $ref: '#/components/parameters/ShipmentId'
+      responses:
+        '200':
+          description: Immutable ordered sales dataset history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesShipmentDatasetHistory'
+        default:
+          $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: List sales shipment dataset history
     post:
       tags:
       - Shipments
@@ -1047,17 +1407,22 @@ paths:
       - $ref: '#/components/parameters/ShipmentId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
-        $ref: '#/components/requestBodies/ShipmentDatasetRevisionInput'
+        $ref: '#/components/requestBodies/SalesShipmentDatasetRevisionInput'
       responses:
         '201':
-          description: Successful command result
+          description: Typed response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Entity'
+                $ref: '#/components/schemas/SalesShipmentWorkspace'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Revise sales shipment dataset
   /supplier-shipments/{shipmentId}/execution-transitions:
     post:
       tags:
@@ -1067,17 +1432,22 @@ paths:
       - $ref: '#/components/parameters/ShipmentId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
-        $ref: '#/components/requestBodies/ShipmentExecutionTransitionInput'
+        $ref: '#/components/requestBodies/SupplierShipmentExecutionTransitionInput'
       responses:
         '200':
-          description: Successful command result
+          description: Typed response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Entity'
+                $ref: '#/components/schemas/SupplierShipmentWorkspace'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Transition supplier shipment execution
   /sales-shipments/{shipmentId}/execution-transitions:
     post:
       tags:
@@ -1087,17 +1457,22 @@ paths:
       - $ref: '#/components/parameters/ShipmentId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
-        $ref: '#/components/requestBodies/ShipmentExecutionTransitionInput'
+        $ref: '#/components/requestBodies/SalesShipmentExecutionTransitionInput'
       responses:
         '200':
-          description: Successful command result
+          description: Typed response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Entity'
+                $ref: '#/components/schemas/SalesShipmentWorkspace'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Transition sales shipment execution
   /allocations/{allocationId}/reverse:
     post:
       tags:
@@ -1107,6 +1482,7 @@ paths:
       - $ref: '#/components/parameters/AllocationId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         $ref: '#/components/requestBodies/AllocationReversalInput'
       responses:
@@ -1118,6 +1494,10 @@ paths:
                 $ref: '#/components/schemas/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - FINANCE_VIEWER
+      summary: Reverse settlement allocation
   /expenses/{expenseId}/corrections/submit:
     post:
       tags:
@@ -1127,6 +1507,7 @@ paths:
       - $ref: '#/components/parameters/ExpenseId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         $ref: '#/components/requestBodies/ExpenseCorrectionInput'
       responses:
@@ -1138,6 +1519,10 @@ paths:
                 $ref: '#/components/schemas/Approval'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Submit approved expense correction
   /expenses/{expenseId}/corrections/apply:
     post:
       tags:
@@ -1147,6 +1532,7 @@ paths:
       - $ref: '#/components/parameters/ExpenseId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         $ref: '#/components/requestBodies/ApprovalBinding'
       responses:
@@ -1158,6 +1544,10 @@ paths:
                 $ref: '#/components/schemas/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Apply approved expense correction
   /projects/{projectId}/cancel:
     post:
       tags:
@@ -1167,6 +1557,7 @@ paths:
       - $ref: '#/components/parameters/ProjectId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         $ref: '#/components/requestBodies/Reason'
       responses:
@@ -1178,6 +1569,9 @@ paths:
                 $ref: '#/components/schemas/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      summary: Cancel unexecuted project
   /claims/{claimId}/apply-outcome:
     post:
       tags:
@@ -1187,6 +1581,7 @@ paths:
       - $ref: '#/components/parameters/ClaimId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         $ref: '#/components/requestBodies/ApprovalBinding'
       responses:
@@ -1198,6 +1593,10 @@ paths:
                 $ref: '#/components/schemas/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Apply approved claim outcome
   /outbound-manifests/{manifestId}:
     get:
       tags:
@@ -1214,6 +1613,11 @@ paths:
                 $ref: '#/components/schemas/OutboundManifest'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: Get outbound manifest exact preview
   /outbound-manifests/{manifestId}/revisions:
     post:
       tags:
@@ -1223,6 +1627,7 @@ paths:
       - $ref: '#/components/parameters/ManifestId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         $ref: '#/components/requestBodies/OutboundManifestInput'
       responses:
@@ -1234,6 +1639,10 @@ paths:
                 $ref: '#/components/schemas/OutboundManifest'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Revise outbound manifest
   /outbound-manifests/{manifestId}/send-attempts:
     get:
       tags:
@@ -1250,6 +1659,11 @@ paths:
                 $ref: '#/components/schemas/SendAttemptPage'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: List outbound send attempts
   /sales-shipments/{shipmentId}/submit:
     post:
       tags:
@@ -1259,11 +1673,16 @@ paths:
       - $ref: '#/components/parameters/ShipmentId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       responses:
         '202':
           $ref: '#/components/responses/Approval'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Submit sales shipment confirmation
   /supplier-invoices/{invoiceId}/cancel:
     post:
       tags:
@@ -1273,6 +1692,7 @@ paths:
       - $ref: '#/components/parameters/InvoiceId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         $ref: '#/components/requestBodies/Reason'
       responses:
@@ -1280,6 +1700,10 @@ paths:
           $ref: '#/components/responses/Entity'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - FINANCE_VIEWER
+      summary: Cancel unallocated supplier invoice
   /sessions:
     post:
       tags:
@@ -1297,8 +1721,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Session'
+          headers:
+            Set-Cookie:
+              description: __Host-orb_session with Secure; HttpOnly; SameSite=Strict; Path=/ and no Domain.
+              schema:
+                type: string
+            X-CSRF-Token:
+              description: Session-bound CSRF token; rotate and do not persist in cookies.
+              schema:
+                type: string
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles: []
+      summary: Sign in
   /sessions/current:
     delete:
       tags:
@@ -1307,6 +1742,7 @@ paths:
       parameters:
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       responses:
         '200':
           description: Successful response
@@ -1316,6 +1752,10 @@ paths:
                 $ref: '#/components/schemas/Session'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      summary: Sign out current session
   /users:
     get:
       tags:
@@ -1323,13 +1763,16 @@ paths:
       operationId: listPilotUsers
       responses:
         '200':
-          description: Successful response
+          description: Typed response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/EntityPage'
+                $ref: '#/components/schemas/PilotUserPage'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      summary: List pilot users
   /users/{userId}/roles:
     put:
       tags:
@@ -1339,17 +1782,21 @@ paths:
       - $ref: '#/components/parameters/UserId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         $ref: '#/components/requestBodies/RoleAssignmentInput'
       responses:
         '200':
-          description: Successful response
+          description: Typed response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Entity'
+                $ref: '#/components/schemas/PilotUser'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      summary: Assign fixed pilot roles
   /users/{userId}/sessions/{sessionId}/revoke:
     post:
       tags:
@@ -1360,15 +1807,19 @@ paths:
       - $ref: '#/components/parameters/SessionId'
       - $ref: '#/components/parameters/IfMatch'
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       responses:
         '200':
-          description: Successful response
+          description: Revoked session metadata
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Entity'
+                $ref: '#/components/schemas/UserSession'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      summary: Revoke pilot user session
   /recovery/backup-status:
     get:
       tags:
@@ -1383,6 +1834,9 @@ paths:
                 $ref: '#/components/schemas/BackupStatus'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      summary: Get backup recovery status
   /recovery/restore-tests:
     post:
       tags:
@@ -1390,6 +1844,7 @@ paths:
       operationId: startIsolatedRestoreTest
       parameters:
       - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
       requestBody:
         $ref: '#/components/requestBodies/RestoreTestInput'
       responses:
@@ -1401,6 +1856,9 @@ paths:
                 $ref: '#/components/schemas/RestoreTest'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      summary: Start isolated restore test
   /recovery/restore-tests/{restoreTestId}:
     get:
       tags:
@@ -1417,12 +1875,78 @@ paths:
                 $ref: '#/components/schemas/RestoreTest'
         default:
           $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      summary: Get isolated restore test
+  /supplier-shipments/{shipmentId}:
+    get:
+      tags:
+      - Shipments
+      operationId: getSupplierShipmentWorkspace
+      parameters:
+      - $ref: '#/components/parameters/ShipmentId'
+      responses:
+        '200':
+          description: Typed response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SupplierShipmentWorkspace'
+        default:
+          $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: Get supplier shipment workspace
+  /sales-shipments/{shipmentId}:
+    get:
+      tags:
+      - Shipments
+      operationId: getSalesShipmentWorkspace
+      parameters:
+      - $ref: '#/components/parameters/ShipmentId'
+      responses:
+        '200':
+          description: Typed response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalesShipmentWorkspace'
+        default:
+          $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: Get sales shipment workspace
+  /users/{userId}/sessions:
+    get:
+      tags:
+      - Access
+      operationId: listPilotUserSessions
+      parameters:
+      - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Typed response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSessionPage'
+        default:
+          $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      summary: List pilot user sessions
 components:
   securitySchemes:
     sessionCookie:
       type: apiKey
       in: cookie
       name: __Host-orb_session
+      description: Secure HttpOnly __Host- cookie; SameSite=Strict, Path=/, no Domain; rotation and expiry are defined by
+        x-cookie-auth-policy.
   parameters:
     ProjectId:
       name: projectId
@@ -1567,12 +2091,6 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/Uuid'
-    AttemptId:
-      name: attemptId
-      in: path
-      required: true
-      schema:
-        $ref: '#/components/schemas/Uuid'
     UserId:
       name: userId
       in: path
@@ -1591,6 +2109,15 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/Uuid'
+    CsrfToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      description: Unpredictable token bound to the authenticated session; required with Origin/Referer fail-closed validation.
+      schema:
+        type: string
+        minLength: 32
+        maxLength: 256
   requestBodies:
     EntityInput:
       required: true
@@ -1606,12 +2133,6 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ContractInput'
-    ShipmentInput:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ShipmentInput'
     Reason:
       required: true
       content:
@@ -1631,18 +2152,6 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ApprovalBinding'
-    ShipmentDatasetRevisionInput:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ShipmentDatasetRevisionInput'
-    ShipmentExecutionTransitionInput:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ShipmentExecutionTransitionInput'
     AllocationReversalInput:
       required: true
       content:
@@ -1685,6 +2194,42 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/RestoreTestInput'
+    SupplierShipmentCreateInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SupplierShipmentCreateInput'
+    SalesShipmentCreateInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SalesShipmentCreateInput'
+    SupplierShipmentDatasetRevisionInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SupplierShipmentDatasetRevisionInput'
+    SalesShipmentDatasetRevisionInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SalesShipmentDatasetRevisionInput'
+    SupplierShipmentExecutionTransitionInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SupplierShipmentExecutionTransitionInput'
+    SalesShipmentExecutionTransitionInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SalesShipmentExecutionTransitionInput'
   responses:
     Problem:
       description: RFC 9457; stable codes are defined in problem-details.md
@@ -1813,28 +2358,6 @@ components:
               $ref: '#/components/schemas/Decimal'
             grossWeightOver:
               $ref: '#/components/schemas/Decimal'
-    ShipmentInput:
-      type: object
-      required:
-      - contractId
-      - quantity
-      - netWeight
-      - grossWeight
-      properties:
-        contractId:
-          $ref: '#/components/schemas/Uuid'
-        quantity:
-          $ref: '#/components/schemas/Decimal'
-        netWeight:
-          $ref: '#/components/schemas/Decimal'
-        grossWeight:
-          $ref: '#/components/schemas/Decimal'
-        bags:
-          type: integer
-          minimum: 0
-        logistics:
-          type: object
-          additionalProperties: true
     GenerateDocument:
       type: object
       additionalProperties: false
@@ -1915,12 +2438,6 @@ components:
       properties:
         approvalId:
           $ref: '#/components/schemas/Uuid'
-    OptionalApprovalBinding:
-      type: object
-      additionalProperties: false
-      properties:
-        approvalId:
-          $ref: '#/components/schemas/Uuid'
     ApprovalDecision:
       type: object
       additionalProperties: false
@@ -1985,6 +2502,7 @@ components:
         version:
           type: integer
           minimum: 1
+      additionalProperties: false
     SupplierInvoiceInput:
       type: object
       additionalProperties: false
@@ -2270,45 +2788,6 @@ components:
               message:
                 type: string
       additionalProperties: true
-    ShipmentDatasetRevisionInput:
-      type: object
-      additionalProperties: false
-      required:
-      - reason
-      - dataset
-      properties:
-        reason:
-          type: string
-          minLength: 3
-        dataset:
-          $ref: '#/components/schemas/ShipmentInput'
-      description: Creates immutable active dataset revision; expires dataset-bound approvals and resets CONFIRMED shipment
-        to DRAFT. Revisions are forbidden once IN_TRANSIT or terminal.
-    ShipmentExecutionTransitionInput:
-      type: object
-      additionalProperties: false
-      required:
-      - toState
-      - reason
-      properties:
-        toState:
-          type: string
-          enum:
-          - IN_TRANSIT
-          - DELIVERED
-          - RECEIVED
-          - CANCELLED
-          - REJECTED
-        reason:
-          type: string
-          minLength: 3
-        evidenceId:
-          $ref: '#/components/schemas/Uuid'
-        occurredAt:
-          type: string
-          format: date-time
-      description: 'Server enforces aggregate-specific state graph: sales uses DELIVERED; supplier uses RECEIVED. Cancellation/rejection
-        preserve quantities and trigger balance/closure recomputation.'
     AllocationReversalInput:
       type: object
       additionalProperties: false
@@ -2399,64 +2878,84 @@ components:
           type: string
           pattern: ^[a-f0-9]{64}$
     OutboundManifest:
-      allOf:
-      - $ref: '#/components/schemas/Entity'
-      - type: object
-        required:
-        - state
-        - manifestHash
-        - documentRevisionId
-        - documentRevisionVersion
-        - outputSha256
-        - channel
-        - to
-        - cc
-        - attachments
-        - subject
-        - body
-        properties:
-          state:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - version
+      - state
+      - manifestHash
+      - documentRevisionId
+      - documentRevisionVersion
+      - outputSha256
+      - channel
+      - to
+      - cc
+      - attachments
+      - subject
+      - body
+      - approvedSnapshot
+      - sentSnapshot
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        version:
+          type: integer
+          minimum: 1
+        state:
+          type: string
+          enum:
+          - DRAFT
+          - PENDING_APPROVAL
+          - APPROVED
+          - SENT
+          - CANCELLED
+          - SUPERSEDED
+        manifestHash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        documentRevisionId:
+          $ref: '#/components/schemas/Uuid'
+        documentRevisionVersion:
+          type: integer
+        outputSha256:
+          type: string
+        channel:
+          type: string
+          enum:
+          - EMAIL
+        to:
+          type: array
+          items:
             type: string
-            enum:
-            - DRAFT
-            - PENDING_APPROVAL
-            - APPROVED
-            - SENT
-            - CANCELLED
-            - SUPERSEDED
-          manifestHash:
+        cc:
+          type: array
+          items:
             type: string
-            pattern: ^[a-f0-9]{64}$
-          documentRevisionId:
-            $ref: '#/components/schemas/Uuid'
-          documentRevisionVersion:
-            type: integer
-          outputSha256:
-            type: string
-          channel:
-            type: string
-            enum:
-            - EMAIL
-          to:
-            type: array
-            items:
-              type: string
-          cc:
-            type: array
-            items:
-              type: string
-          attachments:
-            type: array
-            items:
-              $ref: '#/components/schemas/OutboundAttachment'
-          subject:
-            type: string
-          body:
-            $ref: '#/components/schemas/OutboundBody'
-          approvalId:
-            $ref: '#/components/schemas/Uuid'
-          approvalSubjectVersion:
-            type: integer
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/OutboundAttachment'
+        subject:
+          type: string
+        body:
+          $ref: '#/components/schemas/OutboundBody'
+        approvalId:
+          $ref: '#/components/schemas/Uuid'
+        approvalSubjectVersion:
+          type: integer
+        approvedSnapshot:
+          oneOf:
+          - $ref: '#/components/schemas/OutboundImmutableSnapshot'
+          - type: 'null'
+          description: Immutable exact stored snapshot; sentSnapshot is populated only from transport-captured stored bytes
+            and metadata.
+        sentSnapshot:
+          oneOf:
+          - $ref: '#/components/schemas/OutboundImmutableSnapshot'
+          - type: 'null'
+          description: Immutable exact stored snapshot; sentSnapshot is populated only from transport-captured stored bytes
+            and metadata.
     SendAttempt:
       type: object
       required:
@@ -2467,6 +2966,9 @@ components:
       - attemptNo
       - requestedAt
       - result
+      - approvedSnapshotHash
+      - sentSnapshotHash
+      - transportCaptureEvidenceId
       properties:
         id:
           $ref: '#/components/schemas/Uuid'
@@ -2507,6 +3009,18 @@ components:
           - 'null'
         correlationId:
           type: string
+        approvedSnapshotHash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        sentSnapshotHash:
+          oneOf:
+          - type: string
+            pattern: ^[a-f0-9]{64}$
+          - type: 'null'
+        transportCaptureEvidenceId:
+          oneOf:
+          - $ref: '#/components/schemas/Uuid'
+          - type: 'null'
     SendAttemptPage:
       type: object
       required:
@@ -2537,20 +3051,43 @@ components:
           writeOnly: true
       description: Credential is handled only by the configured authentication boundary, never logged or returned.
     Session:
-      allOf:
-      - $ref: '#/components/schemas/Entity'
-      - type: object
-        required:
-        - userId
-        - expiresAt
-        properties:
-          userId:
-            $ref: '#/components/schemas/Uuid'
-          expiresAt:
+      type: object
+      additionalProperties: false
+      required:
+      - sessionId
+      - userId
+      - roles
+      - createdAt
+      - lastSeenAt
+      - idleExpiresAt
+      - absoluteExpiresAt
+      properties:
+        sessionId:
+          $ref: '#/components/schemas/Uuid'
+        userId:
+          $ref: '#/components/schemas/Uuid'
+        roles:
+          type: array
+          items:
             type: string
-            format: date-time
-          mfaRequired:
-            type: boolean
+            enum:
+            - OWNER_ADMIN
+            - OPERATIONS
+            - FINANCE_VIEWER
+        createdAt:
+          type: string
+          format: date-time
+        lastSeenAt:
+          type: string
+          format: date-time
+        idleExpiresAt:
+          type: string
+          format: date-time
+        absoluteExpiresAt:
+          type: string
+          format: date-time
+        mfaRequired:
+          type: boolean
     RoleAssignmentInput:
       type: object
       additionalProperties: false
@@ -2638,3 +3175,1455 @@ components:
             - 'null'
           evidenceId:
             $ref: '#/components/schemas/Uuid'
+    ActorSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+      - userId
+      - displayName
+      - roles
+      properties:
+        userId:
+          $ref: '#/components/schemas/Uuid'
+        displayName:
+          type: string
+          minLength: 1
+        roles:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            enum:
+            - OWNER_ADMIN
+            - OPERATIONS
+            - FINANCE_VIEWER
+    TradeLocation:
+      type: object
+      additionalProperties: false
+      required:
+      - countryCode
+      - name
+      properties:
+        countryCode:
+          type: string
+          pattern: ^[A-Z]{2}$
+        name:
+          type: string
+          minLength: 1
+        unlocode:
+          type:
+          - string
+          - 'null'
+          pattern: ^[A-Z]{2}[A-Z0-9]{3}$
+    TransportDetails:
+      type: object
+      additionalProperties: false
+      required:
+      - mode
+      - carrierName
+      - reference
+      properties:
+        mode:
+          type: string
+          enum:
+          - SEA
+          - AIR
+          - ROAD
+          - MULTIMODAL
+        carrierName:
+          type: string
+          minLength: 1
+        reference:
+          type: string
+          minLength: 1
+        vesselOrVehicle:
+          type:
+          - string
+          - 'null'
+        voyageOrTrip:
+          type:
+          - string
+          - 'null'
+        estimatedDepartureAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        estimatedArrivalAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    SupplierShipmentCreateInput:
+      type: object
+      additionalProperties: false
+      required:
+      - purchaseContractId
+      - supplierId
+      - reference
+      - coffeeSpecificationId
+      - supplierLotReference
+      - quantity
+      - bagCount
+      - bagWeight
+      - netWeight
+      - grossWeight
+      - origin
+      - loadLocation
+      - destination
+      - incoterm
+      - namedPlace
+      - transport
+      properties:
+        reference:
+          type: string
+          minLength: 1
+          maxLength: 100
+        coffeeSpecificationId:
+          $ref: '#/components/schemas/Uuid'
+        quantity:
+          $ref: '#/components/schemas/Decimal'
+        bagCount:
+          type: integer
+          minimum: 1
+        bagWeight:
+          $ref: '#/components/schemas/Decimal'
+        netWeight:
+          $ref: '#/components/schemas/Decimal'
+        grossWeight:
+          $ref: '#/components/schemas/Decimal'
+        origin:
+          $ref: '#/components/schemas/TradeLocation'
+        loadLocation:
+          $ref: '#/components/schemas/TradeLocation'
+        dischargeLocation:
+          $ref: '#/components/schemas/TradeLocation'
+        destination:
+          $ref: '#/components/schemas/TradeLocation'
+        incoterm:
+          type: string
+          minLength: 3
+          maxLength: 20
+        namedPlace:
+          type: string
+          minLength: 1
+        containerNumbers:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+        sealNumbers:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+        transport:
+          $ref: '#/components/schemas/TransportDetails'
+        plannedShipmentAt:
+          type: string
+          format: date-time
+        notes:
+          type:
+          - string
+          - 'null'
+          maxLength: 2000
+        purchaseContractId:
+          $ref: '#/components/schemas/Uuid'
+        supplierLotReference:
+          type: string
+          minLength: 1
+        supplierId:
+          $ref: '#/components/schemas/Uuid'
+    SalesShipmentCreateInput:
+      type: object
+      additionalProperties: false
+      required:
+      - salesContractId
+      - reference
+      - coffeeSpecificationId
+      - productDescription
+      - quantity
+      - bagCount
+      - bagWeight
+      - netWeight
+      - grossWeight
+      - origin
+      - loadLocation
+      - dischargeLocation
+      - destination
+      - incoterm
+      - namedPlace
+      - containerNumbers
+      - sealNumbers
+      - transport
+      properties:
+        reference:
+          type: string
+          minLength: 1
+          maxLength: 100
+        coffeeSpecificationId:
+          $ref: '#/components/schemas/Uuid'
+        quantity:
+          $ref: '#/components/schemas/Decimal'
+        bagCount:
+          type: integer
+          minimum: 1
+        bagWeight:
+          $ref: '#/components/schemas/Decimal'
+        netWeight:
+          $ref: '#/components/schemas/Decimal'
+        grossWeight:
+          $ref: '#/components/schemas/Decimal'
+        origin:
+          $ref: '#/components/schemas/TradeLocation'
+        loadLocation:
+          $ref: '#/components/schemas/TradeLocation'
+        dischargeLocation:
+          $ref: '#/components/schemas/TradeLocation'
+        destination:
+          $ref: '#/components/schemas/TradeLocation'
+        incoterm:
+          type: string
+          minLength: 3
+          maxLength: 20
+        namedPlace:
+          type: string
+          minLength: 1
+        containerNumbers:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+        sealNumbers:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+        transport:
+          $ref: '#/components/schemas/TransportDetails'
+        plannedShipmentAt:
+          type: string
+          format: date-time
+        notes:
+          type:
+          - string
+          - 'null'
+          maxLength: 2000
+        salesContractId:
+          $ref: '#/components/schemas/Uuid'
+        productDescription:
+          type: string
+          minLength: 1
+        customerPurchaseOrderReference:
+          type:
+          - string
+          - 'null'
+        marksAndNumbers:
+          type:
+          - string
+          - 'null'
+    SupplierShipmentDatasetRevisionInput:
+      type: object
+      additionalProperties: false
+      required:
+      - reason
+      - dataset
+      properties:
+        reason:
+          type: string
+          minLength: 3
+        dataset:
+          $ref: '#/components/schemas/SupplierShipmentCreateInput'
+    SalesShipmentDatasetRevisionInput:
+      type: object
+      additionalProperties: false
+      required:
+      - reason
+      - dataset
+      properties:
+        reason:
+          type: string
+          minLength: 3
+        dataset:
+          $ref: '#/components/schemas/SalesShipmentCreateInput'
+    SupplierShipmentDataset:
+      type: object
+      additionalProperties: false
+      required:
+      - datasetId
+      - revisionNo
+      - datasetVersion
+      - datasetHash
+      - state
+      - createdBy
+      - createdAt
+      - purchaseContractId
+      - supplierId
+      - reference
+      - coffeeSpecificationId
+      - supplierLotReference
+      - quantity
+      - bagCount
+      - bagWeight
+      - netWeight
+      - grossWeight
+      - origin
+      - loadLocation
+      - destination
+      - incoterm
+      - namedPlace
+      - transport
+      properties:
+        reference:
+          type: string
+          minLength: 1
+          maxLength: 100
+        coffeeSpecificationId:
+          $ref: '#/components/schemas/Uuid'
+        quantity:
+          $ref: '#/components/schemas/Decimal'
+        bagCount:
+          type: integer
+          minimum: 1
+        bagWeight:
+          $ref: '#/components/schemas/Decimal'
+        netWeight:
+          $ref: '#/components/schemas/Decimal'
+        grossWeight:
+          $ref: '#/components/schemas/Decimal'
+        origin:
+          $ref: '#/components/schemas/TradeLocation'
+        loadLocation:
+          $ref: '#/components/schemas/TradeLocation'
+        dischargeLocation:
+          $ref: '#/components/schemas/TradeLocation'
+        destination:
+          $ref: '#/components/schemas/TradeLocation'
+        incoterm:
+          type: string
+          minLength: 3
+          maxLength: 20
+        namedPlace:
+          type: string
+          minLength: 1
+        containerNumbers:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+        sealNumbers:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+        transport:
+          $ref: '#/components/schemas/TransportDetails'
+        plannedShipmentAt:
+          type: string
+          format: date-time
+        notes:
+          type:
+          - string
+          - 'null'
+          maxLength: 2000
+        purchaseContractId:
+          $ref: '#/components/schemas/Uuid'
+        supplierLotReference:
+          type: string
+          minLength: 1
+        supplierId:
+          $ref: '#/components/schemas/Uuid'
+        datasetId:
+          $ref: '#/components/schemas/Uuid'
+        revisionNo:
+          type: integer
+          minimum: 1
+        datasetVersion:
+          type: integer
+          minimum: 1
+        datasetHash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        state:
+          type: string
+          enum:
+          - DRAFT
+          - PENDING_APPROVAL
+          - APPROVED
+          - SUPERSEDED
+        createdBy:
+          $ref: '#/components/schemas/ActorSnapshot'
+        createdAt:
+          type: string
+          format: date-time
+        revisionReason:
+          type:
+          - string
+          - 'null'
+        approvalId:
+          oneOf:
+          - $ref: '#/components/schemas/Uuid'
+          - type: 'null'
+    SalesShipmentDataset:
+      type: object
+      additionalProperties: false
+      required:
+      - datasetId
+      - revisionNo
+      - datasetVersion
+      - datasetHash
+      - state
+      - createdBy
+      - createdAt
+      - salesContractId
+      - reference
+      - coffeeSpecificationId
+      - productDescription
+      - quantity
+      - bagCount
+      - bagWeight
+      - netWeight
+      - grossWeight
+      - origin
+      - loadLocation
+      - dischargeLocation
+      - destination
+      - incoterm
+      - namedPlace
+      - containerNumbers
+      - sealNumbers
+      - transport
+      properties:
+        reference:
+          type: string
+          minLength: 1
+          maxLength: 100
+        coffeeSpecificationId:
+          $ref: '#/components/schemas/Uuid'
+        quantity:
+          $ref: '#/components/schemas/Decimal'
+        bagCount:
+          type: integer
+          minimum: 1
+        bagWeight:
+          $ref: '#/components/schemas/Decimal'
+        netWeight:
+          $ref: '#/components/schemas/Decimal'
+        grossWeight:
+          $ref: '#/components/schemas/Decimal'
+        origin:
+          $ref: '#/components/schemas/TradeLocation'
+        loadLocation:
+          $ref: '#/components/schemas/TradeLocation'
+        dischargeLocation:
+          $ref: '#/components/schemas/TradeLocation'
+        destination:
+          $ref: '#/components/schemas/TradeLocation'
+        incoterm:
+          type: string
+          minLength: 3
+          maxLength: 20
+        namedPlace:
+          type: string
+          minLength: 1
+        containerNumbers:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+        sealNumbers:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+        transport:
+          $ref: '#/components/schemas/TransportDetails'
+        plannedShipmentAt:
+          type: string
+          format: date-time
+        notes:
+          type:
+          - string
+          - 'null'
+          maxLength: 2000
+        salesContractId:
+          $ref: '#/components/schemas/Uuid'
+        productDescription:
+          type: string
+          minLength: 1
+        customerPurchaseOrderReference:
+          type:
+          - string
+          - 'null'
+        marksAndNumbers:
+          type:
+          - string
+          - 'null'
+        datasetId:
+          $ref: '#/components/schemas/Uuid'
+        revisionNo:
+          type: integer
+          minimum: 1
+        datasetVersion:
+          type: integer
+          minimum: 1
+        datasetHash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        state:
+          type: string
+          enum:
+          - DRAFT
+          - PENDING_APPROVAL
+          - APPROVED
+          - SUPERSEDED
+        createdBy:
+          $ref: '#/components/schemas/ActorSnapshot'
+        createdAt:
+          type: string
+          format: date-time
+        revisionReason:
+          type:
+          - string
+          - 'null'
+        approvalId:
+          oneOf:
+          - $ref: '#/components/schemas/Uuid'
+          - type: 'null'
+    QuantitySummary:
+      type: object
+      additionalProperties: false
+      required:
+      - contracted
+      - confirmed
+      - deliveredOrReceived
+      - cancelled
+      - rejected
+      - remaining
+      properties:
+        contracted:
+          $ref: '#/components/schemas/Decimal'
+        confirmed:
+          $ref: '#/components/schemas/Decimal'
+        deliveredOrReceived:
+          $ref: '#/components/schemas/Decimal'
+        cancelled:
+          $ref: '#/components/schemas/Decimal'
+        rejected:
+          $ref: '#/components/schemas/Decimal'
+        remaining:
+          $ref: '#/components/schemas/Decimal'
+    SupplierShipmentWorkspace:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - projectId
+      - version
+      - executionState
+      - activeDataset
+      - quantities
+      - availableActions
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        projectId:
+          $ref: '#/components/schemas/Uuid'
+        version:
+          type: integer
+          minimum: 1
+        executionState:
+          type: string
+          enum:
+          - DRAFT
+          - CONFIRMED
+          - IN_TRANSIT
+          - RECEIVED
+          - CANCELLED
+          - REJECTED
+        activeDataset:
+          $ref: '#/components/schemas/SupplierShipmentDataset'
+        quantities:
+          $ref: '#/components/schemas/QuantitySummary'
+        availableActions:
+          type: array
+          items:
+            type: string
+        confirmationApprovalId:
+          oneOf:
+          - $ref: '#/components/schemas/Uuid'
+          - type: 'null'
+    SalesShipmentWorkspace:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - projectId
+      - version
+      - executionState
+      - financialState
+      - documentState
+      - claimState
+      - activeDataset
+      - quantities
+      - availableActions
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        projectId:
+          $ref: '#/components/schemas/Uuid'
+        version:
+          type: integer
+          minimum: 1
+        executionState:
+          type: string
+          enum:
+          - DRAFT
+          - CONFIRMED
+          - IN_TRANSIT
+          - DELIVERED
+          - CANCELLED
+          - REJECTED
+        financialState:
+          type: string
+          enum:
+          - OPEN
+          - FINANCIALLY_CLOSED
+        documentState:
+          type: string
+          enum:
+          - MISSING
+          - DRAFT
+          - PENDING_APPROVAL
+          - COMPLETE
+        claimState:
+          type: string
+          enum:
+          - CLEAR
+          - OPEN
+          - UNDER_REVIEW
+          - RESOLVED
+          - REJECTED
+        primarySupplierShipmentId:
+          oneOf:
+          - $ref: '#/components/schemas/Uuid'
+          - type: 'null'
+        activeDataset:
+          $ref: '#/components/schemas/SalesShipmentDataset'
+        quantities:
+          $ref: '#/components/schemas/QuantitySummary'
+        availableActions:
+          type: array
+          items:
+            type: string
+        confirmationApprovalId:
+          oneOf:
+          - $ref: '#/components/schemas/Uuid'
+          - type: 'null'
+        toleranceExceptionApprovalId:
+          oneOf:
+          - $ref: '#/components/schemas/Uuid'
+          - type: 'null'
+    EvidenceMetadata:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - sha256
+      - byteLength
+      - mediaType
+      - originalFilename
+      - verificationState
+      - uploadedBy
+      - uploadedAt
+      - sourceLinks
+      - immutable
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        sha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        byteLength:
+          type: integer
+          minimum: 0
+        mediaType:
+          type: string
+          minLength: 1
+        originalFilename:
+          type: string
+          minLength: 1
+        verificationState:
+          type: string
+          enum:
+          - PENDING
+          - VERIFIED
+          - REJECTED
+        verifiedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        verifiedBy:
+          oneOf:
+          - $ref: '#/components/schemas/ActorSnapshot'
+          - type: 'null'
+        uploadedBy:
+          $ref: '#/components/schemas/ActorSnapshot'
+        uploadedAt:
+          type: string
+          format: date-time
+        sourceLinks:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - subjectType
+            - subjectId
+            - purpose
+            properties:
+              subjectType:
+                type: string
+                minLength: 1
+              subjectId:
+                $ref: '#/components/schemas/Uuid'
+              purpose:
+                type: string
+                minLength: 1
+        immutable:
+          type: boolean
+          const: true
+        retentionUntil:
+          type:
+          - string
+          - 'null'
+          format: date-time
+    AuditEvent:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - sequenceNo
+      - actor
+      - sessionId
+      - action
+      - aggregateType
+      - aggregateId
+      - aggregateVersion
+      - beforeHash
+      - afterHash
+      - previousEventHash
+      - eventHash
+      - occurredAt
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        sequenceNo:
+          type: integer
+          minimum: 1
+        actor:
+          $ref: '#/components/schemas/ActorSnapshot'
+        sessionId:
+          $ref: '#/components/schemas/Uuid'
+        action:
+          type: string
+          minLength: 1
+        aggregateType:
+          type: string
+          minLength: 1
+        aggregateId:
+          $ref: '#/components/schemas/Uuid'
+        aggregateVersion:
+          type: integer
+          minimum: 1
+        beforeHash:
+          oneOf:
+          - type: string
+            pattern: ^[a-f0-9]{64}$
+          - type: 'null'
+        afterHash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        previousEventHash:
+          oneOf:
+          - type: string
+            pattern: ^[a-f0-9]{64}$
+          - type: 'null'
+        eventHash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        occurredAt:
+          type: string
+          format: date-time
+        reason:
+          type:
+          - string
+          - 'null'
+        correlationId:
+          type: string
+          minLength: 1
+    AuditEventPage:
+      type: object
+      additionalProperties: false
+      required:
+      - projectId
+      - order
+      - chainAlgorithm
+      - items
+      properties:
+        projectId:
+          $ref: '#/components/schemas/Uuid'
+        order:
+          type: string
+          const: sequenceNo ASC
+        chainAlgorithm:
+          type: string
+          const: SHA-256(canonical-event || previousEventHash)
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+    PilotUser:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - version
+      - displayName
+      - login
+      - locale
+      - roles
+      - active
+      - createdAt
+      properties:
+        id:
+          $ref: '#/components/schemas/Uuid'
+        version:
+          type: integer
+          minimum: 1
+        displayName:
+          type: string
+          minLength: 1
+        login:
+          type: string
+          minLength: 1
+        locale:
+          type: string
+          enum:
+          - ar
+          - en
+        roles:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: string
+            enum:
+            - OWNER_ADMIN
+            - OPERATIONS
+            - FINANCE_VIEWER
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    PilotUserPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PilotUser'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+    UserSession:
+      type: object
+      additionalProperties: false
+      required:
+      - sessionId
+      - userId
+      - current
+      - createdAt
+      - lastSeenAt
+      - idleExpiresAt
+      - absoluteExpiresAt
+      - revoked
+      properties:
+        sessionId:
+          $ref: '#/components/schemas/Uuid'
+        userId:
+          $ref: '#/components/schemas/Uuid'
+        current:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        lastSeenAt:
+          type: string
+          format: date-time
+        idleExpiresAt:
+          type: string
+          format: date-time
+        absoluteExpiresAt:
+          type: string
+          format: date-time
+        revoked:
+          type: boolean
+        revokedAt:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        revokedByUserId:
+          oneOf:
+          - $ref: '#/components/schemas/Uuid'
+          - type: 'null'
+        ipAddressMasked:
+          type:
+          - string
+          - 'null'
+        userAgentSummary:
+          type:
+          - string
+          - 'null'
+    UserSessionPage:
+      type: object
+      additionalProperties: false
+      required:
+      - userId
+      - items
+      properties:
+        userId:
+          $ref: '#/components/schemas/Uuid'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSession'
+    SupplierShipmentExecutionTransitionInput:
+      type: object
+      additionalProperties: false
+      required:
+      - toState
+      - reason
+      properties:
+        toState:
+          type: string
+          enum:
+          - IN_TRANSIT
+          - RECEIVED
+          - CANCELLED
+          - REJECTED
+        reason:
+          type: string
+          minLength: 3
+        evidenceId:
+          $ref: '#/components/schemas/Uuid'
+        occurredAt:
+          type: string
+          format: date-time
+    SalesShipmentExecutionTransitionInput:
+      type: object
+      additionalProperties: false
+      required:
+      - toState
+      - reason
+      properties:
+        toState:
+          type: string
+          enum:
+          - IN_TRANSIT
+          - DELIVERED
+          - CANCELLED
+          - REJECTED
+        reason:
+          type: string
+          minLength: 3
+        evidenceId:
+          $ref: '#/components/schemas/Uuid'
+        occurredAt:
+          type: string
+          format: date-time
+    ApprovalPage:
+      type: object
+      additionalProperties: false
+      required:
+      - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Approval'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+    SupplierShipmentDatasetVersion:
+      type: object
+      additionalProperties: false
+      required:
+      - datasetId
+      - revisionNo
+      - datasetVersion
+      - datasetHash
+      - state
+      - createdBy
+      - createdAt
+      - purchaseContractId
+      - supplierId
+      - reference
+      - coffeeSpecificationId
+      - supplierLotReference
+      - quantity
+      - bagCount
+      - bagWeight
+      - netWeight
+      - grossWeight
+      - origin
+      - loadLocation
+      - destination
+      - incoterm
+      - namedPlace
+      - transport
+      - changeReason
+      - approvalInvalidated
+      - invalidatedApprovalIds
+      - approvalLinks
+      properties:
+        reference:
+          type: string
+          minLength: 1
+          maxLength: 100
+        coffeeSpecificationId:
+          $ref: '#/components/schemas/Uuid'
+        quantity:
+          $ref: '#/components/schemas/Decimal'
+        bagCount:
+          type: integer
+          minimum: 1
+        bagWeight:
+          $ref: '#/components/schemas/Decimal'
+        netWeight:
+          $ref: '#/components/schemas/Decimal'
+        grossWeight:
+          $ref: '#/components/schemas/Decimal'
+        origin:
+          $ref: '#/components/schemas/TradeLocation'
+        loadLocation:
+          $ref: '#/components/schemas/TradeLocation'
+        dischargeLocation:
+          $ref: '#/components/schemas/TradeLocation'
+        destination:
+          $ref: '#/components/schemas/TradeLocation'
+        incoterm:
+          type: string
+          minLength: 3
+          maxLength: 20
+        namedPlace:
+          type: string
+          minLength: 1
+        containerNumbers:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+        sealNumbers:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+        transport:
+          $ref: '#/components/schemas/TransportDetails'
+        plannedShipmentAt:
+          type: string
+          format: date-time
+        notes:
+          type:
+          - string
+          - 'null'
+          maxLength: 2000
+        purchaseContractId:
+          $ref: '#/components/schemas/Uuid'
+        supplierLotReference:
+          type: string
+          minLength: 1
+        supplierId:
+          $ref: '#/components/schemas/Uuid'
+        datasetId:
+          $ref: '#/components/schemas/Uuid'
+        revisionNo:
+          type: integer
+          minimum: 1
+        datasetVersion:
+          type: integer
+          minimum: 1
+        datasetHash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        state:
+          type: string
+          enum:
+          - DRAFT
+          - PENDING_APPROVAL
+          - APPROVED
+          - SUPERSEDED
+        createdBy:
+          $ref: '#/components/schemas/ActorSnapshot'
+        createdAt:
+          type: string
+          format: date-time
+        revisionReason:
+          type:
+          - string
+          - 'null'
+        approvalId:
+          oneOf:
+          - $ref: '#/components/schemas/Uuid'
+          - type: 'null'
+        changeReason:
+          type: string
+          minLength: 1
+        approvalInvalidated:
+          type: boolean
+        invalidatedApprovalIds:
+          type: array
+          items:
+            $ref: '#/components/schemas/Uuid'
+        approvalLinks:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - approvalId
+            - actionCode
+            - decision
+            - subjectVersion
+            - subjectHash
+            properties:
+              approvalId:
+                $ref: '#/components/schemas/Uuid'
+              actionCode:
+                type: string
+              decision:
+                type: string
+                enum:
+                - PENDING
+                - APPROVED
+                - REJECTED
+                - EXPIRED
+              subjectVersion:
+                type: integer
+                minimum: 1
+              subjectHash:
+                type: string
+                pattern: ^[a-f0-9]{64}$
+    SupplierShipmentDatasetHistory:
+      type: object
+      additionalProperties: false
+      required:
+      - shipmentId
+      - order
+      - items
+      properties:
+        shipmentId:
+          $ref: '#/components/schemas/Uuid'
+        order:
+          type: string
+          const: revisionNo ASC
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SupplierShipmentDatasetVersion'
+    SalesShipmentDatasetVersion:
+      type: object
+      additionalProperties: false
+      required:
+      - datasetId
+      - revisionNo
+      - datasetVersion
+      - datasetHash
+      - state
+      - createdBy
+      - createdAt
+      - salesContractId
+      - reference
+      - coffeeSpecificationId
+      - productDescription
+      - quantity
+      - bagCount
+      - bagWeight
+      - netWeight
+      - grossWeight
+      - origin
+      - loadLocation
+      - dischargeLocation
+      - destination
+      - incoterm
+      - namedPlace
+      - containerNumbers
+      - sealNumbers
+      - transport
+      - changeReason
+      - approvalInvalidated
+      - invalidatedApprovalIds
+      - approvalLinks
+      properties:
+        reference:
+          type: string
+          minLength: 1
+          maxLength: 100
+        coffeeSpecificationId:
+          $ref: '#/components/schemas/Uuid'
+        quantity:
+          $ref: '#/components/schemas/Decimal'
+        bagCount:
+          type: integer
+          minimum: 1
+        bagWeight:
+          $ref: '#/components/schemas/Decimal'
+        netWeight:
+          $ref: '#/components/schemas/Decimal'
+        grossWeight:
+          $ref: '#/components/schemas/Decimal'
+        origin:
+          $ref: '#/components/schemas/TradeLocation'
+        loadLocation:
+          $ref: '#/components/schemas/TradeLocation'
+        dischargeLocation:
+          $ref: '#/components/schemas/TradeLocation'
+        destination:
+          $ref: '#/components/schemas/TradeLocation'
+        incoterm:
+          type: string
+          minLength: 3
+          maxLength: 20
+        namedPlace:
+          type: string
+          minLength: 1
+        containerNumbers:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+        sealNumbers:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+        transport:
+          $ref: '#/components/schemas/TransportDetails'
+        plannedShipmentAt:
+          type: string
+          format: date-time
+        notes:
+          type:
+          - string
+          - 'null'
+          maxLength: 2000
+        salesContractId:
+          $ref: '#/components/schemas/Uuid'
+        productDescription:
+          type: string
+          minLength: 1
+        customerPurchaseOrderReference:
+          type:
+          - string
+          - 'null'
+        marksAndNumbers:
+          type:
+          - string
+          - 'null'
+        datasetId:
+          $ref: '#/components/schemas/Uuid'
+        revisionNo:
+          type: integer
+          minimum: 1
+        datasetVersion:
+          type: integer
+          minimum: 1
+        datasetHash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        state:
+          type: string
+          enum:
+          - DRAFT
+          - PENDING_APPROVAL
+          - APPROVED
+          - SUPERSEDED
+        createdBy:
+          $ref: '#/components/schemas/ActorSnapshot'
+        createdAt:
+          type: string
+          format: date-time
+        revisionReason:
+          type:
+          - string
+          - 'null'
+        approvalId:
+          oneOf:
+          - $ref: '#/components/schemas/Uuid'
+          - type: 'null'
+        changeReason:
+          type: string
+          minLength: 1
+        approvalInvalidated:
+          type: boolean
+        invalidatedApprovalIds:
+          type: array
+          items:
+            $ref: '#/components/schemas/Uuid'
+        approvalLinks:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+            - approvalId
+            - actionCode
+            - decision
+            - subjectVersion
+            - subjectHash
+            properties:
+              approvalId:
+                $ref: '#/components/schemas/Uuid'
+              actionCode:
+                type: string
+              decision:
+                type: string
+                enum:
+                - PENDING
+                - APPROVED
+                - REJECTED
+                - EXPIRED
+              subjectVersion:
+                type: integer
+                minimum: 1
+              subjectHash:
+                type: string
+                pattern: ^[a-f0-9]{64}$
+    SalesShipmentDatasetHistory:
+      type: object
+      additionalProperties: false
+      required:
+      - shipmentId
+      - order
+      - items
+      properties:
+        shipmentId:
+          $ref: '#/components/schemas/Uuid'
+        order:
+          type: string
+          const: revisionNo ASC
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SalesShipmentDatasetVersion'
+    OutboundImmutableSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+      - capturedAt
+      - manifestHash
+      - documentRevisionId
+      - documentRevisionVersion
+      - outputSha256
+      - channel
+      - to
+      - cc
+      - attachments
+      - subject
+      - body
+      properties:
+        capturedAt:
+          type: string
+          format: date-time
+        manifestHash:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        documentRevisionId:
+          $ref: '#/components/schemas/Uuid'
+        documentRevisionVersion:
+          type: integer
+          minimum: 1
+        outputSha256:
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        channel:
+          type: string
+          enum:
+          - EMAIL
+        to:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: email
+        cc:
+          type: array
+          items:
+            type: string
+            format: email
+        attachments:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/OutboundAttachment'
+        subject:
+          type: string
+          minLength: 1
+        body:
+          $ref: '#/components/schemas/OutboundBody'
+x-cookie-auth-policy:
+  cookie:
+    name: __Host-orb_session
+    secure: true
+    httpOnly: true
+    sameSite: Strict
+    path: /
+    domainAttributeAllowed: false
+  csrf:
+    header: X-CSRF-Token
+    requiredFor: all cookie-authenticated POST, PUT, PATCH and DELETE operations
+    binding: session and authenticated origin
+    rotateOn:
+    - SIGN_IN
+    - REAUTHENTICATION
+    - PRIVILEGE_CHANGE
+    expiresWithSession: true
+  requestSourceValidation:
+    originRequired: true
+    refererRequiredWhenOriginUnavailable: true
+    allowedOrigins: deployment allow-list only
+    failureMode: fail closed before mutation
+  session:
+    idleExpiryMinutes: 30
+    absoluteExpiryHours: 12
+    revokeInvalidatesImmediately: true

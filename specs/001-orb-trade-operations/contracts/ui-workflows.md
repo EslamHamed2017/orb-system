@@ -24,7 +24,7 @@
 | `/documents/{id}` | Document workspace | generate/status/preview/revise/submit/approve, manifest/send/cancel |
 | `/evidence/{id}` | Evidence viewer | metadata/hash, inline view where safe, audited download |
 | `/projects/{id}/audit` | Audit | immutable filtered event timeline/hash status |
-| `/admin/{users|backup}` | Pilot administration | fixed-role assignment/session revoke; backup/restore evidence |
+| `/admin/{users|backup}` | Pilot administration | typed pilot-user list, fixed-role assignment, per-user session list (session ID/current/last-seen/expiry/revocation), exact-session revoke, and backup/restore evidence |
 
 No Release 1 navigation or hidden interactive route exists for a deferred feature.
 
@@ -44,7 +44,7 @@ Create Project is atomic with one sales-contract draft. Tolerances default visib
 
 ### Supplier and sales shipment
 
-Supplier shipment must be submitted and approved before Confirm makes it selectable as source. Both shipment workspaces expose an immutable Dataset history and `Revise dataset` only in Draft/Confirmed; revision requires reason, shows old/new diff, expires approval/exception badges, resets Confirmed to Draft, and forces reapproval. There is no revision control in transit/terminal states. Sales shipment shows contracted, confirmed, delivered, cancelled/rejected, remaining quantity and exactly one primary-source picker. Submit binds the exact dataset/source for different Owner/Admin approval; Confirm requires it. Confirm performs route/source/tolerance assessment. A tolerance failure shows each limit/actual and offers “Request exception”; approval is exact-dataset only.
+Supplier shipment must be submitted and approved before Confirm makes it selectable as source. Both shipment workspaces load their typed aggregate workspace and expose immutable Dataset history in ascending revision order with version/hash, change reason, actor/time, approval linkage and invalidation; they expose and `Revise dataset` only in Draft/Confirmed; revision requires reason, shows old/new diff, expires approval/exception badges, resets Confirmed to Draft, and forces reapproval. There is no revision control in transit/terminal states. Sales shipment shows contracted, confirmed, delivered, cancelled/rejected, remaining quantity and exactly one primary-source picker. Submit binds the exact dataset/source for different Owner/Admin approval; Confirm requires it. Confirm performs route/source/tolerance assessment. A tolerance failure shows each limit/actual and offers “Request exception”; approval is exact-dataset only.
 
 Execution controls are explicit and graph-aware: supplier `Confirm -> Mark in transit -> Mark received`, sales `Confirm -> Mark in transit -> Mark delivered`; eligible Draft/Confirmed records offer Cancel, and Confirmed/In-transit records offer Reject. Each dialog shows current/target state and version, requires reason (and evidence/time where applicable), sends `If-Match` plus idempotency, and displays the resulting audit event and quantity/closure impact. Invalid target buttons are absent and server rejection is still handled.
 
@@ -56,7 +56,7 @@ The route and template version are read-only. Items display Not started/In progr
 
 Generate asks kind and language, identifies the exact shipment dataset, returns to a status panel (`Queued/Rendering/Ready/Failed`), and enables preview only when ready. CINV/Packing List shared-field comparison must show zero mismatch. Submit/approve binds revision/version/hash. Revise/cancel requires reason and preserves earlier bytes.
 
-Send uses a separate manifest step with channel, ordered To/Cc, exact subject, exact body bytes/media type/byte size/SHA-256, and attachments. Preview displays every attachment ID/version/exact outbound filename/byte size/SHA-256 plus output ID/version/hash. Submit freezes a canonical manifest version/hash. Owner/Admin approves that exact version. Approved fields are read-only; Revise creates a superseding manifest and marks prior approval inapplicable. `Send now` refreshes the stored exact preview, accepts no editable payload, verifies every byte/hash/version and approval, fails closed on drift/unavailability, and appends attempt number/time/result/provider reference or safe failure code. Retry creates another attempt. There is no scheduled/automatic send.
+Send uses a separate manifest step with channel, ordered To/Cc, exact subject, exact body bytes/media type/byte size/SHA-256, and attachments. Preview displays every attachment ID/version/exact outbound filename/byte size/SHA-256 plus output ID/version/hash. Submit freezes a canonical manifest version/hash. Owner/Admin approves that exact version. Approved fields are read-only; Revise creates a superseding manifest and marks prior approval inapplicable. `Send now` refreshes the stored exact preview, accepts no editable payload, verifies every byte/hash/version and approval, fails closed on drift/unavailability, and appends attempt number/time/result/provider reference or safe failure code. After send, the workspace displays approved and sent snapshots side by side and proves identical manifest/output/body/attachment hashes; transport-captured byte evidence is linked. Retry creates another attempt. There is no scheduled/automatic send.
 
 ### Supplier invoice, money, and expense
 
@@ -67,6 +67,13 @@ Supplier invoice is one shipment/reference/date/amount/currency/evidence with su
 Statements have fixed tabs and separate currency sections; every row drills to source. Profit has exactly four visually distinct cards with as-of/formula/source lines. Claims capture the simple lifecycle only: Operations can move Open to Under review and submit a proposed Resolved/Rejected outcome; terminal buttons do not exist. The approval inbox shows proposed outcome, exact claim version/hash, reason/evidence and self-approval denial. Apply appears only after approval and is the sole terminal action. A rejected approval leaves the claim Under review.
 
 Closure always refreshes assessment before action, groups all blockers from reachable states, and allows exceptions only for items flagged eligible; financial balance, immutable/audit, approval-integrity, and security blockers never show exception controls. Reversal/refund, shipment cancellation/rejection, document cancellation/revision, expense correction, or new/reopened claim shows an immediate `Final close reopened/assessment stale` result and links to the new assessment. Final close/reopen dialogs name Project version/state and require applicable reasons.
+
+
+## Fixed role and cookie-session UI contract
+
+The server-enforced `x-required-roles` on every operation is authoritative. Read workspaces are available to all three roles with permission-shaped sensitive fields; operational drafting/actions are Operations or Owner/Admin; supplier-invoice and money actions are Finance/Viewer or Owner/Admin; fixed decisions, safe Project cancellation, final-close/reopen application, role/session administration and recovery are Owner/Admin only. The UI must hide unauthorized actions but still handles server `403`; requester identity is always compared server-side to prohibit self-approval.
+
+Sign-in receives a rotated Secure/HttpOnly/SameSite=Strict `__Host-` session cookie and a separate session-bound CSRF token. Every authenticated mutation sends that token; missing/mismatched Origin or Referer, token, expired session, or revoked session fails closed. Pilot administration first calls `listPilotUsers`, then `listPilotUserSessions`; revoke targets the displayed exact user/session ID and refreshes until `revoked=true`, while the revoked browser proves its next request is unauthorized.
 
 ## ORB Material Design 3 visual acceptance
 

@@ -96,7 +96,7 @@ Project `FINAL_CLOSED` is blocked until every non-cancelled sales shipment is de
 
 All journeys A1–A9 work in Arabic RTL and English LTR using the exact screen map in `contracts/ui-workflows.md`. The ORB MD3 acceptance baseline covers color roles, type scale, shape, elevation, spacing, responsive navigation, states, focus, keyboard order, error/empty/loading states, dense tables, bidirectional references, and WCAG 2.2 AA. ORB identity replaces Google branding.
 
-Authorization is server-side; supplier cost, margins, identities, evidence, and money are permission-shaped. Every mutation uses optimistic concurrency and audit. Evidence and approved versions are immutable. Backups meet RPO <=15 minutes/RTO <=4 hours and a pre-beta isolated restore must prove database/object linkage.
+Authorization is server-side; supplier cost, margins, identities, evidence, and money are permission-shaped. Every operation declares its fixed allowed roles. Cookie sessions are Secure, HttpOnly, SameSite=Strict `__Host-` cookies with 30-minute idle and 12-hour absolute expiry; session and separate CSRF tokens rotate at sign-in, reauthentication, and privilege change. Every cookie-authenticated mutation requires the session-bound CSRF header and allow-listed Origin/Referer validation, failing closed on absence or mismatch. Every mutation uses optimistic concurrency and audit. Evidence and approved versions are immutable. Backups meet RPO <=15 minutes/RTO <=4 hours and a pre-beta isolated restore must prove database/object linkage.
 
 ## Authoritative state machines
 
