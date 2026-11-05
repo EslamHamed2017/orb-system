@@ -30,57 +30,61 @@ function decodeReferenceTokens(reference) {
   assert.match(reference, /^#\//, 'Only local JSON Pointer refs are accepted: ' + reference);
   return reference.slice(2).split('/').map((raw) => {
     assert.doesNotMatch(raw, /~(?:[^01]|$)/, 'Invalid JSON Pointer escape in local ref: ' + reference);
-    return raw.replace(/~1/g, '/').replace(/~0/g, '~');
+    const decoded = raw.replace(/~1/g, '/').replace(/~0/g, '~');
+    assert.doesNotMatch(decoded, /~[01]/, 'Nested JSON Pointer escape is forbidden in deferred scan: ' + reference);
+    return decoded;
   });
 }
-const PROSE_ONLY = new Set(['description', 'summary', 'title', 'example', 'examples', 'externalDocs']);
-const IDENTIFIER_VALUES = new Set(['name', 'operationId', 'required', 'enum', 'const', 'propertyName', 'tags', 'type', 'format', 'in']);
-function addStrings(value, prefix, target) {
-  if (typeof value === 'string') target.push(prefix + ':' + value);
-  else if (Array.isArray(value)) value.forEach((item, index) => addStrings(item, prefix + '[' + index + ']', target));
-}
-function schemaIdentifiers(schema, prefix, out, parentKey = '') {
-  if (Array.isArray(schema)) { schema.forEach((item, i) => schemaIdentifiers(item, prefix + '[' + i + ']', out, parentKey)); return; }
-  if (!schema || typeof schema !== 'object') return;
-  for (const [name, value] of Object.entries(schema)) {
-    const qualified = prefix + '.' + name;
-    out.schemaKeys.push(qualified);
-    if (parentKey === 'properties') out.propertyNames.push(qualified);
-    if (PROSE_ONLY.has(name)) continue;
-    if (name === '$ref') {
-      assert.equal(typeof value, 'string', qualified + ' must be a string');
-      for (const token of decodeReferenceTokens(value)) out.schemaReferences.push(qualified + ':' + token);
-      continue;
-    }
-    // Every non-prose string is structural data; named buckets retain useful diagnostics.
-    addStrings(value, qualified, out.structuralValues);
-    if (IDENTIFIER_VALUES.has(name)) addStrings(value, qualified, name === 'enum' || name === 'const' ? out.enumValues : out.structuralValues);
-    if (name === 'dependentRequired' && value && typeof value === 'object' && !Array.isArray(value)) {
-      for (const [dependent, dependencies] of Object.entries(value)) {
-        out.structuralValues.push(qualified + ':' + dependent);
-        addStrings(dependencies, qualified + '.' + dependent, out.structuralValues);
-      }
-    }
-    if (parentKey === 'mapping') {
-      out.discriminators.push(qualified);
-      if (typeof value === 'string') for (const token of decodeReferenceTokens(value)) out.discriminators.push(qualified + ':' + token);
-    }
-    if (name === 'propertyName' && typeof value === 'string') out.discriminators.push(qualified + ':' + value);
-    if (parentKey === 'security') out.securityNames.push(qualified);
-    if (/^(action|actionId|actions|control|transition|command)$/i.test(name)) {
-      out.actionIdentifiers.push(qualified);
-      addStrings(value, qualified, out.actionIdentifiers);
-    }
-    schemaIdentifiers(value, qualified, out, name);
-  }
+const ANNOTATIONS = new Set(['description', 'summary', 'title', 'example', 'examples', 'externalDocs']);
+function addScalar(value, prefix, target) {
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') target.push(prefix + ':' + value);
 }
 function openApiSurfaces(api) {
-  const out = { paths: Object.keys(api.paths || {}), operationIds: [], schemaNames: Object.keys(api.components?.schemas || {}), schemaKeys: [], schemaReferences: [], propertyNames: [], enumValues: [], discriminators: [], actionIdentifiers: [], structuralValues: [], securityNames: [] };
-  for (const [path, item] of Object.entries(api.paths || {})) for (const [method, operation] of Object.entries(item || {})) if (METHODS.has(method.toLowerCase())) {
-    out.operationIds.push(operation.operationId || '');
-    schemaIdentifiers(operation, 'operation:' + (operation.operationId || path), out);
+  const out = {
+    paths: [], operationIds: [], schemaNames: [], schemaKeys: [], schemaReferences: [], propertyNames: [],
+    enumValues: [], discriminators: [], actionIdentifiers: [], structuralValues: [], securityNames: [],
+  };
+  const seen = new Set();
+  function scan(value, path, parentKey = '', annotationContext = false) {
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => {
+        if (!annotationContext) addScalar(item, path + '[' + index + ']', out.structuralValues);
+        scan(item, path + '[' + index + ']', parentKey, annotationContext);
+      });
+      return;
+    }
+    if (!value || typeof value !== 'object') return;
+    assert.ok(!seen.has(value), 'Cyclic OpenAPI structure at ' + path);
+    seen.add(value);
+    for (const [name, child] of Object.entries(value)) {
+      const qualified = path + '.' + name;
+      out.schemaKeys.push(qualified); // Generic mapping-key inventory, retained name for diagnostics compatibility.
+      if (path === 'openapi.paths') out.paths.push(name);
+      if (path === 'openapi.components.schemas') out.schemaNames.push(name);
+      if (parentKey === 'properties') out.propertyNames.push(qualified);
+      if (parentKey === 'security') out.securityNames.push(qualified);
+      if (/^(action|actionId|actions|control|transition|command)$/i.test(name)) out.actionIdentifiers.push(qualified);
+
+      const childAnnotation = annotationContext || ANNOTATIONS.has(name);
+      if (name === '$ref') {
+        assert.equal(typeof child, 'string', qualified + ' must be a string');
+        for (const token of decodeReferenceTokens(child)) out.schemaReferences.push(qualified + ':' + token);
+      } else if (!childAnnotation) {
+        addScalar(child, qualified, out.structuralValues);
+        if (name === 'operationId' && typeof child === 'string') out.operationIds.push(child);
+        if ((name === 'enum' || name === 'const') && !Array.isArray(child)) addScalar(child, qualified, out.enumValues);
+        if (name === 'propertyName' && typeof child === 'string') out.discriminators.push(qualified + ':' + child);
+        if (parentKey === 'mapping') {
+          out.discriminators.push(qualified);
+          if (typeof child === 'string' && child.startsWith('#/')) for (const token of decodeReferenceTokens(child)) out.discriminators.push(qualified + ':' + token);
+        }
+        if (/^(action|actionId|actions|control|transition|command)$/i.test(name)) addScalar(child, qualified, out.actionIdentifiers);
+      }
+      scan(child, qualified, name, childAnnotation);
+    }
+    seen.delete(value);
   }
-  for (const [name, schema] of Object.entries(api.components?.schemas || {})) schemaIdentifiers(schema, 'schema:' + name, out);
+  scan(api, 'openapi');
   return out;
 }
 function splitRow(line) {
@@ -176,28 +180,42 @@ test('identifier-bearing OpenAPI values are scanned while prose-only values are 
   const prose = structuredClone(api);
   prose.components.schemas.ProseProbe = {
     type: 'object', description: 'secondarySource', summary: 'secondarySource', title: 'secondarySource',
-    example: { secondarySource: true }, examples: [{ secondarySource: true }], externalDocs: { description: 'secondarySource', url: 'https://example.test/secondarySource' },
+    example: 'secondarySource', examples: ['secondarySource'], externalDocs: { description: 'secondarySource', url: 'https://example.test/secondarySource' },
   };
   assert.deepEqual(deferredFindings(openApiSurfaces(prose)), []);
 });
-test('JSON Pointer refs decode slash and tilde tokens, reject malformed escapes, and cannot hide deferred identifiers', () => {
+test('JSON Pointer refs decode exactly once and deferred scanning rejects nested or malformed escapes', () => {
   const escaped = structuredClone(api);
   escaped.components.schemas['Slash/Name'] = { type: 'string' };
   escaped.components.schemas['Tilde~Name'] = { type: 'string' };
   escaped.components.schemas.RefProbe = { allOf: [{ $ref: '#/components/schemas/Slash~1Name' }, { $ref: '#/components/schemas/Tilde~0Name' }] };
   assert.deepEqual(deferredFindings(openApiSurfaces(escaped)), []);
 
-  const hidden = structuredClone(api);
-  hidden.components.schemas['Secondary~1Source'] = { type: 'string' };
-  hidden.components.schemas.RefProbe = { $ref: '#/components/schemas/Secondary~01Source' };
-  const findings = deferredFindings(openApiSurfaces(hidden));
-  assert.ok(findings.some((finding) => finding.kind === 'schemaNames' && finding.value === 'Secondary~1Source'));
-  assert.ok(findings.some((finding) => finding.kind === 'schemaReferences' && finding.value.endsWith(':Secondary~1Source')));
-
-  for (const reference of ['#/components/schemas/Bad~2Name', '#/components/schemas/Bad~']) {
+  const bypass = structuredClone(api);
+  bypass.components.schemas['Secondary~01Source'] = { type: 'string' };
+  bypass.components.schemas.RefProbe = { $ref: '#/components/schemas/Secondary~001Source' };
+  assert.throws(() => openApiSurfaces(bypass), /Nested JSON Pointer escape/);
+  for (const reference of ['#/components/schemas/Secondary~0001Source', '#/components/schemas/Bad~2Name', '#/components/schemas/Bad~']) {
     const malformed = structuredClone(api); malformed.components.schemas.RefProbe = { $ref: reference };
-    assert.throws(() => openApiSurfaces(malformed), /Invalid JSON Pointer escape/);
+    assert.throws(() => openApiSurfaces(malformed), /Nested JSON Pointer escape|Invalid JSON Pointer escape/);
   }
+});
+
+test('generic whole-document scan rejects deferred identifiers on every OpenAPI structural surface', () => {
+  const mutations = [];
+  const tag = structuredClone(api); tag.tags = [{ name: 'secondarySource' }]; mutations.push(['top-level tags', tag]);
+  const security = structuredClone(api); security.security = [{ secondarySource: [] }]; mutations.push(['global security', security]);
+  const scheme = structuredClone(api); scheme.components.securitySchemes = { secondarySource: { type: 'apiKey', name: 'X-Safe', in: 'header' } }; mutations.push(['securitySchemes', scheme]);
+  const parameter = structuredClone(api); Object.values(parameter.paths)[0].parameters = [{ name: 'secondarySource', in: 'query', schema: { type: 'string' } }]; mutations.push(['path parameters', parameter]);
+  const nested = structuredClone(api); nested.components.schemas.NestedProbe = { type: 'object', properties: { description: { type: 'object', properties: { secondarySource: { type: 'string' } } } } }; mutations.push(['property named description', nested]);
+  for (const [label, mutation] of mutations) assert.ok(deferredFindings(openApiSurfaces(mutation)).length, label + ' escaped generic scan');
+});
+
+test('blank block scalar in a sequence mapping cannot swallow deferred sibling fields', () => {
+  const parameters = parseYaml('- description: |+\n\n  name: secondarySource\n  in: query\n');
+  assert.deepEqual({ ...parameters[0] }, { description: '\n', name: 'secondarySource', in: 'query' });
+  const mutation = structuredClone(api); Object.values(mutation.paths)[0].parameters = parameters;
+  assert.ok(deferredFindings(openApiSurfaces(mutation)).length, 'deferred parameter name was swallowed by scalar parsing');
 });
 
 test('representative UI control and executable task file/action mutations are rejected', () => {

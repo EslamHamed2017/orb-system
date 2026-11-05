@@ -30,7 +30,8 @@ const CONTROL = {
 export function parseYaml(source) {
   if (typeof source !== 'string') throw new TypeError('YAML source must be a string');
   if (/\t/.test(source)) throw new SyntaxError('YAML tabs are unsupported');
-  const rawLines = source.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').split('\n');
+  const normalizedSource = source.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+  const rawLines = normalizedSource.split('\n');
   const records = [];
   function quoteState(value, initial = '') {
     let quote = initial, escaped = false;
@@ -48,12 +49,12 @@ export function parseYaml(source) {
   for (let i = 0; i < rawLines.length; i++) {
     let raw = rawLines[i], match = raw.match(/^( *)(.*)$/), indent = match[1].length;
     if (blockParent !== null) {
-      if (!raw.trim() || indent > blockParent) { records.push({ raw, indent, body: match[2], number: i + 1 }); continue; }
+      if (!raw.trim() || indent > blockParent) { records.push({ raw, indent, body: match[2], number: i + 1, terminated: i < rawLines.length - 1 }); continue; }
       blockParent = null;
     }
     const number = i + 1; let quote = quoteState(match[2]);
     while (quote && i + 1 < rawLines.length) { raw += ' ' + rawLines[++i].trim(); quote = quoteState(rawLines[i], quote); }
-    match = raw.match(/^( *)(.*)$/); records.push({ raw, indent: match[1].length, body: match[2], number });
+    match = raw.match(/^( *)(.*)$/); records.push({ raw, indent: match[1].length, body: match[2], number, terminated: i < rawLines.length - 1 });
     if (/:[ \t]*[>|][+-]?[ \t]*(?:#.*)?$/.test(match[2])) blockParent = match[1].length;
   }
   let cursor = 0;
@@ -168,20 +169,24 @@ export function parseYaml(source) {
     for (let i = start; i < end; i++) {
       const record = records[i];
       // split() creates one non-content sentinel after a final line break.
-      if (i === records.length - 1 && record.raw === '' && source.endsWith('\n')) continue;
-      if (!record.raw.trim()) body.push('');
+      if (i === records.length - 1 && record.raw === '' && normalizedSource.endsWith('\n')) continue;
+      if (!record.raw.trim()) body.push({ text: '', terminated: record.terminated });
       else {
         if (record.indent < contentIndent) fail('Malformed block scalar indentation', record.number);
-        body.push(record.raw.slice(contentIndent));
+        body.push({ text: record.raw.slice(contentIndent), terminated: record.terminated });
       }
     }
     cursor = end;
     const blankOnly = contentIndent === null;
-    if (blankOnly) return marker.endsWith('+') ? '\n'.repeat(body.length) : '';
-    if (marker[0] === '>' && body.some((line) => line === '' || /^\s/.test(line))) fail('Complex folded block scalars are unsupported', number);
-    let result = (marker[0] === '|' ? body.join('\n') : body.join(' ')) + (body.length ? '\n' : '');
+    if (blankOnly) return marker.endsWith('+') ? body.map((line) => line.terminated ? '\n' : '').join('') : '';
+    if (marker[0] === '>' && body.some((line) => line.text === '' || /^\s/.test(line.text))) fail('Complex folded block scalars are unsupported', number);
+    let result = '';
+    for (const [index, line] of body.entries()) {
+      result += line.text;
+      if (line.terminated) result += marker[0] === '>' && index + 1 < body.length ? ' ' : '\n';
+    }
     if (marker.endsWith('-')) result = result.replace(/\n+$/, '');
-    else if (!marker.endsWith('+')) result = result.replace(/\n+$/, '') + (body.length ? '\n' : '');
+    else if (!marker.endsWith('+') && /\n+$/.test(result)) result = result.replace(/\n+$/, '') + '\n';
     return result;
   }
   function assign(object, name, rest, indent, number) {
@@ -224,7 +229,7 @@ export function parseYaml(source) {
       if (!rest) { skipTrivia(); result.push(cursor < records.length && inspected(records[cursor]).indent > indent ? parseBlock(records[cursor].indent) : null); continue; }
       const split = colon(rest);
       if (split > 0) {
-        const item = Object.create(null); assign(item, parseKey(rest.slice(0, split), line.number), rest.slice(split + 1).trim(), indent, line.number);
+        const item = Object.create(null); assign(item, parseKey(rest.slice(0, split), line.number), rest.slice(split + 1).trim(), indent + 2, line.number);
         skipTrivia(); if (cursor < records.length && inspected(records[cursor]).indent > indent) mapping(records[cursor].indent, item);
         result.push(item);
       } else {
@@ -333,7 +338,15 @@ function controlViolations(document) {
   return errors;
 }
 function operation(document, id) { return operations(document).find((entry) => entry.operation.operationId === id).operation; }
-const document = parseYaml(readFileSync(OPENAPI, 'utf8'));
+const EXPECTED_OPENAPI_SHA256 = '4ea820147279f5749cb56aab5a1e2655268f5ff895f4d5278a8ff228d6b10a25';
+function assertAcceptedOpenApiBytes(bytes) {
+  const actual = createHash('sha256').update(bytes).digest('hex');
+  assert.equal(actual, EXPECTED_OPENAPI_SHA256, 'accepted OpenAPI bytes changed; expected=' + EXPECTED_OPENAPI_SHA256 + ' actual=' + actual);
+}
+const openApiBytes = readFileSync(OPENAPI);
+assertAcceptedOpenApiBytes(openApiBytes);
+const document = parseYaml(openApiBytes.toString('utf8'));
+const acceptedLocalRefCount = validateAndCountLocalRefs(document);
 
 test('YAML subset parser covers mappings, sequences, scalars, flow collections, comments, escaped keys and block scalars', () => {
   const parsed = parseYaml(`root:
@@ -356,17 +369,25 @@ safe:
   assert.equal(parsed.safe.__proto__, 'inert'); assert.equal(Object.getPrototypeOf(parsed.safe), null);
   assert.equal(parseYaml('a: |-\n  # retained data').a, '# retained data');
   assert.equal(parseYaml('a: |-\n  first\n\n  third').a, 'first\n\nthird');
-  assert.equal(parseYaml('a: |\n  x\n  # retained\n  z').a, 'x\n# retained\nz\n');
+  assert.equal(parseYaml('a: |\n  x\n  # retained\n  z').a, 'x\n# retained\nz');
   assert.deepEqual({ ...parseYaml('a: |+\n  x\n\n\nb: y') }, { a: 'x\n\n\n', b: 'y' });
   assert.equal(parseYaml('a: |+\n  x\n\n').a, 'x\n\n');
   assert.equal(parseYaml('a: >-\n  first\n  second').a, 'first second');
-  assert.equal(parseYaml('a: >\n  first\n  second').a, 'first second\n');
-  assert.equal(parseYaml('a: >+\n  first\n  second').a, 'first second\n');
+  assert.equal(parseYaml('a: >\n  first\n  second').a, 'first second');
+  assert.equal(parseYaml('a: >+\n  first\n  second').a, 'first second');
   for (const marker of ['|', '|-', '>', '>-']) assert.equal(parseYaml('a: ' + marker + '\n\n\nb: z\n').a, '', marker + ' blank-only chomping');
   for (const marker of ['|+', '>+']) assert.equal(parseYaml('a: ' + marker + '\n\n\nb: z\n').a, '\n\n', marker + ' blank-only keep');
   assert.equal(parseYaml('a: |+\n  \n\nb: z\n').a, '\n\n', 'blank-only indentation before dedent');
   assert.equal(parseYaml('a: |+\n\n').a, '\n', 'blank-only keep at EOF');
   assert.deepEqual({ ...parseYaml('a: |+\n\n\nb: z\n') }, { a: '\n\n', b: 'z' });
+  for (const marker of ['|', '|-', '|+', '>', '>-', '>+']) {
+    assert.equal(parseYaml('a: ' + marker + '\n  x').a, 'x', marker + ' EOF without final newline');
+    assert.equal(parseYaml('a: ' + marker + '\n  x\n').a, marker.endsWith('-') ? 'x' : 'x\n', marker + ' EOF with final newline');
+  }
+  assert.equal(parseYaml('a: |+\n  ').a, '', 'unterminated blank content is not a line break');
+  assert.equal(parseYaml('a: >+\n  ').a, '', 'unterminated folded blank content is not a line break');
+  const sequenceMapping = parseYaml('- description: |+\n\n  name: secondarySource\n  in: query\n');
+  assert.deepEqual({ ...sequenceMapping[0] }, { description: '\n', name: 'secondarySource', in: 'query' });
 });
 test('YAML subset parser fails closed on malformed, duplicate, ambiguous and unsupported syntax', () => {
   const rejected = [
@@ -379,9 +400,15 @@ test('YAML subset parser fails closed on malformed, duplicate, ambiguous and uns
   assert.throws(() => parseYaml(accepted + '\nx-invalid-probe: bad: scalar\n'), /Colon followed by whitespace/);
 });
 
+test('accepted raw OpenAPI bytes are independently SHA-256 pinned', () => {
+  assertAcceptedOpenApiBytes(openApiBytes);
+  const proseOnlyDrift = Buffer.from(openApiBytes.toString('utf8').replace('Authoritative Release 1 API.', 'authoritative Release 1 API.'));
+  assert.equal(proseOnlyDrift.length, openApiBytes.length, 'mutation must preserve byte count');
+  assert.throws(() => assertAcceptedOpenApiBytes(proseOnlyDrift), new RegExp('expected=' + EXPECTED_OPENAPI_SHA256 + ' actual=[0-9a-f]{64}'));
+});
 test('accepted OpenAPI 3.1 surface and every local ref are pinned', () => {
   assert.match(document.openapi, /^3\.1(?:\.|$)/); assert.equal(Object.keys(document.paths).length, 75);
-  assert.equal(operations(document).length, 79); assert.equal(validateAndCountLocalRefs(document), 745);
+  assert.equal(operations(document).length, 79); assert.equal(acceptedLocalRefCount, 745);
 });
 test('all operations have exact operation-specific role assignments', () => {
   assert.equal(EXPECTED_ROLES.size, 79); assert.deepEqual(contractViolations(document), []);
