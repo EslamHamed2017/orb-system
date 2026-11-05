@@ -30,34 +30,57 @@ const CONTROL = {
 export function parseYaml(source) {
   if (typeof source !== 'string') throw new TypeError('YAML source must be a string');
   if (/\t/.test(source)) throw new SyntaxError('YAML tabs are unsupported');
-  const original = source.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').split('\n'), physical = [], lines = [];
-  function openQuote(value, initial = '') {
+  const rawLines = source.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').split('\n');
+  const records = [];
+  function quoteState(value, initial = '') {
     let quote = initial, escaped = false;
-    for (let i = 0; i < value.length; i++) { const ch = value[i]; if (quote === '"' && escaped) { escaped = false; continue; } if (quote === '"' && ch === '\\') { escaped = true; continue; } if (quote) { if (ch === quote) { if (quote === "'" && value[i + 1] === "'") i++; else quote = ''; } } else if (ch === '"' || ch === "'") quote = ch; }
+    for (let i = 0; i < value.length; i++) {
+      const ch = value[i];
+      if (quote === '"' && escaped) { escaped = false; continue; }
+      if (quote === '"' && ch === '\\') { escaped = true; continue; }
+      if (quote) { if (ch === quote) { if (quote === "'" && value[i + 1] === "'") i++; else quote = ''; } }
+      else if (ch === '#' && (i === 0 || /\s/.test(value[i - 1]))) break;
+      else if (ch === '"' || ch === "'") quote = ch;
+    }
     return quote;
   }
-  for (let i = 0; i < original.length; i++) { let value = original[i], quote = openQuote(value); while (quote && i + 1 < original.length) { value += ' ' + original[++i].trim(); quote = openQuote(original[i], quote); } if (quote) throw new SyntaxError('Unclosed quoted scalar at line ' + (i + 1)); physical.push(value); }
-  function clean(value, number) {
+  let blockParent = null;
+  for (let i = 0; i < rawLines.length; i++) {
+    let raw = rawLines[i], match = raw.match(/^( *)(.*)$/), indent = match[1].length;
+    if (blockParent !== null) {
+      if (!raw.trim() || indent > blockParent) { records.push({ raw, indent, body: match[2], number: i + 1 }); continue; }
+      blockParent = null;
+    }
+    const number = i + 1; let quote = quoteState(match[2]);
+    while (quote && i + 1 < rawLines.length) { raw += ' ' + rawLines[++i].trim(); quote = quoteState(rawLines[i], quote); }
+    match = raw.match(/^( *)(.*)$/); records.push({ raw, indent: match[1].length, body: match[2], number });
+    if (/:[ \t]*[>|][+-]?[ \t]*(?:#.*)?$/.test(match[2])) blockParent = match[1].length;
+  }
+  let cursor = 0;
+  function fail(message, number = records[cursor]?.number || rawLines.length) { throw new SyntaxError(message + ' at line ' + number); }
+  function stripComment(value, number) {
     let quote = '', escaped = false;
     for (let i = 0; i < value.length; i++) {
       const ch = value[i];
       if (quote === '"' && escaped) { escaped = false; continue; }
       if (quote === '"' && ch === '\\') { escaped = true; continue; }
-      if (quote) { if (ch === quote) { if (quote === "'" && value[i + 1] === "'") i++; else quote = ''; } continue; }
-      if (ch === '"' || ch === "'") quote = ch;
+      if (quote) {
+        if (ch === quote) { if (quote === "'" && value[i + 1] === "'") i++; else quote = ''; }
+      } else if (ch === '"' || ch === "'") quote = ch;
       else if (ch === '#' && (i === 0 || /\s/.test(value[i - 1]))) return value.slice(0, i).trimEnd();
     }
-    if (quote) throw new SyntaxError('Unclosed YAML token at line ' + number);
+    if (quote) fail('Multiline or unclosed quoted scalar is unsupported', number);
     return value.trimEnd();
   }
-  physical.forEach((raw, index) => {
-    const match = raw.match(/^( *)(.*)$/), content = clean(match[2], index + 1);
-    if (!content.trim()) return;
-    if (/^(?:---|\.\.\.|%YAML(?:\s|$)|%TAG(?:\s|$))/.test(content)) throw new SyntaxError('YAML directives/documents are unsupported at line ' + (index + 1));
-    lines.push({ indent: match[1].length, content, number: index + 1 });
-  });
-  if (!lines.length) throw new SyntaxError('Empty YAML document');
-  let cursor = 0;
+  function inspected(record) {
+    if (record.inspected) return record;
+    record.inspected = true;
+    record.content = stripComment(record.body, record.number);
+    record.trivia = !record.content.trim();
+    if (!record.trivia && /^(?:---|\.\.\.|%YAML(?:\s|$)|%TAG(?:\s|$))/.test(record.content)) fail('YAML directives/documents are unsupported', record.number);
+    return record;
+  }
+  function skipTrivia() { while (cursor < records.length && inspected(records[cursor]).trivia) cursor++; }
   function colon(value) {
     let quote = '', escaped = false, depth = 0;
     for (let i = 0; i < value.length; i++) {
@@ -67,14 +90,14 @@ export function parseYaml(source) {
       if (quote) { if (ch === quote) { if (quote === "'" && value[i + 1] === "'") i++; else quote = ''; } continue; }
       if (ch === '"' || ch === "'") quote = ch;
       else if (ch === '[' || ch === '{') depth++;
-      else if (ch === ']' || ch === '}') depth--;
+      else if (ch === ']' || ch === '}') { depth--; if (depth < 0) return -1; }
       else if (ch === ':' && depth === 0 && (i + 1 === value.length || /\s/.test(value[i + 1]))) return i;
     }
     return -1;
   }
   function parseFlow(text, number) {
     let index = 0;
-    const fail = (message) => { throw new SyntaxError(message + ' at line ' + number); };
+    const bad = (message) => fail(message, number);
     const space = () => { while (/\s/.test(text[index] || '')) index++; };
     function quoted() {
       const quote = text[index++]; let token = quote, escaped = false;
@@ -82,89 +105,146 @@ export function parseYaml(source) {
         const ch = text[index++]; token += ch;
         if (quote === '"') {
           if (escaped) escaped = false; else if (ch === '\\') escaped = true;
-          else if (ch === quote) { try { return JSON.parse(token); } catch { fail('Invalid double-quoted scalar'); } }
+          else if (ch === quote) { try { return JSON.parse(token); } catch { bad('Invalid double-quoted scalar'); } }
         } else if (ch === quote) {
           if (text[index] === quote) { token += text[index++]; continue; }
           return token.slice(1, -1).replace(/''/g, "'");
         }
       }
-      fail('Unclosed quoted scalar');
+      bad('Unclosed quoted scalar');
     }
-    function scalar(stops) {
-      space(); if (text[index] === '"' || text[index] === "'") return quoted();
+    function plain(stops) {
+      space();
       const start = index; while (index < text.length && !stops.includes(text[index])) index++;
-      const token = text.slice(start, index).trim(); if (!token) fail('Missing scalar');
-      if (/^[!&*]/.test(token)) fail('YAML tags, anchors and aliases are unsupported');
+      const token = text.slice(start, index).trim();
+      if (!token) bad('Missing scalar');
+      if (/(^|\s)[!&*](?=\S)/.test(token)) bad('YAML tags, anchors and aliases are unsupported');
+      if (/:\s/.test(token)) bad('Colon followed by whitespace in a plain scalar is unsupported');
       if (/^(?:null|~)$/i.test(token)) return null;
       if (/^(?:true|false)$/i.test(token)) return token.toLowerCase() === 'true';
-      if (/^[+-]?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(token)) { const value = Number(token); if (!Number.isFinite(value)) fail('Non-finite number'); return value; }
-      if (/^(?:yes|no|on|off)$/i.test(token) || /^[-+]?0\d+$/.test(token)) fail('Ambiguous YAML scalar is unsupported');
+      if (/^[+-]?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(token)) { const value = Number(token); if (!Number.isFinite(value)) bad('Non-finite number'); return value; }
+      if (/^(?:yes|no|on|off|\.nan|[-+]?\.inf)$/i.test(token) || /^[-+]?0\d+$/.test(token)) bad('Ambiguous YAML scalar is unsupported');
+      if (/^[?:-](?:\s|$)/.test(token)) bad('Ambiguous YAML construct is unsupported');
       return token;
     }
     function value(nested = false) {
       space();
+      if (text[index] === '"' || text[index] === "'") return quoted();
       if (text[index] === '[') {
         index++; const result = []; space(); if (text[index] === ']') { index++; return result; }
-        while (true) { result.push(value(true)); space(); if (text[index] === ']') { index++; return result; } if (text[index++] !== ',') fail('Expected comma or ]'); space(); if (text[index] === ']') fail('Trailing flow comma unsupported'); }
+        while (true) { result.push(value(true)); space(); if (text[index] === ']') { index++; return result; } if (text[index++] !== ',') bad('Expected comma or ]'); space(); if (text[index] === ']') bad('Trailing flow comma unsupported'); }
       }
       if (text[index] === '{') {
         index++; const result = Object.create(null); space(); if (text[index] === '}') { index++; return result; }
         while (true) {
-          const key = scalar(':'); space(); if (text[index++] !== ':') fail('Expected mapping colon');
-          if (typeof key !== 'string' || !key) fail('Mapping key must be a non-empty string'); if (Object.hasOwn(result, key)) fail('Duplicate key ' + key);
-          result[key] = value(true); space(); if (text[index] === '}') { index++; return result; } if (text[index++] !== ',') fail('Expected comma or }'); space(); if (text[index] === '}') fail('Trailing flow comma unsupported');
+          const name = value(true); space(); if (text[index++] !== ':') bad('Expected mapping colon');
+          if (typeof name !== 'string' || !name) bad('Mapping key must be a non-empty string');
+          if (Object.hasOwn(result, name)) bad('Duplicate key ' + name);
+          result[name] = value(true); space(); if (text[index] === '}') { index++; return result; }
+          if (text[index++] !== ',') bad('Expected comma or }'); space(); if (text[index] === '}') bad('Trailing flow comma unsupported');
         }
       }
-      return scalar(nested ? ',]}' : '');
+      return plain(nested ? ',]}:' : '');
     }
-    const result = value(); space(); if (index !== text.length) fail('Unexpected flow content'); return result;
+    const result = value(); space(); if (index !== text.length) bad('Unexpected flow content'); return result;
   }
-  function key(text, number) { const result = parseFlow(text.trim(), number); if (typeof result !== 'string' || !result) throw new SyntaxError('Mapping key must be a non-empty string at line ' + number); return result; }
+  function parseKey(text, number) {
+    const result = parseFlow(text.trim(), number);
+    if (typeof result !== 'string' || !result) fail('Mapping key must be a non-empty string', number);
+    return result;
+  }
   function blockScalar(marker, parentIndent, number) {
-    if (!/^[>|][+-]?$/.test(marker)) throw new SyntaxError('Unsupported block scalar indicator at line ' + number);
-    const parts = []; let minimum = Infinity;
-    while (cursor < lines.length && lines[cursor].indent > parentIndent) { minimum = Math.min(minimum, lines[cursor].indent); parts.push(lines[cursor++]); }
-    const body = parts.map((line) => ' '.repeat(line.indent - minimum) + line.content);
-    let result = marker[0] === '|' ? body.join('\n') : body.join('\n').replace(/([^\n])\n(?=[^\n])/g, '$1 ');
-    if (!marker.endsWith('-')) result += '\n'; return result;
+    if (!/^[>|][+-]?$/.test(marker)) fail('Unsupported block scalar indicator', number);
+    const start = cursor; let contentIndent = null, end = cursor;
+    while (end < records.length) {
+      const record = records[end];
+      if (!record.raw.trim()) { end++; continue; }
+      if (record.indent <= parentIndent) break;
+      if (contentIndent === null) contentIndent = record.indent;
+      if (record.indent < contentIndent) break;
+      end++;
+    }
+    if (contentIndent === null) { cursor = end; return ''; }
+    const body = [];
+    for (let i = start; i < end; i++) {
+      const record = records[i];
+      if (i === records.length - 1 && record.raw === '' && source.endsWith('\n')) continue;
+      if (!record.raw.trim()) body.push('');
+      else {
+        if (record.indent < contentIndent) fail('Malformed block scalar indentation', record.number);
+        body.push(record.raw.slice(contentIndent));
+      }
+    }
+    cursor = end;
+    if (marker[0] === '>' && body.some((line) => line === '' || /^\s/.test(line))) fail('Complex folded block scalars are unsupported', number);
+    let result = (marker[0] === '|' ? body.join('\n') : body.join(' ')) + (body.length ? '\n' : '');
+    if (marker.endsWith('-')) result = result.replace(/\n+$/, '');
+    else if (!marker.endsWith('+')) result = result.replace(/\n+$/, '') + (body.length ? '\n' : '');
+    return result;
   }
   function assign(object, name, rest, indent, number) {
-    if (Object.hasOwn(object, name)) throw new SyntaxError('Duplicate key ' + name + ' at line ' + number);
-    if (!rest) object[name] = cursor >= lines.length || lines[cursor].indent < indent || (lines[cursor].indent === indent && !/^-(?:\s|$)/.test(lines[cursor].content)) ? null : parseBlock(lines[cursor].indent);
-    else if (/^[>|]/.test(rest)) object[name] = blockScalar(rest, indent, number);
+    if (Object.hasOwn(object, name)) fail('Duplicate key ' + name, number);
+    if (!rest) {
+      skipTrivia();
+      object[name] = cursor < records.length && (inspected(records[cursor]).indent > indent || (records[cursor].indent === indent && /^-(?:\s|$)/.test(records[cursor].content))) ? parseBlock(records[cursor].indent) : null;
+    } else if (/^[>|]/.test(rest)) object[name] = blockScalar(rest, indent, number);
     else {
-      object[name] = parseFlow(rest, number); const continuation = [];
-      while (cursor < lines.length && lines[cursor].indent > indent && !/^-(?:\s|$)/.test(lines[cursor].content) && colon(lines[cursor].content) < 0) continuation.push(lines[cursor++].content.trim());
-      if (continuation.length) { if (typeof object[name] !== 'string') throw new SyntaxError('Scalar continuation requires text at line ' + number); object[name] += ' ' + continuation.join(' '); }
+      object[name] = parseFlow(rest, number);
+      const continuation = [];
+      while (cursor < records.length) {
+        const next = inspected(records[cursor]);
+        if (next.trivia || next.indent <= indent || /^-(?:\s|$)/.test(next.content) || colon(next.content) >= 0) break;
+        continuation.push(next.content.trim()); cursor++;
+      }
+      if (continuation.length) {
+        if (typeof object[name] !== 'string') fail('Scalar continuation requires text', number);
+        object[name] += ' ' + continuation.join(' ');
+      }
     }
   }
   function mapping(indent, seed = Object.create(null)) {
-    while (cursor < lines.length && lines[cursor].indent === indent && !/^-(?:\s|$)/.test(lines[cursor].content)) {
-      const line = lines[cursor++], split = colon(line.content); if (split < 1) throw new SyntaxError('Expected mapping at line ' + line.number);
-      assign(seed, key(line.content.slice(0, split), line.number), line.content.slice(split + 1).trim(), indent, line.number);
+    while (true) {
+      skipTrivia(); if (cursor >= records.length) break;
+      const line = inspected(records[cursor]);
+      if (line.indent !== indent || /^-(?:\s|$)/.test(line.content)) break;
+      cursor++; const split = colon(line.content); if (split < 1) fail('Expected mapping', line.number);
+      assign(seed, parseKey(line.content.slice(0, split), line.number), line.content.slice(split + 1).trim(), indent, line.number);
     }
     return seed;
   }
   function sequence(indent) {
     const result = [];
-    while (cursor < lines.length && lines[cursor].indent === indent && /^-(?:\s|$)/.test(lines[cursor].content)) {
-      const line = lines[cursor++], rest = line.content.slice(1).trim();
-      if (!rest) { result.push(cursor >= lines.length || lines[cursor].indent <= indent ? null : parseBlock(lines[cursor].indent)); continue; }
+    while (true) {
+      skipTrivia(); if (cursor >= records.length) break;
+      const line = inspected(records[cursor]);
+      if (line.indent !== indent || !/^-(?:\s|$)/.test(line.content)) break;
+      cursor++; const rest = line.content.slice(1).trim();
+      if (!rest) { skipTrivia(); result.push(cursor < records.length && inspected(records[cursor]).indent > indent ? parseBlock(records[cursor].indent) : null); continue; }
       const split = colon(rest);
       if (split > 0) {
-        const item = Object.create(null); assign(item, key(rest.slice(0, split), line.number), rest.slice(split + 1).trim(), indent, line.number);
-        if (cursor < lines.length && lines[cursor].indent > indent) mapping(lines[cursor].indent, item); result.push(item);
-      } else { result.push(parseFlow(rest, line.number)); if (cursor < lines.length && lines[cursor].indent > indent) throw new SyntaxError('Scalar sequence item cannot have children at line ' + lines[cursor].number); }
+        const item = Object.create(null); assign(item, parseKey(rest.slice(0, split), line.number), rest.slice(split + 1).trim(), indent, line.number);
+        skipTrivia(); if (cursor < records.length && inspected(records[cursor]).indent > indent) mapping(records[cursor].indent, item);
+        result.push(item);
+      } else {
+        result.push(parseFlow(rest, line.number)); skipTrivia();
+        if (cursor < records.length && inspected(records[cursor]).indent > indent) fail('Scalar sequence item cannot have children', records[cursor].number);
+      }
     }
     return result;
   }
   function parseBlock(indent) {
-    if (cursor >= lines.length || lines[cursor].indent !== indent) throw new SyntaxError('Invalid indentation at line ' + (lines[cursor]?.number || physical.length));
-    const isSequence = /^-(?:\s|$)/.test(lines[cursor].content), result = isSequence ? sequence(indent) : mapping(indent);
-    if (cursor < lines.length && lines[cursor].indent > indent) throw new SyntaxError('Unexpected indentation at line ' + lines[cursor].number);
+    skipTrivia();
+    if (cursor >= records.length || inspected(records[cursor]).indent !== indent) fail('Invalid indentation');
+    const isSequence = /^-(?:\s|$)/.test(records[cursor].content);
+    const result = isSequence ? sequence(indent) : mapping(indent);
+    skipTrivia(); if (cursor < records.length && inspected(records[cursor]).indent > indent) fail('Unexpected indentation', records[cursor].number);
     return result;
   }
-  const result = parseBlock(lines[0].indent); if (cursor !== lines.length) throw new SyntaxError('Unparsed YAML at line ' + lines[cursor].number); return result;
+  skipTrivia(); if (cursor >= records.length) fail('Empty YAML document', 1);
+  if (records[cursor].indent !== 0) fail('Root indentation is unsupported', records[cursor].number);
+  const result = parseBlock(0); skipTrivia();
+  if (cursor !== records.length) fail('Unparsed YAML', records[cursor].number);
+  return result;
 }
 function pointerValue(document, reference) {
   assert.match(reference, /^#\//, 'Only local JSON Pointer refs are accepted: ' + reference);
@@ -268,14 +348,24 @@ safe:
   assert.deepEqual({ ...parsed.root.sequence[0].values }, { one: 1, 'two:key': 2 });
   assert.equal(parsed.root.literal, 'alpha\nbeta'); assert.equal(parsed.root.folded, 'gamma delta\n');
   assert.equal(parsed.safe.__proto__, 'inert'); assert.equal(Object.getPrototypeOf(parsed.safe), null);
+  assert.equal(parseYaml('a: |-\n  # retained data').a, '# retained data');
+  assert.equal(parseYaml('a: |-\n  first\n\n  third').a, 'first\n\nthird');
+  assert.equal(parseYaml('a: |\n  x\n  # retained\n  z').a, 'x\n# retained\nz\n');
+  assert.deepEqual({ ...parseYaml('a: |+\n  x\n\n\nb: y') }, { a: 'x\n\n\n', b: 'y' });
+  assert.equal(parseYaml('a: |+\n  x\n\n').a, 'x\n\n');
+  assert.equal(parseYaml('a: >-\n  first\n  second').a, 'first second');
+  assert.equal(parseYaml('a: >\n  first\n  second').a, 'first second\n');
+  assert.equal(parseYaml('a: >+\n  first\n  second').a, 'first second\n');
 });
 test('YAML subset parser fails closed on malformed, duplicate, ambiguous and unsupported syntax', () => {
   const rejected = [
     '', 'a:\n\tb: 1', '---\na: 1', 'a: &anchor 1', 'a: *anchor', 'a: !tag value',
     'a: 1\na: 2', 'a: [1,]', 'a: yes', 'a:\n    b: 1\n  c: 2', '? [a, b]\n: value',
-    'a: |2\n  value', 'a: "unterminated', 'a: {x: 1, x: 2}',
+    'a: |2\n  value', 'a: "unterminated', 'a: {x: 1, x: 2}', 'a: bad: scalar', 'a: 1\ntrailing garbage',
   ];
   for (const fixture of rejected) assert.throws(() => parseYaml(fixture), SyntaxError, JSON.stringify(fixture));
+  const accepted = readFileSync(OPENAPI, 'utf8');
+  assert.throws(() => parseYaml(accepted + '\nx-invalid-probe: bad: scalar\n'), /Colon followed by whitespace/);
 });
 
 test('accepted OpenAPI 3.1 surface and every local ref are pinned', () => {

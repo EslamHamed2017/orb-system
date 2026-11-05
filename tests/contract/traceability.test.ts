@@ -75,12 +75,44 @@ const EXPECTED_MATRIX_EVIDENCE = Object.freeze({
   'R1-019': ['E10','E12'], 'R1-020': ['E02','E13'], 'INV-01': ['E05','E06'], 'INV-02': ['E10'],
   'INV-03': ['E11'], 'INV-04': ['E13'], 'INV-05': ['E14'], 'INV-06': ['E09'], 'INV-07': ['E02'],
 });
+const EXPECTED_MATRIX_EVIDENCE_CELLS = Object.freeze({
+  "R1-001": "E03–E04: masters, atomic Project/contract, amendment, zero tolerances, self-approval denial",
+  "R1-002": "E05–E06: strict fields, every state, history/hash/approval invalidation, tolerance and stale/replay",
+  "R1-003": "E07: all routes, typed metadata/hash verification, audited access, closure blocker",
+  "R1-004": "E08–E09: shared dataset, immutable outputs/body/attachments, byte comparison, drift/failure attempts",
+  "R1-005": "E10: advances, partial allocation, compensating reversal and exact balance/closure recomputation",
+  "R1-006": "E11: proof, exact approval, old/new links and recomputation",
+  "R1-007": "E12: currency partitions, sources and four reconciled measures",
+  "R1-008": "E13: terminal bypass denial and approved exact outcome apply",
+  "R1-009": "E14: financial/final prerequisites, invalidation and reopening",
+  "R1-010": "E15–E17: role shaping, exact sessions, bilingual parity, restore",
+  "R1-011": "E13: outcome recording only; forbidden settlement automation absent",
+  "R1-012": "E14: automatic financial close/reopen independent from Final Close",
+  "R1-013": "E08, E15: output language and zero journey divergence",
+  "R1-014": "E02, E15–E17: least privilege, immutable audit/evidence, encryption and restore",
+  "R1-015": "E06–E07, E16: uniqueness, hashes and append-only evidence",
+  "R1-016": "E05–E06, E13–E14: legal/illegal transitions and RFC 9457",
+  "R1-017": "E02–E16: operation/UI execution sweep",
+  "R1-018": "E02, E04–E14, E16: idempotency, CSRF and current If-Match",
+  "R1-019": "E10, E12: exact decimal/currency reconciliation",
+  "R1-020": "E02, E13: deferred endpoints/schemas/controls absent",
+  "INV-01": "E05–E06: reachable graphs, actor/time/reason/evidence, approval expiry",
+  "INV-02": "E10: append-only serializable settlement and closure recalculation",
+  "INV-03": "E11: cancellation plus linked replacement; no destructive edit/delete",
+  "INV-04": "E13: proposal/decision/apply sequence; rejection is not claim terminal state",
+  "INV-05": "E14: snapshot blockers, eligible exceptions, invalidation and fresh assessment",
+  "INV-06": "E09: exact stored output/body/attachment bytes and immutable attempts",
+  "INV-07": "E02: deferred-scope crawl and 404/schema absence",
+});
+function normalizedEvidenceCell(cell) { return cell.trim().replace(/\s+/g, ' '); }
 function quickMatrixEvidence(source) {
   const matrix = rows(section(source, QUICK_MATRIX_START, QUICK_OP_START)).slice(1), result = Object.create(null);
   for (const row of matrix) {
     assert.equal(row.length, 4, 'quickstart matrix row must have four cells'); const id = row[0];
     assert.ok(!Object.hasOwn(result, id), 'duplicate quickstart matrix row ' + id);
-    result[id] = evidenceTokens(row[3] || '', 'quickstart matrix ' + id);
+    const cell = row[3] || '', tokens = evidenceTokens(cell, 'quickstart matrix ' + id);
+    assert.equal(normalizedEvidenceCell(cell), normalizedEvidenceCell(EXPECTED_MATRIX_EVIDENCE_CELLS[id] || ''), 'quickstart matrix canonical evidence cell for ' + id);
+    result[id] = tokens;
   }
   return result;
 }
@@ -186,11 +218,13 @@ test('quickstart matrix evidence mapping rejects missing, duplicate, wrong, unkn
   const duplicate = mutateQuickMatrix(quickstart, (cells) => { if (cells[0] === 'R1-003') cells[3] += ' E07'; return cells; });
   assert.throws(() => assertQuickMatrix(duplicate), /duplicate evidence token/);
   const wrong = mutateQuickMatrix(quickstart, (cells) => { if (cells[0] === 'R1-001') cells[3] = 'E05: synchronized wrong-row substitution'; return cells; });
-  assert.throws(() => assertQuickMatrix(wrong), /quickstart matrix evidence for R1-001/);
+  assert.throws(() => assertQuickMatrix(wrong), /quickstart matrix (?:canonical )?evidence(?: cell)? for R1-001/);
   const unknown = mutateQuickMatrix(quickstart, (cells) => { if (cells[0] === 'INV-07') cells[3] = 'E99: unknown'; return cells; });
   assert.throws(() => assertQuickMatrix(unknown), /unknown evidence E99/);
   const substringDecoy = mutateQuickMatrix(quickstart, (cells) => { if (cells[0] === 'R1-003') cells[3] = 'prefixE07suffix'; return cells; }) + '\nE07 global decoy\n';
   assert.throws(() => assertQuickMatrix(substringDecoy), /missing evidence cell tokens/);
+  const proseDecoy = mutateQuickMatrix(quickstart, (cells) => { if (cells[0] === 'R1-003') cells[3] = 'No retained proof here; E07 is only a prose decoy and is not evidence'; return cells; });
+  assert.throws(() => assertQuickMatrix(proseDecoy), /canonical evidence cell for R1-003/);
   const matrix = section(quickstart, QUICK_MATRIX_START, QUICK_OP_START), row = matrix.split(/\r?\n/).find((line) => /^\| R1-001 \|/.test(line));
   const duplicateRow = quickstart.replace(row, row + '\n' + row);
   assert.throws(() => assertQuickMatrix(duplicateRow), /duplicate quickstart matrix row/);
