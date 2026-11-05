@@ -8,6 +8,12 @@
 
 **Input**: User description: "Create a focused, standalone, bilingual ORB international coffee trade operations system. A Project contains one primary sales contract, multiple sales shipments, purchase contracts and supplier shipments, documents, advances, receipts, payments, expenses, bank matching, profit analysis, tax evidence packs, and historical migration from 2024. No Odoo and no accounting ledger."
 
+## Clarifications
+
+### Session 2026-11-05
+
+- Q: If the same customer signs a new independent sales contract, is it a new Project? → A: Yes. Every independent sales contract creates a new Project; amendments to the same contract remain in the existing Project.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Control a Trade Project (Priority: P1)
@@ -185,7 +191,7 @@ A migration reviewer processes original historical emails, PDF, image, spreadshe
 #### Canonical Structure and Contracts
 
 - **FR-001**: The system MUST use Project as the canonical operating and profitability entity.
-- **FR-002**: Each Project MUST have one primary sales contract; commercial changes MUST be recorded as versioned amendments unless a separate Project is created.
+- **FR-002**: Each Project MUST have exactly one primary sales contract. Every independent sales contract MUST create a new Project; only changes to the same contract may be recorded as versioned amendments inside that Project.
 - **FR-003**: A Project MUST support one or more purchase contracts without mixing customer and supplier balances.
 - **FR-004**: Contracts MUST retain original and active versions, amendment reason, approver, and effective date.
 - **FR-005**: The system MUST prevent duplicate active Project, contract, shipment, CINV, Packing List, and supplier-invoice references within their defined numbering scope.
@@ -305,7 +311,7 @@ A migration reviewer processes original historical emails, PDF, image, spreadshe
 
 ## Assumptions
 
-- ORB uses a Project for one primary customer sales commitment; later independent sales contracts normally create separate Projects, while amendments remain in the original Project.
+- ORB uses exactly one Project for each independent sales contract. Amendments to that same contract remain in the original Project.
 - A Project may use multiple purchase contracts and supplier shipments.
 - Direct shipment is common, but direct foreign-to-foreign and UAE free-zone re-export routes must both be supported.
 - Original transaction currencies are AED, USD, and SAR initially; currency lists remain configurable.
