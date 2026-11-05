@@ -14,6 +14,7 @@
 
 - Q: If the same customer signs a new independent sales contract, is it a new Project? → A: Yes. Every independent sales contract creates a new Project; amendments to the same contract remain in the existing Project.
 - Q: What is the cut line for the first usable release? → A: Release 1 contains Core Trade only; bank matching, tax pack, and historical migration follow in subsequent releases.
+- Q: When are shipments and Projects closed? → A: A shipment becomes Financially Closed when fully collected even if documents or claims remain open. A Project becomes Financially Closed after all sales shipments are collected, but Final Closed requires documents, claims, supplier obligations, expenses, and other closure controls to be complete or exceptionally approved.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -96,8 +97,9 @@ An owner or authorized user sees expected margin, committed margin, actual opera
 
 1. **Given** expected and actual commercial data, **When** the profit center opens, **Then** the four figures are separately labelled with formulas, currencies, rates, and source drill-down.
 2. **Given** cash was collected before shipment, **When** profitability is viewed, **Then** cash position changes but actual operational margin does not treat the advance as sales value.
-3. **Given** missing documents, unsettled balances, unresolved claims, unapproved expenses, or quantity differences, **When** closure is requested, **Then** the system lists blockers and refuses normal closure.
-4. **Given** a justified exception, **When** an authorized approver closes or reopens the Project, **Then** reason, user, time, and affected version are retained.
+3. **Given** all customer amounts for a shipment are collected, **When** documents or claims remain open, **Then** the shipment becomes Financially Closed while its document and claim statuses remain visibly open.
+4. **Given** every sales shipment is fully collected, **When** the Project is reviewed, **Then** it may become Financially Closed, but Final Closed remains blocked by incomplete documents, claims, supplier obligations, unapproved expenses, or quantity differences.
+5. **Given** a justified exception, **When** an authorized approver finally closes or reopens the Project, **Then** reason, user, time, and affected version are retained.
 
 ---
 
@@ -251,7 +253,7 @@ The data model and controls MUST anticipate subsequent releases, but Release 1 a
 - **FR-028**: The Project Profit Center MUST separately present expected margin, committed margin, actual operational margin, and cash position.
 - **FR-029**: Each profitability figure MUST disclose its formula and support drill-down to source records and documents.
 - **FR-030**: Cash advances and internal bank transfers MUST NOT be treated as sales value or profit.
-- **FR-031**: Project closure MUST validate quantity, delivery, documents, customer settlement, supplier settlement, expenses, claims, and approvals independently.
+- **FR-031**: A shipment MUST become Financially Closed when its customer balance is fully collected even if documents or claims remain open. A Project MAY become Financially Closed after all sales shipments are collected, but Final Closed MUST independently validate quantity, delivery, documents, supplier obligations, expenses, claims, and approvals.
 - **FR-032**: Authorized exceptional closure or reopening MUST require a reason and immutable audit event.
 - **FR-033**: Approvals MUST be risk-based and configurable by action, value threshold, exception, and role rather than required for every routine edit.
 - **FR-034**: Every approval MUST store actor, time, decision, comment, record version, and evidence where applicable.
