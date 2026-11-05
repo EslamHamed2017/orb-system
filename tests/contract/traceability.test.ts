@@ -1,106 +1,116 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { existsSync, readFileSync } = require('node:fs');
-const { resolve } = require('node:path');
-const { execFileSync } = require('node:child_process');
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = resolve(__dirname, '../..');
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const BASE = resolve(ROOT, 'specs/001-orb-trade-operations');
-const BT = String.fromCharCode(96);
-
+const METHODS = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'trace']);
 function text(path) { return readFileSync(resolve(BASE, path), 'utf8'); }
+function pythonPreflight() {
+  let versions;
+  try { versions = JSON.parse(execFileSync('python3', ['-c', 'import json,platform,yaml;print(json.dumps({"python":platform.python_version(),"pyyaml":yaml.__version__}))'], { encoding: 'utf8' })); }
+  catch (error) { throw new Error('Traceability tests require executable python3 with PyYAML 6.0.1: ' + error.message); }
+  assert.match(versions.python, /^3\.12\./, 'python3 must be pinned to Python 3.12.x');
+  assert.equal(versions.pyyaml, '6.0.1', 'PyYAML must be pinned to 6.0.1');
+}
 function parseYaml(path) {
-  const program = 'import json,sys,yaml\nprint(json.dumps(yaml.safe_load(open(sys.argv[1],encoding="utf-8")),default=str))';
-  return JSON.parse(execFileSync('python3', ['-c', program, path], { encoding: 'utf8' }));
+  pythonPreflight();
+  const code = 'import json,sys,yaml\nwith open(sys.argv[1],encoding="utf-8") as f:v=yaml.safe_load(f)\nprint(json.dumps(v,separators=(",",":"),default=str))';
+  return JSON.parse(execFileSync('python3', ['-c', code, path], { encoding: 'utf8' }));
 }
 function section(source, start, end) {
-  const from = source.indexOf(start);
-  assert.notEqual(from, -1, 'missing section: ' + start);
-  const to = end ? source.indexOf(end, from + start.length) : source.length;
-  assert.notEqual(to, -1, 'missing section terminator: ' + end);
+  const from = source.indexOf(start); assert.notEqual(from, -1, 'missing section: ' + start);
+  const to = end ? source.indexOf(end, from + start.length) : source.length; assert.notEqual(to, -1, 'missing section terminator: ' + end);
   return source.slice(from, to);
 }
-function firstColumnValues(source) {
-  const values = new Set();
-  for (const line of source.split(/\r?\n/)) {
-    const firstTick = line.indexOf(BT);
-    const secondTick = firstTick < 0 ? -1 : line.indexOf(BT, firstTick + 1);
-    const cells = line.split('|').map((cell) => cell.trim());
-    if (cells.length > 2 && /^(R1-\d{3}|INV-\d{2}|E\d{2})$/.test(cells[1])) {
-      values.add(cells[1]);
-    } else if (firstTick >= 0 && secondTick > firstTick && line.trimStart().startsWith('|')) {
-      values.add(line.slice(firstTick + 1, secondTick));
-    }
+function splitRow(line) {
+  const cells = []; let cell = '', inCode = false;
+  for (const char of line.slice(1, line.lastIndexOf('|'))) {
+    if (char === '`') inCode = !inCode;
+    if (char === '|' && !inCode) { cells.push(cell.trim()); cell = ''; } else cell += char;
   }
-  return values;
+  cells.push(cell.trim()); return cells;
+}
+function rows(source) {
+  return source.split(/\r?\n/).filter((line) => /^\|.*\|\s*$/.test(line) && !/^\|\s*:?-+/.test(line)).map(splitRow);
+}
+function backticks(cell) { return [...cell.matchAll(/`([^`]+)`/g)].map((match) => match[1]); }
+function assertExactInventory(actual, expected, label) {
+  const counts = new Map(); for (const value of actual) counts.set(value, (counts.get(value) || 0) + 1);
+  const expectedSet = new Set(expected);
+  const missing = expected.filter((value) => !counts.has(value));
+  const unknown = [...counts.keys()].filter((value) => !expectedSet.has(value));
+  const duplicate = [...counts].filter(([, count]) => count !== 1).map(([value, count]) => value + '×' + count);
+  assert.deepEqual({ missing, unknown, duplicate }, { missing: [], unknown: [], duplicate: [] }, label);
 }
 function operationIds() {
-  const api = parseYaml(resolve(BASE, 'contracts/openapi.yaml'));
-  const methods = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'trace']);
-  return Object.values(api.paths).flatMap((pathItem) => Object.entries(pathItem)
-    .filter(([method]) => methods.has(method.toLowerCase()))
-    .map(([, operation]) => operation.operationId));
+  const api = parseYaml(resolve(BASE, 'contracts/openapi.yaml')), ids = [];
+  for (const item of Object.values(api.paths || {})) for (const [method, operation] of Object.entries(item || {}))
+    if (METHODS.has(method.toLowerCase())) ids.push(operation.operationId);
+  return ids;
 }
-function missingWords(source, expected) {
-  return expected.filter((word) => !new RegExp('(^|[^A-Za-z0-9_])' + word + '([^A-Za-z0-9_]|$)').test(source));
+const TASK_OP_START = '### OperationId to implementation/verification tasks (79/79)';
+const TASK_REQ_START = '### Requirement/invariant mapping (20/20 + 7/7)';
+const TASK_UI_START = '### UI route mapping and actual page ownership (21/21)';
+const TASK_E_START = '### Numbered evidence mapping (17/17; deployed runtime only)';
+const QUICK_MATRIX_START = '## Requirement, invariant, and numbered evidence matrix';
+const QUICK_OP_START = '### Complete supporting-operation acceptance inventory';
+function taskOperationRows(source) { return rows(section(source, TASK_OP_START, TASK_REQ_START)).slice(1).map((row) => backticks(row[0])[0]).filter(Boolean); }
+function quickOperationTokens(source) { return rows(section(source, QUICK_OP_START, '## Milestone evidence realism')).slice(1).flatMap((row) => backticks(row[1] || '')); }
+function requirementRows(source, start, end) { return rows(section(source, start, end)).slice(1).map((row) => row[0]); }
+function uiContractRoutes(source) { return rows(section(source, '## Exact screen map', '## Common interaction contract')).slice(1).map((row) => backticks(row[0])[0]); }
+function taskRoutes(source) { return rows(section(source, TASK_UI_START, TASK_E_START)).slice(1).map((row) => backticks(row[1])[0]); }
+function evidenceRows(source) { return rows(section(source, TASK_E_START, '## Dependency and parallel execution rules')).slice(1).map((row) => row[0]); }
+function quickEvidenceSet(source) {
+  const result = new Set();
+  for (const match of source.matchAll(/\bE(\d{2})(?:[–-]E?(\d{2}))?\b/g)) {
+    const from = Number(match[1]), to = Number(match[2] || match[1]);
+    for (let n = from; n <= to; n++) result.add('E' + String(n).padStart(2, '0'));
+  }
+  return [...result].sort();
 }
-function verifyOperationMappings(tasks, quickstart, ids) {
-  const taskMap = section(tasks, '### OperationId to implementation/verification tasks (79/79)', '### Requirement/invariant mapping');
-  const quickMap = section(quickstart, '### Complete supporting-operation acceptance inventory', '## Milestone evidence realism');
-  const taskRows = firstColumnValues(taskMap);
-  assert.deepEqual(ids.filter((id) => !taskRows.has(id)), [], 'tasks canonical operation rows are incomplete');
-  assert.deepEqual(missingWords(quickMap, ids), [], 'quickstart operation inventory is incomplete');
+function verifyOperationMappings(taskSource, quickSource, ids) {
+  assertExactInventory(taskOperationRows(taskSource), ids, 'tasks operationId rows must exactly cover OpenAPI');
+  assertExactInventory(quickOperationTokens(quickSource), ids, 'quickstart operation inventory must exactly cover OpenAPI');
 }
-
-const tasks = text('tasks.md');
-const quickstart = text('quickstart.md');
-const spec = text('spec.md');
-const ui = text('contracts/ui-workflows.md');
+const tasks = text('tasks.md'), quickstart = text('quickstart.md'), spec = text('spec.md'), ui = text('contracts/ui-workflows.md');
 const ids = operationIds();
-const requirements = Array.from({ length: 20 }, (_, index) => 'R1-' + String(index + 1).padStart(3, '0'));
-const invariants = Array.from({ length: 7 }, (_, index) => 'INV-' + String(index + 1).padStart(2, '0'));
-const evidence = Array.from({ length: 17 }, (_, index) => 'E' + String(index + 1).padStart(2, '0'));
+const requirements = Array.from({ length: 20 }, (_, i) => 'R1-' + String(i + 1).padStart(3, '0'));
+const invariants = Array.from({ length: 7 }, (_, i) => 'INV-' + String(i + 1).padStart(2, '0'));
+const evidence = Array.from({ length: 17 }, (_, i) => 'E' + String(i + 1).padStart(2, '0'));
 
 test('all accepted contract artifacts exist', () => {
-  for (const file of ['contracts/openapi.yaml', 'contracts/problem-details.md', 'contracts/ui-workflows.md']) {
-    assert.ok(existsSync(resolve(BASE, file)), 'missing accepted contract: ' + file);
-  }
+  for (const file of ['contracts/openapi.yaml', 'contracts/problem-details.md', 'contracts/ui-workflows.md']) assert.ok(existsSync(resolve(BASE, file)), 'missing accepted contract: ' + file);
 });
-
-test('tasks and quickstart map every accepted operationId', () => {
-  assert.equal(ids.length, 79);
-  assert.equal(new Set(ids).size, 79);
-  verifyOperationMappings(tasks, quickstart, ids);
+test('tasks and quickstart exactly map all 79 operationIds', () => {
+  assertExactInventory(ids, ids, 'OpenAPI operationIds must be unique'); verifyOperationMappings(tasks, quickstart, ids);
 });
-
-test('requirement and invariant mappings cover R1-001..020 and INV-01..07', () => {
+test('tasks and quickstart have exact R1 and INV row inventories', () => {
   const expected = [...requirements, ...invariants];
-  const quickRows = firstColumnValues(section(quickstart, '## Requirement, invariant, and numbered evidence matrix', '### Complete supporting-operation acceptance inventory'));
-  const taskRows = firstColumnValues(section(tasks, '### Requirement/invariant mapping (20/20 + 7/7)', '### UI route mapping'));
-  assert.deepEqual(expected.filter((id) => !quickRows.has(id)), []);
-  assert.deepEqual(expected.filter((id) => !taskRows.has(id)), []);
-  assert.ok(spec.includes('**R1-001** through **R1-014** are exactly'));
-  assert.deepEqual(missingWords(spec, requirements.slice(14)), []);
-  assert.deepEqual(missingWords(spec, invariants), []);
+  assertExactInventory(requirementRows(tasks, TASK_REQ_START, TASK_UI_START), expected, 'tasks R1/INV rows');
+  assertExactInventory(requirementRows(quickstart, QUICK_MATRIX_START, QUICK_OP_START), expected, 'quickstart R1/INV rows');
+  assert.match(spec, /\*\*R1-001\*\* through \*\*R1-014\*\* are exactly/);
+  for (const id of [...requirements.slice(14), ...invariants]) assert.match(spec, new RegExp('(^|[^A-Za-z0-9_-])' + id + '([^A-Za-z0-9_-]|$)', 'm'));
 });
-
-test('the exact 21 UI route patterns are canonically mapped', () => {
-  const routeContract = section(ui, '## Exact screen map', '## Common interaction contract');
-  const routes = [...firstColumnValues(routeContract)];
-  assert.equal(routes.length, 21);
-  const taskRoutes = firstColumnValues(section(tasks, '### UI route mapping and actual page ownership (21/21)', '### Numbered evidence mapping'));
-  assert.deepEqual(routes.filter((route) => !taskRoutes.has(route)), []);
-  assert.match(quickstart, /All active routes/);
-  assert.match(spec, /contracts\/ui-workflows\.md/);
+test('the exact 21 UI route patterns are canonical in contract and tasks', () => {
+  const routes = uiContractRoutes(ui); assert.equal(routes.length, 21); assertExactInventory(taskRoutes(tasks), routes, 'task UI routes');
+  assert.match(quickstart, /All active routes/); assert.match(spec, /contracts\/ui-workflows\.md/);
 });
-
-test('numbered acceptance evidence is mapped from E01 through E17', () => {
-  const taskEvidence = firstColumnValues(section(tasks, '### Numbered evidence mapping (17/17; deployed runtime only)', '## Dependency and parallel execution rules'));
-  assert.deepEqual(evidence.filter((id) => !taskEvidence.has(id)), []);
-  assert.deepEqual(missingWords(quickstart, evidence), []);
+test('evidence inventory is exactly E01 through E17', () => {
+  assertExactInventory(evidenceRows(tasks), evidence, 'tasks evidence rows');
+  assert.deepEqual(quickEvidenceSet(quickstart), evidence, 'quickstart evidence references');
 });
-
-test('negative traceability omission fixture is rejected', () => {
-  const omitted = quickstart.replace(ids[0], 'OMITTED_OPERATION');
-  assert.throws(() => verifyOperationMappings(tasks, omitted, ids), /quickstart operation inventory is incomplete/);
+test('deletion, typo, duplicate, and substring decoy traceability mutations fail closed', () => {
+  const id = ids[0];
+  const deletedTasks = tasks.replace(new RegExp('^\\| `' + id + '` .*\\n', 'm'), '');
+  assert.throws(() => verifyOperationMappings(deletedTasks, quickstart, ids), /tasks operationId rows/);
+  const typoQuick = quickstart.replace('`' + id + '`', '`' + id + 'Typo`');
+  assert.throws(() => verifyOperationMappings(tasks, typoQuick, ids), /quickstart operation inventory/);
+  const duplicateTasks = tasks.replace('| `' + id + '` |', '| `' + id + '` |\n| `' + id + '` | duplicate |');
+  assert.throws(() => verifyOperationMappings(duplicateTasks, quickstart, ids), /tasks operationId rows/);
+  const decoyQuick = quickstart.replace('`' + id + '`', '`prefix' + id + 'suffix`');
+  assert.throws(() => verifyOperationMappings(tasks, decoyQuick, ids), /quickstart operation inventory/);
 });
