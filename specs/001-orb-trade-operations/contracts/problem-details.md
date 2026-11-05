@@ -1,41 +1,14 @@
-# Error and Problem Details Contract
+# Problem Details Contract
 
-All non-2xx API responses use `application/problem+json` (RFC 9457) with:
+Every non-2xx API result is `application/problem+json` conforming to RFC 9457. `type` is a stable URI, `title` and `detail` are localized from `Accept-Language`, and clients branch only on `code`/status. Validation includes `errors[]` with JSON Pointer `pointer`, stable `code`, and localized `message`. Every problem includes `correlationId`; sensitive values and authorization existence leaks are forbidden.
 
-```json
-{
-  "type": "https://orb.example/problems/concurrency-conflict",
-  "title": "The record changed",
-  "status": 412,
-  "detail": "Reload and reconcile your changes.",
-  "instance": "/api/projects/019...",
-  "code": "CONCURRENCY_CONFLICT",
-  "correlationId": "019...",
-  "errors": [{"pointer": "/quantity", "code": "OUTSIDE_TOLERANCE", "messageKey": "errors.quantity.outsideTolerance"}],
-  "currentVersion": 8
-}
-```
+| HTTP | Stable codes |
+|---|---|
+| 400 | `VALIDATION_FAILED`, `FILE_HASH_MISMATCH`, `UNSUPPORTED_MEDIA_TYPE` |
+| 401/403/404 | `AUTHENTICATION_REQUIRED`, `PERMISSION_DENIED`, `RESOURCE_NOT_FOUND`, `SELF_APPROVAL_FORBIDDEN` |
+| 409 | `DUPLICATE_REFERENCE`, `INVALID_STATE_TRANSITION`, `OUTSIDE_TOLERANCE_APPROVAL_REQUIRED`, `PRIMARY_SOURCE_REQUIRED`, `PRIMARY_SOURCE_INVALID`, `ROUTE_ITEM_INCOMPLETE`, `ALLOCATION_EXCEEDS_AVAILABLE`, `ALLOCATION_PARTY_OR_CURRENCY_MISMATCH`, `APPROVAL_REQUIRED`, `APPROVAL_VERSION_MISMATCH`, `SEND_MANIFEST_CHANGED`, `DOCUMENT_NOT_READY`, `IMMUTABLE_VERSION`, `CLOSURE_BLOCKED`, `IDEMPOTENCY_KEY_REUSED`, `DEFERRED_FEATURE_NOT_AVAILABLE` |
+| 412/428 | `STALE_VERSION`, `PRECONDITION_REQUIRED` |
+| 413/422 | `UPLOAD_TOO_LARGE`, `UNPROCESSABLE_EVIDENCE` |
+| 429/500/503 | `RATE_LIMITED`, `INTERNAL_ERROR`, `DEPENDENCY_UNAVAILABLE` |
 
-`detail` is safe for display and contains no secrets. `messageKey` is rendered equivalently in Arabic and English; server codes remain stable. Validation errors use JSON Pointer. Authorization responses do not reveal record existence.
-
-| HTTP | Stable code | Acceptance meaning |
-|---|---|---|
-| 400 | `MALFORMED_REQUEST` | Body/parameter cannot be parsed |
-| 401 | `AUTHENTICATION_REQUIRED` | No valid session |
-| 403 | `PERMISSION_DENIED` | Authenticated but action/field/export is forbidden |
-| 404 | `RESOURCE_NOT_FOUND` | Missing or deliberately concealed resource |
-| 409 | `DUPLICATE_REFERENCE` | Scoped stable reference already exists |
-| 409 | `IDEMPOTENCY_KEY_REUSED` | Same key was used with a different canonical request |
-| 409 | `ALLOCATION_EXCEEDS_AVAILABLE` | Money/source/expense allocation would oversubscribe |
-| 409 | `STATE_TRANSITION_NOT_ALLOWED` | Command is invalid from current state |
-| 409 | `CLOSURE_BLOCKED` | Response includes blocker codes and eligible exception action |
-| 412 | `CONCURRENCY_CONFLICT` | `If-Match` does not equal current version |
-| 422 | `VALIDATION_FAILED` | One or more field/business validation failures |
-| 422 | `OUTSIDE_TOLERANCE_APPROVAL_REQUIRED` | Exact exception approval and reason are absent |
-| 422 | `ROUTE_REQUIREMENT_INCOMPLETE` | Named requirement blocks confirm/final closure |
-| 423 | `IMMUTABLE_REVISION` | Attempt to alter approved/sent evidence or document revision |
-| 429 | `RATE_LIMITED` | Retry only after `Retry-After` |
-| 500 | `INTERNAL_ERROR` | Opaque error with correlation ID |
-| 503 | `DEPENDENCY_UNAVAILABLE` | Transactional dependency unavailable; safe retry semantics stated |
-
-Mutating responses return `ETag: "<version>"`. A retriable serialization failure is retried server-side at most three times; if still unsuccessful it returns 409 `CONCURRENT_ALLOCATION_RETRY` and no partial mutation. Upload hash mismatch returns 422 `FILE_HASH_MISMATCH`; unsupported/corrupt/password-protected content returns 422 with its specific stable code.
+`CLOSURE_BLOCKED` includes current `assessmentId` and blocker codes/subject links. Tolerance problems include field, allowed lower/upper, actual, dataset version. Manifest mismatch includes only safe changed-field names. Allocation problems include safe available/outstanding amounts. Unknown API paths, including deferred-feature paths, normally return `RESOURCE_NOT_FOUND`; `DEFERRED_FEATURE_NOT_AVAILABLE` may be used only by an explicitly version-negotiated client and does not imply an endpoint exists.

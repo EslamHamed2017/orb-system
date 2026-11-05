@@ -1,28 +1,25 @@
-# ADR-001: Two-Week Offer Pilot
+# ADR-001: Two-Week Operational Beta and Offer Pilot
 
-**Status:** Accepted
-**Date:** 2026-11-05
-**Operational Beta:** 2026-11-12
-**Stabilized Offer Pilot:** 2026-11-19
+**Status**: Accepted
+**Date**: 2026-11-05
+**Deciders**: Eslam / ORB
+
+## Context
+
+ORB needs a deployed system used for daily work by 2026-11-12, one week of evidence-led correction, and a stabilized offer pilot by 2026-11-19. The former broad specification could not be delivered or honestly accepted in that window.
 
 ## Decision
 
-Deliver a deployed, limited daily-use operational beta that proves one complete ORB Core Trade cycle by 2026-11-12. Use the second week for live-use correction and stabilization, then deliver the offer-ready stabilized pilot by 2026-11-19. Neither milestone is represented as final full-scope production completion.
+Release 1 is the limited operational slice defined in `../spec.md`: fixed roles/approvals, essential masters, one Project per independent sales contract, purchase contracts, exactly one primary supplier source per sales shipment, three fixed route checklists, versioned CINV/Packing List, simple supplier invoice, money movements and settlement, direct expenses, basic statements, four separate margin/cash figures, simple claims, independent financial/final closure, bilingual ORB MD3 UI, security/audit/backup, and exact-manifest review-first external sending.
 
-## Reason
+The milestones are fixed:
 
-Eslam has a fixed commercial opportunity window; missing the date risks losing the offer. Scope reduction is safer than removing integrity, review, or security controls.
+- deployed limited daily-use beta: **2026-11-12**;
+- real-use correction window: **2026-11-12 through 2026-11-18**;
+- stabilized offer pilot: **2026-11-19**.
 
-## Delivery Rules
-
-- Preview checkpoints no later than days 2 and 5; operational beta by day 7; correction previews on days 9 and 11; stabilized offer pilot by day 14.
-- Use fixed roles, approval matrix, route checklists, and simple controlled claims.
-- One primary supplier source per sales shipment in the pilot.
-- Direct expense assignment only.
-- No bank, tax pack, or historical migration in the pilot.
-- No automatic external sending; Eslam approves exact outputs and recipients.
-- No claim of production readiness until the post-pilot hardening gate passes.
+Bank import, tax pack, historical migration, multi-source allocation, shared-expense allocation, configurable approval design, dynamic route design, and advanced claim settlement are future features. They have no Release 1 endpoint, UI control, acceptance credit, or closure dependency.
 
 ## Consequences
 
-The implementation plan, OpenAPI, UI workflows, data model, quickstart, and tasks must be regenerated or revised to match this cut before coding. Deferred capabilities become separate future Spec Kit features.
+All Phase 1 artifacts must implement only this cut. “Pilot” does not mean mock screens: the daily cycle must persist, authorize, audit, recover, and execute end to end. Production-scale hardening beyond the stated baseline follows later. The exact dependency compatibility spike remains a blocking gate and is not accepted by this ADR.

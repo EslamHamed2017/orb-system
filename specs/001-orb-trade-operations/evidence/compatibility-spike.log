@@ -1,0 +1,96 @@
+v24.22.2
+✓ Lockfile passes supply-chain policies (verified 38s ago)
+Lockfile is up to date, resolution step is skipped
+Packages are hard linked from the content-addressable store to the virtual store.
+  Content-addressable store is at: /home/hermesops/.local/share/pnpm/store/v11
+  Virtual store is at:             node_modules/.pnpm
+Packages: +335
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 335, reused 335, downloaded 0, added 335, done
+Agent skills awaiting approval: @tanstack/react-table.
+Run "pnpm approve" to review them.
+
+dependencies:
++ @aws-sdk/client-s3 3.1162.0
++ @emotion/react 11.14.0
++ @emotion/styled 11.14.1
++ @mui/material 9.5.0
++ @prisma/client 7.10.1
++ @tanstack/react-table 9.3.1
++ better-auth 1.7.18
++ next 16.4.5
++ pg 8.16.3
++ prisma 7.10.1
++ react 19.3.1
++ react-dom 19.3.1
++ zod 4.6.7
+
+devDependencies:
++ @playwright/test 1.64.1
++ @types/bun 1.4.4
++ @types/node 24.19.2
++ @types/react 19.2.2
++ @types/react-dom 19.2.2
++ typescript 7.0.2
++ vitest 5.1.0
+
+Done in 458ms using pnpm v12.16.1
+$ prisma generate
+Prisma schema loaded from prisma/schema.prisma.
+┌─────────────────────────────────────────────────────────┐
+│  Update available 7.10.1 -> 8.0.0-rc.30                 │
+│                                                         │
+│  This is a major update - please follow the guide at    │
+│  https://pris.ly/d/major-version-upgrade                │
+│                                                         │
+│  Run the following to update                            │
+│    npm i --save-dev prisma@latest                       │
+│    npm i @prisma/client@latest                          │
+└─────────────────────────────────────────────────────────┘
+
+✔ Generated Prisma Client (v7.10.1) to ./node_modules/.pnpm/@prisma+client@7.10.1_prisma@7.10.1_@types+node@24.19.2_@types+react-dom@19.2.2_@types+_e54da806fb9c12f552dbdc1f1c79564c/node_modules/@prisma/client in 85ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+
+$ tsc --noEmit
+$ next build
+▲ Next.js 16.4.5 (Turbopack)
+✓ Running next.config took 11ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 3.0s
+  Running TypeScript ...
+
+  We detected TypeScript in your project and reconfigured your tsconfig.json file for you.
+  The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+
+  	- allowJs was set to true
+  	- incremental was set to true
+  	- include was updated to add '.next/types/**/*.ts'
+  	- include was updated to add '.next/dev/types/**/*.ts'
+  	- plugins was updated to add { name: 'next' }
+  	- exclude was set to ['node_modules']
+
+  The following mandatory changes were made to your tsconfig.json:
+
+  	- esModuleInterop was set to true (requirement for SWC / babel)
+  	- resolveJsonModule was set to true (to match webpack resolution)
+  	- isolatedModules was set to true (requirement for SWC / Babel)
+
+  Finished TypeScript in 882ms ...
+  Collecting page data using 4 workers ...
+  Generating static pages using 4 workers (0/3) ...
+✓ Generating static pages using 4 workers (3/3) in 419ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+└ ○ /_not-found
+
+
+○  (Static)  prerendered as static content
+
+vitest/5.1.0 linux-x64 node-v24.22.2
+Version 1.64.1
+12.16.1

@@ -1,121 +1,53 @@
-# Phase 1 Validation Guide: ORB Core Trade
+# Release 1 Daily-Use Beta Validation Guide
 
-This guide defines how a later implementation is proven against the approved design. It is not an implementation guide and creates no packages, migrations, deployment assets, or tests.
+This is an executable acceptance guide for the later implementation. It does not authorize or supply code/tasks.
 
-## Preconditions
+## Blocking preconditions
 
-- The independent Plan Gate has accepted `plan.md`, including the TypeScript 7 exact-version compatibility gate.
-- A disposable acceptance environment runs the single modular-monolith build behind Traefik with PostgreSQL 18 and an S3-compatible versioned/object-locked test bucket.
-- Seed/control data exists for authorized and restricted users, AED/USD/SAR, two customers, two suppliers, coffee specifications, all three Release 1 route profiles, and approval thresholds.
-- The runner can execute the repository's future documented commands for unit/contract tests, Playwright acceptance, accessibility checks, performance checks, security scans, backup, and restore. Do not invent command names here; task/implementation phases must publish them.
-- Record environment/build ID, exact dependency lock digest, database/object-store backup identifiers, browser versions, and UTC test window in the evidence report.
+1. Retain clean-install and `tsc --noEmit` evidence for every exact pin in `plan.md`. Until then record **BLOCKED**, not pass.
+2. Deploy the exact immutable build behind TLS with PostgreSQL/object storage, three fixed roles, Arabic/English, and acceptance masters.
+3. Record build/lock digest, environment, UTC window, browser versions, database/object backup IDs, and test identities.
+4. Validate `contracts/openapi.yaml` as OpenAPI 3.1 and resolve every local `$ref`; fail on warning/error.
 
-## Contract validation
+## Contract and deferred-surface rejection
 
-1. Validate `contracts/openapi.yaml` as OpenAPI 3.1 and verify every non-2xx response resolves to `application/problem+json` as defined in `contracts/problem-details.md`.
-2. Verify every mutation that can create a business effect requires both `Idempotency-Key` and, for an existing aggregate, `If-Match`.
-3. Verify no Release 1 path exposes bank import/matching, tax packs, tax delivery, or historical migration.
-4. Exercise permissions against response schemas: restricted roles receive no supplier-cost, margin, bank, identity, or tax fields.
+- Exercise every operationId at least once with an allowed role and once with a denied/invalid condition; verify RFC 9457.
+- Verify mutations require `Idempotency-Key`; existing-aggregate mutations require `If-Match`.
+- Crawl API paths and UI routes/build manifests. Fail if any endpoint or interactive control exists for: bank import/matching, tax pack, historical migration, multi-source allocation, shared-expense allocation, approval designer, route designer, or advanced claim settlement.
+- Probe representative forbidden paths such as `/bank-imports`, `/tax-packs`, `/migration-records`, `/source-allocations`, `/expense-allocations`, `/approval-policies`, and `/route-templates`; expect 404 and no schema/navigation discovery.
 
-Expected: schema validation has zero errors; stable problem codes/localization keys are present; Release 1 contract contains Core Trade only.
+## Full daily-use beta scenario
 
-## End-to-end control population
+1. Sign in as each fixed role; prove permission shaping and self-approval denial. Create essential masters. Run the same critical workflow in English LTR and Arabic RTL.
+2. Operations creates Project A plus a 100 MT sales contract with omitted tolerances and adds two purchase contracts; Owner/Admin approves exact versions. Create Project B for a second independent sales contract; amend Project A instead of creating another Project for a same-contract change.
+3. Create and approve/confirm two supplier shipments. Create 20/40/40 MT sales shipments. Assign exactly one primary supplier shipment to each. Prove a second-source field/endpoint does not exist.
+4. Attempt outside-tolerance confirmation without approval; inspect detailed blocker. Request Owner/Admin exception for the exact dataset/reason, approve, and confirm. Change the dataset and verify old approval no longer applies.
+5. For each fixed route, complete the required milestone/evidence checklist; upload, view, download, and hash evidence. Leave one required item incomplete and prove final closure blocks. Prove there is no route-template editor.
+6. Generate CINV and Packing List from the same exact dataset in English, Arabic, and bilingual modes; poll status to Ready and compare shared fields. Approve an exact output; revise it and prove old bytes/hash remain. Cancel a draft/new revision with reason.
+7. Build an outbound manifest with To/Cc and attachments. Approve it, then change each of recipient, attachment, subject/body, and output version in separate checks; every change must invalidate approval. Reapprove, preview, explicitly send, and verify immutable delivery/audit. Prove no automatic send.
+8. Confirm a supplier invoice against one supplier shipment. Record a USD 30,000 customer advance before CINV, allocate USD 20,000 and USD 10,000 across CINV targets; record supplier advance/payment and allocate to supplier invoice. Attempt over-allocation, wrong party/currency, stale version, replay, reversal, and refund.
+9. Record shipment freight and Project customs expenses, each directly scoped with proof. Approve exact versions; prove neither multi-shipment/shared allocation nor allocation method is present.
+10. Reconcile customer, supplier, sales-shipment, supplier-shipment, and Project statements by currency. Verify expected, committed, actual operational margin, and cash position formulas/source drill-down. Advances change cash only; AED conversions disclose rate/date/source.
+11. Open a simple quality claim, move it under review, and resolve/reject with reason/evidence. Prove open claim blocks final close and that no discount/replacement/compensation/netting automation exists.
+12. Fully collect one shipment while document/claim items remain; it must become Financially Closed. Fully collect all shipments; Project becomes Financially Closed. Verify the assessment lists every remaining quantity/delivery/route/document/supplier/expense/claim/approval blocker. Approve one eligible named exception, prove it cannot cover another/version, clear all blockers, final close, then reopen with reason and recomputed state.
 
-Create Project A with a USD 100 MT independent sales contract and zero omitted tolerances, one customer, two supplier purchase contracts, and approved versions. Create Project B for a second independent contract from the same customer. Amend Project A's contract rather than creating another Project. Verify unique stable references, one sales contract per Project, multiple separated purchase contracts, and immutable approved versions.
+Expected throughout: zero unexplained quantity/money/statement variance; no lost update; immutable approved evidence; stable references; complete actor/time/version/reason audit.
 
-Then execute 20/40/40 MT partial sales shipments. Source at least one shipment from two supplier shipments. Attempt concurrent allocations that would oversubscribe a supplier source.
+## ORB MD3 and bilingual acceptance
 
-Expected:
+Follow the visual matrix in `contracts/ui-workflows.md` for every screen at 1440x900, 768x1024, and 390x844. Capture paired screenshots, keyboard traversal, screen-reader semantics, contrast, reduced motion, all component states, loading/empty/error/permission/stale states, dense-table containment, and bidi-safe references. Fail on any critical/serious accessibility issue, untranslated active control, clipped Arabic, wrong root direction, unmirrored directional action, raw non-token color, missing ORB identity, or journey divergence.
 
-- Confirmed/cancelled/remaining quantities reconcile exactly, including contract amendment effects.
-- At least one approved source exists per confirmed sale shipment and active source allocations equal its sourced quantity.
-- One concurrent command succeeds; the stale/oversubscribing command returns 409 or 412 with no partial rows or silent overwrite.
+## Security, audit, performance, and recovery
 
-## Tolerance and route matrix
+- Test MFA for Owner/Admin, secure session/cookie/CSRF, authorization/IDOR, upload abuse, rate limiting, log redaction, audited downloads/sends, TLS and encryption. Require zero unaccepted Critical scan findings.
+- Replay same idempotency key/payload (same outcome, no duplicate), then changed payload (`IDEMPOTENCY_KEY_REUSED`). Submit stale `If-Match` (`STALE_VERSION`). Recompute an audit chain and verify retained daily head; application role cannot update/delete audit or approved bytes.
+- At 50 sessions require p95 reads <=500 ms, mutations <=800 ms; document accept <=2 s and render <=30 s. Concurrent settlement/tolerance/closure commands preserve all invariants.
+- Perform an isolated pre-beta PITR/object restore from the separate encrypted copy. RPO <=15 minutes, RTO <=4 hours, with zero missing sampled Project/version/allocation/approval/audit/hash/object link.
 
-For each route, run one passing shipment and one missing-requirement shipment:
+## Milestone evidence and exit
 
-| Route | Passing evidence | Deliberate blocker |
-|---|---|---|
-| Foreign-to-Foreign | origin/destination transport and delivery evidence | missing destination evidence |
-| UAE Free Zone Re-export | free-zone entry, exit/re-export customs, outbound/delivery evidence | missing re-export evidence |
-| UAE Import | import declaration, customs charge/clearance, release/delivery evidence | missing clearance evidence |
+- **2026-11-12**: deployment URL/build, full scenario result, restore report, and first real daily-use entry.
+- **2026-11-12–18**: daily observation/correction log with severity, affected journey, fix build, regression evidence, and unresolved risk.
+- **2026-11-19**: frozen stabilized build, full rerun, bilingual/visual evidence, reconciliation, security/restore evidence, and Owner acceptance.
 
-Attempt an over-shipment and weight variance first with zero/insufficient tolerance, then with an authorized exact-version exception and reason.
-
-Expected: the first confirmation returns `OUTSIDE_TOLERANCE_APPROVAL_REQUIRED`; the approved exception succeeds and is audited. Route blockers prevent confirmation/final closure according to the versioned profile and never assert a tax/legal classification.
-
-## Document integrity and bilingual parity
-
-From one approved shipment dataset generate CINV and Packing List in English, Arabic, and bilingual modes. Compare every shared party, reference, quantity, bag, net/gross weight, Incoterm, and route field. Approve/send a revision, attempt direct mutation, then revise with a reason.
-
-Expected: zero shared-field mismatch; language modes do not create another commercial business record; direct mutation returns `IMMUTABLE_REVISION`; revision N and N+1 retain different immutable evidence identities, SHA-256 values, actor/time/reason, and source dataset.
-
-Run the same Project creation, shipment, document, allocation, claim, approval, and closure journeys in Arabic RTL and English LTR with keyboard-only navigation and automated accessibility checking.
-
-Expected: functional parity, root direction/language correct, logical layout and direction-aware icons correct, bidi-safe codes/numbers, WCAG 2.2 AA automated checks with zero serious/critical violations, and no inaccessible dense-table action.
-
-## Money and statement reconciliation
-
-Record a USD 30,000 customer advance before any CINV. Allocate USD 20,000 to shipment one and USD 10,000 to shipment two. Record a supplier advance before its invoice. Attempt a one-cent over-allocation, reallocation, reversal, refund, and a different-currency receipt with a disclosed AED management conversion.
-
-Expected:
-
-- No invoice is created by an advance; available/outstanding values never go negative.
-- Over-allocation fails atomically with `ALLOCATION_EXCEEDS_AVAILABLE`.
-- Customer, contract, shipment, supplier, and Project statements reconcile to zero unexplained variance and keep currencies separate.
-- AED views show rate, date, source, and rounding; history survives reversal/reallocation.
-- Advances affect Cash Position but not Actual Operational Margin.
-
-## Expenses, claims, profit, and closure
-
-Record direct freight and customs expenses plus one shared expense allocated by quantity, value, and approved manual examples. Force a rounding remainder. Open supplier shortage and quality claims, resolve one by discount and one by replacement. Capture expected, committed, actual operational margin, and cash position.
-
-Expected: every approved expense has proof/status/approver as policy requires; each shared allocation equals its source amount exactly with one deterministic remainder; profit figures reproduce disclosed formulas and drill to approved evidence.
-
-Fully collect a shipment while leaving its claim/document open. Fully collect all Project sales shipments while leaving supplier obligation, expense, claim, and route evidence blockers. Attempt final close, approve a named justified exception, close, then reopen.
-
-Expected: shipment and Project may become Financially Closed independently; Final Close is initially `CLOSURE_BLOCKED`; only exact named approvals clear eligible blockers; close/reopen reason, user, UTC time, and affected version appear in immutable audit history.
-
-## Idempotency, hashing, and audit tamper evidence
-
-Repeat document, money-movement, and allocation requests with the same idempotency key/payload, then with the same key and changed payload. Upload identical bytes as a retry and as a distinct legitimate occurrence; upload corrupted bytes/hash.
-
-Expected: identical retry creates zero duplicate effect and returns the stored outcome; changed payload returns `IDEMPOTENCY_KEY_REUSED`; identical content has one verified byte identity where policy permits but all legitimate occurrence links remain; mismatch returns `FILE_HASH_MISMATCH`.
-
-For a sampled aggregate, recompute the ordered audit hash chain and compare its daily signed head to retained object storage. Attempt audit/document update/delete using the application database role.
-
-Expected: chain verifies; update/delete is denied; a compensating event is the only correction path.
-
-## Concurrency and performance gates
-
-Using representative data (10,000 rows in a dense view and the planned scale indexes), hold 50 concurrent interactive sessions and run 100 simultaneous conflicting allocation/version mutations.
-
-Expected:
-
-- p95 interactive reads <=500 ms; p95 mutations <=800 ms.
-- Server-paginated/filter response for the 10,000-row view <=1 s p95.
-- Document generation request accepted <=2 s and completed <=30 s.
-- Exactly valid mutations commit; no lost update, duplicate effect, negative available balance, oversubscribed source, or partial transaction occurs. Bounded-retry exhaustion returns the documented conflict.
-
-Capture query plans for slow cases, pool saturation, retry count, job age, and error rate. Averages alone do not pass the gate.
-
-## Security validation
-
-- Verify MFA for privileged roles; 15-minute idle and 12-hour absolute privileged session limits; disabled/role-changed session revocation <=15 minutes.
-- Test server-side permission denial, direct-object-reference attempts, CSRF, upload type/size/corruption, rate limiting, export/download auditing, log redaction, and trusted-proxy handling behind Traefik.
-- Verify TLS 1.2+ and encryption at rest/in backup; secrets are absent from repository, images, client bundles, errors, and logs.
-- Run dependency/container scans. Expected: zero unaccepted Critical findings; every High finding fixed or explicitly risk-accepted before release.
-
-## Backup, restore, RPO, and RTO gate
-
-1. Record a cutoff, continue controlled mutations/documents for up to 15 minutes, and capture the database PITR/WAL plus immutable object versions.
-2. Restore into an isolated environment from the logically separate encrypted copy; never overwrite the source environment.
-3. Reconcile counts and samples for Projects, contract/document versions, allocations, claims, approvals, audit chains, hashes, and object links; open and hash sampled evidence.
-4. Record detection/start/usable times and the latest recovered transaction.
-
-Expected: latest loss is <=15 minutes (RPO); service is usable within 4 hours (RTO); zero missing/corrupt sampled evidence, broken object links, allocation variance, or audit-chain failure. Run a sampled restore monthly, full exercise quarterly, and a full exercise before production approval. Any failure blocks production and requires remediation plus rerun.
-
-## Exit evidence
-
-The validation report must map each result to the specification scenario, OpenAPI operation/problem code, UI workflow, data-model invariant, build ID, and immutable evidence location. Release 1 passes only with zero unexplained reconciliation variance, zero shared CINV/Packing List mismatch, successful bilingual core journeys, measured performance/security/restore gates, and an independently accepted Plan Gate. Deferred bank, tax-pack, and historical-migration behavior is neither required nor credited.
+The pilot passes only when all active acceptance above passes and deferred surfaces are absent. It remains blocked if the compatibility spike lacks clean install/typecheck evidence or the independent Plan Gate is not accepted.

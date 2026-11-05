@@ -1,67 +1,79 @@
-# UI Workflow and State Contracts
+# Release 1 UI Contract
 
-## Global interaction contract
+## Exact screen map
 
-- The same route and capability exists in Arabic and English. Arabic sets root `lang=ar dir=rtl`; English sets `lang=en dir=ltr`. Locale switching preserves record, tab, filters, and unsaved-form warning state.
-- ORB MD3 components expose normal, hover, focus-visible, pressed, selected, disabled, loading, success, warning, and error states. Keyboard order follows visual/logical direction; focus is never lost after dialogs or mutations. WCAG 2.2 AA contrast, names, errors, and target sizes are acceptance gates.
-- References, Latin codes, currencies, dates, container/seal numbers, and hashes use bidi isolation. Tables reverse layout direction but retain semantic column meaning. User-configurable density never reduces accessible hit targets.
-- All tables are server-paginated, sortable, filterable, column-labelled, keyboard operable, and provide a non-visual summary. Sensitive columns are absent, not merely hidden, without permission.
-- Every mutation shows pending state, prevents accidental duplicate submission, sends an idempotency key and expected version, and renders RFC 9457 field/global errors. A 412 opens a compare/reload flow; it never overwrites silently.
-- Destructive-looking business actions are cancellation/reversal/revision commands with reason and consequences, never delete buttons. Approval dialogs name exact record/version, changed fields, evidence, and policy.
+| Route | Screen | Primary executable actions |
+|---|---|---|
+| `/sign-in` | Sign in | authenticate; choose Arabic/English |
+| `/` | Today | assigned approvals, route/document/claim/closure blockers, recent Projects |
+| `/masters/{customers|suppliers|coffee|currencies|expense-categories}` | Essential masters | list/create/edit/archive subject to role |
+| `/projects` | Project list | filter/search; create Project |
+| `/projects/new` | Create Project wizard | customer -> sales contract/route/tolerances -> review/create |
+| `/projects/{id}/overview` | Project overview | states, quantities, money, blockers, audit summary |
+| `/projects/{id}/contracts` | Contracts | view/version/submit sales contract; add/version/submit purchase contract |
+| `/projects/{id}/shipments` | Shipments | create sales/supplier shipment; confirm; choose one primary source |
+| `/sales-shipments/{id}` | Sales shipment workspace | Dataset, Route checklist, Evidence, Documents, Settlement, Expense, Claims, Closure tabs |
+| `/supplier-shipments/{id}` | Supplier shipment workspace | dataset/confirm, evidence, invoice, payment, statement |
+| `/projects/{id}/money` | Money | advances/receipts/payments; settlement allocation/reversal |
+| `/projects/{id}/expenses` | Direct expenses | draft, proof, submit, approve/reject/cancel |
+| `/projects/{id}/statements` | Statements | customer/supplier/sales-shipment/supplier-shipment/Project views |
+| `/projects/{id}/profit` | Profit and cash | four measures, formula, source drill-down |
+| `/projects/{id}/claims` | Claims | open, review, resolve/reject with evidence |
+| `/projects/{id}/closure` | Closure | assessment/blockers, exception request/approval, final close/reopen |
+| `/approvals` | Fixed approval inbox | inspect exact version/hash/diff/evidence; approve/reject |
+| `/documents/{id}` | Document workspace | generate/status/preview/revise/submit/approve, manifest/send/cancel |
+| `/evidence/{id}` | Evidence viewer | metadata/hash, inline view where safe, audited download |
+| `/projects/{id}/audit` | Audit | immutable filtered event timeline/hash status |
+| `/admin/{users|backup}` | Pilot administration | fixed-role assignment/session revoke; backup/restore evidence |
 
-## Screen map
+No Release 1 navigation or hidden interactive route exists for a deferred feature.
 
-1. Project list: reference, customer, route, execution/financial/final status, blockers; permission-shaped filters and saved views.
-2. Project workspace: Overview, Sales Contract, Purchases, Sales Shipments, Supplier Shipments, Documents, Money, Expenses, Claims, Profit, Closure, Audit.
-3. Create Project wizard: customer/route -> one primary sales contract -> coffee/terms/tolerances -> review/create atomically.
-4. Shipment workspace: approved dataset, logistics, route checklist, supplier sources, documents, settlement, expenses, claims, four independent status chips.
-5. Approval inbox: policy reason, threshold/exception, exact subject version and evidence; approve/reject with comment.
-6. Evidence viewer: immutable revision metadata, hash, source links, authorized download, revision timeline.
+## Common interaction contract
 
-## Workflow contracts
+- Arabic sets `lang=ar dir=rtl`; English sets `lang=en dir=ltr` at document root. Use logical properties, bidi isolation for references/numbers, mirrored directional icons, locale formatting, and equivalent keyboard order/actions.
+- Every mutation shows pending/success/failure; field problems focus the first invalid control. `412` opens compare/reload, never overwrite. `409` explains the violated invariant and links to the authoritative record.
+- Business deletion is never offered. Use cancel, reverse, supersede, or reopen with consequence and reason.
+- The fixed approval dialog names action, requester, subject reference/version/hash, changed fields, evidence, and conflicts; self-approval is disabled and explained.
+- Evidence uploader shows type/size/hash verification and attaches only after success. Viewer/download rechecks permission and records audit.
 
-### W1 — Project and sales contract
+## Journey contracts
 
-`Create -> Draft -> Submit -> Pending approval -> Approve -> Active`. Creation is atomic: no Project can remain without exactly one primary sales contract. Tolerances default visibly to zero. A new independent contract uses Create Project; the amendment command requires reason/effective date and creates a version comparison. Approved prior versions remain readable.
+### Project and contracts
 
-Acceptance: a trained user completes a standard record in <=5 minutes; duplicate scoped references show a localizable 409; supplier-side values never appear in customer-only views.
+Create Project is atomic with one sales-contract draft. Tolerances default visibly to `0`. Submit creates a fixed approval. Approved versions are read-only; Amend shows old/new comparison and requires effective date/reason. Purchase contracts use the same controls.
 
-### W2 — Partial shipments and supplier sourcing
+### Supplier and sales shipment
 
-The remaining contract panel distinguishes contracted, planned, confirmed/shipped, delivered, cancelled, and remaining quantity. The source editor supports one-to-many rows and continuously displays allocated versus required quantity. Confirm remains disabled with an explained blocker until sources reconcile, route requirements pass, and tolerances pass or an exact exception approval/reason exists.
+Supplier shipment must be confirmed through approval before it is selectable as source. Sales shipment shows remaining contract quantity and exactly one primary-source picker. Confirm performs route/source/tolerance assessment. A tolerance failure shows each limit/actual and offers “Request exception”; approval is exact-dataset only.
 
-Concurrent allocation conflict returns 409/412 and reloads authoritative availability. No partial allocation rows persist.
+### Fixed route checklist and evidence
 
-### W3 — Route checklists
+The route and template version are read-only. Items display Not started/In progress/Satisfied/Not applicable by rule/Exception approved. Evidence items provide Upload/View/Download; milestone items capture timestamp and evidence where required. Closure-blocking items link bidirectionally to Closure. There is no template editor.
 
-The selected profile and version are visible. `Foreign-to-Foreign`, `UAE Free Zone Re-export`, and `UAE Import` render their applicable document, milestone, expense, and evidence requirements. Items are `Not started`, `In progress`, `Satisfied`, `Not applicable by rule`, or `Exception approved`; users cannot manually claim legal/tax status. Missing closure-blocking requirements appear in Closure with source links.
+### Documents and external sending
 
-### W4 — CINV and Packing List
+Generate asks kind and language, identifies the exact shipment dataset, returns to a status panel (`Queued/Rendering/Ready/Failed`), and enables preview only when ready. CINV/Packing List shared-field comparison must show zero mismatch. Submit/approve binds revision/version/hash. Revise/cancel requires reason and preserves earlier bytes.
 
-Both document types select the exact same approved ShipmentDataset. User chooses Arabic, English, or bilingual at render time. Preview lists shared-field checks; acceptance requires zero mismatches. `Draft -> Pending approval -> Approved -> Sent`. An approved/sent correction uses Revise, requires reason, creates revision N+1, and leaves prior bytes/hash/timeline immutable.
+Send uses a separate manifest step: editable To/Cc, subject/body, and attachment selector; preview displays every attachment ID/version/hash and the output ID/version/hash. Submit creates a manifest hash. Owner/Admin approves that exact manifest. Any edit marks approval expired. `Send now` requires a fresh preview and exact approval, shows final recipients/attachments, and records sent/failed delivery; there is no scheduled/automatic send.
 
-### W5 — Advances, receipts, and allocations
+### Supplier invoice, money, and expense
 
-Record advance permits customer/supplier, Project, contract, amount/currency/date/evidence without an invoice. It appears as Unallocated and never as invoiced revenue. Allocation editor shows movement available and target outstanding in the same currency; partial/multiple allocations are supported. Over-allocation is blocked transactionally. Reversal/reallocation creates linked history rather than editing prior rows.
+Supplier invoice is one shipment/reference/date/amount/currency/evidence with submit/approve. Money capture permits customer/supplier advance before invoice. Allocation shows available and target outstanding, same party/currency, supports partial rows, and previews post-balance. Reversal creates a compensating record. Direct expense selects Project or one shipment—not both—then proof and fixed approval. No allocation controls appear.
 
-Statements expose customer/contract/shipment/supplier/Project levels, keep currencies in separate sections, and label optional AED rate/date/source.
+### Statements, profit, claims, and closure
 
-### W6 — Expenses
+Statements have fixed tabs and separate currency sections; every row drills to source. Profit has exactly four visually distinct cards with as-of/formula/source lines. Claims capture the simple lifecycle only. Closure always refreshes assessment before action, groups all blockers, and allows exceptions only for items flagged eligible. Final close/reopen dialogs name Project version/state and require applicable reasons.
 
-Expense requires vendor, category, amount/currency, proof, scope, status, and approver when policy requires. A project-wide allocation selects quantity, value, or approved manual method. Preview must reconcile source amount exactly and identify the rounding row. Approval freezes the allocation set; correction uses reversal/new version.
+## ORB Material Design 3 visual acceptance
 
-### W7 — Claims and closure
+- ORB logo and approved ORB palette populate MD3 primary/secondary/tertiary/error/surface roles; no Google branding and no arbitrary raw colors in screens.
+- Typography uses a documented bilingual MD3 display/headline/title/body/label scale with Arabic-appropriate line height; 4dp spacing grid; MD3 shape/elevation tokens; 48x48 CSS-pixel touch targets.
+- Navigation: desktop persistent rail + top app bar; tablet compact rail; narrow screens bottom navigation for Today/Projects/Approvals plus “More”. Content reflows without horizontal page scrolling at 320 CSS px; data tables use contained horizontal scroll with sticky identifiers/actions.
+- All enabled components have visible rest/hover/focus/pressed/dragged/selected/disabled/error states using state layers; keyboard focus contrast is at least 3:1 and never clipped.
+- Loading uses skeleton/progress without layout shift; empty/error/permission-denied/offline/stale-version states include a clear next action. Snackbars never carry the sole error detail.
+- Color contrast meets WCAG 2.2 AA; controls have accessible name/role/value; dialogs trap and restore focus; tables expose headers; errors are text plus icon/color; reduced motion is honored.
+- Acceptance captures paired Arabic/English screenshots at 1440x900, 768x1024, and 390x844 for every screen above, plus automated accessibility and keyboard-only evidence. Critical layout mirroring, clipped Arabic, untranslated controls, mixed direction corruption, or functional divergence fails.
 
-Claims show type, parties, quantity/value effect, evidence, owner, and resolution. Financial closure status is computed independently: a fully collected shipment may be Financially Closed while document/claim chips remain open. Project Final Close opens a dimension checklist (quantity, delivery, documents, supplier obligations, expenses, claims, approvals). Blockers link to records. Exceptions require authorized exact-version approval and reason. Reopen likewise requires reason and displays the immutable audit result.
+## Release boundary
 
-### W8 — Profit Center
-
-Four cards are always distinct: Expected Margin, Committed Margin, Actual Operational Margin, Cash Position. Each shows currency, as-of time, formula version, formula disclosure, and drill-down. Advances change Cash Position only; mixed currencies are not silently combined. Unauthorized users see neither cards nor amounts.
-
-### W9 — Audit and evidence
-
-Timeline is append-only and filters by aggregate/action/actor/date. Every event exposes version, correlation ID, reason, and hash verification result subject to permission. Evidence upload calculates/verifies SHA-256; a retry with the same idempotency key returns the prior result, while same key/different payload produces a conflict. Authorized download is audited.
-
-## Explicit Release 1 exclusions
-
-No navigation, screen, or acceptance dependency exists for bank statement import/matching, tax-pack preparation/sending, or historical migration. Extension points may appear only as unavailable future capability documentation, not interactive placeholders that imply delivery.
+Bank import, tax pack, historical migration, multiple sources, shared-expense allocation, approval designer, route designer, and advanced claim settlements are absent—not disabled menu items—and are rejected if discovered by route crawl.

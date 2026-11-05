@@ -1,279 +1,1084 @@
 openapi: 3.1.0
 info:
-  title: ORB Core Trade API
-  version: 1.0.0-planning
-  description: >-
-    Release 1 acceptance contract for the ORB modular monolith. Bank matching,
-    tax packs, and historical migration are intentionally absent.
+  title: ORB Release 1 Operational Beta API
+  version: 1.0.0-beta-plan
+  description: Authoritative Release 1 API. Deferred features have no paths.
 servers:
-  - url: /api
+  - url: /api/v1
 security:
   - sessionCookie: []
 tags:
-  - { name: Projects }
-  - { name: Contracts }
-  - { name: Shipments }
-  - { name: Documents }
-  - { name: Money }
-  - { name: Expenses }
-  - { name: Claims }
-  - { name: Closure }
-  - { name: Audit }
+  - {name: Masters}
+  - {name: Projects}
+  - {name: Contracts}
+  - {name: Shipments}
+  - {name: Routes}
+  - {name: Evidence}
+  - {name: Documents}
+  - {name: Approvals}
+  - {name: SupplierInvoices}
+  - {name: Money}
+  - {name: Expenses}
+  - {name: Statements}
+  - {name: Claims}
+  - {name: Closure}
+  - {name: Audit}
 paths:
+  /masters/{masterType}:
+    parameters:
+      - $ref: '#/components/parameters/MasterType'
+    get:
+      tags: [Masters]
+      operationId: listMasterRecords
+      responses:
+        '200': {$ref: '#/components/responses/EntityPage'}
+        default: {$ref: '#/components/responses/Problem'}
+    post:
+      tags: [Masters]
+      operationId: createMasterRecord
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: {$ref: '#/components/requestBodies/EntityInput'}
+      responses:
+        '201': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /masters/{masterType}/{recordId}:
+    parameters:
+      - $ref: '#/components/parameters/MasterType'
+      - $ref: '#/components/parameters/RecordId'
+    patch:
+      tags: [Masters]
+      operationId: updateMasterRecord
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: {$ref: '#/components/requestBodies/EntityInput'}
+      responses:
+        '200': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
   /projects:
     get:
       tags: [Projects]
       operationId: listProjects
       parameters:
-        - $ref: '#/components/parameters/Locale'
         - $ref: '#/components/parameters/Cursor'
         - $ref: '#/components/parameters/Limit'
-        - { name: status, in: query, schema: { type: string } }
-        - { name: route, in: query, schema: { $ref: '#/components/schemas/TradeRoute' } }
       responses:
-        '200': { description: Authorized, server-paginated projection, content: { application/json: { schema: { $ref: '#/components/schemas/ProjectPage' } } } }
-        default: { $ref: '#/components/responses/Problem' }
+        '200': {$ref: '#/components/responses/EntityPage'}
+        default: {$ref: '#/components/responses/Problem'}
     post:
       tags: [Projects]
-      operationId: createProjectWithPrimarySalesContract
-      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateProject' } } } }
+      operationId: createProjectWithSalesContract
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateProject'}
       responses:
-        '201': { description: Project and its one primary sales contract created atomically, headers: { ETag: { $ref: '#/components/headers/ETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/Project' } } } }
-        default: { $ref: '#/components/responses/Problem' }
+        '201': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
   /projects/{projectId}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
     get:
       tags: [Projects]
-      parameters: [{ $ref: '#/components/parameters/ProjectId' }, { $ref: '#/components/parameters/Locale' }]
+      operationId: getProject
       responses:
-        '200': { description: Permission-shaped project summary, headers: { ETag: { $ref: '#/components/headers/ETag' } }, content: { application/json: { schema: { $ref: '#/components/schemas/Project' } } } }
-        default: { $ref: '#/components/responses/Problem' }
+        '200': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
   /projects/{projectId}/purchase-contracts:
     post:
       tags: [Contracts]
-      operationId: addPurchaseContract
-      parameters: [{ $ref: '#/components/parameters/ProjectId' }, { $ref: '#/components/parameters/IfMatch' }, { $ref: '#/components/parameters/IdempotencyKey' }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ContractDraft' } } } }
+      operationId: createPurchaseContract
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: {$ref: '#/components/requestBodies/ContractInput'}
       responses:
-        '201': { description: Purchase contract draft, content: { application/json: { schema: { $ref: '#/components/schemas/Contract' } } } }
-        default: { $ref: '#/components/responses/Problem' }
+        '201': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
   /contracts/{contractId}/amendments:
     post:
       tags: [Contracts]
       operationId: createContractAmendment
-      parameters: [{ $ref: '#/components/parameters/ContractId' }, { $ref: '#/components/parameters/IfMatch' }, { $ref: '#/components/parameters/IdempotencyKey' }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ContractAmendment' } } } }
+      parameters:
+        - $ref: '#/components/parameters/ContractId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/ContractInput'
+                - type: object
+                  required: [reason, effectiveDate]
+                  properties:
+                    reason: {type: string, minLength: 3}
+                    effectiveDate: {type: string, format: date}
       responses:
-        '201': { description: New draft version; prior approved version remains immutable, content: { application/json: { schema: { $ref: '#/components/schemas/Contract' } } } }
-        default: { $ref: '#/components/responses/Problem' }
-  /contracts/{contractId}/approve:
+        '201': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /contracts/{contractId}/submit:
     post:
       tags: [Contracts]
-      operationId: approveContractVersion
-      parameters: [{ $ref: '#/components/parameters/ContractId' }, { $ref: '#/components/parameters/IfMatch' }, { $ref: '#/components/parameters/IdempotencyKey' }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Decision' } } } }
+      operationId: submitContractForApproval
+      parameters:
+        - $ref: '#/components/parameters/ContractId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
       responses:
-        '200': { description: Exact version approved, content: { application/json: { schema: { $ref: '#/components/schemas/Contract' } } } }
-        default: { $ref: '#/components/responses/Problem' }
-  /projects/{projectId}/sales-shipments:
-    post:
-      tags: [Shipments]
-      operationId: createSalesShipment
-      parameters: [{ $ref: '#/components/parameters/ProjectId' }, { $ref: '#/components/parameters/IfMatch' }, { $ref: '#/components/parameters/IdempotencyKey' }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ShipmentDraft' } } } }
-      responses:
-        '201': { description: Shipment draft, content: { application/json: { schema: { $ref: '#/components/schemas/Shipment' } } } }
-        default: { $ref: '#/components/responses/Problem' }
+        '202': {$ref: '#/components/responses/Approval'}
+        default: {$ref: '#/components/responses/Problem'}
   /projects/{projectId}/supplier-shipments:
     post:
       tags: [Shipments]
       operationId: createSupplierShipment
-      parameters: [{ $ref: '#/components/parameters/ProjectId' }, { $ref: '#/components/parameters/IfMatch' }, { $ref: '#/components/parameters/IdempotencyKey' }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SupplierShipmentDraft' } } } }
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: {$ref: '#/components/requestBodies/ShipmentInput'}
       responses:
-        '201': { description: Supplier shipment draft, content: { application/json: { schema: { $ref: '#/components/schemas/Shipment' } } } }
-        default: { $ref: '#/components/responses/Problem' }
-  /sales-shipments/{shipmentId}/source-allocations:
+        '201': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /supplier-shipments/{shipmentId}/submit:
+    post:
+      tags: [Shipments]
+      operationId: submitSupplierShipmentConfirmation
+      parameters:
+        - $ref: '#/components/parameters/ShipmentId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202': {$ref: '#/components/responses/Approval'}
+        default: {$ref: '#/components/responses/Problem'}
+  /supplier-shipments/{shipmentId}/confirm:
+    post:
+      tags: [Shipments]
+      operationId: confirmSupplierShipment
+      parameters:
+        - $ref: '#/components/parameters/ShipmentId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: {$ref: '#/components/requestBodies/ApprovalBinding'}
+      responses:
+        '200': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /projects/{projectId}/sales-shipments:
+    post:
+      tags: [Shipments]
+      operationId: createSalesShipment
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: {$ref: '#/components/requestBodies/ShipmentInput'}
+      responses:
+        '201': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /sales-shipments/{shipmentId}/primary-source:
     put:
       tags: [Shipments]
-      operationId: replaceSourceAllocations
-      parameters: [{ $ref: '#/components/parameters/ShipmentId' }, { $ref: '#/components/parameters/IfMatch' }, { $ref: '#/components/parameters/IdempotencyKey' }]
-      requestBody: { required: true, content: { application/json: { schema: { type: array, minItems: 1, items: { $ref: '#/components/schemas/SourceAllocation' } } } } }
+      operationId: setPrimarySupplierSource
+      parameters:
+        - $ref: '#/components/parameters/ShipmentId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [supplierShipmentId]
+              properties:
+                supplierShipmentId: {$ref: '#/components/schemas/Uuid'}
       responses:
-        '200': { description: Exact reconciled allocation set, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/SourceAllocation' } } } } }
-        default: { $ref: '#/components/responses/Problem' }
+        '200': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /sales-shipments/{shipmentId}/tolerance-exceptions:
+    post:
+      tags: [Approvals]
+      operationId: requestToleranceException
+      parameters:
+        - $ref: '#/components/parameters/ShipmentId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason, breachedFields]
+              properties:
+                reason: {type: string, minLength: 3}
+                breachedFields: {type: array, minItems: 1, items: {type: string}}
+      responses:
+        '202': {$ref: '#/components/responses/Approval'}
+        default: {$ref: '#/components/responses/Problem'}
   /sales-shipments/{shipmentId}/confirm:
     post:
       tags: [Shipments]
       operationId: confirmSalesShipment
-      parameters: [{ $ref: '#/components/parameters/ShipmentId' }, { $ref: '#/components/parameters/IfMatch' }, { $ref: '#/components/parameters/IdempotencyKey' }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ConfirmShipment' } } } }
+      parameters:
+        - $ref: '#/components/parameters/ShipmentId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/OptionalApprovalBinding'}
       responses:
-        '200': { description: Confirmed only when tolerance, sources, and route controls pass, content: { application/json: { schema: { $ref: '#/components/schemas/Shipment' } } } }
-        default: { $ref: '#/components/responses/Problem' }
+        '200': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /sales-shipments/{shipmentId}/route-checklist:
+    get:
+      tags: [Routes]
+      operationId: getFixedRouteChecklist
+      parameters:
+        - $ref: '#/components/parameters/ShipmentId'
+      responses:
+        '200': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /sales-shipments/{shipmentId}/route-items/{itemId}:
+    patch:
+      tags: [Routes]
+      operationId: updateRouteEvidenceOrMilestone
+      parameters:
+        - $ref: '#/components/parameters/ShipmentId'
+        - $ref: '#/components/parameters/ItemId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                state: {type: string, enum: [IN_PROGRESS, SATISFIED]}
+                evidenceId: {$ref: '#/components/schemas/Uuid'}
+                milestoneAt: {type: string, format: date-time}
+      responses:
+        '200': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /evidence:
+    post:
+      tags: [Evidence]
+      operationId: uploadEvidence
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - name: X-Content-SHA256
+          in: header
+          required: true
+          schema: {type: string, pattern: '^[a-f0-9]{64}$'}
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, subjectType, subjectId, purpose]
+              properties:
+                file: {type: string, format: binary}
+                subjectType: {type: string}
+                subjectId: {$ref: '#/components/schemas/Uuid'}
+                purpose: {type: string}
+      responses:
+        '201': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /evidence/{evidenceId}:
+    get:
+      tags: [Evidence]
+      operationId: getEvidenceMetadata
+      parameters:
+        - $ref: '#/components/parameters/EvidenceId'
+      responses:
+        '200': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /evidence/{evidenceId}/content:
+    get:
+      tags: [Evidence]
+      operationId: viewOrDownloadEvidence
+      parameters:
+        - $ref: '#/components/parameters/EvidenceId'
+        - name: disposition
+          in: query
+          schema: {type: string, enum: [inline, attachment], default: inline}
+      responses:
+        '200':
+          description: Authorized immutable bytes; access is audited
+          content:
+            application/octet-stream:
+              schema: {type: string, format: binary}
+        default: {$ref: '#/components/responses/Problem'}
   /sales-shipments/{shipmentId}/documents:
     post:
       tags: [Documents]
-      operationId: generateCommercialDocument
-      parameters: [{ $ref: '#/components/parameters/ShipmentId' }, { $ref: '#/components/parameters/IfMatch' }, { $ref: '#/components/parameters/IdempotencyKey' }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/GenerateDocument' } } } }
+      operationId: generateShipmentDocument
+      parameters:
+        - $ref: '#/components/parameters/ShipmentId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/GenerateDocument'}
       responses:
-        '202': { description: Durable generation accepted from the named approved shipment dataset, content: { application/json: { schema: { $ref: '#/components/schemas/DocumentRevision' } } } }
-        default: { $ref: '#/components/responses/Problem' }
+        '202': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /documents/{documentId}/status:
+    get:
+      tags: [Documents]
+      operationId: getDocumentGenerationStatus
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+      responses:
+        '200': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
   /documents/{documentId}/revisions:
     post:
       tags: [Documents]
       operationId: reviseDocument
-      parameters: [{ $ref: '#/components/parameters/DocumentId' }, { $ref: '#/components/parameters/IfMatch' }, { $ref: '#/components/parameters/IdempotencyKey' }]
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [reason], properties: { reason: { type: string, minLength: 3 }, sourceDatasetId: { $ref: '#/components/schemas/Uuid' } } } } } }
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: {$ref: '#/components/requestBodies/Reason'}
       responses:
-        '201': { description: New draft; approved/sent bytes remain immutable, content: { application/json: { schema: { $ref: '#/components/schemas/DocumentRevision' } } } }
-        default: { $ref: '#/components/responses/Problem' }
+        '201': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /documents/{documentId}/submit:
+    post:
+      tags: [Documents]
+      operationId: submitDocumentForApproval
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202': {$ref: '#/components/responses/Approval'}
+        default: {$ref: '#/components/responses/Problem'}
+  /documents/{documentId}/cancel:
+    post:
+      tags: [Documents]
+      operationId: cancelDocumentRevision
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: {$ref: '#/components/requestBodies/Reason'}
+      responses:
+        '200': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /documents/{documentId}/outbound-manifests:
+    post:
+      tags: [Documents]
+      operationId: createOutboundManifest
+      parameters:
+        - $ref: '#/components/parameters/DocumentId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/OutboundManifestInput'}
+      responses:
+        '201': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /outbound-manifests/{manifestId}/submit:
+    post:
+      tags: [Documents]
+      operationId: submitOutboundManifestForApproval
+      parameters:
+        - $ref: '#/components/parameters/ManifestId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202': {$ref: '#/components/responses/Approval'}
+        default: {$ref: '#/components/responses/Problem'}
+  /outbound-manifests/{manifestId}/send:
+    post:
+      tags: [Documents]
+      operationId: sendApprovedOutboundManifest
+      parameters:
+        - $ref: '#/components/parameters/ManifestId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: {$ref: '#/components/requestBodies/ApprovalBinding'}
+      responses:
+        '200': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /outbound-manifests/{manifestId}/cancel:
+    post:
+      tags: [Documents]
+      operationId: cancelOutboundManifest
+      parameters:
+        - $ref: '#/components/parameters/ManifestId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: {$ref: '#/components/requestBodies/Reason'}
+      responses:
+        '200': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /approvals:
+    get:
+      tags: [Approvals]
+      operationId: listFixedApprovalInbox
+      responses:
+        '200': {$ref: '#/components/responses/EntityPage'}
+        default: {$ref: '#/components/responses/Problem'}
+  /approvals/{approvalId}/decision:
+    post:
+      tags: [Approvals]
+      operationId: decideFixedApproval
+      parameters:
+        - $ref: '#/components/parameters/ApprovalId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ApprovalDecision'}
+      responses:
+        '200': {$ref: '#/components/responses/Approval'}
+        default: {$ref: '#/components/responses/Problem'}
+  /supplier-shipments/{shipmentId}/invoices:
+    post:
+      tags: [SupplierInvoices]
+      operationId: createSupplierInvoice
+      parameters:
+        - $ref: '#/components/parameters/ShipmentId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SupplierInvoiceInput'}
+      responses:
+        '201': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /supplier-invoices/{invoiceId}/submit:
+    post:
+      tags: [SupplierInvoices]
+      operationId: submitSupplierInvoice
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202': {$ref: '#/components/responses/Approval'}
+        default: {$ref: '#/components/responses/Problem'}
+  /supplier-invoices/{invoiceId}/confirm:
+    post:
+      tags: [SupplierInvoices]
+      operationId: confirmSupplierInvoice
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: {$ref: '#/components/requestBodies/ApprovalBinding'}
+      responses:
+        '200': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
   /projects/{projectId}/money-movements:
     post:
       tags: [Money]
       operationId: recordMoneyMovement
-      parameters: [{ $ref: '#/components/parameters/ProjectId' }, { $ref: '#/components/parameters/IfMatch' }, { $ref: '#/components/parameters/IdempotencyKey' }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/MoneyMovementInput' } } } }
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/MoneyMovementInput'}
       responses:
-        '201': { description: Movement; an advance requires no invoice, content: { application/json: { schema: { $ref: '#/components/schemas/MoneyMovement' } } } }
-        default: { $ref: '#/components/responses/Problem' }
+        '201': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
   /money-movements/{movementId}/allocations:
     post:
       tags: [Money]
       operationId: allocateMoneyMovement
-      parameters: [{ $ref: '#/components/parameters/MovementId' }, { $ref: '#/components/parameters/IfMatch' }, { $ref: '#/components/parameters/IdempotencyKey' }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SettlementAllocationInput' } } } }
+      parameters:
+        - $ref: '#/components/parameters/MovementId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/SettlementAllocationInput'}
       responses:
-        '201': { description: Allocation committed atomically without over-settlement, content: { application/json: { schema: { $ref: '#/components/schemas/Allocation' } } } }
-        default: { $ref: '#/components/responses/Problem' }
+        '201': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /money-movements/{movementId}/reverse:
+    post:
+      tags: [Money]
+      operationId: reverseMoneyMovement
+      parameters:
+        - $ref: '#/components/parameters/MovementId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: {$ref: '#/components/requestBodies/Reason'}
+      responses:
+        '201': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
   /projects/{projectId}/expenses:
     post:
       tags: [Expenses]
-      operationId: recordExpense
-      parameters: [{ $ref: '#/components/parameters/ProjectId' }, { $ref: '#/components/parameters/IfMatch' }, { $ref: '#/components/parameters/IdempotencyKey' }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ExpenseInput' } } } }
+      operationId: createDirectExpense
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DirectExpenseInput'}
       responses:
-        '201': { description: Expense with proof and approval state, content: { application/json: { schema: { $ref: '#/components/schemas/Expense' } } } }
-        default: { $ref: '#/components/responses/Problem' }
+        '201': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /expenses/{expenseId}/submit:
+    post:
+      tags: [Expenses]
+      operationId: submitDirectExpense
+      parameters:
+        - $ref: '#/components/parameters/ExpenseId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202': {$ref: '#/components/responses/Approval'}
+        default: {$ref: '#/components/responses/Problem'}
+  /statements/{statementType}/{subjectId}:
+    get:
+      tags: [Statements]
+      operationId: getOperationalStatement
+      parameters:
+        - $ref: '#/components/parameters/StatementType'
+        - $ref: '#/components/parameters/SubjectId'
+        - {name: asOf, in: query, schema: {type: string, format: date}}
+      responses:
+        '200':
+          description: Currency-partitioned source-linked operational statement
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Statement'}
+        default: {$ref: '#/components/responses/Problem'}
+  /projects/{projectId}/profit:
+    get:
+      tags: [Statements]
+      operationId: getProjectMarginAndCash
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: Four separate formula-disclosed measures
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ProfitView'}
+        default: {$ref: '#/components/responses/Problem'}
   /projects/{projectId}/claims:
     post:
       tags: [Claims]
-      operationId: openClaim
-      parameters: [{ $ref: '#/components/parameters/ProjectId' }, { $ref: '#/components/parameters/IfMatch' }, { $ref: '#/components/parameters/IdempotencyKey' }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ClaimInput' } } } }
+      operationId: openSimpleClaim
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ClaimInput'}
       responses:
-        '201': { description: Claim and closure blocker, content: { application/json: { schema: { $ref: '#/components/schemas/Claim' } } } }
-        default: { $ref: '#/components/responses/Problem' }
-  /projects/{projectId}/profit:
-    get:
-      tags: [Projects]
-      parameters: [{ $ref: '#/components/parameters/ProjectId' }, { $ref: '#/components/parameters/Locale' }]
+        '201': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /claims/{claimId}/transition:
+    post:
+      tags: [Claims]
+      operationId: transitionSimpleClaim
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [toState, reason]
+              properties:
+                toState: {type: string, enum: [UNDER_REVIEW, RESOLVED, REJECTED]}
+                reason: {type: string, minLength: 3}
+                evidenceId: {$ref: '#/components/schemas/Uuid'}
+                approvalId: {$ref: '#/components/schemas/Uuid'}
       responses:
-        '200': { description: Four separately labelled figures, content: { application/json: { schema: { $ref: '#/components/schemas/ProfitView' } } } }
-        default: { $ref: '#/components/responses/Problem' }
+        '200': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /claims/{claimId}/submit-outcome:
+    post:
+      tags: [Claims]
+      operationId: submitClaimOutcomeForApproval
+      parameters:
+        - $ref: '#/components/parameters/ClaimId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: {$ref: '#/components/requestBodies/Reason'}
+      responses:
+        '202': {$ref: '#/components/responses/Approval'}
+        default: {$ref: '#/components/responses/Problem'}
   /projects/{projectId}/closure-assessment:
-    get:
+    post:
       tags: [Closure]
-      parameters: [{ $ref: '#/components/parameters/ProjectId' }]
+      operationId: assessProjectClosure
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
       responses:
-        '200': { description: Reproducible blockers by independent closure dimension, content: { application/json: { schema: { $ref: '#/components/schemas/ClosureAssessment' } } } }
-        default: { $ref: '#/components/responses/Problem' }
+        '201':
+          description: Current reproducible assessment with every blocker
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ClosureAssessment'}
+        default: {$ref: '#/components/responses/Problem'}
+  /projects/{projectId}/closure-exceptions:
+    post:
+      tags: [Closure]
+      operationId: requestClosureException
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assessmentId, blockerIds, reason]
+              properties:
+                assessmentId: {$ref: '#/components/schemas/Uuid'}
+                blockerIds: {type: array, minItems: 1, items: {$ref: '#/components/schemas/Uuid'}}
+                reason: {type: string, minLength: 3}
+      responses:
+        '202': {$ref: '#/components/responses/Approval'}
+        default: {$ref: '#/components/responses/Problem'}
   /projects/{projectId}/final-close:
     post:
       tags: [Closure]
       operationId: finalCloseProject
-      parameters: [{ $ref: '#/components/parameters/ProjectId' }, { $ref: '#/components/parameters/IfMatch' }, { $ref: '#/components/parameters/IdempotencyKey' }]
-      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { exceptionApprovalIds: { type: array, items: { $ref: '#/components/schemas/Uuid' } } } } } } }
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assessmentId, approvalId]
+              properties:
+                assessmentId: {$ref: '#/components/schemas/Uuid'}
+                approvalId: {$ref: '#/components/schemas/Uuid'}
       responses:
-        '200': { description: Final closed when every blocker passes or is exactly excepted, content: { application/json: { schema: { $ref: '#/components/schemas/Project' } } } }
-        default: { $ref: '#/components/responses/Problem' }
+        '200': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /projects/{projectId}/final-close/submit:
+    post:
+      tags: [Closure]
+      operationId: submitFinalCloseForApproval
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assessmentId]
+              properties: {assessmentId: {$ref: '#/components/schemas/Uuid'}}
+      responses:
+        '202': {$ref: '#/components/responses/Approval'}
+        default: {$ref: '#/components/responses/Problem'}
   /projects/{projectId}/reopen:
     post:
       tags: [Closure]
       operationId: reopenProject
-      parameters: [{ $ref: '#/components/parameters/ProjectId' }, { $ref: '#/components/parameters/IfMatch' }, { $ref: '#/components/parameters/IdempotencyKey' }]
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [reason], properties: { reason: { type: string, minLength: 3 } } } } } }
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason, approvalId]
+              properties:
+                reason: {type: string, minLength: 3}
+                approvalId: {$ref: '#/components/schemas/Uuid'}
       responses:
-        '200': { description: Reopened with immutable audit event, content: { application/json: { schema: { $ref: '#/components/schemas/Project' } } } }
-        default: { $ref: '#/components/responses/Problem' }
+        '200': {$ref: '#/components/responses/Entity'}
+        default: {$ref: '#/components/responses/Problem'}
+  /projects/{projectId}/reopen/submit:
+    post:
+      tags: [Closure]
+      operationId: submitReopenForApproval
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: {$ref: '#/components/requestBodies/Reason'}
+      responses:
+        '202': {$ref: '#/components/responses/Approval'}
+        default: {$ref: '#/components/responses/Problem'}
   /projects/{projectId}/audit-events:
     get:
       tags: [Audit]
-      parameters: [{ $ref: '#/components/parameters/ProjectId' }, { $ref: '#/components/parameters/Cursor' }, { $ref: '#/components/parameters/Limit' }]
+      operationId: listProjectAuditEvents
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
       responses:
-        '200': { description: Authorized append-only history, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/AuditEvent' } } } } }
-        default: { $ref: '#/components/responses/Problem' }
+        '200': {$ref: '#/components/responses/EntityPage'}
+        default: {$ref: '#/components/responses/Problem'}
 components:
   securitySchemes:
-    sessionCookie: { type: apiKey, in: cookie, name: __Host-orb_session }
-  headers:
-    ETag: { description: Quoted aggregate version, schema: { type: string, example: '"8"' } }
+    sessionCookie: {type: apiKey, in: cookie, name: __Host-orb_session}
   parameters:
-    ProjectId: { name: projectId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
-    ContractId: { name: contractId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
-    ShipmentId: { name: shipmentId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
-    DocumentId: { name: documentId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
-    MovementId: { name: movementId, in: path, required: true, schema: { $ref: '#/components/schemas/Uuid' } }
-    IfMatch: { name: If-Match, in: header, required: true, schema: { type: string }, description: Quoted version returned as ETag }
-    IdempotencyKey: { name: Idempotency-Key, in: header, required: true, schema: { type: string, minLength: 16, maxLength: 128 } }
-    Locale: { name: Accept-Language, in: header, schema: { type: string, enum: [ar, en], default: en } }
-    Cursor: { name: cursor, in: query, schema: { type: string } }
-    Limit: { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+    ProjectId: {name: projectId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    ContractId: {name: contractId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    ShipmentId: {name: shipmentId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    DocumentId: {name: documentId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    ManifestId: {name: manifestId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    EvidenceId: {name: evidenceId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    ApprovalId: {name: approvalId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    InvoiceId: {name: invoiceId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    MovementId: {name: movementId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    ExpenseId: {name: expenseId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    ClaimId: {name: claimId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    ItemId: {name: itemId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    RecordId: {name: recordId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    SubjectId: {name: subjectId, in: path, required: true, schema: {$ref: '#/components/schemas/Uuid'}}
+    MasterType: {name: masterType, in: path, required: true, schema: {type: string, enum: [customers, suppliers, coffee, currencies, expense-categories]}}
+    StatementType: {name: statementType, in: path, required: true, schema: {type: string, enum: [customer, supplier, sales-shipment, supplier-shipment, project]}}
+    IfMatch: {name: If-Match, in: header, required: true, description: Quoted current aggregate version, schema: {type: string, pattern: '^"[1-9][0-9]*"$'}}
+    IdempotencyKey: {name: Idempotency-Key, in: header, required: true, schema: {type: string, minLength: 16, maxLength: 128}}
+    Cursor: {name: cursor, in: query, schema: {type: string}}
+    Limit: {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 200, default: 50}}
+  requestBodies:
+    EntityInput:
+      required: true
+      content:
+        application/json:
+          schema: {type: object, minProperties: 1, additionalProperties: true}
+    ContractInput:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ContractInput'}
+    ShipmentInput:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ShipmentInput'}
+    Reason:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [reason]
+            properties: {reason: {type: string, minLength: 3}}
+    ApprovalBinding:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/ApprovalBinding'}
   responses:
     Problem:
-      description: RFC 9457 problem; see problem-details.md
-      content: { application/problem+json: { schema: { $ref: '#/components/schemas/Problem' } } }
+      description: RFC 9457; stable codes are defined in problem-details.md
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Entity:
+      description: Permission-shaped entity with current version
+      headers:
+        ETag: {description: Quoted current version, schema: {type: string}}
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Entity'}
+    EntityPage:
+      description: Cursor page
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/EntityPage'}
+    Approval:
+      description: Fixed-matrix exact-version approval
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Approval'}
   schemas:
-    Uuid: { type: string, format: uuid }
-    Decimal: { type: string, pattern: '^-?[0-9]+(\.[0-9]+)?$' }
-    Currency: { type: string, pattern: '^[A-Z]{3}$', examples: [USD, AED, SAR] }
-    TradeRoute: { type: string, enum: [FOREIGN_TO_FOREIGN, UAE_FREE_ZONE_REEXPORT, UAE_IMPORT] }
-    Money: { type: object, required: [amount, currency], properties: { amount: { $ref: '#/components/schemas/Decimal' }, currency: { $ref: '#/components/schemas/Currency' } } }
-    Project:
+    Uuid: {type: string, format: uuid}
+    Decimal: {type: string, pattern: '^-?[0-9]+(\.[0-9]+)?$'}
+    Currency: {type: string, pattern: '^[A-Z]{3}$'}
+    TradeRoute: {type: string, enum: [FOREIGN_TO_FOREIGN, UAE_FREE_ZONE_REEXPORT, UAE_IMPORT]}
+    Entity:
       type: object
-      required: [id, reference, route, version, financialStatus, finalClosureStatus]
+      required: [id, version]
       properties:
-        id: { $ref: '#/components/schemas/Uuid' }
-        reference: { type: string }
-        route: { $ref: '#/components/schemas/TradeRoute' }
-        version: { type: integer, minimum: 1 }
-        financialStatus: { type: string, enum: [OPEN, FINANCIALLY_CLOSED] }
-        finalClosureStatus: { type: string, enum: [OPEN, FINAL_CLOSED] }
-        primarySalesContractId: { $ref: '#/components/schemas/Uuid' }
-    ProjectPage: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/Project' } }, nextCursor: { type: [string, 'null'] } } }
+        id: {$ref: '#/components/schemas/Uuid'}
+        version: {type: integer, minimum: 1}
+      additionalProperties: true
+    EntityPage:
+      type: object
+      required: [items]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/Entity'}}
+        nextCursor: {type: [string, 'null']}
     CreateProject:
       type: object
-      required: [customerPartyId, route, salesContract]
-      properties: { customerPartyId: { $ref: '#/components/schemas/Uuid' }, route: { $ref: '#/components/schemas/TradeRoute' }, salesContract: { $ref: '#/components/schemas/ContractDraft' } }
-    Tolerances:
+      additionalProperties: false
+      required: [customerId, salesContract]
+      properties:
+        customerId: {$ref: '#/components/schemas/Uuid'}
+        salesContract: {$ref: '#/components/schemas/ContractInput'}
+    ContractInput:
       type: object
-      properties: { quantityUnder: { $ref: '#/components/schemas/Decimal' }, quantityOver: { $ref: '#/components/schemas/Decimal' }, netWeightUnder: { $ref: '#/components/schemas/Decimal' }, netWeightOver: { $ref: '#/components/schemas/Decimal' }, grossWeightUnder: { $ref: '#/components/schemas/Decimal' }, grossWeightOver: { $ref: '#/components/schemas/Decimal' } }
-      description: Omitted members persist as zero.
-    ContractDraft:
+      required: [counterpartyId, coffeeSpecificationId, quantity, unitPrice, currency, route, incoterm, namedPlace]
+      properties:
+        counterpartyId: {$ref: '#/components/schemas/Uuid'}
+        coffeeSpecificationId: {$ref: '#/components/schemas/Uuid'}
+        quantity: {$ref: '#/components/schemas/Decimal'}
+        unitPrice: {$ref: '#/components/schemas/Decimal'}
+        currency: {$ref: '#/components/schemas/Currency'}
+        route: {$ref: '#/components/schemas/TradeRoute'}
+        incoterm: {type: string, minLength: 3}
+        namedPlace: {type: string, minLength: 1}
+        tolerances:
+          type: object
+          description: Omitted values persist as zero
+          properties:
+            quantityUnder: {$ref: '#/components/schemas/Decimal'}
+            quantityOver: {$ref: '#/components/schemas/Decimal'}
+            netWeightUnder: {$ref: '#/components/schemas/Decimal'}
+            netWeightOver: {$ref: '#/components/schemas/Decimal'}
+            grossWeightUnder: {$ref: '#/components/schemas/Decimal'}
+            grossWeightOver: {$ref: '#/components/schemas/Decimal'}
+    ShipmentInput:
       type: object
-      required: [counterpartyId, coffeeSpecificationId, quantity, unitPrice, currency, incoterm, namedPlace]
-      properties: { counterpartyId: { $ref: '#/components/schemas/Uuid' }, coffeeSpecificationId: { $ref: '#/components/schemas/Uuid' }, quantity: { $ref: '#/components/schemas/Decimal' }, unitPrice: { $ref: '#/components/schemas/Decimal' }, currency: { $ref: '#/components/schemas/Currency' }, incoterm: { type: string }, namedPlace: { type: string }, tolerances: { $ref: '#/components/schemas/Tolerances' } }
-    ContractAmendment: { allOf: [{ $ref: '#/components/schemas/ContractDraft' }, { type: object, required: [reason, effectiveDate], properties: { reason: { type: string, minLength: 3 }, effectiveDate: { type: string, format: date } } }] }
-    Contract: { type: object, required: [id, kind, revisionNo, status, version], properties: { id: { $ref: '#/components/schemas/Uuid' }, kind: { type: string, enum: [SALES, PURCHASE] }, revisionNo: { type: integer }, status: { type: string }, version: { type: integer } } }
-    ShipmentDraft: { type: object, required: [salesContractId, quantity, netWeight, grossWeight], properties: { salesContractId: { $ref: '#/components/schemas/Uuid' }, quantity: { $ref: '#/components/schemas/Decimal' }, netWeight: { $ref: '#/components/schemas/Decimal' }, grossWeight: { $ref: '#/components/schemas/Decimal' }, bags: { type: integer, minimum: 0 }, routeData: { type: object, additionalProperties: true } } }
-    SupplierShipmentDraft: { type: object, required: [purchaseContractId, quantity, netWeight, grossWeight], properties: { purchaseContractId: { $ref: '#/components/schemas/Uuid' }, quantity: { $ref: '#/components/schemas/Decimal' }, netWeight: { $ref: '#/components/schemas/Decimal' }, grossWeight: { $ref: '#/components/schemas/Decimal' }, bags: { type: integer, minimum: 0 }, routeData: { type: object, additionalProperties: true } } }
-    Shipment: { type: object, required: [id, executionStatus, financialStatus, documentStatus, claimStatus, version], properties: { id: { $ref: '#/components/schemas/Uuid' }, executionStatus: { type: string }, financialStatus: { type: string }, documentStatus: { type: string }, claimStatus: { type: string }, version: { type: integer } } }
-    SourceAllocation: { type: object, required: [supplierShipmentId, quantity], properties: { supplierShipmentId: { $ref: '#/components/schemas/Uuid' }, quantity: { $ref: '#/components/schemas/Decimal' }, weight: { $ref: '#/components/schemas/Decimal' } } }
-    ConfirmShipment: { type: object, properties: { toleranceExceptionApprovalId: { $ref: '#/components/schemas/Uuid' }, reason: { type: string } } }
-    GenerateDocument: { type: object, required: [kind, languageMode, sourceDatasetId], properties: { kind: { type: string, enum: [CINV, PACKING_LIST] }, languageMode: { type: string, enum: [AR, EN, BILINGUAL] }, sourceDatasetId: { $ref: '#/components/schemas/Uuid' } } }
-    DocumentRevision: { type: object, required: [id, revisionNo, status, languageMode], properties: { id: { $ref: '#/components/schemas/Uuid' }, revisionNo: { type: integer }, status: { type: string }, languageMode: { type: string }, sha256: { type: string, pattern: '^[a-f0-9]{64}$' } } }
-    MoneyMovementInput: { type: object, required: [partyId, kind, amount, currency, occurredOn], properties: { partyId: { $ref: '#/components/schemas/Uuid' }, contractId: { $ref: '#/components/schemas/Uuid' }, kind: { type: string }, amount: { $ref: '#/components/schemas/Decimal' }, currency: { $ref: '#/components/schemas/Currency' }, occurredOn: { type: string, format: date }, fxRate: { $ref: '#/components/schemas/Decimal' }, fxRateDate: { type: string, format: date }, fxRateSource: { type: string } } }
-    MoneyMovement: { allOf: [{ $ref: '#/components/schemas/MoneyMovementInput' }, { type: object, required: [id, status, availableAmount, version], properties: { id: { $ref: '#/components/schemas/Uuid' }, status: { type: string }, availableAmount: { $ref: '#/components/schemas/Decimal' }, version: { type: integer } } }] }
-    SettlementAllocationInput: { type: object, required: [targetType, targetId, amount, currency], properties: { targetType: { type: string, enum: [CINV, SUPPLIER_INVOICE, EXPENSE] }, targetId: { $ref: '#/components/schemas/Uuid' }, amount: { $ref: '#/components/schemas/Decimal' }, currency: { $ref: '#/components/schemas/Currency' } } }
-    Allocation: { allOf: [{ $ref: '#/components/schemas/SettlementAllocationInput' }, { type: object, required: [id, status], properties: { id: { $ref: '#/components/schemas/Uuid' }, status: { type: string } } }] }
-    ExpenseInput: { type: object, required: [vendorPartyId, category, amount, currency, proofEvidenceId], properties: { vendorPartyId: { $ref: '#/components/schemas/Uuid' }, shipmentId: { $ref: '#/components/schemas/Uuid' }, category: { type: string }, amount: { $ref: '#/components/schemas/Decimal' }, currency: { $ref: '#/components/schemas/Currency' }, proofEvidenceId: { $ref: '#/components/schemas/Uuid' }, allocationMethod: { type: string, enum: [DIRECT, QUANTITY, VALUE, MANUAL] } } }
-    Expense: { allOf: [{ $ref: '#/components/schemas/ExpenseInput' }, { type: object, required: [id, status, version], properties: { id: { $ref: '#/components/schemas/Uuid' }, status: { type: string }, version: { type: integer } } }] }
-    ClaimInput: { type: object, required: [type, claimantPartyId, respondentPartyId], properties: { salesShipmentId: { $ref: '#/components/schemas/Uuid' }, supplierShipmentId: { $ref: '#/components/schemas/Uuid' }, type: { type: string, enum: [QUANTITY, WEIGHT, QUALITY, DELIVERY, PRICE, DOCUMENT] }, claimantPartyId: { $ref: '#/components/schemas/Uuid' }, respondentPartyId: { $ref: '#/components/schemas/Uuid' }, claimedAmount: { $ref: '#/components/schemas/Money' } } }
-    Claim: { allOf: [{ $ref: '#/components/schemas/ClaimInput' }, { type: object, required: [id, status, version], properties: { id: { $ref: '#/components/schemas/Uuid' }, status: { type: string }, version: { type: integer } } }] }
-    Decision: { type: object, required: [subjectVersion, decision], properties: { subjectVersion: { type: integer }, decision: { type: string, enum: [APPROVED, REJECTED] }, comment: { type: string }, evidenceId: { $ref: '#/components/schemas/Uuid' } } }
-    ProfitFigure: { type: object, required: [label, amount, currency, formula, sourceCount], properties: { label: { type: string }, amount: { $ref: '#/components/schemas/Decimal' }, currency: { $ref: '#/components/schemas/Currency' }, formula: { type: string }, sourceCount: { type: integer }, drilldownUrl: { type: string } } }
-    ProfitView: { type: object, required: [expectedMargin, committedMargin, actualOperationalMargin, cashPosition], properties: { expectedMargin: { $ref: '#/components/schemas/ProfitFigure' }, committedMargin: { $ref: '#/components/schemas/ProfitFigure' }, actualOperationalMargin: { $ref: '#/components/schemas/ProfitFigure' }, cashPosition: { $ref: '#/components/schemas/ProfitFigure' } } }
-    ClosureAssessment: { type: object, required: [assessedVersion, dimensions, blockers], properties: { assessedVersion: { type: integer }, dimensions: { type: object, additionalProperties: { type: boolean } }, blockers: { type: array, items: { type: object, required: [code, subjectId], properties: { code: { type: string }, subjectId: { $ref: '#/components/schemas/Uuid' }, exceptionAllowed: { type: boolean } } } } } }
-    AuditEvent: { type: object, required: [id, sequenceNo, action, occurredAt, actorId, eventHash], properties: { id: { $ref: '#/components/schemas/Uuid' }, sequenceNo: { type: integer }, action: { type: string }, occurredAt: { type: string, format: date-time }, actorId: { $ref: '#/components/schemas/Uuid' }, reason: { type: string }, eventHash: { type: string }, previousEventHash: { type: [string, 'null'] } } }
-    Problem: { type: object, required: [type, title, status, code, correlationId], properties: { type: { type: string, format: uri }, title: { type: string }, status: { type: integer }, detail: { type: string }, instance: { type: string }, code: { type: string }, correlationId: { type: string }, currentVersion: { type: integer }, errors: { type: array, items: { type: object, properties: { pointer: { type: string }, code: { type: string }, messageKey: { type: string } } } } } }
+      required: [contractId, quantity, netWeight, grossWeight]
+      properties:
+        contractId: {$ref: '#/components/schemas/Uuid'}
+        quantity: {$ref: '#/components/schemas/Decimal'}
+        netWeight: {$ref: '#/components/schemas/Decimal'}
+        grossWeight: {$ref: '#/components/schemas/Decimal'}
+        bags: {type: integer, minimum: 0}
+        logistics: {type: object, additionalProperties: true}
+    GenerateDocument:
+      type: object
+      additionalProperties: false
+      required: [kind, language, sourceDatasetId]
+      properties:
+        kind: {type: string, enum: [CINV, PACKING_LIST]}
+        language: {type: string, enum: [AR, EN, BILINGUAL]}
+        sourceDatasetId: {$ref: '#/components/schemas/Uuid'}
+    OutboundManifestInput:
+      type: object
+      additionalProperties: false
+      required: [documentRevisionId, outputSha256, to, cc, attachments, subject, bodyDigest]
+      properties:
+        documentRevisionId: {$ref: '#/components/schemas/Uuid'}
+        outputSha256: {type: string, pattern: '^[a-f0-9]{64}$'}
+        to: {type: array, minItems: 1, uniqueItems: true, items: {type: string, format: email}}
+        cc: {type: array, uniqueItems: true, items: {type: string, format: email}}
+        attachments:
+          type: array
+          items:
+            type: object
+            required: [id, version, sha256]
+            properties:
+              id: {$ref: '#/components/schemas/Uuid'}
+              version: {type: integer, minimum: 1}
+              sha256: {type: string, pattern: '^[a-f0-9]{64}$'}
+        subject: {type: string, minLength: 1}
+        bodyDigest: {type: string, pattern: '^[a-f0-9]{64}$'}
+    ApprovalBinding:
+      type: object
+      additionalProperties: false
+      required: [approvalId]
+      properties: {approvalId: {$ref: '#/components/schemas/Uuid'}}
+    OptionalApprovalBinding:
+      type: object
+      additionalProperties: false
+      properties: {approvalId: {$ref: '#/components/schemas/Uuid'}}
+    ApprovalDecision:
+      type: object
+      additionalProperties: false
+      required: [decision, comment]
+      properties:
+        decision: {type: string, enum: [APPROVED, REJECTED]}
+        comment: {type: string, minLength: 1}
+    Approval:
+      type: object
+      required: [id, actionCode, subjectId, subjectVersion, subjectHash, requesterId, decision, version]
+      properties:
+        id: {$ref: '#/components/schemas/Uuid'}
+        actionCode: {type: string, enum: [CONTRACT_VERSION, SUPPLIER_SHIPMENT_CONFIRMATION, TOLERANCE_EXCEPTION, SUPPLIER_INVOICE_CONFIRMATION, DIRECT_EXPENSE, DOCUMENT_OUTPUT, EXTERNAL_SEND, CLAIM_OUTCOME, CLOSURE_EXCEPTION, FINAL_CLOSE, REOPEN]}
+        subjectId: {$ref: '#/components/schemas/Uuid'}
+        subjectVersion: {type: integer, minimum: 1}
+        subjectHash: {type: string}
+        requesterId: {$ref: '#/components/schemas/Uuid'}
+        decision: {type: string, enum: [PENDING, APPROVED, REJECTED, EXPIRED]}
+        version: {type: integer, minimum: 1}
+    SupplierInvoiceInput:
+      type: object
+      additionalProperties: false
+      required: [supplierId, reference, invoiceDate, amount, currency, evidenceId]
+      properties:
+        supplierId: {$ref: '#/components/schemas/Uuid'}
+        reference: {type: string}
+        invoiceDate: {type: string, format: date}
+        amount: {$ref: '#/components/schemas/Decimal'}
+        currency: {$ref: '#/components/schemas/Currency'}
+        evidenceId: {$ref: '#/components/schemas/Uuid'}
+    MoneyMovementInput:
+      type: object
+      required: [partyId, contractId, kind, amount, currency, occurredOn, reference]
+      properties:
+        partyId: {$ref: '#/components/schemas/Uuid'}
+        contractId: {$ref: '#/components/schemas/Uuid'}
+        kind: {type: string, enum: [CUSTOMER_ADVANCE, CUSTOMER_RECEIPT, CUSTOMER_REFUND, SUPPLIER_ADVANCE, SUPPLIER_PAYMENT, SUPPLIER_REFUND]}
+        amount: {$ref: '#/components/schemas/Decimal'}
+        currency: {$ref: '#/components/schemas/Currency'}
+        occurredOn: {type: string, format: date}
+        reference: {type: string}
+        evidenceId: {$ref: '#/components/schemas/Uuid'}
+    SettlementAllocationInput:
+      type: object
+      additionalProperties: false
+      required: [targetType, targetId, amount, currency]
+      properties:
+        targetType: {type: string, enum: [CINV, SUPPLIER_INVOICE]}
+        targetId: {$ref: '#/components/schemas/Uuid'}
+        amount: {$ref: '#/components/schemas/Decimal'}
+        currency: {$ref: '#/components/schemas/Currency'}
+    DirectExpenseInput:
+      type: object
+      additionalProperties: false
+      required: [scope, vendorId, categoryCode, amount, currency, occurredOn, evidenceId]
+      properties:
+        scope: {type: string, enum: [PROJECT, SALES_SHIPMENT]}
+        salesShipmentId: {$ref: '#/components/schemas/Uuid'}
+        vendorId: {$ref: '#/components/schemas/Uuid'}
+        categoryCode: {type: string}
+        amount: {$ref: '#/components/schemas/Decimal'}
+        currency: {$ref: '#/components/schemas/Currency'}
+        occurredOn: {type: string, format: date}
+        evidenceId: {$ref: '#/components/schemas/Uuid'}
+    Statement:
+      type: object
+      required: [subjectId, currencySections]
+      properties:
+        subjectId: {$ref: '#/components/schemas/Uuid'}
+        currencySections:
+          type: array
+          items:
+            type: object
+            required: [currency, lines, balance]
+            properties:
+              currency: {$ref: '#/components/schemas/Currency'}
+              lines: {type: array, items: {$ref: '#/components/schemas/Entity'}}
+              balance: {$ref: '#/components/schemas/Decimal'}
+    ProfitView:
+      type: object
+      required: [expectedMargin, committedMargin, actualOperationalMargin, cashPosition, formulaVersion, sources]
+      properties:
+        expectedMargin: {$ref: '#/components/schemas/Money'}
+        committedMargin: {$ref: '#/components/schemas/Money'}
+        actualOperationalMargin: {$ref: '#/components/schemas/Money'}
+        cashPosition: {$ref: '#/components/schemas/Money'}
+        formulaVersion: {type: string}
+        sources: {type: array, items: {$ref: '#/components/schemas/Entity'}}
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount: {$ref: '#/components/schemas/Decimal'}
+        currency: {$ref: '#/components/schemas/Currency'}
+    ClaimInput:
+      type: object
+      required: [type, claimantId, respondentId, description]
+      properties:
+        salesShipmentId: {$ref: '#/components/schemas/Uuid'}
+        supplierShipmentId: {$ref: '#/components/schemas/Uuid'}
+        type: {type: string, enum: [QUANTITY, WEIGHT, QUALITY, DELIVERY, PRICE, DOCUMENT]}
+        claimantId: {$ref: '#/components/schemas/Uuid'}
+        respondentId: {$ref: '#/components/schemas/Uuid'}
+        description: {type: string, minLength: 3}
+        quantity: {$ref: '#/components/schemas/Decimal'}
+        amount: {$ref: '#/components/schemas/Decimal'}
+        currency: {$ref: '#/components/schemas/Currency'}
+        evidenceId: {$ref: '#/components/schemas/Uuid'}
+    ClosureAssessment:
+      type: object
+      required: [id, projectId, projectVersion, blockers, assessedAt]
+      properties:
+        id: {$ref: '#/components/schemas/Uuid'}
+        projectId: {$ref: '#/components/schemas/Uuid'}
+        projectVersion: {type: integer, minimum: 1}
+        assessedAt: {type: string, format: date-time}
+        blockers:
+          type: array
+          items:
+            type: object
+            required: [id, code, subjectId, exceptionEligible]
+            properties:
+              id: {$ref: '#/components/schemas/Uuid'}
+              code: {type: string}
+              subjectId: {$ref: '#/components/schemas/Uuid'}
+              exceptionEligible: {type: boolean}
+              coveredByApprovalId: {$ref: '#/components/schemas/Uuid'}
+    Problem:
+      type: object
+      required: [type, title, status, code, correlationId]
+      properties:
+        type: {type: string, format: uri-reference}
+        title: {type: string}
+        status: {type: integer, minimum: 400, maximum: 599}
+        detail: {type: string}
+        code: {type: string}
+        correlationId: {type: string}
+        errors:
+          type: array
+          items:
+            type: object
+            required: [pointer, code, message]
+            properties:
+              pointer: {type: string}
+              code: {type: string}
+              message: {type: string}
+      additionalProperties: true
