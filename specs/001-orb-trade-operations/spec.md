@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-05
 
-**Status**: Draft — ready for clarification
+**Status**: Clarified — ready for planning review
 
 **Input**: User description: "Create a focused, standalone, bilingual ORB international coffee trade operations system. A Project contains one primary sales contract, multiple sales shipments, purchase contracts and supplier shipments, documents, advances, receipts, payments, expenses, bank matching, profit analysis, tax evidence packs, and historical migration from 2024. No Odoo and no accounting ledger."
 
@@ -16,6 +16,7 @@
 - Q: What is the cut line for the first usable release? → A: Release 1 contains Core Trade only; bank matching, tax pack, and historical migration follow in subsequent releases.
 - Q: When are shipments and Projects closed? → A: A shipment becomes Financially Closed when fully collected even if documents or claims remain open. A Project becomes Financially Closed after all sales shipments are collected, but Final Closed requires documents, claims, supplier obligations, expenses, and other closure controls to be complete or exceptionally approved.
 - Q: How are shipment quantity and weight tolerances controlled? → A: Quantity and weight tolerances are defined per contract; omitted tolerance defaults to zero, and any excess requires recorded approval and reason.
+- Q: Which trade routes must Core Trade support in Release 1? → A: Foreign-to-Foreign, UAE Free Zone Re-export, and UAE Import.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -231,7 +232,7 @@ The data model and controls MUST anticipate subsequent releases, but Release 1 a
 - **FR-011**: CINV and Packing List MUST be generated from one approved shipment dataset.
 - **FR-012**: Printing language MUST support Arabic, English, or bilingual output without creating another business document.
 - **FR-013**: Approved/sent documents MUST be immutable and corrected only by revision, cancellation, or replacement with reason.
-- **FR-014**: The system MUST track document completeness by route, destination, customer, product, and Incoterm.
+- **FR-014**: The system MUST support Foreign-to-Foreign, UAE Free Zone Re-export, and UAE Import routes in Release 1 and MUST track route-specific document, expense, milestone, and evidence completeness by destination, customer, product, and Incoterm.
 - **FR-015**: The system MUST store Incoterm and named place/port on contracts and shipments.
 - **FR-016**: The system MUST handle short shipment, over shipment, rollover, cancellation, quality variance, weight variance, rejection, claim, discount, replacement, and compensation.
 - **FR-017**: Sales and purchase contracts MUST define quantity and weight tolerances separately. An omitted tolerance MUST default to zero; confirming a shipment outside the applicable tolerance MUST require authorized approval and a recorded reason.
@@ -338,7 +339,7 @@ The data model and controls MUST anticipate subsequent releases, but Release 1 a
 
 - ORB uses exactly one Project for each independent sales contract. Amendments to that same contract remain in the original Project.
 - A Project may use multiple purchase contracts and supplier shipments.
-- Direct shipment is common, but direct foreign-to-foreign and UAE free-zone re-export routes must both be supported.
+- Release 1 supports Foreign-to-Foreign, UAE Free Zone Re-export, and UAE Import routes with route-specific requirements.
 - Original transaction currencies are AED, USD, and SAR initially; currency lists remain configurable.
 - AED equivalents are management views based on explicitly recorded rates, not accounting valuations.
 - The tax adviser supplies ORB's official tax period, classification matrix, evidence rules, and final filing decisions.
