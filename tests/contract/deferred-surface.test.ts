@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { parseYaml } from './openapi-contract.test.ts';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -9,28 +9,16 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const BASE = resolve(ROOT, 'specs/001-orb-trade-operations');
 const METHODS = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'trace']);
 function text(path) { return readFileSync(resolve(BASE, path), 'utf8'); }
-function pythonPreflight() {
-  let versions;
-  try { versions = JSON.parse(execFileSync('python3', ['-c', 'import json,platform,yaml;print(json.dumps({"python":platform.python_version(),"pyyaml":yaml.__version__}))'], { encoding: 'utf8' })); }
-  catch (error) { throw new Error('Deferred-surface tests require executable python3 with PyYAML 6.0.1: ' + error.message); }
-  assert.match(versions.python, /^3\.12\./, 'python3 must be pinned to Python 3.12.x');
-  assert.equal(versions.pyyaml, '6.0.1', 'PyYAML must be pinned to 6.0.1');
-}
-function parseYaml(path) {
-  pythonPreflight();
-  const code = 'import json,sys,yaml\nwith open(sys.argv[1],encoding="utf-8") as f:v=yaml.safe_load(f)\nprint(json.dumps(v,separators=(",",":"),default=str))';
-  return JSON.parse(execFileSync('python3', ['-c', code, path], { encoding: 'utf8' }));
-}
 function normalized(value) { return String(value).toLowerCase().replace(/[^a-z0-9]+/g, ''); }
 const FORBIDDEN = [
-  ['multiple/secondary shipment sources or source allocation', /((multi|multiple)(shipment|supplier)?sources?|secondarysuppliersource|sources?allocation|allocationsource)/],
+  ['multiple/secondary shipment sources or source allocation', /(?:multi(?:ple)?(?:shipment|supplier)?sources?|secondary(?:shipment|supplier)?source|secondarysource|sources?allocation|allocationsource)/],
   ['shared-expense allocation', /(sharedexpenses?|expenseallocation)/],
   ['configurable approval/rule UI', /(configurable(approval|rule)|approvalrules?|approvaldesigner|approvalruleeditor|rule(editor|designer|configurator))/],
   ['dynamic route designer', /(dynamicroutes?|routedesigner|routetemplateeditor)/],
   ['tax engine/pack', /(taxengine|taxpacks?|taxevidencepack)/],
   ['bank ingestion/integration', /(bankingestion|bankintegration|bankimports?|bankmatching)/],
   ['legacy migration', /(legacymigration|historicalmigration)/],
-  ['advanced/complex claim workflow', /((advanced|complex)claim(workflow)?|claim(settlement|compensation|netting)workflow?)/],
+  ['advanced/complex claim workflow', /(?:(?:advanced|complex)claim(?:workflow)?|claim(?:settlement|compensation|netting)(?:workflow)?)/],
 ];
 function deferredFindings(surfaces) {
   const findings = [];
@@ -79,7 +67,8 @@ function uiSurfaces(source) {
   const start = source.indexOf('## Exact screen map'), end = source.indexOf('## Common interaction contract');
   assert.ok(start >= 0 && end > start, 'missing active UI table');
   const table = source.slice(start, end), cells = table.split(/\r?\n/).filter((line) => /^\|.*\|\s*$/.test(line) && !/^\|\s*:?-+/.test(line)).flatMap(splitRow);
-  return { uiTableCells: cells.slice(3), uiBacktickIdentifiers: cells.flatMap((cell) => [...cell.matchAll(/`([^`]+)`/g)].map((m) => m[1])) };
+  const data = cells.slice(3), rows = []; for (let i = 0; i < data.length; i += 3) rows.push(data.slice(i, i + 3));
+  return { uiRoutes: rows.flatMap((row) => [...((row[0] || '').matchAll(/`([^`]+)`/g))].map((m) => m[1])), uiControlIdentifiers: rows.flatMap((row) => (row[2] || '').split(';').map((value) => value.trim()).filter(Boolean).concat([...((row[2] || '').matchAll(/`([^`]+)`/g))].map((m) => m[1]))) };
 }
 function executableTaskSurfaces(source) {
   const result = { taskHeaders: [], exactFilePaths: [], traceOperations: [], traceUi: [] };
@@ -100,7 +89,7 @@ function executableTaskSurfaces(source) {
   }
   return result;
 }
-const api = parseYaml(resolve(BASE, 'contracts/openapi.yaml'));
+const api = parseYaml(text('contracts/openapi.yaml'));
 const ui = text('contracts/ui-workflows.md'), tasks = text('tasks.md');
 
 test('active structured OpenAPI identifiers expose no deferred feature', () => {
@@ -109,7 +98,7 @@ test('active structured OpenAPI identifiers expose no deferred feature', () => {
 });
 test('active UI route/action/control cells and executable task identifiers expose no deferred feature', () => {
   const surfaces = { ...uiSurfaces(ui), ...executableTaskSurfaces(tasks) };
-  assert.equal(surfaces.uiBacktickIdentifiers.filter((v) => v.startsWith('/')).length, 21);
+  assert.equal(surfaces.uiRoutes.filter((v) => v.startsWith('/')).length, 21);
   assert.ok(surfaces.taskHeaders.length > 0 && surfaces.exactFilePaths.length > 0 && surfaces.traceOperations.length > 0 && surfaces.traceUi.length > 0);
   assert.deepEqual(deferredFindings(surfaces), []);
 });
@@ -126,9 +115,39 @@ test('representative OpenAPI path, operation, schema property and action mutatio
 });
 test('representative UI control and executable task file/action mutations are rejected', () => {
   const uiMutation = ui.replace('| `/projects` | Project list |', '| `/projects` | Project list | `configurableApprovalRuleEditor`;');
-  assert.ok(deferredFindings(uiSurfaces(uiMutation)).some((finding) => finding.kind === 'uiBacktickIdentifiers'));
+  assert.ok(deferredFindings(uiSurfaces(uiMutation)).some((finding) => finding.kind === 'uiControlIdentifiers'));
   const fileMutation = tasks.replace('`tests/contract/openapi-contract.test.ts`', '`src/bank-integration/ingest.ts`');
   assert.ok(deferredFindings(executableTaskSurfaces(fileMutation)).some((finding) => finding.kind === 'exactFilePaths'));
   const actionMutation = tasks.replace('; operations listMasterRecords,', '; operations addSecondarySupplierSource, listMasterRecords,');
   assert.ok(deferredFindings(executableTaskSurfaces(actionMutation)).some((finding) => finding.kind === 'traceOperations'));
+});
+
+
+test('every previously missed deferred identifier form is rejected in its structured contexts', () => {
+  const propertyForms = ['secondaryShipmentSource', 'secondarySource', 'multipleShipmentSources'];
+  for (const name of propertyForms) {
+    const mutated = structuredClone(api);
+    mutated.components.schemas.DeferredNestedProbe = { type: 'object', properties: { wrapper: { type: 'object', properties: { [name]: { type: 'string' } } } } };
+    assert.ok(deferredFindings(openApiSurfaces(mutated)).some((finding) => finding.kind === 'propertyNames' && finding.value.endsWith('.' + name)), 'nested property escaped detection: ' + name);
+  }
+  for (const name of ['addSecondaryShipmentSource', 'claimSettlement']) {
+    const operationMutation = structuredClone(api);
+    operationMutation.paths['/deferred-probe-' + name] = { post: { operationId: name, 'x-required-roles': ['OWNER_ADMIN'] } };
+    assert.ok(deferredFindings(openApiSurfaces(operationMutation)).some((finding) => finding.kind === 'operationIds' && finding.value === name), 'operation escaped detection: ' + name);
+    const actionMutation = structuredClone(api);
+    actionMutation.components.schemas.DeferredActionProbe = { type: 'object', action: name };
+    assert.ok(deferredFindings(openApiSurfaces(actionMutation)).some((finding) => finding.kind === 'actionIdentifiers' && finding.value.endsWith(':' + name)), 'action escaped detection: ' + name);
+  }
+  const forms = ['secondaryShipmentSource', 'secondarySource', 'addSecondaryShipmentSource', 'multipleShipmentSources', 'claimSettlement'];
+  for (const name of forms) {
+    const uiMutation = ui.replace('| `/projects` | Project list |', '| `/projects` | Project list | `' + name + '`;');
+    assert.ok(deferredFindings(uiSurfaces(uiMutation)).some((finding) => finding.kind === 'uiControlIdentifiers' && finding.value.includes(name)), 'UI control escaped detection: ' + name);
+    const taskMutation = tasks.replace('; operations listMasterRecords,', '; operations ' + name + ', listMasterRecords,');
+    assert.ok(deferredFindings(executableTaskSurfaces(taskMutation)).some((finding) => finding.kind === 'traceOperations' && finding.value === name), 'task identifier escaped detection: ' + name);
+  }
+});
+
+test('deferred prose decoys outside structured active identifiers do not cause findings', () => {
+  const proseOnly = ui + '\nSecondarySource and claimSettlement are mentioned here only as forbidden prose.\n';
+  assert.deepEqual(deferredFindings(uiSurfaces(proseOnly)), deferredFindings(uiSurfaces(ui)));
 });

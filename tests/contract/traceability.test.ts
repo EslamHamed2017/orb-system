@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { parseYaml } from './openapi-contract.test.ts';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -9,18 +10,6 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const BASE = resolve(ROOT, 'specs/001-orb-trade-operations');
 const METHODS = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'trace']);
 function text(path) { return readFileSync(resolve(BASE, path), 'utf8'); }
-function pythonPreflight() {
-  let versions;
-  try { versions = JSON.parse(execFileSync('python3', ['-c', 'import json,platform,yaml;print(json.dumps({"python":platform.python_version(),"pyyaml":yaml.__version__}))'], { encoding: 'utf8' })); }
-  catch (error) { throw new Error('Traceability tests require executable python3 with PyYAML 6.0.1: ' + error.message); }
-  assert.match(versions.python, /^3\.12\./, 'python3 must be pinned to Python 3.12.x');
-  assert.equal(versions.pyyaml, '6.0.1', 'PyYAML must be pinned to 6.0.1');
-}
-function parseYaml(path) {
-  pythonPreflight();
-  const code = 'import json,sys,yaml\nwith open(sys.argv[1],encoding="utf-8") as f:v=yaml.safe_load(f)\nprint(json.dumps(v,separators=(",",":"),default=str))';
-  return JSON.parse(execFileSync('python3', ['-c', code, path], { encoding: 'utf8' }));
-}
 function section(source, start, end) {
   const from = source.indexOf(start); assert.notEqual(from, -1, 'missing section: ' + start);
   const to = end ? source.indexOf(end, from + start.length) : source.length; assert.notEqual(to, -1, 'missing section terminator: ' + end);
@@ -47,7 +36,7 @@ function assertExactInventory(actual, expected, label) {
   assert.deepEqual({ missing, unknown, duplicate }, { missing: [], unknown: [], duplicate: [] }, label);
 }
 function operationIds() {
-  const api = parseYaml(resolve(BASE, 'contracts/openapi.yaml')), ids = [];
+  const api = parseYaml(text('contracts/openapi.yaml')), ids = [];
   for (const item of Object.values(api.paths || {})) for (const [method, operation] of Object.entries(item || {}))
     if (METHODS.has(method.toLowerCase())) ids.push(operation.operationId);
   return ids;
@@ -64,14 +53,78 @@ function requirementRows(source, start, end) { return rows(section(source, start
 function uiContractRoutes(source) { return rows(section(source, '## Exact screen map', '## Common interaction contract')).slice(1).map((row) => backticks(row[0])[0]); }
 function taskRoutes(source) { return rows(section(source, TASK_UI_START, TASK_E_START)).slice(1).map((row) => backticks(row[1])[0]); }
 function evidenceRows(source) { return rows(section(source, TASK_E_START, '## Dependency and parallel execution rules')).slice(1).map((row) => row[0]); }
-function quickEvidenceSet(source) {
-  const result = new Set();
-  for (const match of source.matchAll(/\bE(\d{2})(?:[–-]E?(\d{2}))?\b/g)) {
+function evidenceTokens(cell, label) {
+  const tokens = [];
+  for (const match of cell.matchAll(/(?<![A-Za-z0-9])E(\d{2})(?:[–-]E?(\d{2}))?(?![A-Za-z0-9])/g)) {
     const from = Number(match[1]), to = Number(match[2] || match[1]);
-    for (let n = from; n <= to; n++) result.add('E' + String(n).padStart(2, '0'));
+    assert.ok(to >= from && to - from < 30, label + ': invalid evidence range ' + match[0]);
+    for (let n = from; n <= to; n++) tokens.push('E' + String(n).padStart(2, '0'));
   }
-  return [...result].sort();
+  assert.ok(tokens.length, label + ': missing evidence cell tokens');
+  assertExactInventory(tokens, [...new Set(tokens)], label + ': duplicate evidence token');
+  for (const token of tokens) assert.ok(/^E(?:0[1-9]|1[0-7])$/.test(token), label + ': unknown evidence ' + token);
+  return tokens.sort();
 }
+const EXPECTED_MATRIX_EVIDENCE = Object.freeze({
+  'R1-001': ['E03','E04'], 'R1-002': ['E05','E06'], 'R1-003': ['E07'], 'R1-004': ['E08','E09'],
+  'R1-005': ['E10'], 'R1-006': ['E11'], 'R1-007': ['E12'], 'R1-008': ['E13'], 'R1-009': ['E14'],
+  'R1-010': ['E15','E16','E17'], 'R1-011': ['E13'], 'R1-012': ['E14'], 'R1-013': ['E08','E15'],
+  'R1-014': ['E02','E15','E16','E17'], 'R1-015': ['E06','E07','E16'], 'R1-016': ['E05','E06','E13','E14'],
+  'R1-017': ['E02','E03','E04','E05','E06','E07','E08','E09','E10','E11','E12','E13','E14','E15','E16'],
+  'R1-018': ['E02','E04','E05','E06','E07','E08','E09','E10','E11','E12','E13','E14','E16'],
+  'R1-019': ['E10','E12'], 'R1-020': ['E02','E13'], 'INV-01': ['E05','E06'], 'INV-02': ['E10'],
+  'INV-03': ['E11'], 'INV-04': ['E13'], 'INV-05': ['E14'], 'INV-06': ['E09'], 'INV-07': ['E02'],
+});
+function quickMatrixEvidence(source) {
+  const matrix = rows(section(source, QUICK_MATRIX_START, QUICK_OP_START)).slice(1), result = Object.create(null);
+  for (const row of matrix) {
+    assert.equal(row.length, 4, 'quickstart matrix row must have four cells'); const id = row[0];
+    assert.ok(!Object.hasOwn(result, id), 'duplicate quickstart matrix row ' + id);
+    result[id] = evidenceTokens(row[3] || '', 'quickstart matrix ' + id);
+  }
+  return result;
+}
+function assertQuickMatrix(source) {
+  const actual = quickMatrixEvidence(source), expectedKeys = Object.keys(EXPECTED_MATRIX_EVIDENCE);
+  assertExactInventory(Object.keys(actual), expectedKeys, 'quickstart matrix row keys');
+  for (const id of expectedKeys) assert.deepEqual(actual[id], [...EXPECTED_MATRIX_EVIDENCE[id]].sort(), 'quickstart matrix evidence for ' + id);
+}
+function quickEvidenceDefinitions(source) {
+  const definitions = section(source, '## E01 — Blocking preconditions', QUICK_MATRIX_START), found = [];
+  for (const line of definitions.split(/\r?\n/)) {
+    let match = line.match(/^## (E\d{2})\b/) || line.match(/^\*\*(E\d{2})\.\*\*/); if (match) found.push(match[1]);
+  }
+  return found;
+}
+function taskRequirementSnapshot(source) {
+  return rows(section(source, TASK_REQ_START, TASK_UI_START)).slice(1).map((row) => [row[0], backticks(row[1] || '')]);
+}
+const EXPECTED_ROUTES = Object.freeze([
+  '/', '/admin/{users|backup}', '/approvals', '/documents/{id}', '/evidence/{id}',
+  '/masters/{customers|suppliers|coffee|currencies|expense-categories}', '/projects', '/projects/new',
+  '/projects/{id}/audit', '/projects/{id}/claims', '/projects/{id}/closure', '/projects/{id}/contracts',
+  '/projects/{id}/expenses', '/projects/{id}/money', '/projects/{id}/overview', '/projects/{id}/profit',
+  '/projects/{id}/shipments', '/projects/{id}/statements', '/sales-shipments/{id}', '/sign-in', '/supplier-shipments/{id}',
+]);
+
+function mutateQuickMatrix(source, mutate) {
+  const from = source.indexOf(QUICK_MATRIX_START), to = source.indexOf(QUICK_OP_START, from);
+  assert.ok(from >= 0 && to > from, 'canonical quickstart matrix missing');
+  const changed = source.slice(from, to).split(/\r?\n/).map((line) => {
+    if (!/^\|.*\|\s*$/.test(line) || /^\|\s*:?-+/.test(line)) return line;
+    const cells = splitRow(line); if (!/^(?:R1-\d{3}|INV-\d{2})$/.test(cells[0] || '')) return line;
+    const result = mutate([...cells]); return '| ' + result.join(' | ') + ' |';
+  }).join('\n');
+  return source.slice(0, from) + changed + source.slice(to);
+}
+function assertTaskRequirementMapping(source) {
+  assert.equal(createHash('sha256').update(JSON.stringify(taskRequirementSnapshot(source))).digest('hex'), '3108830ff830c72cc699b479a0d672bbad56ff53817fd55fd0d527ee958d67f9', 'tasks R1/INV task-cell mapping changed');
+}
+function taskEvidenceSnapshot(source) { return rows(section(source, TASK_E_START, '## Dependency and parallel execution rules')).slice(1); }
+function assertTaskEvidenceMapping(source) {
+  assert.equal(createHash('sha256').update(JSON.stringify(taskEvidenceSnapshot(source))).digest('hex'), 'e4947337de61899b54492418f1d18f1e0f831ce5f023d97755792330f6d253da', 'tasks E01-E17 mapping changed');
+}
+
 function verifyOperationMappings(taskSource, quickSource, ids) {
   assertExactInventory(taskOperationRows(taskSource), ids, 'tasks operationId rows must exactly cover OpenAPI');
   assertExactInventory(quickOperationTokens(quickSource), ids, 'quickstart operation inventory must exactly cover OpenAPI');
@@ -88,20 +141,22 @@ test('all accepted contract artifacts exist', () => {
 test('tasks and quickstart exactly map all 79 operationIds', () => {
   assertExactInventory(ids, ids, 'OpenAPI operationIds must be unique'); verifyOperationMappings(tasks, quickstart, ids);
 });
-test('tasks and quickstart have exact R1 and INV row inventories', () => {
+test('tasks and quickstart have exact R1 and INV row inventories and mappings', () => {
   const expected = [...requirements, ...invariants];
   assertExactInventory(requirementRows(tasks, TASK_REQ_START, TASK_UI_START), expected, 'tasks R1/INV rows');
-  assertExactInventory(requirementRows(quickstart, QUICK_MATRIX_START, QUICK_OP_START), expected, 'quickstart R1/INV rows');
+  assertTaskRequirementMapping(tasks);
+  assertQuickMatrix(quickstart);
   assert.match(spec, /\*\*R1-001\*\* through \*\*R1-014\*\* are exactly/);
   for (const id of [...requirements.slice(14), ...invariants]) assert.match(spec, new RegExp('(^|[^A-Za-z0-9_-])' + id + '([^A-Za-z0-9_-]|$)', 'm'));
 });
-test('the exact 21 UI route patterns are canonical in contract and tasks', () => {
-  const routes = uiContractRoutes(ui); assert.equal(routes.length, 21); assertExactInventory(taskRoutes(tasks), routes, 'task UI routes');
+test('the exact 21 UI route patterns are independently canonical in contract and tasks', () => {
+  assert.deepEqual([...EXPECTED_ROUTES].sort(), [...EXPECTED_ROUTES], 'expected route fixture must stay sorted');
+  const routes = uiContractRoutes(ui); assertExactInventory(routes, EXPECTED_ROUTES, 'UI contract routes'); assertExactInventory(taskRoutes(tasks), EXPECTED_ROUTES, 'task UI routes');
   assert.match(quickstart, /All active routes/); assert.match(spec, /contracts\/ui-workflows\.md/);
 });
-test('evidence inventory is exactly E01 through E17', () => {
-  assertExactInventory(evidenceRows(tasks), evidence, 'tasks evidence rows');
-  assert.deepEqual(quickEvidenceSet(quickstart), evidence, 'quickstart evidence references');
+test('evidence definitions and tasks inventory are independently exactly E01 through E17', () => {
+  assertExactInventory(evidenceRows(tasks), evidence, 'tasks evidence rows'); assertTaskEvidenceMapping(tasks);
+  assertExactInventory(quickEvidenceDefinitions(quickstart), evidence, 'quickstart evidence definitions');
 });
 test('deletion, typo, duplicate, and substring decoy traceability mutations fail closed', () => {
   const id = ids[0];
@@ -113,4 +168,41 @@ test('deletion, typo, duplicate, and substring decoy traceability mutations fail
   assert.throws(() => verifyOperationMappings(duplicateTasks, quickstart, ids), /tasks operationId rows/);
   const decoyQuick = quickstart.replace('`' + id + '`', '`prefix' + id + 'suffix`');
   assert.throws(() => verifyOperationMappings(tasks, decoyQuick, ids), /quickstart operation inventory/);
+});
+
+
+test('synchronized route substitutions, duplicates and one-sided drift fail the independent canonical inventory', () => {
+  const changedUi = ui.replace('| `/projects` |', '| `/portfolios` |');
+  const changedTasks = tasks.replace('| `/projects` |', '| `/portfolios` |');
+  assert.throws(() => assertExactInventory(uiContractRoutes(changedUi), EXPECTED_ROUTES, 'UI contract routes'), /UI contract routes/);
+  assert.throws(() => assertExactInventory(taskRoutes(changedTasks), EXPECTED_ROUTES, 'task UI routes'), /task UI routes/);
+  const duplicateUi = ui.replace('| `/projects` |', '| `/projects` |\n| `/projects` | Duplicate | none |');
+  assert.throws(() => assertExactInventory(uiContractRoutes(duplicateUi), EXPECTED_ROUTES, 'UI contract routes'), /duplicate/);
+});
+
+test('quickstart matrix evidence mapping rejects missing, duplicate, wrong, unknown and decoy evidence', () => {
+  const removed = mutateQuickMatrix(quickstart, (cells) => { cells[3] = 'No retained proof in this matrix cell'; return cells; });
+  assert.throws(() => assertQuickMatrix(removed), /missing evidence cell tokens/);
+  const duplicate = mutateQuickMatrix(quickstart, (cells) => { if (cells[0] === 'R1-003') cells[3] += ' E07'; return cells; });
+  assert.throws(() => assertQuickMatrix(duplicate), /duplicate evidence token/);
+  const wrong = mutateQuickMatrix(quickstart, (cells) => { if (cells[0] === 'R1-001') cells[3] = 'E05: synchronized wrong-row substitution'; return cells; });
+  assert.throws(() => assertQuickMatrix(wrong), /quickstart matrix evidence for R1-001/);
+  const unknown = mutateQuickMatrix(quickstart, (cells) => { if (cells[0] === 'INV-07') cells[3] = 'E99: unknown'; return cells; });
+  assert.throws(() => assertQuickMatrix(unknown), /unknown evidence E99/);
+  const substringDecoy = mutateQuickMatrix(quickstart, (cells) => { if (cells[0] === 'R1-003') cells[3] = 'prefixE07suffix'; return cells; }) + '\nE07 global decoy\n';
+  assert.throws(() => assertQuickMatrix(substringDecoy), /missing evidence cell tokens/);
+  const matrix = section(quickstart, QUICK_MATRIX_START, QUICK_OP_START), row = matrix.split(/\r?\n/).find((line) => /^\| R1-001 \|/.test(line));
+  const duplicateRow = quickstart.replace(row, row + '\n' + row);
+  assert.throws(() => assertQuickMatrix(duplicateRow), /duplicate quickstart matrix row/);
+});
+
+test('definition and task mapping snapshots reject synchronized substitutions and duplicate rows', () => {
+  const changedTasks = tasks.replace('`ORB-R1-0202`, `ORB-R1-0209`', '`ORB-R1-0202`, `ORB-R1-9999`');
+  assert.throws(() => assertTaskRequirementMapping(changedTasks), /task-cell mapping changed/);
+  const changedEvidenceTasks = tasks.replace('| E03 | `ORB-R1-1309`', '| E03 | `ORB-R1-9999`');
+  assert.throws(() => assertTaskEvidenceMapping(changedEvidenceTasks), /E01-E17 mapping changed/);
+  const missingDefinition = quickstart.replace('## E02 — Contract and deferred-surface rejection', '## Contract and deferred-surface rejection');
+  assert.throws(() => assertExactInventory(quickEvidenceDefinitions(missingDefinition), evidence, 'quickstart evidence definitions'), /quickstart evidence definitions/);
+  const duplicatedDefinition = quickstart.replace('## E02 — Contract and deferred-surface rejection', '## E02 — Contract and deferred-surface rejection\n## E02 — duplicate');
+  assert.throws(() => assertExactInventory(quickEvidenceDefinitions(duplicatedDefinition), evidence, 'quickstart evidence definitions'), /duplicate/);
 });
