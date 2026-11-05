@@ -1,179 +1,363 @@
-# Feature Specification: ORB Sales-Ready Trade Operations Pilot
+# Feature Specification: ORB Trade Operations Core
 
-**Feature Branch**: `001-orb-trade-operations`  
-**Created**: 2026-11-05  
-**Deadline**: 2026-11-19 (fixed commercial milestone)  
-**Status**: Clarified; authoritative pilot cut aligned to ADR-001
+**Feature Branch**: `001-orb-trade-operations`
 
-## Authority and outcome
+**Created**: 2026-11-05
 
-This specification defines the deployed, sales-ready working pilot due on 2026-11-19. It is not a full-production claim. [ADR-001](decisions/ADR-001-two-week-offer-pilot.md) is the scope decision; this file expresses its acceptance baseline. `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, and `contracts/` MUST conform to this file and ADR-001.
+**Status**: Clarified — daily-use beta plan revision required
 
-One independent customer sales contract creates one canonical Project. An amendment to that same contract remains in the Project as a new immutable version. The pilot proves one complete, review-controlled Core Trade cycle in a deployed environment.
+**Input**: User description: "Create a focused, standalone, bilingual ORB international coffee trade operations system. A Project contains one primary sales contract, multiple sales shipments, purchase contracts and supplier shipments, documents, advances, receipts, payments, expenses, bank matching, profit analysis, tax evidence packs, and historical migration from 2024. No Odoo and no accounting ledger."
 
-## Pilot actors and fixed access
+## Clarifications
 
-The pilot has exactly three fixed roles; users are assigned one role.
+### Session 2026-11-05
 
-| Role | Pilot access |
-|---|---|
-| Owner/Admin | All pilot data; approval inbox and decisions; tolerance and closure exceptions; document approval; every external send; reopen; user/master administration |
-| Operations | Masters; draft Projects/contracts/shipments; route checklists and milestones; evidence; document generation; supplier invoice/shipment confirmation; claims; send requests; no approval decision or margin access |
-| Finance/Viewer | Record/confirm operational money movements; allocate settlements; create direct expenses and submit them; view statements, supplier cost, margin and closure; no approval decision or external send |
+- Q: If the same customer signs a new independent sales contract, is it a new Project? → A: Yes. Every independent sales contract creates a new Project; amendments to the same contract remain in the existing Project.
+- Q: What is the cut line for the first usable release? → A: Release 1 contains Core Trade only; bank matching, tax pack, and historical migration follow in subsequent releases.
+- Q: When are shipments and Projects closed? → A: A shipment becomes Financially Closed when fully collected even if documents or claims remain open. A Project becomes Financially Closed after all sales shipments are collected, but Final Closed requires documents, claims, supplier obligations, expenses, and other closure controls to be complete or exceptionally approved.
+- Q: How are shipment quantity and weight tolerances controlled? → A: Quantity and weight tolerances are defined per contract; omitted tolerance defaults to zero, and any excess requires recorded approval and reason.
+- Q: Which trade routes must Core Trade support in Release 1? → A: Foreign-to-Foreign, UAE Free Zone Re-export, and UAE Import.
+- Q: What must be delivered within the fixed opportunity window? → A: A limited daily-use operational beta by 2026-11-12, followed by live-use correction and an offer-ready stabilized pilot by 2026-11-19; full-scope production hardening and advanced workflows follow after the offer milestone.
 
-Server authorization is authoritative. Sensitive fields are omitted from unauthorized responses, not merely hidden in the UI.
+## User Scenarios & Testing *(mandatory)*
 
-## User journeys and acceptance
+### User Story 1 - Control a Trade Project (Priority: P1)
 
-### P1 — Project and versioned contracts
+An operations user creates one Project as the canonical record for a back-to-back coffee trade, records the primary sales contract and linked purchase contracts, and sees contracted, shipped, delivered, collected, paid, and remaining quantities and values without searching email or spreadsheets.
 
-An Operations user creates a Project atomically with one primary sales contract, adds one or more purchase contracts, submits versions, and Owner/Admin approves or rejects them from the approval inbox.
+**Why this priority**: The Project is the operating and profitability center. Every later shipment, document, money movement, and report depends on this stable structure.
 
-1. Valid creation produces stable unique Project and contract references in `DRAFT`.
-2. Approval applies only to the exact submitted version. Editing approved terms creates a new draft revision with reason/effective date; prior approved revisions remain readable.
-3. The Project separates customer and supplier values while showing quantity/value progress from one workspace.
-4. A second independent sales contract creates another Project.
+**Independent Test**: Create a sample 100 MT project with one customer and two suppliers, approve its contracts, and verify that its quantities, values, responsibilities, versions, and current statuses are visible from one page.
 
-### P2 — Supplier and sales shipment execution
+**Acceptance Scenarios**:
 
-Operations records a supplier shipment and supplier invoice, confirms the supplier shipment, then assigns that single supplier shipment as the primary source of one sales shipment.
+1. **Given** valid customer, supplier, coffee, route, and commercial terms, **When** a user creates a Project and its primary sales contract, **Then** the system assigns stable unique references and shows the project as Draft.
+2. **Given** an approved sales contract, **When** a user records an amendment, **Then** the prior version remains readable and the amended quantity, value, schedule, and reason become the active version after approval.
+3. **Given** a Project with multiple purchase contracts, **When** a user views the Project, **Then** the customer side and supplier side remain separated while contributing to one operational summary.
 
-1. Each pilot sales shipment has exactly one primary supplier shipment before confirmation; multi-source allocation is rejected.
-2. Contract progress shows planned, confirmed/shipped, delivered, cancelled, and remaining quantities exactly.
-3. Omitted quantity/net/gross-weight tolerances are zero. An out-of-tolerance confirmation is blocked until Owner/Admin approves an exact-version `TOLERANCE_EXCEPTION` request with reason.
-4. Sales-shipment execution follows the authoritative state machine below; stale versions never overwrite.
+---
 
-### P3 — Fixed route checklist and evidence
+### User Story 2 - Execute Partial Shipments and Documents (Priority: P1)
 
-Each shipment uses exactly one versioned fixed checklist: Foreign-to-Foreign, UAE Free Zone Re-export, or UAE Import.
+An operations user divides a contract into one or more shipments, records logistics and coffee packing data, links each sales shipment to its supplier source, and generates a Commercial Invoice and Packing List from one controlled shipment dataset.
 
-1. Operations records applicable milestone dates and satisfies each checklist item with immutable evidence or a permitted not-applicable reason.
-2. Required checklist items block confirmation/delivery/final closure at their declared gate.
-3. Evidence upload records SHA-256, size, media type, uploader, immutable object version, and link; authorized users can view metadata and download; every view/download is audited.
-4. The checklist records operational completeness only and makes no tax/legal determination.
+**Why this priority**: ORB fulfils contracts through shipments; inconsistent quantities, weights, references, or versions create customs, customer, and tax-evidence risk.
 
-### P4 — CINV, Packing List, approval, and delivery
+**Independent Test**: Split a 100 MT contract into 20, 40, and 40 MT shipments; generate English, Arabic, and bilingual outputs; revise one approved document; and verify contract remaining quantity and document history.
 
-Operations generates Commercial Invoice (CINV) and Packing List revisions from the same approved shipment dataset in English, Arabic, or bilingual mode.
+**Acceptance Scenarios**:
 
-1. Shared party, reference, quantity, bags, net/gross weight, Incoterm and route data match exactly.
-2. Generation creates `DRAFT`; Operations submits; Owner/Admin approves/rejects the exact revision. Approved bytes and hash are immutable.
-3. Every external send, including the first and any resend, requires a separate `EXTERNAL_SEND` request naming exact approved revision, recipients, attachment evidence IDs, and channel. Only Owner/Admin may approve and execute that exact send.
-4. Send is blocked if the document revision or recipient/attachment set differs from the approval. Delivery status and attempt evidence are retained.
-5. Cancellation requires Owner/Admin, reason, and a new immutable status event. Correction creates a new revision; a prior approved/sent/cancelled revision is never overwritten.
+1. **Given** an approved 100 MT contract, **When** shipments of 20 MT and 40 MT are confirmed, **Then** the contract shows 60 MT committed/shipped and 40 MT remaining without exceeding approved tolerance.
+2. **Given** a shipment with bags, bag weight, net weight, gross weight, ports, Incoterm, container, seal, and transport data, **When** CINV and Packing List are generated, **Then** all shared quantities, weights, parties, and references match exactly.
+3. **Given** an approved CINV or Packing List, **When** a correction is required, **Then** the user creates a new revision with a reason and the sent/approved prior revision is immutable.
+4. **Given** a short shipment, over shipment, rollover, quality variance, or claim, **When** the user records the event, **Then** the unresolved quantity/value and claim block final closure until resolved or exceptionally approved.
 
-### P5 — Operational money, expenses, and statements
+---
 
-Finance/Viewer records customer advances/receipts and supplier advances/payments before or after invoices, and allocates them to eligible CINV or supplier-invoice balances.
+### User Story 3 - Track Advances, Settlements, and Statements (Priority: P1)
 
-1. An advance before invoice remains unallocated and does not create revenue or an invoice.
-2. Allocations may be partial/many-to-many but never exceed movement availability or target outstanding balance; currencies remain separate.
-3. Expenses are assigned directly to exactly one sales shipment or the Project. Shared/weighted/manual allocation is rejected. Expense approval follows the fixed matrix.
-4. Customer, sales-contract, sales-shipment, supplier, purchase-contract, supplier-shipment, and Project operational statements reconcile to approved/confirmed source records with zero unexplained variance.
+A finance or operations user records customer advances before an invoice, later allocates them to one or more CINV documents, records subsequent receipts, and obtains consistent customer, contract, shipment, and project statements in original currency.
 
-### P6 — Simple controlled claims and resolutions
+**Why this priority**: Advance-before-invoice is a normal ORB workflow and must not be confused with invoiced value, delivered value, cash position, or profit.
 
-Operations opens a quantity, weight, quality, delivery, price, or document claim against one shipment with evidence and claimed quantity/amount where applicable.
+**Independent Test**: Record a USD 30,000 advance before invoice; allocate USD 20,000 to shipment one and USD 10,000 to shipment two; then verify all four statement levels and remaining balances.
 
-1. Claim state is `OPEN -> UNDER_REVIEW -> RESOLVED` or `REJECTED|WITHDRAWN`.
-2. Resolution is one of `DISCOUNT`, `REPLACEMENT`, `COMPENSATION`, `REJECTION`, or `WAIVER`, with reason, evidence, quantity/amount effect, and Owner/Admin exact-version approval.
-3. Unresolved claims block Final Close unless an exact blocker receives an approved closure exception.
+**Acceptance Scenarios**:
 
-### P7 — Profit, settlement, and closure
+1. **Given** no CINV exists, **When** a customer advance is recorded, **Then** it is linked to customer, Project, and sales contract and remains Unallocated without creating an invoice.
+2. **Given** an unallocated advance and an issued CINV, **When** a user allocates all or part of the advance, **Then** allocated and unallocated amounts are visible and cannot exceed the available advance or invoice balance.
+3. **Given** receipts in different currencies, **When** statements are viewed, **Then** original-currency balances remain separate and optional AED management equivalents show their recorded rates and dates.
+4. **Given** a delivered shipment with an outstanding balance, **When** the user reviews closure, **Then** delivery is shown as complete but financial settlement remains open.
 
-Authorized users see Expected Margin, Committed Margin, Actual Operational Margin, and Cash Position as separate figures with formula, currency, as-of time, and source drill-down.
+---
 
-1. Advances affect cash position but not operational revenue.
-2. Settlement assessment shows movement availability, target balances, and shipment/Project financial completeness.
-3. A sales shipment becomes `FINANCIALLY_CLOSED` when its customer invoice balance is zero, independently of execution, documents, or claims; a reversal reopens financial status with audit.
-4. A Project becomes `FINANCIALLY_CLOSED` when all non-cancelled sales shipments are financially closed.
-5. Final Close requires all closure dimensions to pass or each named blocker to have an Owner/Admin exact-version `CLOSURE_EXCEPTION` approval. Close and reopen require reason and immutable audit.
+### User Story 4 - Control Purchases and Shipment Costs (Priority: P1)
 
-### P8 — Bilingual MD3/ORB sales demonstration
+A procurement user manages purchase contracts and supplier shipments separately from sales, records supplier advances and invoices, assigns freight, customs, inspection, insurance, bank charges, commissions, and other approved expenses to a shipment or Project, and sees the source cost of each sale shipment.
 
-The complete pilot path is executable in English LTR and Arabic RTL with equivalent capability. Generated output supports English, Arabic, and bilingual modes without duplicating the business record.
+**Why this priority**: A project margin is not meaningful unless supplier commitments, actual supplier invoices, and shipment costs are traceable to their source evidence.
 
-Acceptance evidence MUST include paired screenshots at 1440×900 and 390×844 for Project workspace, shipment/checklist, approval inbox, document preview/send, statement, and closure; keyboard-only recordings for create/approve/send; automated accessibility results; computed-token capture for ORB colors/type/shape/elevation; focus/error/disabled/loading state captures; RTL/LTR layout comparison; and representative generated PDFs. Evidence MUST identify build, locale, viewport, actor, UTC time, and scenario.
+**Independent Test**: Create two supplier contracts, pay an advance before supplier invoice, link a supplier shipment to a sales shipment, assign customs and freight costs, and verify supplier and shipment balances.
 
-## Authoritative state machines
+**Acceptance Scenarios**:
 
-### Project
+1. **Given** no supplier invoice exists, **When** a supplier advance is recorded, **Then** it remains available for later allocation and does not affect customer collections.
+2. **Given** an approved expense, **When** it is assigned to a shipment, **Then** it appears in shipment cost and Project profitability with source document, currency, status, and approver.
+3. **Given** a shared project expense, **When** it is allocated by quantity, value, or an approved manual allocation, **Then** the distributed total equals the source expense exactly.
+4. **Given** a supplier quality claim or shortage, **When** a claim, discount, replacement, or compensation is recorded, **Then** the Project remains open until the resolution is documented.
 
-`DRAFT -> ACTIVE -> OPERATIONALLY_COMPLETE -> FINAL_CLOSED`
+---
 
-- `DRAFT -> ACTIVE`: primary sales-contract version approved.
-- `ACTIVE -> OPERATIONALLY_COMPLETE`: every non-cancelled sales shipment delivered/cancelled and route completion gates satisfied.
-- `OPERATIONALLY_COMPLETE -> FINAL_CLOSED`: current closure assessment has no uncovered blockers and Owner/Admin confirms close with reason.
-- `FINAL_CLOSED -> ACTIVE|OPERATIONALLY_COMPLETE`: Owner/Admin reopen with reason; target is recomputed from current execution facts.
-- `CANCELLED` is terminal for an unexecuted Project and requires Owner/Admin reason. Financial status is independent: `OPEN <-> FINANCIALLY_CLOSED` by computed settlement.
+### User Story 5 - Understand Project Profit and Closure (Priority: P1)
 
-### Sales shipment
+An owner or authorized user sees expected margin, committed margin, actual operational margin, and cash position as separate figures, drills down to supporting documents, and closes the Project only when commercial, operational, documentary, and money-movement conditions are complete.
 
-`DRAFT -> PLANNED -> CONFIRMED -> IN_TRANSIT -> DELIVERED`
+**Why this priority**: Combining profit and cash can produce dangerously misleading management decisions.
 
-- `DRAFT -> PLANNED`: required logistics data and one primary supplier shipment present.
-- `PLANNED -> CONFIRMED`: supplier source confirmed, confirmation-gated route items satisfied, tolerances pass or approved exception exists.
-- `CONFIRMED -> IN_TRANSIT`: departure milestone recorded.
-- `IN_TRANSIT -> DELIVERED`: delivery milestone and delivery-gated checklist items satisfied.
-- `DRAFT|PLANNED -> CANCELLED`; `CONFIRMED -> CANCELLED` only by Owner/Admin with reason and no sent active CINV, or after that CINV is cancelled.
-- No backward execution transition; correction is a new dataset revision plus an audited command. Independent axes: financial `OPEN|FINANCIALLY_CLOSED`, document `MISSING|DRAFT|APPROVED|SENT|CANCELLED`, claim `NONE|OPEN|RESOLVED`.
+**Independent Test**: Use one Project with partial delivery, customer advance, unpaid supplier invoice, customs expense, and currency conversion; verify all four figures and closure blockers.
 
-### Commercial document revision
+**Acceptance Scenarios**:
 
-`DRAFT -> PENDING_APPROVAL -> APPROVED -> SENT`; `PENDING_APPROVAL -> REJECTED`; `DRAFT|REJECTED -> CANCELLED`; `APPROVED|SENT -> CANCELLED` by Owner/Admin. Any correction starts revision N+1 at `DRAFT` with reason. `SENT` means at least one approved send succeeded; each later send still requires its own approval.
+1. **Given** expected and actual commercial data, **When** the profit center opens, **Then** the four figures are separately labelled with formulas, currencies, rates, and source drill-down.
+2. **Given** cash was collected before shipment, **When** profitability is viewed, **Then** cash position changes but actual operational margin does not treat the advance as sales value.
+3. **Given** all customer amounts for a shipment are collected, **When** documents or claims remain open, **Then** the shipment becomes Financially Closed while its document and claim statuses remain visibly open.
+4. **Given** every sales shipment is fully collected, **When** the Project is reviewed, **Then** it may become Financially Closed, but Final Closed remains blocked by incomplete documents, claims, supplier obligations, unapproved expenses, or quantity differences.
+5. **Given** a justified exception, **When** an authorized approver finally closes or reopens the Project, **Then** reason, user, time, and affected version are retained.
 
-## Initial fixed approval matrix
+---
 
-| Action code | Requester | Approver/actor | Trigger and binding |
-|---|---|---|---|
-| `CONTRACT_VERSION` | Operations | Owner/Admin | Every sales/purchase contract version; exact version |
-| `TOLERANCE_EXCEPTION` | Operations | Owner/Admin | Quantity/net/gross weight exceeds active contract tolerance; exact shipment dataset/version and reason |
-| `DOCUMENT_REVISION` | Operations | Owner/Admin | Every CINV and Packing List revision; exact rendered hash/version |
-| `EXTERNAL_SEND` | Operations | Owner/Admin | Every send/resend; exact approved document revision, recipient set, attachments and channel |
-| `SUPPLIER_INVOICE` | Operations | Owner/Admin | Every supplier invoice revision before settlement/profit use |
-| `EXPENSE` | Finance/Viewer | Owner/Admin | Every direct expense before settlement/profit use |
-| `CLAIM_RESOLUTION` | Operations | Owner/Admin | Every resolution; exact claim version and effects |
-| `CLOSURE_EXCEPTION` | Operations or Finance/Viewer | Owner/Admin | One named blocker on one assessment/version with reason |
-| `FINAL_CLOSE_REOPEN` | Finance/Viewer | Owner/Admin | Exact closure assessment/closed Project version and reason |
+### User Story 6 - Import and Match Bank Movements (Priority: P2)
 
-Decisions are immutable. Any bound-content change invalidates the decision and requires a new request.
+A finance user imports an ORB bank statement for an AED, USD, or SAR account, validates the statement batch, receives match suggestions, and confirms, splits, rejects, or leaves movements unmatched without creating accounting entries.
 
-## Fixed route checklists
+**Why this priority**: Bank data completes operational evidence and exposes missing or duplicated receipts, payments, expenses, transfers, and fees.
 
-| Route | Confirmation gate | Delivery/final-close gate |
-|---|---|---|
-| Foreign-to-Foreign | origin, destination, carrier/transport reference, primary source | departure milestone + origin/export evidence; arrival/delivery milestone + destination/delivery evidence |
-| UAE Free Zone Re-export | free-zone destination, entry reference, primary source | free-zone entry evidence; exit/re-export customs evidence; outbound transport; delivery evidence |
-| UAE Import | UAE destination, import reference, primary source | import declaration; customs clearance and charge evidence; release/inbound transport; delivery evidence |
+**Independent Test**: Import the same statement twice, verify the second import is blocked, match one receipt to two CINV documents and two payments to one supplier invoice, and reconcile opening and closing balances.
 
-## Pilot requirements
+**Acceptance Scenarios**:
 
-- **FR-001**: Stable identities, scoped unique references, integer versions, optimistic concurrency, idempotent effect-creating commands, immutable audit events, and immutable approved evidence/revisions are mandatory.
-- **FR-002**: Project is canonical and has exactly one primary sales contract; it may have multiple purchase contracts.
-- **FR-003**: The fixed roles, approval matrix, state machines, three route checklists, one primary supplier source, direct expense assignment, simple claim workflow, settlement rules, and closure rules above are authoritative and not configurable in the pilot.
-- **FR-004**: CINV/Packing List generation, approval, revision, cancellation and every external send obey exact-version review-first controls.
-- **FR-005**: Supplier invoice and supplier shipment confirmation are required pilot workflows and feed statement, profit, settlement and closure calculations.
-- **FR-006**: Evidence upload/view/download is authorization-controlled and audited; hashes and object versions are preserved.
-- **FR-007**: Operational statements and all four profit figures disclose source records, formula/rates and currencies; unlike currencies are never silently summed.
-- **FR-008**: Arabic RTL and English LTR are equivalent, WCAG 2.2 AA, and use MD3 behavior with ORB identity; visual evidence is collected as specified.
-- **FR-009**: TLS, secure secret handling, least privilege, MFA for Owner/Admin, session revocation, sensitive-log exclusion, dependency/container scanning, backup/PITR and restore proof are pilot release gates.
-- **FR-010**: The deployed pilot is not called production-ready until later hardening passes.
+1. **Given** a supported statement file, **When** it is imported, **Then** account, currency, period, opening/closing balance, source file, batch identity, and row identities are recorded.
+2. **Given** an identical file or overlapping duplicate rows, **When** re-import is attempted, **Then** duplicates are blocked or quarantined without duplicating movements.
+3. **Given** suggested matches by amount, currency, date, reference, and party, **When** a user reviews them, **Then** no final match occurs until confirmed.
+4. **Given** an own-account transfer or FX conversion, **When** both legs are linked, **Then** it is excluded from sales, purchases, expenses, and tax value while bank charges remain separately assignable.
+5. **Given** statement totals do not reconcile, **When** the batch is reviewed, **Then** it cannot reach Approved status and the difference is displayed.
 
-## Explicit future feature boundaries (not Release 1)
+---
 
-Bank accounts/statements/import/matching, tax evidence packs/classification/adviser delivery, and historical migration have no pilot endpoint, screen, entity, acceptance test, closure dependency, or interactive placeholder. Also deferred: multiple supplier sources per sales shipment, shared expense allocation, configurable roles/policy/checklist designers, advanced claims, portals, OCR, direct bank integration, automated tax filing, accounting/ledger, and automated third-party sending. Future work requires a separate Spec Kit feature and may link only through stable Party, Project, MoneyMovement, EvidenceObject and AuditEvent identities.
+### User Story 7 - Prepare a Review-First Tax Evidence Pack (Priority: P2)
 
-## Success criteria
+An authorized user prepares a period Tax Pack that combines sales, purchases, expenses, customs/import evidence, export evidence, bank matching, and exception reports, then sends the exact approved version to the tax adviser only after Eslam's approval.
 
-- **SC-001**: The complete quickstart path runs in the deployed pilot by 2026-11-19 with no manual database intervention.
-- **SC-002**: CINV/Packing List shared fields have zero mismatch; unauthorized or unapproved sends succeed zero times.
-- **SC-003**: Contract, shipment, statement, settlement and profit acceptance populations reconcile with zero unexplained variance or negative available balance.
-- **SC-004**: Every stale write, tolerance breach, missing route gate, unresolved closure blocker, multi-source attempt, shared-expense attempt and deferred endpoint is rejected with the contracted problem code.
-- **SC-005**: Approved/sent revisions, evidence and decisions retain exact version/hash/actor/time/reason and survive backup restore sampling with zero missing links.
-- **SC-006**: English and Arabic journeys pass keyboard and automated WCAG 2.2 AA checks with zero serious/critical violations, and all required MD3/ORB visual evidence is accepted.
+**Why this priority**: ORB needs complete evidence and exception visibility without pretending the application makes legal tax determinations or files a return.
+
+**Independent Test**: Prepare a period containing an export CINV with missing transport evidence, a purchase expense without a tax classification, and an unmatched receipt; verify the pack remains Draft and lists all exceptions.
+
+**Acceptance Scenarios**:
+
+1. **Given** a selected tax period, **When** a pack is generated, **Then** it contains indexed sales, purchases/expenses, credit/debit notes if present, customs records, bank reconciliation, evidence checklist, and exceptions.
+2. **Given** an export/foreign sale, **When** no approved tax classification or required evidence exists, **Then** the system does not classify it as zero-rated automatically and flags it for adviser review.
+3. **Given** a reviewed pack, **When** Eslam has not approved the exact version and recipients, **Then** external sending is blocked.
+4. **Given** an approved sent pack, **When** a correction is required, **Then** a new version is produced and the original sent contents, hashes, recipients, and delivery status remain immutable.
+
+---
+
+### User Story 8 - Migrate ORB History from 2024 (Priority: P2)
+
+A migration reviewer processes original historical emails, PDF, image, spreadsheet, and archive files through duplicate detection, extraction, staging, human review, linking, and acceptance reconciliation while preserving every source file.
+
+**Why this priority**: ORB needs its history in the new system, but uncontrolled OCR/import would create duplicate or unsupported business records.
+
+**Independent Test**: Process the current indexed inventory, verify exact duplicates are not imported twice, link approved records to Projects and shipments, and produce source-to-target and exception reports.
+
+**Acceptance Scenarios**:
+
+1. **Given** files with identical content hashes, **When** migration staging runs, **Then** one unique source is retained with all email/archive occurrences referenced.
+2. **Given** uncertain extracted data, **When** confidence or business validation is insufficient, **Then** the record stays in Review Required and is not posted to active operations.
+3. **Given** an approved migrated record, **When** viewed later, **Then** its original source, extraction, reviewer, corrections, target record, and timestamps are traceable.
+4. **Given** migration completion, **When** acceptance reconciliation runs, **Then** every unique source is classified as imported, duplicate, intentionally excluded, or unresolved with reason.
+
+### Edge Cases
+
+- Contract quantity is reduced after one or more shipments are already confirmed.
+- Shipment quantity exceeds remaining contract quantity but remains within or outside an approved tolerance.
+- One sales shipment is sourced from more than one supplier shipment.
+- Coffee grade, quality, crop year, bag count, net weight, or gross weight differs from contract.
+- A CINV is cancelled after an advance allocation or bank match.
+- Customer overpays, pays in a different currency, or pays one amount for multiple Projects.
+- Supplier refund or customer refund is received after apparent settlement.
+- Shared expense allocation creates a rounding remainder.
+- Two users edit the same Project, shipment, document, match, or allocation concurrently.
+- A bank statement has no opening balance, reversed rows, duplicated references, or a different decimal/date convention.
+- A document is corrupted, password-protected, unreadable, or missing from an archive.
+- A Project uses UAE free-zone re-export or a direct foreign-to-foreign route.
+- Delivery completes in a later reporting period than invoice or shipment clearance.
+- The tax adviser changes classification or evidence requirements after a pack was sent.
+
+
+## Release Sequencing
+
+### Daily-Use Beta — 2026-11-12; Stabilized Offer Pilot — 2026-11-19
+
+The dates are fixed. By 2026-11-12 the system MUST be a deployed, limited daily-use operational beta rather than static screens. The following week is reserved for real-use correction and stabilization. By 2026-11-19 it MUST be an offer-ready stabilized pilot. The beta MUST support one complete traceable cycle:
+
+1. Sign in using fixed pilot roles: Owner/Admin, Operations, and Finance/Viewer.
+2. Maintain essential customer, supplier, coffee, route, currency, and expense masters.
+3. Create one Project for one independent sales contract and attach one or more purchase contracts.
+4. Create sales and supplier shipments using one primary supplier source per sales shipment.
+5. Use fixed checklists for Foreign-to-Foreign, UAE Free Zone Re-export, and UAE Import.
+6. Generate versioned English, Arabic, or bilingual CINV and Packing List from one shipment dataset.
+7. Record customer/supplier advances, receipts/payments, and direct shipment/Project expenses.
+8. Show basic customer, supplier, shipment, and Project operational statements.
+9. Show expected, committed, actual operational margin, and cash position separately.
+10. Show shipment Financially Closed on full customer collection and basic Project Final Close blockers.
+11. Demonstrate Arabic RTL and English LTR Material Design 3 workflows with ORB identity.
+12. Preserve stable identities, document revisions, source hashes, role restrictions, and an auditable history.
+
+### Deferred Until After the Offer Pilot
+
+- Multiple supplier sources for one sales shipment.
+- Configurable approval-policy designer; the pilot uses a fixed reviewed approval matrix.
+- Advanced claim settlement methods; the pilot records, tracks, resolves, and blocks closure with a simple controlled workflow.
+- Quantity/value/manual shared-expense allocation; the pilot assigns an expense directly to one shipment or Project.
+- Dynamic route-rule designer; the pilot uses three versioned fixed route checklists.
+- Advanced report builder, broad performance tuning, and non-critical UX variants.
+- Bank statement import and matching.
+- Tax evidence pack and adviser delivery.
+- Controlled historical migration from 1 January 2024.
+
+Deferred items MUST NOT appear as active pilot controls or block pilot acceptance. The daily-use beta and stabilized pilot are not represented as the final full-scope production release. Security baseline, data integrity, review-first external delivery, tested backup, and critical acceptance tests are not waived by the deadline.
+
+## Scope Boundaries
+
+### Included
+
+- Project, contract, shipment, document, collection, payment, expense, bank matching, operational statements, profitability, tax evidence pack, approvals, audit history, and migration.
+- Arabic, English, and bilingual document output chosen at print time.
+- Google Material Design 3 interaction principles adapted to ORB identity.
+
+### Excluded
+
+- Odoo or dependency on an ERP platform.
+- General ledger, chart of accounts, journal entries, trial balance, financial statements, stock valuation, or tax return filing.
+- Automatic legal tax determination or automatic FTA submission.
+- Direct live bank integration in the initial release.
+- Advanced CRM, marketing, tender/RFQ, customer portal, supplier portal, or standalone mobile application.
+- Automatic external email without Eslam approval.
+
+## Requirements *(mandatory)*
+
+### Functional Requirements
+
+#### Canonical Structure and Contracts
+
+- **FR-001**: The system MUST use Project as the canonical operating and profitability entity.
+- **FR-002**: Each Project MUST have exactly one primary sales contract. Every independent sales contract MUST create a new Project; only changes to the same contract may be recorded as versioned amendments inside that Project.
+- **FR-003**: A Project MUST support one or more purchase contracts without mixing customer and supplier balances.
+- **FR-004**: Contracts MUST retain original and active versions, amendment reason, approver, and effective date.
+- **FR-005**: The system MUST prevent duplicate active Project, contract, shipment, CINV, Packing List, and supplier-invoice references within their defined numbering scope.
+- **FR-006**: Roles MUST be composable so one person may hold owner, operations, finance/payment, sales, reviewer, or administrator permissions.
+- **FR-007**: Supplier cost, bank details, margin, tax, and identity data MUST be hidden from roles without explicit access.
+
+#### Shipments, Documents, and Trade Exceptions
+
+- **FR-008**: A sales contract MUST support multiple shipments and show contracted, planned, shipped, delivered, cancelled, and remaining quantities.
+- **FR-009**: Purchase contracts MUST support multiple supplier shipments and show equivalent quantity progress.
+- **FR-010**: Each sales shipment MUST identify at least one supplier source shipment; additional source allocations MUST reconcile to the sales-shipment quantity.
+- **FR-011**: CINV and Packing List MUST be generated from one approved shipment dataset.
+- **FR-012**: Printing language MUST support Arabic, English, or bilingual output without creating another business document.
+- **FR-013**: Approved/sent documents MUST be immutable and corrected only by revision, cancellation, or replacement with reason.
+- **FR-014**: The system MUST support Foreign-to-Foreign, UAE Free Zone Re-export, and UAE Import routes in Release 1 and MUST track route-specific document, expense, milestone, and evidence completeness by destination, customer, product, and Incoterm.
+- **FR-015**: The system MUST store Incoterm and named place/port on contracts and shipments.
+- **FR-016**: The system MUST handle short shipment, over shipment, rollover, cancellation, quality variance, weight variance, rejection, claim, discount, replacement, and compensation.
+- **FR-017**: Sales and purchase contracts MUST define quantity and weight tolerances separately. An omitted tolerance MUST default to zero; confirming a shipment outside the applicable tolerance MUST require authorized approval and a recorded reason.
+- **FR-018**: Shipment execution, financial settlement, document completeness, and claims MUST have independent statuses.
+
+#### Collections, Payments, Expenses, and Statements
+
+- **FR-019**: Users MUST be able to record customer advances before a CINV and supplier advances before a supplier invoice.
+- **FR-020**: An advance or bank movement MUST support partial allocation across multiple eligible documents, and one document MUST support settlement by multiple movements.
+- **FR-021**: Allocations MUST never exceed available movement amount or target outstanding balance.
+- **FR-022**: Customer, sales-contract, sales-shipment, supplier, purchase-contract, supplier-shipment, and Project operational statements MUST be available.
+- **FR-023**: Statements MUST preserve original currency and keep balances of different currencies separate.
+- **FR-024**: Optional AED management equivalents MUST disclose rate, rate date, and rate source recorded for each conversion.
+- **FR-025**: Expenses MUST be assigned to one shipment or the whole Project with category, vendor, amount, currency, proof, status, and approver.
+- **FR-026**: Shared expense allocation MUST support quantity, value, or approved manual methods and MUST reconcile exactly to the source amount.
+- **FR-027**: Refunds, reversals, cancellations, and reallocations MUST preserve prior history.
+
+#### Profit, Status, and Approvals
+
+- **FR-028**: The Project Profit Center MUST separately present expected margin, committed margin, actual operational margin, and cash position.
+- **FR-029**: Each profitability figure MUST disclose its formula and support drill-down to source records and documents.
+- **FR-030**: Cash advances and internal bank transfers MUST NOT be treated as sales value or profit.
+- **FR-031**: A shipment MUST become Financially Closed when its customer balance is fully collected even if documents or claims remain open. A Project MAY become Financially Closed after all sales shipments are collected, but Final Closed MUST independently validate quantity, delivery, documents, supplier obligations, expenses, claims, and approvals.
+- **FR-032**: Authorized exceptional closure or reopening MUST require a reason and immutable audit event.
+- **FR-033**: Approvals MUST be risk-based and configurable by action, value threshold, exception, and role rather than required for every routine edit.
+- **FR-034**: Every approval MUST store actor, time, decision, comment, record version, and evidence where applicable.
+
+#### Bank Imports and Matching
+
+- **FR-035**: Bank accounts MUST preserve account alias, masked identifier, currency, and active status.
+- **FR-036**: Statement imports MUST preserve source file, account, currency, period, opening/closing balances when present, import batch, and row identities.
+- **FR-037**: Importing an identical batch or row MUST be idempotent and MUST NOT duplicate movements.
+- **FR-038**: Statement validation MUST detect overlap, duplicate rows, balance discontinuity, unsupported format, and account/currency mismatch.
+- **FR-039**: Match suggestions MAY use amount, currency, date, reference, counterparty, Project, contract, shipment, and document, but MUST require confirmation.
+- **FR-040**: Bank movements MUST support Unmatched, Suggested, Partially Matched, Matched, and Excluded-with-reason statuses.
+- **FR-041**: Own-account transfers and FX conversion legs MUST be linkable and excluded from sales, purchases, and tax values.
+- **FR-042**: Approved bank matches and subsequent changes MUST retain full allocation and reviewer history.
+
+#### Tax Evidence Pack
+
+- **FR-043**: The system MUST prepare a versioned tax evidence/review pack and MUST NOT present it as an automatically determined or filed tax return.
+- **FR-044**: Tax classifications MUST come from a controlled matrix approved by ORB's qualified tax adviser.
+- **FR-045**: The system MUST NOT automatically classify foreign/export sales as zero-rated.
+- **FR-046**: The tax pack MUST include indexed sales, purchases/expenses, credit/debit notes if present, customs/import evidence, export evidence, bank matching, and exceptions.
+- **FR-047**: Missing classification or required evidence MUST create a visible exception and prevent Ready-to-Send status unless an authorized exception is recorded.
+- **FR-048**: External sending MUST be blocked until Eslam approves the exact version, recipients, and attachments.
+- **FR-049**: Sent-pack contents, attachment identities, recipients, delivery status, and later adviser responses MUST remain traceable.
+
+#### Migration, Integrity, UX, and Security
+
+- **FR-050**: Original migration source files MUST remain immutable and addressable by content identity.
+- **FR-051**: Duplicate content MUST be retained once with references to all occurrences rather than imported as duplicate business records.
+- **FR-052**: Extracted data MUST enter staging and require human review before becoming active business data.
+- **FR-053**: Every migrated field correction MUST preserve extracted value, corrected value, reviewer, time, and source.
+- **FR-054**: Migration completion MUST produce a source-to-target reconciliation and exception report covering every unique source.
+- **FR-055**: Every critical record MUST use stable identity, version, created/updated actor, and auditable event history.
+- **FR-056**: Concurrent conflicting changes MUST be detected and MUST NOT silently overwrite a later version.
+- **FR-057**: The interface MUST provide equivalent Arabic RTL and English LTR workflows and use ORB terminology consistently.
+- **FR-058**: The interface MUST apply Google Material Design 3 principles for hierarchy, components, states, accessibility, forms, tables, and responsive layouts while using ORB branding.
+- **FR-059**: Sensitive source documents and exports MUST be available only to explicitly authorized roles.
+- **FR-060**: The system MUST support tested backup and restoration of business records, versions, audit events, and source-document links before production approval.
+
+### Key Entities
+
+- **Project**: Canonical operating/profitability record linking customer, contracts, shipments, documents, movements, expenses, exceptions, and closure.
+- **Party**: Customer, supplier, bank, carrier, broker, authority, or other counterparty with role-specific details.
+- **Coffee Specification**: Origin, type, grade, crop year, quality attributes, bag type, and weight basis.
+- **Sales Contract / Amendment**: Customer commitment, quantity, price, currency, route, Incoterm, payment and document terms, versions.
+- **Purchase Contract / Amendment**: Supplier commitment and equivalent procurement terms and versions.
+- **Sales Shipment**: Partial sales-contract execution, logistics, quantities, documents, settlements, claims, and statuses.
+- **Supplier Shipment**: Partial purchase-contract execution and source allocation to sales shipments.
+- **Commercial Document**: Proforma, CINV, Packing List, supplier invoice, credit/debit note, or revision with identity and status.
+- **Trade Evidence**: BL/transport, customs, origin, inspection, quality, delivery, or other route-required document.
+- **Money Movement**: Customer advance/receipt, supplier advance/payment, refund, expense payment, transfer, FX conversion, fee, or tax payment.
+- **Allocation**: Controlled relationship allocating a movement, shipment source, or shared expense to eligible targets.
+- **Expense**: Shipment or Project cost with category, proof, currency, approval, and allocation.
+- **Claim**: Quantity, weight, quality, delivery, price, or document dispute with resolution and financial/quantity impact.
+- **Bank Account / Import Batch / Bank Row**: Statement provenance, balances, movement identity, validation, and matching lifecycle.
+- **Tax Pack / Tax Classification / Evidence Requirement**: Adviser-controlled period review package and exceptions.
+- **Source File / Migration Record**: Immutable historical evidence, extraction, review, target mapping, and disposition.
+- **Approval / Audit Event**: Actor, decision/action, time, reason, record version, and evidence.
+
+## Success Criteria *(mandatory)*
+
+### Measurable Outcomes
+
+- **SC-001**: A trained user creates a complete standard Project and primary sales contract in 5 minutes or less.
+- **SC-002**: Shared fields in generated CINV and Packing List have zero quantity, weight, party, and reference mismatches in acceptance tests.
+- **SC-003**: A 100 MT contract split into partial shipments always shows exact contracted, executed, cancelled, and remaining quantities, including approved tolerances.
+- **SC-004**: All tested customer and supplier advances allocate correctly without negative available balances or over-settled documents.
+- **SC-005**: Customer, contract, shipment, supplier, and Project statements reconcile to their underlying approved movements with zero unexplained variance.
+- **SC-006**: Profit Center figures reproduce their disclosed formulas exactly and every amount drills to an approved source record.
+- **SC-007**: Re-importing the same bank statement creates zero duplicate movements.
+- **SC-008**: Every approved bank batch reconciles opening balance, movements, and closing balance, or displays an unresolved blocking difference.
+- **SC-009**: Tax Pack generation identifies 100% of acceptance-test cases with missing classifications, export evidence, unmatched bank movements, or unsupported source documents.
+- **SC-010**: No external tax pack can be sent without recorded Eslam approval for the exact version and recipients.
+- **SC-011**: Every approved/sent document revision retains the prior version and complete reason/actor/time history.
+- **SC-012**: Every unique migration source receives exactly one final disposition: imported, duplicate, intentionally excluded, or unresolved.
+- **SC-013**: Restoring the approved production backup reproduces all sampled records, document versions, allocations, audit events, and source links with no loss.
+- **SC-014**: The same core journeys complete successfully in Arabic RTL and English LTR, and generated documents support Arabic, English, and bilingual modes.
+- **SC-015**: At least 90% of pilot users complete Project creation, shipment creation, document generation, advance allocation, and bank matching on first attempt without assistance.
 
 ## Assumptions
 
-- Initial currencies are AED, USD and SAR; management conversion is optional and always discloses rate/date/source.
-- Desktop is primary; responsive mobile supports review and light action.
-- The pilot uses user-entered operational evidence and does not replace accounting records, legal advice, or tax advice.
+- ORB uses exactly one Project for each independent sales contract. Amendments to that same contract remain in the original Project.
+- A Project may use multiple purchase contracts and supplier shipments.
+- Release 1 supports Foreign-to-Foreign, UAE Free Zone Re-export, and UAE Import routes with route-specific requirements.
+- Original transaction currencies are AED, USD, and SAR initially; currency lists remain configurable.
+- AED equivalents are management views based on explicitly recorded rates, not accounting valuations.
+- The tax adviser supplies ORB's official tax period, classification matrix, evidence rules, and final filing decisions.
+- Initial bank import uses user-supplied statement files; direct bank connectivity is deferred.
+- Historical migration starts from 1 January 2024 and uses the existing 107-file unique-source inventory as the initial control population.
+- Desktop web is the primary working experience; mobile access is responsive for review and light actions, not a separate application.
+- The system stores operational payment and tax-evidence information but does not replace professional accounting records or tax advice.
