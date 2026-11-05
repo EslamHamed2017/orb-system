@@ -2,11 +2,12 @@
 
 **Status:** Accepted
 **Date:** 2026-11-05
-**Deadline:** 2026-11-19
+**Operational Beta:** 2026-11-12
+**Stabilized Offer Pilot:** 2026-11-19
 
 ## Decision
 
-Deliver a deployed, sales-ready working pilot that proves one complete ORB Core Trade cycle within fourteen calendar days. The milestone is not represented as full production completion.
+Deliver a deployed, limited daily-use operational beta that proves one complete ORB Core Trade cycle by 2026-11-12. Use the second week for live-use correction and stabilization, then deliver the offer-ready stabilized pilot by 2026-11-19. Neither milestone is represented as final full-scope production completion.
 
 ## Reason
 
@@ -14,7 +15,7 @@ Eslam has a fixed commercial opportunity window; missing the date risks losing t
 
 ## Delivery Rules
 
-- Preview checkpoints no later than days 2, 5, 8, 11, and 14.
+- Preview checkpoints no later than days 2 and 5; operational beta by day 7; correction previews on days 9 and 11; stabilized offer pilot by day 14.
 - Use fixed roles, approval matrix, route checklists, and simple controlled claims.
 - One primary supplier source per sales shipment in the pilot.
 - Direct expense assignment only.
