@@ -13,6 +13,7 @@
 ### Session 2026-11-05
 
 - Q: If the same customer signs a new independent sales contract, is it a new Project? → A: Yes. Every independent sales contract creates a new Project; amendments to the same contract remain in the existing Project.
+- Q: What is the cut line for the first usable release? → A: Release 1 contains Core Trade only; bank matching, tax pack, and historical migration follow in subsequent releases.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -166,6 +167,27 @@ A migration reviewer processes original historical emails, PDF, image, spreadshe
 - A Project uses UAE free-zone re-export or a direct foreign-to-foreign route.
 - Delivery completes in a later reporting period than invoice or shipment clearance.
 - The tax adviser changes classification or evidence requirements after a pack was sent.
+
+
+## Release Sequencing
+
+### Release 1 — Core Trade
+
+- Projects and one primary sales contract per Project.
+- Purchase contracts and supplier shipments.
+- Sales shipments and supplier-source linking.
+- CINV, Packing List, transport/customs evidence, and revisions.
+- Customer advances/receipts, supplier advances/payments, operational statements, and expenses.
+- Claims, tolerances, statuses, risk-based approvals, closure, and Project Profit Center.
+- Arabic/English experience, ORB identity, audit history, security baseline, and tested backups.
+
+### Subsequent Releases
+
+- Bank statement import, validation, matching, and reconciliation.
+- Tax evidence pack and review-first adviser delivery.
+- Controlled historical migration from 1 January 2024.
+
+The data model and controls MUST anticipate subsequent releases, but Release 1 acceptance and deployment MUST NOT depend on completing them.
 
 ## Scope Boundaries
 
