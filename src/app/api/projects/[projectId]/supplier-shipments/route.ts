@@ -1,0 +1,7 @@
+import { NextResponse } from "next/server";
+export interface ShipmentPrincipal { readonly userId:string; readonly roles:readonly string[] }
+function problem(status:number,code:string){return NextResponse.json({type:`https://orb.example/problems/${code.toLowerCase().replaceAll("_","-")}`,title:code,status,code,correlationId:crypto.randomUUID()},{status,headers:{"content-type":"application/problem+json","Cache-Control":"no-store"}});}
+function allowed(principal:ShipmentPrincipal|null,write:boolean){if(!principal)return problem(401,"AUTHENTICATION_REQUIRED");const roles=write?["OWNER_ADMIN","OPERATIONS"]:["OWNER_ADMIN","OPERATIONS","FINANCE_VIEWER"];return principal.roles.some(role=>roles.includes(role))?null:problem(403,"PERMISSION_DENIED");}
+export interface Dependencies{authenticate:(request:Request)=>Promise<ShipmentPrincipal|null>;create?:(input:{request:Request;projectId:string;principal:ShipmentPrincipal;body:unknown})=>Promise<unknown>}
+export function createPostHandler(d:Dependencies){return async(request:Request,context:{params:Promise<{projectId:string}>})=>{const principal=await d.authenticate(request),denied=allowed(principal,true);if(denied)return denied;if(!d.create)return problem(503,"DEPENDENCY_UNAVAILABLE");const {projectId}=await context.params;return NextResponse.json(await d.create({request,projectId,principal:principal!,body:await request.json()}),{status:201,headers:{"Cache-Control":"no-store"}});};}
+export const POST=createPostHandler({authenticate:async()=>null});
