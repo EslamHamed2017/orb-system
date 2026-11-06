@@ -1,0 +1,1162 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model Approval {
+  id                               String                    @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  action_code                      ApprovalActionCode
+  subject_type                     String
+  subject_id                       String                    @db.Uuid
+  subject_version                  Int
+  subject_hash                     String                    @db.Char(64)
+  requester_id                     String                    @db.Uuid
+  decision                         ApprovalDecision          @default(PENDING)
+  approver_id                      String?                   @db.Uuid
+  decided_at                       DateTime?                 @db.Timestamptz(6)
+  reason                           String?
+  comment                          String?
+  evidence_id                      String?                   @db.Uuid
+  EvidenceObject                   EvidenceObject?           @relation(fields: [evidence_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_133_Approval")
+  User_Approval_requester_idToUser User                      @relation("Approval_requester_idToUser", fields: [requester_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_52_Approval")
+  User_Approval_approver_idToUser  User?                     @relation("Approval_approver_idToUser", fields: [approver_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_53_Approval")
+  ClaimOutcomeProposal             ClaimOutcomeProposal[]
+  ClosureBlocker                   ClosureBlocker[]
+  ContractVersion                  ContractVersion[]
+  DirectExpense                    DirectExpense[]
+  DocumentRevision                 DocumentRevision[]
+  ExpenseCorrection                ExpenseCorrection[]
+  OutboundManifest                 OutboundManifest[]
+  OutboundSendAttempt              OutboundSendAttempt[]
+  RouteChecklistItem               RouteChecklistItem[]
+  SalesShipmentDataset             SalesShipmentDataset[]
+  SupplierInvoice                  SupplierInvoice[]
+  SupplierShipmentDataset          SupplierShipmentDataset[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model AuditEvent {
+  id                  String       @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  project_id          String       @db.Uuid
+  sequence_no         BigInt
+  aggregate_type      String
+  aggregate_id        String       @db.Uuid
+  aggregate_version   Int
+  action              String
+  actor_id            String       @db.Uuid
+  actor_snapshot      Json
+  session_id          String       @db.Uuid
+  occurred_at         DateTime     @db.Timestamptz(6)
+  reason              String?
+  correlation_id      String       @db.Uuid
+  idempotency_key     String?
+  before_hash         String?      @db.Char(64)
+  after_hash          String       @db.Char(64)
+  previous_event_hash String?      @db.Char(64)
+  event_hash          String       @db.Char(64)
+  Project             Project      @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_59_AuditEvent")
+  User                User         @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_60_AuditEvent")
+  PilotSession        PilotSession @relation(fields: [session_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_61_AuditEvent")
+
+  @@unique([project_id, sequence_no])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model BackupSnapshot {
+  id                 String        @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  database_backup_id String
+  object_snapshot_id String
+  completed_at       DateTime      @db.Timestamptz(6)
+  encrypted          Boolean
+  separate_copy      Boolean
+  rpo_minutes        Int
+  manifest_hash      String        @db.Char(64)
+  RestoreTest        RestoreTest[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model Claim {
+  id                               String                 @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  project_id                       String                 @db.Uuid
+  sales_shipment_id                String?                @db.Uuid
+  supplier_shipment_id             String?                @db.Uuid
+  type                             ClaimType
+  claimant_id                      String                 @db.Uuid
+  respondent_id                    String                 @db.Uuid
+  description                      String
+  quantity                         Decimal?               @db.Decimal(20, 6)
+  amount                           Decimal?               @db.Decimal(20, 6)
+  currency                         String?                @db.Char(3)
+  state                            ClaimState             @default(OPEN)
+  evidence_id                      String?                @db.Uuid
+  version                          Int                    @default(1)
+  EvidenceObject                   EvidenceObject?        @relation(fields: [evidence_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_130_Claim")
+  Project                          Project                @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_46_Claim")
+  SalesShipment                    SalesShipment?         @relation(fields: [sales_shipment_id, project_id], references: [id, project_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_47_Claim")
+  SupplierShipment                 SupplierShipment?      @relation(fields: [supplier_shipment_id, project_id], references: [id, project_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_48_Claim")
+  Party_Claim_claimant_idToParty   Party                  @relation("Claim_claimant_idToParty", fields: [claimant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_49_Claim")
+  Party_Claim_respondent_idToParty Party                  @relation("Claim_respondent_idToParty", fields: [respondent_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_50_Claim")
+  ClaimOutcomeProposal             ClaimOutcomeProposal[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model ClaimOutcomeProposal {
+  id               String          @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  claim_id         String          @db.Uuid
+  claim_version    Int
+  proposed_outcome ClaimOutcome
+  reason           String
+  evidence_id      String?         @db.Uuid
+  subject_hash     String          @db.Char(64)
+  state            ProposalState   @default(PENDING_APPROVAL)
+  approval_id      String?         @db.Uuid
+  applied_at       DateTime?       @db.Timestamptz(6)
+  EvidenceObject   EvidenceObject? @relation(fields: [evidence_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_131_ClaimOutcomeProposal")
+  Approval         Approval?       @relation(fields: [approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_132_ClaimOutcomeProposal")
+  Claim            Claim           @relation(fields: [claim_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_51_ClaimOutcomeProposal")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model ClosureAssessment {
+  id                            String           @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  project_id                    String           @db.Uuid
+  project_version               Int
+  assessed_at                   DateTime         @db.Timestamptz(6)
+  quantity_delivery_complete    Boolean
+  route_complete                Boolean
+  documents_complete            Boolean
+  supplier_obligations_complete Boolean
+  expenses_complete             Boolean
+  claims_complete               Boolean
+  approvals_complete            Boolean
+  blockers_hash                 String           @db.Char(64)
+  Project                       Project          @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_56_ClosureAssessment")
+  ClosureBlocker                ClosureBlocker[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model ClosureBlocker {
+  id                     String            @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  assessment_id          String            @db.Uuid
+  code                   String
+  subject_type           String
+  subject_id             String            @db.Uuid
+  message_key            String
+  exception_eligible     Boolean
+  covered_by_approval_id String?           @db.Uuid
+  Approval               Approval?         @relation(fields: [covered_by_approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_135_ClosureBlocker")
+  ClosureAssessment      ClosureAssessment @relation(fields: [assessment_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_57_ClosureBlocker")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model CoffeeSpecification {
+  id                      String                    @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  reference               String                    @unique
+  origin                  String
+  type                    String
+  grade                   String
+  crop_year               String
+  bag_type                String
+  standard_bag_weight     Decimal                   @db.Decimal(20, 6)
+  attributes              Json
+  version                 Int                       @default(1)
+  ContractVersion         ContractVersion[]
+  SalesShipmentDataset    SalesShipmentDataset[]
+  SupplierShipmentDataset SupplierShipmentDataset[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model CommercialDocument {
+  id                                                                       String             @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  project_id                                                               String             @db.Uuid
+  sales_shipment_id                                                        String             @db.Uuid
+  kind                                                                     DocumentKind
+  reference                                                                String
+  active_revision_id                                                       String?            @db.Uuid
+  version                                                                  Int                @default(1)
+  DocumentRevision_CommercialDocument_active_revision_idToDocumentRevision DocumentRevision?  @relation("CommercialDocument_active_revision_idToDocumentRevision", fields: [active_revision_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_114_CommercialDocument")
+  Project                                                                  Project            @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_25_CommercialDocument")
+  SalesShipment                                                            SalesShipment      @relation(fields: [sales_shipment_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_26_CommercialDocument")
+  DocumentRevision_DocumentRevision_document_idToCommercialDocument        DocumentRevision[] @relation("DocumentRevision_document_idToCommercialDocument")
+
+  @@unique([project_id, reference])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model Contract {
+  id                                                          String                    @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  project_id                                                  String                    @unique(map: "one_sales_contract_per_project", where: raw("(kind = 'SALES'::\"ContractKind\")")) @db.Uuid
+  kind                                                        ContractKind
+  reference                                                   String
+  counterparty_id                                             String                    @db.Uuid
+  active_version_id                                           String?                   @db.Uuid
+  state                                                       String
+  version                                                     Int                       @default(1)
+  ContractVersion_Contract_active_version_idToContractVersion ContractVersion?          @relation("Contract_active_version_idToContractVersion", fields: [active_version_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_101_Contract")
+  Project_Contract_project_idToProject                        Project                   @relation("Contract_project_idToProject", fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_6_Contract")
+  Party                                                       Party                     @relation(fields: [counterparty_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_7_Contract")
+  ContractVersion_ContractVersion_contract_idToContract       ContractVersion[]         @relation("ContractVersion_contract_idToContract")
+  MoneyMovement                                               MoneyMovement[]
+  Project_Project_primary_sales_contract_idToContract         Project[]                 @relation("Project_primary_sales_contract_idToContract")
+  SalesShipment                                               SalesShipment[]
+  SalesShipmentDataset                                        SalesShipmentDataset[]
+  SupplierShipment                                            SupplierShipment[]
+  SupplierShipmentDataset                                     SupplierShipmentDataset[]
+
+  @@unique([id, project_id])
+  @@unique([project_id, reference])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model ContractVersion {
+  id                                                   String               @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  contract_id                                          String               @db.Uuid
+  revision_no                                          Int
+  effective_date                                       DateTime             @db.Date
+  amendment_reason                                     String?
+  coffee_specification_id                              String               @db.Uuid
+  quantity                                             Decimal              @db.Decimal(20, 6)
+  unit_price                                           Decimal              @db.Decimal(20, 6)
+  currency                                             String               @db.Char(3)
+  route                                                RouteTemplateCode
+  incoterm                                             String
+  named_place                                          String
+  quantity_tolerance_under                             Decimal              @default(0) @db.Decimal
+  quantity_tolerance_over                              Decimal              @default(0) @db.Decimal
+  net_weight_tolerance_under                           Decimal              @default(0) @db.Decimal
+  net_weight_tolerance_over                            Decimal              @default(0) @db.Decimal
+  gross_weight_tolerance_under                         Decimal              @default(0) @db.Decimal
+  gross_weight_tolerance_over                          Decimal              @default(0) @db.Decimal
+  payment_terms                                        String
+  document_terms                                       String
+  state                                                ContractVersionState @default(DRAFT)
+  approval_id                                          String?              @db.Uuid
+  Contract_Contract_active_version_idToContractVersion Contract[]           @relation("Contract_active_version_idToContractVersion")
+  Approval                                             Approval?            @relation(fields: [approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_102_ContractVersion")
+  Contract_ContractVersion_contract_idToContract       Contract             @relation("ContractVersion_contract_idToContract", fields: [contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_8_ContractVersion")
+  CoffeeSpecification                                  CoffeeSpecification  @relation(fields: [coffee_specification_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_9_ContractVersion")
+
+  @@unique([contract_id, revision_no])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model Currency {
+  id       String  @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  code     String  @unique @db.Char(3)
+  decimals Int
+  active   Boolean @default(true)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model DirectExpense {
+  id                                                                        String              @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  project_id                                                                String              @db.Uuid
+  sales_shipment_id                                                         String?             @db.Uuid
+  vendor_id                                                                 String              @db.Uuid
+  category_code                                                             String
+  amount                                                                    Decimal             @db.Decimal(20, 6)
+  currency                                                                  String              @db.Char(3)
+  occurred_on                                                               DateTime            @db.Date
+  evidence_id                                                               String              @db.Uuid
+  state                                                                     DirectExpenseState  @default(DRAFT)
+  approval_id                                                               String?             @db.Uuid
+  replaces_expense_id                                                       String?             @db.Uuid
+  replaced_by_expense_id                                                    String?             @db.Uuid
+  cancellation_reason                                                       String?
+  version                                                                   Int                 @default(1)
+  ExpenseCategory                                                           ExpenseCategory     @relation(fields: [category_code], references: [code], onDelete: NoAction, onUpdate: NoAction, map: "fk_125_DirectExpense")
+  Approval                                                                  Approval?           @relation(fields: [approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_126_DirectExpense")
+  DirectExpense_DirectExpense_replaces_expense_idToDirectExpense            DirectExpense?      @relation("DirectExpense_replaces_expense_idToDirectExpense", fields: [replaces_expense_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_127_DirectExpense")
+  other_DirectExpense_DirectExpense_replaces_expense_idToDirectExpense      DirectExpense[]     @relation("DirectExpense_replaces_expense_idToDirectExpense")
+  DirectExpense_DirectExpense_replaced_by_expense_idToDirectExpense         DirectExpense?      @relation("DirectExpense_replaced_by_expense_idToDirectExpense", fields: [replaced_by_expense_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_128_DirectExpense")
+  other_DirectExpense_DirectExpense_replaced_by_expense_idToDirectExpense   DirectExpense[]     @relation("DirectExpense_replaced_by_expense_idToDirectExpense")
+  SalesShipment                                                             SalesShipment?      @relation(fields: [sales_shipment_id, project_id], references: [id, project_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_40_DirectExpense")
+  Project                                                                   Project             @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_41_DirectExpense")
+  Party                                                                     Party               @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_42_DirectExpense")
+  EvidenceObject                                                            EvidenceObject      @relation(fields: [evidence_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_43_DirectExpense")
+  ExpenseCorrection_ExpenseCorrection_original_expense_idToDirectExpense    ExpenseCorrection[] @relation("ExpenseCorrection_original_expense_idToDirectExpense")
+  ExpenseCorrection_ExpenseCorrection_replacement_expense_idToDirectExpense ExpenseCorrection[] @relation("ExpenseCorrection_replacement_expense_idToDirectExpense")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model DocumentRevision {
+  id                                                                         String                 @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  document_id                                                                String                 @db.Uuid
+  revision_no                                                                Int
+  source_sales_shipment_dataset_id                                           String                 @db.Uuid
+  language                                                                   DocumentLanguage
+  generation_state                                                           GenerationState        @default(QUEUED)
+  lifecycle_state                                                            DocumentLifecycleState @default(DRAFT)
+  evidence_id                                                                String?                @db.Uuid
+  sha256                                                                     String?                @db.Char(64)
+  reason                                                                     String?
+  approval_id                                                                String?                @db.Uuid
+  version                                                                    Int                    @default(1)
+  CommercialDocument_CommercialDocument_active_revision_idToDocumentRevision CommercialDocument[]   @relation("CommercialDocument_active_revision_idToDocumentRevision")
+  Approval                                                                   Approval?              @relation(fields: [approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_115_DocumentRevision")
+  CommercialDocument_DocumentRevision_document_idToCommercialDocument        CommercialDocument     @relation("DocumentRevision_document_idToCommercialDocument", fields: [document_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_27_DocumentRevision")
+  SalesShipmentDataset                                                       SalesShipmentDataset   @relation(fields: [source_sales_shipment_dataset_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_28_DocumentRevision")
+  EvidenceObject                                                             EvidenceObject?        @relation(fields: [evidence_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_29_DocumentRevision")
+  OutboundManifest                                                           OutboundManifest[]
+
+  @@unique([document_id, revision_no])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model EvidenceLink {
+  id             String         @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  evidence_id    String         @db.Uuid
+  subject_type   String
+  subject_id     String         @db.Uuid
+  purpose        String
+  EvidenceObject EvidenceObject @relation(fields: [evidence_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_24_EvidenceLink")
+
+  @@unique([evidence_id, subject_type, subject_id, purpose])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model EvidenceObject {
+  id                     String                    @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  sha256                 String                    @db.Char(64)
+  byte_length            BigInt
+  media_type             String
+  object_key             String
+  object_version_id      String
+  original_filename      String
+  verification_state     EvidenceVerificationState @default(PENDING)
+  verified_by            String?                   @db.Uuid
+  verified_at            DateTime?                 @db.Timestamptz(6)
+  uploaded_by            String                    @db.Uuid
+  uploaded_at            DateTime                  @default(now()) @db.Timestamptz(6)
+  retention_until        DateTime                  @db.Timestamptz(6)
+  Approval               Approval[]
+  Claim                  Claim[]
+  ClaimOutcomeProposal   ClaimOutcomeProposal[]
+  DirectExpense          DirectExpense[]
+  DocumentRevision       DocumentRevision[]
+  EvidenceLink           EvidenceLink[]
+  MoneyMovement          MoneyMovement[]
+  RestoreTest            RestoreTest[]
+  RouteChecklistItem     RouteChecklistItem[]
+  ShipmentExecutionEvent ShipmentExecutionEvent[]
+  SupplierInvoice        SupplierInvoice[]
+
+  @@unique([object_key, object_version_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model ExpenseCategory {
+  id            String          @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  code          String          @unique
+  name_ar       String
+  name_en       String
+  active        Boolean         @default(true)
+  DirectExpense DirectExpense[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model ExpenseCorrection {
+  id                                                                    String        @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  original_expense_id                                                   String        @db.Uuid
+  replacement_expense_id                                                String        @db.Uuid
+  reason                                                                String
+  subject_hash                                                          String        @db.Char(64)
+  approval_id                                                           String        @db.Uuid
+  applied_at                                                            DateTime?     @db.Timestamptz(6)
+  version                                                               Int           @default(1)
+  Approval                                                              Approval      @relation(fields: [approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_129_ExpenseCorrection")
+  DirectExpense_ExpenseCorrection_original_expense_idToDirectExpense    DirectExpense @relation("ExpenseCorrection_original_expense_idToDirectExpense", fields: [original_expense_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_44_ExpenseCorrection")
+  DirectExpense_ExpenseCorrection_replacement_expense_idToDirectExpense DirectExpense @relation("ExpenseCorrection_replacement_expense_idToDirectExpense", fields: [replacement_expense_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_45_ExpenseCorrection")
+
+  @@unique([original_expense_id, replacement_expense_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model IdempotencyRecord {
+  id               String   @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  actor_id         String   @db.Uuid
+  operation_id     String
+  key              String
+  request_hash     String   @db.Char(64)
+  response_status  Int
+  response_locator String?
+  response_hash    String   @db.Char(64)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  expires_at       DateTime @db.Timestamptz(6)
+  User             User     @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_62_IdempotencyRecord")
+
+  @@unique([actor_id, operation_id, key])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model MoneyMovement {
+  id                   String                 @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  project_id           String                 @db.Uuid
+  party_id             String                 @db.Uuid
+  contract_id          String                 @db.Uuid
+  kind                 MoneyMovementKind
+  direction            String
+  amount               Decimal                @db.Decimal(20, 6)
+  currency             String                 @db.Char(3)
+  occurred_on          DateTime               @db.Date
+  reference            String
+  evidence_id          String?                @db.Uuid
+  state                MoneyMovementState     @default(DRAFT)
+  aed_amount           Decimal?               @db.Decimal(20, 6)
+  fx_rate              Decimal?               @db.Decimal(20, 10)
+  fx_date              DateTime?              @db.Date
+  fx_source            String?
+  reversal_of_id       String?                @db.Uuid
+  version              Int                    @default(1)
+  EvidenceObject       EvidenceObject?        @relation(fields: [evidence_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_121_MoneyMovement")
+  MoneyMovement        MoneyMovement?         @relation("MoneyMovementToMoneyMovement", fields: [reversal_of_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_122_MoneyMovement")
+  other_MoneyMovement  MoneyMovement[]        @relation("MoneyMovementToMoneyMovement")
+  Project              Project                @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_36_MoneyMovement")
+  Party                Party                  @relation(fields: [party_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_37_MoneyMovement")
+  Contract             Contract               @relation(fields: [contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_38_MoneyMovement")
+  SettlementAllocation SettlementAllocation[]
+
+  @@unique([project_id, reference])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model OutboundManifest {
+  id                        String                 @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  supersedes_manifest_id    String?                @db.Uuid
+  document_revision_id      String                 @db.Uuid
+  document_revision_version Int
+  output_sha256             String                 @db.Char(64)
+  channel                   OutboundChannel        @default(EMAIL)
+  ordered_to_recipients     Json
+  ordered_cc_recipients     Json
+  attachment_manifest       Json
+  subject                   String
+  body_media_type           String
+  body_bytes_object_key     String
+  body_byte_length          BigInt
+  body_sha256               String                 @db.Char(64)
+  manifest_hash             String                 @db.Char(64)
+  state                     DocumentLifecycleState @default(DRAFT)
+  approval_id               String?                @db.Uuid
+  version                   Int                    @default(1)
+  OutboundManifest          OutboundManifest?      @relation("OutboundManifestToOutboundManifest", fields: [supersedes_manifest_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_116_OutboundManifest")
+  other_OutboundManifest    OutboundManifest[]     @relation("OutboundManifestToOutboundManifest")
+  Approval                  Approval?              @relation(fields: [approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_117_OutboundManifest")
+  DocumentRevision          DocumentRevision       @relation(fields: [document_revision_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_30_OutboundManifest")
+  OutboundSendAttempt       OutboundSendAttempt[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model OutboundSendAttempt {
+  id                 String           @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  manifest_id        String           @db.Uuid
+  manifest_version   Int
+  manifest_hash      String           @db.Char(64)
+  approval_id        String           @db.Uuid
+  attempt_no         Int
+  requested_by       String           @db.Uuid
+  requested_at       DateTime         @db.Timestamptz(6)
+  completed_at       DateTime?        @db.Timestamptz(6)
+  result             SendResult
+  provider_reference String?
+  failure_code       String?
+  correlation_id     String           @db.Uuid
+  Approval           Approval         @relation(fields: [approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_118_OutboundSendAttempt")
+  User               User             @relation(fields: [requested_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_119_OutboundSendAttempt")
+  OutboundManifest   OutboundManifest @relation(fields: [manifest_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_31_OutboundSendAttempt")
+
+  @@unique([manifest_id, attempt_no])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model Party {
+  id                               String                    @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  reference                        String                    @unique
+  legal_name_ar                    String
+  legal_name_en                    String
+  country_code                     String                    @db.Char(2)
+  customer                         Boolean                   @default(false)
+  supplier                         Boolean                   @default(false)
+  sensitive_identity_ciphertext    String?
+  status                           String
+  version                          Int                       @default(1)
+  Claim_Claim_claimant_idToParty   Claim[]                   @relation("Claim_claimant_idToParty")
+  Claim_Claim_respondent_idToParty Claim[]                   @relation("Claim_respondent_idToParty")
+  Contract                         Contract[]
+  DirectExpense                    DirectExpense[]
+  MoneyMovement                    MoneyMovement[]
+  Project                          Project[]
+  SupplierInvoice                  SupplierInvoice[]
+  SupplierShipmentDataset          SupplierShipmentDataset[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model PilotSession {
+  id                                 String       @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  user_id                            String       @db.Uuid
+  created_at                         DateTime     @default(now()) @db.Timestamptz(6)
+  last_seen_at                       DateTime     @db.Timestamptz(6)
+  idle_expires_at                    DateTime     @db.Timestamptz(6)
+  absolute_expires_at                DateTime     @db.Timestamptz(6)
+  revoked_at                         DateTime?    @db.Timestamptz(6)
+  revoked_by                         String?      @db.Uuid
+  revocation_reason                  String?
+  current                            Boolean      @default(false)
+  version                            Int          @default(1)
+  AuditEvent                         AuditEvent[]
+  User_PilotSession_user_idToUser    User         @relation("PilotSession_user_idToUser", fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_3_PilotSession")
+  User_PilotSession_revoked_byToUser User?        @relation("PilotSession_revoked_byToUser", fields: [revoked_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_4_PilotSession")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model ProfitLine {
+  id             String         @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  snapshot_id    String         @db.Uuid
+  measure        String
+  source_type    String
+  source_id      String         @db.Uuid
+  amount         Decimal        @db.Decimal(20, 6)
+  currency       String         @db.Char(3)
+  explanation    String
+  ProfitSnapshot ProfitSnapshot @relation(fields: [snapshot_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_55_ProfitLine")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model ProfitSnapshot {
+  id                        String       @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  project_id                String       @db.Uuid
+  project_version           Int
+  as_of                     DateTime     @db.Timestamptz(6)
+  currency                  String       @db.Char(3)
+  expected_margin           Decimal      @db.Decimal(20, 6)
+  committed_margin          Decimal      @db.Decimal(20, 6)
+  actual_operational_margin Decimal      @db.Decimal(20, 6)
+  cash_position             Decimal      @db.Decimal(20, 6)
+  formula_version           String
+  input_hash                String       @db.Char(64)
+  generated_at              DateTime     @db.Timestamptz(6)
+  ProfitLine                ProfitLine[]
+  Project                   Project      @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_54_ProfitSnapshot")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model Project {
+  id                                                   String                @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  reference                                            String                @unique
+  customer_id                                          String                @db.Uuid
+  primary_sales_contract_id                            String?               @db.Uuid
+  lifecycle_state                                      ProjectLifecycleState @default(DRAFT)
+  financial_state                                      FinancialState        @default(OPEN)
+  final_state                                          ProjectFinalState     @default(OPEN)
+  management_currency                                  String                @db.Char(3)
+  version                                              Int                   @default(1)
+  AuditEvent                                           AuditEvent[]
+  Claim                                                Claim[]
+  ClosureAssessment                                    ClosureAssessment[]
+  CommercialDocument                                   CommercialDocument[]
+  Contract_Contract_project_idToProject                Contract?             @relation("Contract_project_idToProject")
+  DirectExpense                                        DirectExpense[]
+  MoneyMovement                                        MoneyMovement[]
+  ProfitSnapshot                                       ProfitSnapshot[]
+  Contract_Project_primary_sales_contract_idToContract Contract?             @relation("Project_primary_sales_contract_idToContract", fields: [primary_sales_contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_100_Project")
+  Party                                                Party                 @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_5_Project")
+  SalesShipment                                        SalesShipment[]
+  SupplierInvoice                                      SupplierInvoice[]
+  SupplierShipment                                     SupplierShipment[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model RestoreTest {
+  id                   String          @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  backup_snapshot_id   String          @db.Uuid
+  isolated_environment String
+  requested_by         String          @db.Uuid
+  requested_at         DateTime        @db.Timestamptz(6)
+  state                RestoreState    @default(QUEUED)
+  completed_at         DateTime?       @db.Timestamptz(6)
+  rpo_minutes          Int?
+  rto_minutes          Int?
+  evidence_id          String?         @db.Uuid
+  version              Int             @default(1)
+  EvidenceObject       EvidenceObject? @relation(fields: [evidence_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_136_RestoreTest")
+  User                 User            @relation(fields: [requested_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_137_RestoreTest")
+  BackupSnapshot       BackupSnapshot  @relation(fields: [backup_snapshot_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_58_RestoreTest")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model RouteChecklist {
+  id                 String               @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  sales_shipment_id  String               @unique @db.Uuid
+  template_code      RouteTemplateCode
+  template_version   Int
+  snapshot_hash      String               @db.Char(64)
+  status             String
+  version            Int                  @default(1)
+  SalesShipment      SalesShipment        @relation(fields: [sales_shipment_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_22_RouteChecklist")
+  RouteChecklistItem RouteChecklistItem[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model RouteChecklistItem {
+  id                    String            @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  checklist_id          String            @db.Uuid
+  code                  String
+  category              RouteItemCategory
+  required              Boolean
+  closure_blocking      Boolean
+  state                 RouteItemState    @default(NOT_STARTED)
+  evidence_id           String?           @db.Uuid
+  milestone_at          DateTime?         @db.Timestamptz(6)
+  completed_by          String?           @db.Uuid
+  completed_at          DateTime?         @db.Timestamptz(6)
+  exception_approval_id String?           @db.Uuid
+  EvidenceObject        EvidenceObject?   @relation(fields: [evidence_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_111_RouteChecklistItem")
+  User                  User?             @relation(fields: [completed_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_112_RouteChecklistItem")
+  Approval              Approval?         @relation(fields: [exception_approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_113_RouteChecklistItem")
+  RouteChecklist        RouteChecklist    @relation(fields: [checklist_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_23_RouteChecklistItem")
+
+  @@unique([checklist_id, code])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model SalesShipment {
+  id                                                                         String                 @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  project_id                                                                 String                 @db.Uuid
+  sales_contract_id                                                          String                 @db.Uuid
+  reference                                                                  String
+  primary_supplier_shipment_id                                               String?                @db.Uuid
+  active_dataset_id                                                          String?                @db.Uuid
+  execution_state                                                            SalesExecutionState    @default(DRAFT)
+  financial_state                                                            FinancialState         @default(OPEN)
+  document_state                                                             SalesDocumentState     @default(MISSING)
+  claim_state                                                                SalesClaimState        @default(CLEAR)
+  version                                                                    Int                    @default(1)
+  Claim                                                                      Claim[]
+  CommercialDocument                                                         CommercialDocument[]
+  DirectExpense                                                              DirectExpense[]
+  RouteChecklist                                                             RouteChecklist?
+  SalesShipmentDataset_SalesShipment_active_dataset_idToSalesShipmentDataset SalesShipmentDataset?  @relation("SalesShipment_active_dataset_idToSalesShipmentDataset", fields: [active_dataset_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_106_SalesShipment")
+  Project                                                                    Project                @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_16_SalesShipment")
+  Contract                                                                   Contract               @relation(fields: [sales_contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_17_SalesShipment")
+  SupplierShipment                                                           SupplierShipment?      @relation(fields: [primary_supplier_shipment_id, project_id], references: [id, project_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_18_SalesShipment")
+  SalesShipmentDataset_SalesShipmentDataset_shipment_idToSalesShipment       SalesShipmentDataset[] @relation("SalesShipmentDataset_shipment_idToSalesShipment")
+
+  @@unique([id, project_id])
+  @@unique([project_id, reference])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model SalesShipmentDataset {
+  id                                                                  String              @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  shipment_id                                                         String              @db.Uuid
+  revision_no                                                         Int
+  dataset_version                                                     Int
+  dataset_hash                                                        String              @db.Char(64)
+  sales_contract_id                                                   String              @db.Uuid
+  coffee_specification_id                                             String              @db.Uuid
+  product_description                                                 String
+  customer_purchase_order_reference                                   String?
+  marks_and_numbers                                                   String?
+  quantity                                                            Decimal             @db.Decimal(20, 6)
+  bag_count                                                           Int
+  bag_weight                                                          Decimal             @db.Decimal(20, 6)
+  net_weight                                                          Decimal             @db.Decimal(20, 6)
+  gross_weight                                                        Decimal             @db.Decimal(20, 6)
+  origin_country                                                      String              @db.Char(2)
+  origin_location                                                     String
+  load_location                                                       String
+  discharge_location                                                  String
+  destination_country                                                 String              @db.Char(2)
+  destination_location                                                String
+  incoterm                                                            String
+  named_place                                                         String
+  container_numbers                                                   String[]
+  seal_numbers                                                        String[]
+  transport_mode                                                      String
+  carrier                                                             String
+  transport_reference                                                 String
+  vessel_or_vehicle                                                   String?
+  voyage_or_trip                                                      String?
+  estimated_departure                                                 DateTime?           @db.Timestamptz(6)
+  estimated_arrival                                                   DateTime?           @db.Timestamptz(6)
+  planned_shipment_at                                                 DateTime?           @db.Timestamptz(6)
+  notes                                                               String?
+  state                                                               DatasetState        @default(DRAFT)
+  approval_id                                                         String?             @db.Uuid
+  created_by                                                          String              @db.Uuid
+  created_at                                                          DateTime            @default(now()) @db.Timestamptz(6)
+  revision_reason                                                     String
+  invalidated_approval_ids                                            String[]            @db.Uuid
+  DocumentRevision                                                    DocumentRevision[]
+  SalesShipment_SalesShipment_active_dataset_idToSalesShipmentDataset SalesShipment[]     @relation("SalesShipment_active_dataset_idToSalesShipmentDataset")
+  Approval                                                            Approval?           @relation(fields: [approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_107_SalesShipmentDataset")
+  User                                                                User                @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_108_SalesShipmentDataset")
+  SalesShipment_SalesShipmentDataset_shipment_idToSalesShipment       SalesShipment       @relation("SalesShipmentDataset_shipment_idToSalesShipment", fields: [shipment_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_19_SalesShipmentDataset")
+  Contract                                                            Contract            @relation(fields: [sales_contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_20_SalesShipmentDataset")
+  CoffeeSpecification                                                 CoffeeSpecification @relation(fields: [coffee_specification_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_21_SalesShipmentDataset")
+
+  @@unique([shipment_id, revision_no])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model Session {
+  id               String    @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  user_id          String    @db.Uuid
+  expires_at       DateTime  @db.Timestamptz(6)
+  mfa_satisfied_at DateTime? @db.Timestamptz(6)
+  revoked_at       DateTime? @db.Timestamptz(6)
+  version          Int       @default(1)
+  User             User      @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_2_Session")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model SettlementAllocation {
+  id                         String                @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  movement_id                String                @db.Uuid
+  target_type                AllocationTargetType
+  target_id                  String                @db.Uuid
+  amount                     Decimal               @db.Decimal(20, 6)
+  currency                   String                @db.Char(3)
+  state                      AllocationState       @default(ACTIVE)
+  allocated_by               String                @db.Uuid
+  allocated_at               DateTime              @db.Timestamptz(6)
+  reversal_of_id             String?               @unique @db.Uuid
+  reversal_reason            String?
+  version                    Int                   @default(1)
+  User                       User                  @relation(fields: [allocated_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_123_SettlementAllocation")
+  SettlementAllocation       SettlementAllocation? @relation("SettlementAllocationToSettlementAllocation", fields: [reversal_of_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_124_SettlementAllocation")
+  other_SettlementAllocation SettlementAllocation? @relation("SettlementAllocationToSettlementAllocation")
+  MoneyMovement              MoneyMovement         @relation(fields: [movement_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_39_SettlementAllocation")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model ShipmentExecutionEvent {
+  id                String          @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  shipment_type     String
+  shipment_id       String          @db.Uuid
+  from_state        String
+  to_state          String
+  dataset_id        String          @db.Uuid
+  occurred_at       DateTime        @db.Timestamptz(6)
+  reason            String?
+  evidence_id       String?         @db.Uuid
+  actor_id          String          @db.Uuid
+  aggregate_version Int
+  idempotency_key   String
+  EvidenceObject    EvidenceObject? @relation(fields: [evidence_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_109_ShipmentExecutionEvent")
+  User              User            @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_110_ShipmentExecutionEvent")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model SupplierInvoice {
+  id                   String               @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  project_id           String               @db.Uuid
+  supplier_shipment_id String               @db.Uuid
+  supplier_id          String               @db.Uuid
+  reference            String
+  invoice_date         DateTime             @db.Date
+  amount               Decimal              @db.Decimal(20, 6)
+  currency             String               @db.Char(3)
+  evidence_id          String               @db.Uuid
+  state                SupplierInvoiceState @default(DRAFT)
+  approval_id          String?              @db.Uuid
+  cancellation_reason  String?
+  version              Int                  @default(1)
+  Approval             Approval?            @relation(fields: [approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_120_SupplierInvoice")
+  Project              Project              @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_32_SupplierInvoice")
+  SupplierShipment     SupplierShipment     @relation(fields: [supplier_shipment_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_33_SupplierInvoice")
+  Party                Party                @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_34_SupplierInvoice")
+  EvidenceObject       EvidenceObject       @relation(fields: [evidence_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_35_SupplierInvoice")
+
+  @@unique([supplier_id, reference])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model SupplierShipment {
+  id                                                                                  String                    @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  project_id                                                                          String                    @db.Uuid
+  purchase_contract_id                                                                String                    @db.Uuid
+  reference                                                                           String
+  active_dataset_id                                                                   String?                   @db.Uuid
+  execution_state                                                                     SupplierExecutionState    @default(DRAFT)
+  version                                                                             Int                       @default(1)
+  Claim                                                                               Claim[]
+  SalesShipment                                                                       SalesShipment[]
+  SupplierInvoice                                                                     SupplierInvoice[]
+  SupplierShipmentDataset_SupplierShipment_active_dataset_idToSupplierShipmentDataset SupplierShipmentDataset?  @relation("SupplierShipment_active_dataset_idToSupplierShipmentDataset", fields: [active_dataset_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_103_SupplierShipment")
+  Project                                                                             Project                   @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_10_SupplierShipment")
+  Contract                                                                            Contract                  @relation(fields: [purchase_contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_11_SupplierShipment")
+  SupplierShipmentDataset_SupplierShipmentDataset_shipment_idToSupplierShipment       SupplierShipmentDataset[] @relation("SupplierShipmentDataset_shipment_idToSupplierShipment")
+
+  @@unique([id, project_id])
+  @@unique([project_id, reference])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model SupplierShipmentDataset {
+  id                                                                           String              @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  shipment_id                                                                  String              @db.Uuid
+  revision_no                                                                  Int
+  dataset_version                                                              Int
+  dataset_hash                                                                 String              @db.Char(64)
+  purchase_contract_id                                                         String              @db.Uuid
+  supplier_id                                                                  String              @db.Uuid
+  coffee_specification_id                                                      String              @db.Uuid
+  supplier_lot_reference                                                       String
+  quantity                                                                     Decimal             @db.Decimal(20, 6)
+  bag_count                                                                    Int
+  bag_weight                                                                   Decimal             @db.Decimal(20, 6)
+  net_weight                                                                   Decimal             @db.Decimal(20, 6)
+  gross_weight                                                                 Decimal             @db.Decimal(20, 6)
+  origin_country                                                               String              @db.Char(2)
+  origin_location                                                              String
+  load_location                                                                String
+  discharge_location                                                           String?
+  destination_country                                                          String              @db.Char(2)
+  destination_location                                                         String
+  incoterm                                                                     String
+  named_place                                                                  String
+  container_numbers                                                            String[]
+  seal_numbers                                                                 String[]
+  transport_mode                                                               String
+  carrier                                                                      String
+  transport_reference                                                          String
+  vessel_or_vehicle                                                            String?
+  voyage_or_trip                                                               String?
+  estimated_departure                                                          DateTime?           @db.Timestamptz(6)
+  estimated_arrival                                                            DateTime?           @db.Timestamptz(6)
+  planned_shipment_at                                                          DateTime?           @db.Timestamptz(6)
+  notes                                                                        String?
+  state                                                                        DatasetState        @default(DRAFT)
+  approval_id                                                                  String?             @db.Uuid
+  created_by                                                                   String              @db.Uuid
+  created_at                                                                   DateTime            @default(now()) @db.Timestamptz(6)
+  revision_reason                                                              String
+  invalidated_approval_ids                                                     String[]            @db.Uuid
+  SupplierShipment_SupplierShipment_active_dataset_idToSupplierShipmentDataset SupplierShipment[]  @relation("SupplierShipment_active_dataset_idToSupplierShipmentDataset")
+  Approval                                                                     Approval?           @relation(fields: [approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_104_SupplierShipmentDataset")
+  User                                                                         User                @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_105_SupplierShipmentDataset")
+  SupplierShipment_SupplierShipmentDataset_shipment_idToSupplierShipment       SupplierShipment    @relation("SupplierShipmentDataset_shipment_idToSupplierShipment", fields: [shipment_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_12_SupplierShipmentDataset")
+  Contract                                                                     Contract            @relation(fields: [purchase_contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_13_SupplierShipmentDataset")
+  Party                                                                        Party               @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_14_SupplierShipmentDataset")
+  CoffeeSpecification                                                          CoffeeSpecification @relation(fields: [coffee_specification_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_15_SupplierShipmentDataset")
+
+  @@unique([shipment_id, revision_no])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model User {
+  id                                         String                    @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  auth_subject                               String                    @unique
+  name_ar                                    String
+  name_en                                    String
+  locale                                     String
+  status                                     String
+  mfa_state                                  String
+  created_at                                 DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at                                 DateTime                  @db.Timestamptz(6)
+  Approval_Approval_requester_idToUser       Approval[]                @relation("Approval_requester_idToUser")
+  Approval_Approval_approver_idToUser        Approval[]                @relation("Approval_approver_idToUser")
+  AuditEvent                                 AuditEvent[]
+  IdempotencyRecord                          IdempotencyRecord[]
+  OutboundSendAttempt                        OutboundSendAttempt[]
+  PilotSession_PilotSession_user_idToUser    PilotSession[]            @relation("PilotSession_user_idToUser")
+  PilotSession_PilotSession_revoked_byToUser PilotSession[]            @relation("PilotSession_revoked_byToUser")
+  RestoreTest                                RestoreTest[]
+  RouteChecklistItem                         RouteChecklistItem[]
+  SalesShipmentDataset                       SalesShipmentDataset[]
+  Session                                    Session[]
+  SettlementAllocation                       SettlementAllocation[]
+  ShipmentExecutionEvent                     ShipmentExecutionEvent[]
+  SupplierShipmentDataset                    SupplierShipmentDataset[]
+  UserRole                                   UserRole[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model UserRole {
+  id      String    @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  user_id String    @db.Uuid
+  role    PilotRole
+  User    User      @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_1_UserRole")
+
+  @@unique([user_id, role])
+}
+
+enum AllocationState {
+  ACTIVE
+  REVERSED
+}
+
+enum AllocationTargetType {
+  CINV
+  SUPPLIER_INVOICE
+}
+
+enum ApprovalActionCode {
+  CONTRACT_VERSION
+  SUPPLIER_SHIPMENT_CONFIRMATION
+  SALES_SHIPMENT_CONFIRMATION
+  TOLERANCE_EXCEPTION
+  SUPPLIER_INVOICE_CONFIRMATION
+  DIRECT_EXPENSE
+  EXPENSE_CORRECTION
+  DOCUMENT_OUTPUT
+  EXTERNAL_SEND
+  CLAIM_OUTCOME
+  CLOSURE_EXCEPTION
+  FINAL_CLOSE
+  REOPEN
+}
+
+enum ApprovalDecision {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum ClaimOutcome {
+  RESOLVED
+  REJECTED
+}
+
+enum ClaimState {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+enum ClaimType {
+  QUANTITY
+  WEIGHT
+  QUALITY
+  DELIVERY
+  PRICE
+  DOCUMENT
+}
+
+enum ContractKind {
+  SALES
+  PURCHASE
+}
+
+enum ContractVersionState {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  SUPERSEDED
+}
+
+enum DatasetState {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SUPERSEDED
+}
+
+enum DirectExpenseState {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum DocumentKind {
+  CINV
+  PACKING_LIST
+}
+
+enum DocumentLanguage {
+  AR
+  EN
+  BILINGUAL
+}
+
+enum DocumentLifecycleState {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SENT
+  CANCELLED
+  SUPERSEDED
+}
+
+enum EvidenceVerificationState {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum FinancialState {
+  OPEN
+  FINANCIALLY_CLOSED
+}
+
+enum GenerationState {
+  QUEUED
+  RENDERING
+  READY
+  FAILED
+}
+
+enum MoneyMovementKind {
+  CUSTOMER_ADVANCE
+  CUSTOMER_RECEIPT
+  CUSTOMER_REFUND
+  SUPPLIER_ADVANCE
+  SUPPLIER_PAYMENT
+  SUPPLIER_REFUND
+  REVERSAL
+}
+
+enum MoneyMovementState {
+  DRAFT
+  CONFIRMED
+  PARTIALLY_ALLOCATED
+  FULLY_ALLOCATED
+  REVERSED
+}
+
+enum OutboundChannel {
+  EMAIL
+}
+
+enum PilotRole {
+  OWNER_ADMIN
+  OPERATIONS
+  FINANCE_VIEWER
+}
+
+enum ProjectFinalState {
+  OPEN
+  FINAL_CLOSED
+}
+
+enum ProjectLifecycleState {
+  DRAFT
+  ACTIVE
+  CANCELLED
+}
+
+enum ProposalState {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  EXPIRED
+  APPLIED
+}
+
+enum RestoreState {
+  QUEUED
+  RUNNING
+  PASSED
+  FAILED
+}
+
+enum RouteItemCategory {
+  EVIDENCE
+  MILESTONE
+}
+
+enum RouteItemState {
+  NOT_STARTED
+  IN_PROGRESS
+  SATISFIED
+  NOT_APPLICABLE
+  EXCEPTION_APPROVED
+}
+
+enum RouteTemplateCode {
+  FOREIGN_TO_FOREIGN
+  UAE_FREE_ZONE_REEXPORT
+  UAE_IMPORT
+}
+
+enum SalesClaimState {
+  CLEAR
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+enum SalesDocumentState {
+  MISSING
+  DRAFT
+  PENDING_APPROVAL
+  COMPLETE
+}
+
+enum SalesExecutionState {
+  DRAFT
+  CONFIRMED
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+  REJECTED
+}
+
+enum SendResult {
+  ACCEPTED
+  DELIVERED
+  FAILED
+  UNKNOWN
+}
+
+enum SupplierExecutionState {
+  DRAFT
+  CONFIRMED
+  IN_TRANSIT
+  RECEIVED
+  CANCELLED
+  REJECTED
+}
+
+enum SupplierInvoiceState {
+  DRAFT
+  PENDING_APPROVAL
+  CONFIRMED
+  REJECTED
+  CANCELLED
+}
