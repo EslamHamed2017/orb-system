@@ -28,7 +28,7 @@ function memoryRepository() {
       const updated = { ...current, ...structuredClone(changes), version: expectedVersion + 1 };
       sessions.set(id, updated); return structuredClone(updated);
     },
-    listUserSessions: async (userId: string) => [...sessions.values()].filter((row) => row.userId === userId).map(structuredClone),
+    listUserSessions: async (userId: string) => [...sessions.values()].filter((row) => row.userId === userId).map((row) => structuredClone(row)),
   };
 }
 
