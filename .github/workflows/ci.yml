@@ -1,0 +1,82 @@
+name: ORB quality and immutable build
+
+on:
+  pull_request:
+  push:
+    branches: [001-orb-trade-operations]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - run: corepack enable
+      - run: corepack prepare pnpm@12.16.1 --activate
+      - name: Frozen dependency install
+        run: pnpm install --frozen-lockfile --strict-peer-dependencies
+      - name: Generate Prisma client when the owned schema exists
+        if: hashFiles('prisma/schema.prisma') != ''
+        run: pnpm run prisma:generate
+      - name: Reject generated source drift
+        run: git diff --exit-code
+      - run: pnpm run typecheck
+      - name: Unit and contract coverage
+        run: node --test --experimental-test-coverage tests/unit/**/*.test.ts tests/contract/**/*.test.ts tests/architecture/**/*.test.ts
+      - name: Integration tests when present
+        if: hashFiles('tests/integration/**/*.test.ts') != ''
+        run: node --test tests/integration/**/*.test.ts
+      - name: Acceptance tests when present
+        if: hashFiles('tests/acceptance/**/*.spec.ts') != ''
+        run: pnpm exec playwright test
+      - name: Dependency security scan
+        shell: bash
+        run: |
+          pnpm audit --json > "$RUNNER_TEMP/pnpm-audit.json" || true
+          node scripts/verify-build-manifest.mjs --assert-audit "$RUNNER_TEMP/pnpm-audit.json"
+
+  immutable-build:
+    needs: quality
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect build target
+        id: build-target
+        shell: bash
+        run: |
+          if [[ -d src/app ]]; then echo "available=true" >> "$GITHUB_OUTPUT"; else echo "available=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/setup-node@v4
+        if: steps.build-target.outputs.available == 'true'
+        with:
+          node-version-file: .node-version
+      - run: corepack enable
+        if: steps.build-target.outputs.available == 'true'
+      - run: corepack prepare pnpm@12.16.1 --activate
+        if: steps.build-target.outputs.available == 'true'
+      - run: pnpm install --frozen-lockfile --strict-peer-dependencies
+        if: steps.build-target.outputs.available == 'true'
+      - run: pnpm run prisma:generate
+        if: steps.build-target.outputs.available == 'true' && hashFiles('prisma/schema.prisma') != ''
+      - run: pnpm run build
+        if: steps.build-target.outputs.available == 'true'
+      - name: Create and verify immutable digest manifest
+        if: steps.build-target.outputs.available == 'true'
+        run: |
+          node scripts/verify-build-manifest.mjs --write "$RUNNER_TEMP/orb-build-manifest.json"
+          node scripts/verify-build-manifest.mjs --verify "$RUNNER_TEMP/orb-build-manifest.json"
+      - run: git diff --exit-code
+        if: steps.build-target.outputs.available == 'true'
+      - uses: actions/upload-artifact@v4
+        if: steps.build-target.outputs.available == 'true'
+        with:
+          name: orb-build-manifest
+          path: ${{ runner.temp }}/orb-build-manifest.json
+          if-no-files-found: error
+          retention-days: 14
