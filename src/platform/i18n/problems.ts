@@ -11,6 +11,7 @@ const COPY = {
     STALE_VERSION: { title: "Stale version", detail: "The record changed since it was loaded. Reload it and try again." },
     PRECONDITION_REQUIRED: { title: "Version required", detail: "A current aggregate version is required for this command." },
     VALIDATION_FAILED: { title: "Validation failed", detail: "The request could not be processed because one or more values are invalid." },
+    PERMISSION_DENIED: { title: "Permission denied", detail: "The request could not be authorized safely." },
     INTERNAL_ERROR: { title: "Internal error", detail: "The request could not be completed safely." },
   },
   ar: {
@@ -18,6 +19,7 @@ const COPY = {
     STALE_VERSION: { title: "إصدار قديم", detail: "تغيّر السجل منذ تحميله. أعد تحميله ثم حاول مرة أخرى." },
     PRECONDITION_REQUIRED: { title: "الإصدار مطلوب", detail: "يتطلب هذا الأمر إصدار السجل الحالي." },
     VALIDATION_FAILED: { title: "فشل التحقق", detail: "تعذرت معالجة الطلب لأن قيمة واحدة أو أكثر غير صالحة." },
+    PERMISSION_DENIED: { title: "تم رفض الإذن", detail: "تعذر تفويض الطلب بأمان." },
     INTERNAL_ERROR: { title: "خطأ داخلي", detail: "تعذر إكمال الطلب بأمان." },
   },
 } as const;
