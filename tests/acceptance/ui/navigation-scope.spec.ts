@@ -30,7 +30,10 @@ test("narrow screens use Today, Projects, Approvals and More bottom navigation",
   await expect(page.locator('[data-navigation="rail"]')).toBeHidden();
   const bottom = page.locator('[data-navigation="bottom"]');
   await expect(bottom).toBeVisible();
-  for (const name of [/today/i, /projects/i, /approvals/i, /more/i]) await expect(bottom.getByRole(/link|button/, { name })).toBeVisible();
+  for (const name of [/today/i, /projects/i, /approvals/i, /more/i]) {
+    const item = bottom.getByRole("link", { name }).or(bottom.getByRole("button", { name }));
+    await expect(item).toBeVisible();
+  }
   await expect(bottom).not.toContainText(deferred);
 });
 
@@ -40,6 +43,6 @@ test("loading, empty, error, permission, offline and stale states expose a next 
     await page.goto(`/?locale=en&demoState=${state}`);
     const region = page.locator(`[data-async-state="${state}"]`);
     await expect(region).toBeVisible();
-    if (state !== "loading") await expect(region.getByRole(/link|button/)).toBeVisible();
+    if (state !== "loading") await expect(region.getByRole("link").or(region.getByRole("button"))).toBeVisible();
   }
 });
