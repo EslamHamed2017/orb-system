@@ -1,0 +1,14 @@
+import { ContractVersionDiff } from "../../../../ui/features/contracts/ContractVersionDiff";
+export default async function ContractsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ locale?: string; demoState?: string }> }) {
+  const [{ id }, query] = await Promise.all([params, searchParams]); const ar = query.locale === "ar";
+  if (query.demoState === "forbidden") return <section role="alert"><h1>{ar ? "الصلاحية مطلوبة" : "Permission required"}</h1><p>{ar ? "دورك الثابت لا يسمح بهذا الإجراء." : "Your fixed role does not permit this action."}</p><a href={`/projects?locale=${ar ? "ar" : "en"}`}>{ar ? "العودة إلى المشاريع" : "Return to projects"}</a></section>;
+  return <section aria-labelledby="contracts-title" style={{ display: "grid", gap: 16 }}>
+    <header><p><bdi>{id}</bdi></p><h1 id="contracts-title">{ar ? "العقود" : "Contracts"}</h1></header>
+    {query.demoState === "stale" && <div role="alert" style={{ border: "2px solid var(--orb-color-error)", borderRadius: 16, padding: 16 }}><h2>{ar ? "يوجد إصدار أحدث" : "A newer version exists"}</h2><p>{ar ? "لم يتم استبدال عملك. قارن الإصدار المحفوظ وأعد التحميل." : "Your work was not overwritten. Compare the saved version and reload."}</p><button type="button">{ar ? "المقارنة وإعادة التحميل" : "Compare and reload"}</button></div>}
+    <article style={{ background: "var(--orb-color-surface-container)", borderRadius: 16, padding: 16 }}><header><p>{ar ? "عقد البيع • الإصدار 2 • معتمد" : "Sales contract • Version 2 • Approved"}</p><h2>{ar ? "للقراءة فقط" : "Read-only approved version"}</h2></header><p>{ar ? "الإصدارات المعتمدة غير قابلة للتعديل. ينشئ التعديل إصداراً جديداً يحتفظ بالسجل السابق." : "Approved versions cannot be edited. Amend creates a new version while preserving this record."}</p></article>
+    <section aria-labelledby="diff-title"><h2 id="diff-title">{ar ? "تعديل العقد" : "Amend contract"}</h2><ContractVersionDiff locale={ar ? "ar" : "en"} changes={[{ field: ar ? "الكمية" : "Quantity", before: "10,000 kg", after: "10,500 kg" }, { field: ar ? "تحمل الكمية" : "Quantity tolerance", before: "0", after: "0" }]} />
+      <form style={{ display: "grid", gap: 12, marginBlockStart: 16, maxWidth: 640 }}><label>{ar ? "تاريخ السريان" : "Effective date"}<input type="date" required style={{ display: "block", minHeight: 48, width: "100%" }} /></label><label>{ar ? "سبب التعديل" : "Amendment reason"}<textarea required minLength={3} style={{ display: "block", minHeight: 96, width: "100%" }} /></label><button type="button">{ar ? "إنشاء إصدار التعديل" : "Create amendment version"}</button></form>
+    </section>
+    <section><h2>{ar ? "عقود الشراء" : "Purchase contracts"}</h2><button type="button">{ar ? "إضافة عقد شراء" : "Add purchase contract"}</button></section>
+  </section>;
+}
