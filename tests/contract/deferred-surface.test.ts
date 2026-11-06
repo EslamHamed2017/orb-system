@@ -35,7 +35,21 @@ function decodeReferenceTokens(reference) {
     return decoded;
   });
 }
-const ANNOTATIONS = new Set(['description', 'summary', 'title', 'example', 'examples', 'externalDocs']);
+const STRUCTURAL_NAME_MAPS = new Set(['properties', 'patternProperties', '$defs', 'definitions', 'schemas', 'mapping', 'dependentSchemas', 'dependentRequired', 'paths', 'webhooks', 'responses', 'headers', 'parameters', 'securitySchemes']);
+const NON_ANNOTATION_OBJECTS = new Set(['discriminator', 'security', 'required', 'allOf', 'anyOf', 'oneOf', 'prefixItems']);
+function isAnnotationPayload(name, value, parentKey) {
+  if (STRUCTURAL_NAME_MAPS.has(parentKey) || NON_ANNOTATION_OBJECTS.has(parentKey)) return false;
+  if (name === 'description' || name === 'summary' || name === 'title') return typeof value === 'string';
+  if (name === 'example') return value === null || ['string', 'number', 'boolean'].includes(typeof value);
+  if (name === 'examples') return Array.isArray(value) && value.every((item) => item === null || ['string', 'number', 'boolean'].includes(typeof item));
+  if (name === 'externalDocs') {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+    const keys = Object.keys(value);
+    return keys.length >= 1 && keys.every((key) => key === 'description' || key === 'url')
+      && typeof value.url === 'string' && (value.description === undefined || typeof value.description === 'string');
+  }
+  return false;
+}
 function addScalar(value, prefix, target) {
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') target.push(prefix + ':' + value);
 }
@@ -45,11 +59,11 @@ function openApiSurfaces(api) {
     enumValues: [], discriminators: [], actionIdentifiers: [], structuralValues: [], securityNames: [],
   };
   const seen = new Set();
-  function scan(value, path, parentKey = '', annotationContext = false) {
+  function scan(value, path, parentKey = '') {
     if (Array.isArray(value)) {
       value.forEach((item, index) => {
-        if (!annotationContext) addScalar(item, path + '[' + index + ']', out.structuralValues);
-        scan(item, path + '[' + index + ']', parentKey, annotationContext);
+        addScalar(item, path + '[' + index + ']', out.structuralValues);
+        scan(item, path + '[' + index + ']', parentKey);
       });
       return;
     }
@@ -65,7 +79,7 @@ function openApiSurfaces(api) {
       if (parentKey === 'security') out.securityNames.push(qualified);
       if (/^(action|actionId|actions|control|transition|command)$/i.test(name)) out.actionIdentifiers.push(qualified);
 
-      const childAnnotation = annotationContext || ANNOTATIONS.has(name);
+      const childAnnotation = isAnnotationPayload(name, child, parentKey);
       if (name === '$ref') {
         assert.equal(typeof child, 'string', qualified + ' must be a string');
         for (const token of decodeReferenceTokens(child)) out.schemaReferences.push(qualified + ':' + token);
@@ -80,7 +94,7 @@ function openApiSurfaces(api) {
         }
         if (/^(action|actionId|actions|control|transition|command)$/i.test(name)) addScalar(child, qualified, out.actionIdentifiers);
       }
-      scan(child, qualified, name, childAnnotation);
+      if (!childAnnotation) scan(child, qualified, name);
     }
     seen.delete(value);
   }

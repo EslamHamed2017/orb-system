@@ -55,7 +55,10 @@ export function parseYaml(source) {
     const number = i + 1; let quote = quoteState(match[2]);
     while (quote && i + 1 < rawLines.length) { raw += ' ' + rawLines[++i].trim(); quote = quoteState(rawLines[i], quote); }
     match = raw.match(/^( *)(.*)$/); records.push({ raw, indent: match[1].length, body: match[2], number, terminated: i < rawLines.length - 1 });
-    if (/:[ \t]*[>|][+-]?[ \t]*(?:#.*)?$/.test(match[2])) blockParent = match[1].length;
+    if (/:[ \t]*[>|][+-]?[ \t]*(?:#.*)?$/.test(match[2])) {
+      const compact = match[2].match(/^-( +)\S/);
+      blockParent = match[1].length + (compact ? 1 + compact[1].length : 0);
+    }
   }
   let cursor = 0;
   function fail(message, number = records[cursor]?.number || rawLines.length) { throw new SyntaxError(message + ' at line ' + number); }
@@ -225,12 +228,20 @@ export function parseYaml(source) {
       skipTrivia(); if (cursor >= records.length) break;
       const line = inspected(records[cursor]);
       if (line.indent !== indent || !/^-(?:\s|$)/.test(line.content)) break;
-      cursor++; const rest = line.content.slice(1).trim();
-      if (!rest) { skipTrivia(); result.push(cursor < records.length && inspected(records[cursor]).indent > indent ? parseBlock(records[cursor].indent) : null); continue; }
+      cursor++; const afterDash = line.content.slice(1);
+      if (!afterDash.trim()) { skipTrivia(); result.push(cursor < records.length && inspected(records[cursor]).indent > indent ? parseBlock(records[cursor].indent) : null); continue; }
+      const spacing = afterDash.match(/^( +)/);
+      if (!spacing) fail('Sequence indicator must be followed by whitespace', line.number);
+      const rest = afterDash.slice(spacing[1].length);
       const split = colon(rest);
       if (split > 0) {
-        const item = Object.create(null); assign(item, parseKey(rest.slice(0, split), line.number), rest.slice(split + 1).trim(), indent + 2, line.number);
-        skipTrivia(); if (cursor < records.length && inspected(records[cursor]).indent > indent) mapping(records[cursor].indent, item);
+        const mappingIndent = indent + 1 + spacing[1].length;
+        const item = Object.create(null); assign(item, parseKey(rest.slice(0, split), line.number), rest.slice(split + 1).trim(), mappingIndent, line.number);
+        skipTrivia();
+        if (cursor < records.length && inspected(records[cursor]).indent > indent) {
+          if (records[cursor].indent !== mappingIndent) fail('Inconsistent compact mapping indentation', records[cursor].number);
+          mapping(mappingIndent, item);
+        }
         result.push(item);
       } else {
         result.push(parseFlow(rest, line.number)); skipTrivia();
@@ -311,25 +322,50 @@ function controlViolations(document) {
   const actualMutations = new Set(entries.filter(({ method }) => !['get', 'head', 'options'].includes(method)).map(({ operation }) => operation.operationId));
   const mutationDiff = setDiff(MUTATION_IDS, actualMutations);
   if (mutationDiff.missing.length || mutationDiff.unexpected.length) errors.push('mutation inventory mismatch ' + JSON.stringify(mutationDiff));
+
+  const componentHeaders = new Map();
+  for (const [key, parameter] of Object.entries(document.components?.parameters || {})) {
+    if (parameter?.in !== 'header' || typeof parameter.name !== 'string') continue;
+    const folded = parameter.name.toLowerCase();
+    if (!componentHeaders.has(folded)) componentHeaders.set(folded, []);
+    componentHeaders.get(folded).push(key + ':' + parameter.name);
+  }
+  for (const [folded, names] of componentHeaders) if (names.length > 1) errors.push('case-insensitive component header collision ' + folded + ': ' + names.join(', '));
+
+  const operationHeaders = new Map();
+  for (const entry of entries) {
+    const id = entry.operation.operationId || '<missing>', groups = new Map();
+    for (const parameter of [...(entry.pathItem.parameters || []), ...(entry.operation.parameters || [])]) {
+      let resolved = parameter;
+      if (parameter?.[REF]) {
+        try { resolved = pointerValue(document, parameter[REF]); }
+        catch (error) { errors.push(id + ': ' + error.message); continue; }
+      }
+      if (resolved?.in !== 'header' || typeof resolved.name !== 'string') continue;
+      const folded = resolved.name.toLowerCase();
+      if (!groups.has(folded)) groups.set(folded, []);
+      groups.get(folded).push({ parameter, resolved });
+    }
+    for (const [folded, matches] of groups) if (matches.length > 1) errors.push(id + ': duplicate/colliding header ' + folded);
+    operationHeaders.set(entry, groups);
+  }
+
   for (const [name, rule] of Object.entries(CONTROL)) {
-    const component = document.components?.parameters?.[rule.component];
+    const folded = name.toLowerCase(), component = document.components?.parameters?.[rule.component];
     if (!component || component.name !== name || component.in !== 'header' || component.required !== true || component.schema?.type !== 'string')
       errors.push(name + ': invalid component header semantics');
     if (rule.minLength !== undefined && (component?.schema?.minLength !== rule.minLength || component?.schema?.maxLength !== rule.maxLength)) errors.push(name + ': invalid string bounds');
     if (rule.pattern !== undefined && component?.schema?.pattern !== rule.pattern) errors.push(name + ': invalid string pattern');
     const actual = new Set();
     for (const entry of entries) {
-      const params = [...(entry.pathItem.parameters || []), ...(entry.operation.parameters || [])];
-      const matching = params.filter((p) => p?.[REF] === '#/components/parameters/' + rule.component || p?.name === name);
-      if (matching.length) actual.add(entry.operation.operationId);
-      if (matching.length > 1) errors.push(entry.operation.operationId + ': duplicate ' + name);
-      for (const parameter of matching) {
+      const id = entry.operation.operationId || '<missing>', matching = operationHeaders.get(entry).get(folded) || [];
+      if (matching.length) actual.add(id);
+      for (const { parameter, resolved } of matching) {
+        if (resolved.name !== name) errors.push(id + ': noncanonical header casing for ' + name);
         if (parameter?.[REF] !== '#/components/parameters/' + rule.component || Object.keys(parameter).length !== 1)
-          errors.push(entry.operation.operationId + ': ' + name + ' must use exact component ref');
-        let resolved;
-        try { resolved = pointerValue(document, parameter[REF]); } catch (error) { errors.push(entry.operation.operationId + ': ' + error.message); continue; }
+          errors.push(id + ': ' + name + ' must use exact component ref');
         if (resolved.name !== name || resolved.in !== 'header' || resolved.required !== true || resolved.schema?.type !== 'string')
-          errors.push(entry.operation.operationId + ': invalid resolved ' + name + ' semantics');
+          errors.push(id + ': invalid resolved ' + name + ' semantics');
       }
     }
     const diff = setDiff(rule.required, actual);
