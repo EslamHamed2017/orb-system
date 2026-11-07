@@ -1,0 +1,11 @@
+type Overview = Readonly<{ project: Readonly<Record<string, unknown>>; quantities: Readonly<{ supplier: any; sales: any }>; money: readonly any[]; blockers: readonly any[]; auditSummary: any }>;
+export function ProjectOverviewSummary({ locale, overview }: Readonly<{ locale: "ar" | "en"; overview: Overview }>) {
+  const ar = locale === "ar";
+  const label = { quantities: ar ? "كميات الشحنات" : "Shipment quantities", money: ar ? "الأموال والهامش" : "Money and margin", blockers: ar ? "العوائق التشغيلية" : "Operational blockers", audit: ar ? "ملخص التدقيق" : "Audit summary" };
+  return <div style={{ display: "grid", gap: 16 }}>
+    <section role="region" aria-label={label.quantities} style={{ background: "var(--orb-color-surface-container)", borderRadius: 16, padding: 16 }}><h2>{label.quantities}</h2><p>Supplier: <bdi>{overview.quantities.supplier.quantity} {overview.quantities.supplier.unit}</bdi> · Sales: <bdi>{overview.quantities.sales.quantity} {overview.quantities.sales.unit}</bdi></p></section>
+    <section role="region" aria-label={label.money} style={{ background: "var(--orb-color-surface-container)", borderRadius: 16, padding: 16 }}><h2>{label.money}</h2>{overview.money.map((row) => <p key={row.currency}><bdi>{row.currency}</bdi> · expected <bdi>{row.marginAndCash.expectedMargin}</bdi> · committed <bdi>{row.marginAndCash.committedMargin}</bdi> · operational <bdi>{row.marginAndCash.actualOperationalMargin}</bdi> · cash <bdi>{row.marginAndCash.cashPosition}</bdi></p>)}</section>
+    <section role="region" aria-label={label.blockers} style={{ background: "var(--orb-color-surface-container)", borderRadius: 16, padding: 16 }}><h2>{label.blockers}</h2><ul>{overview.blockers.map((item) => <li key={`${item.family}-${item.id}`}><a href={item.href}>{item.code}</a></li>)}</ul></section>
+    <section role="region" aria-label={label.audit} style={{ background: "var(--orb-color-surface-container)", borderRadius: 16, padding: 16 }}><h2>{label.audit}</h2><p>Sequence {overview.auditSummary.lastSequenceNo} · continuity {overview.auditSummary.continuityVerified ? "verified" : "failed"}</p><a href={overview.auditSummary.href}>{ar ? "فتح سجل التدقيق" : "Open audit timeline"}</a></section>
+  </div>;
+}

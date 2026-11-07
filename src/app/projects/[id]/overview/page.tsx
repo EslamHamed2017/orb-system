@@ -1,0 +1,18 @@
+import { createInMemoryProjectOverviewQuery, REQUIRED_PROJECT_OVERVIEW_ADAPTERS } from "../../../../modules/projects/project-overview-query";
+import { ProjectOverviewSummary } from "../../../../ui/features/projects/ProjectOverviewSummary";
+const data: Record<string, unknown> = {
+  project: { id: "demo", code: "ORB-P-0001", state: "ACTIVE", version: 7, customerName: "Pilot Customer" },
+  shipments: { supplier: { count: 2, quantity: "40.000000", unit: "MT", states: { RECEIVED: 1, IN_TRANSIT: 1 } }, sales: { count: 1, quantity: "20.000000", unit: "MT", states: { IN_TRANSIT: 1 } } },
+  routes: { blockers: [{ id: "route", code: "ROUTE_ITEM_INCOMPLETE", href: "/sales-shipments/demo?tab=route" }] }, documents: { blockers: [{ id: "doc", code: "CINV_MISSING", href: "/sales-shipments/demo?tab=documents" }] },
+  settlement: { currencySections: [{ currency: "USD", receivable: "1000.000000", payable: "700.000000", unallocated: "50.000000" }], blockers: [{ id: "money", code: "UNALLOCATED_MONEY", href: "/projects/demo/money" }] },
+  expenses: { currencySections: [{ currency: "USD", approved: "25.000000", pending: "5.000000" }], blockers: [{ id: "expense", code: "EXPENSE_PENDING", href: "/projects/demo/expenses" }] },
+  claims: { open: 1, blockers: [{ id: "claim", code: "CLAIM_INCOMPLETE", href: "/projects/demo/claims" }] }, closure: { blockers: [{ id: "closure", code: "SALES_SHIPMENT_NOT_DELIVERED", href: "/projects/demo/closure" }] },
+  audit: { eventCount: 9, lastSequenceNo: 9, lastEventHash: "a".repeat(64), continuityVerified: true, href: "/projects/demo/audit" },
+  marginAndCash: { currencySections: [{ currency: "USD", measures: { expectedMargin: { amount: "300.000000" }, committedMargin: { amount: "275.000000" }, actualOperationalMargin: { amount: "250.000000" }, cashPosition: { amount: "100.000000" } } }] },
+};
+const adapters = Object.fromEntries(REQUIRED_PROJECT_OVERVIEW_ADAPTERS.map((name) => [name, async () => structuredClone(data[name])]));
+export default async function OverviewPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ locale?: string }> }) {
+  const [{ id }, query] = await Promise.all([params, searchParams]), locale = query.locale === "ar" ? "ar" : "en", ar = locale === "ar";
+  const overview = await createInMemoryProjectOverviewQuery({ adapters }).getProjectOverview({ projectId: id, principal: { userId: "owner-1", roles: ["OWNER_ADMIN"] } });
+  return <section dir={ar ? "rtl" : "ltr"} style={{ display: "grid", gap: 20 }}><header><p><bdi>{String(overview.project.code)}</bdi></p><h1>{ar ? "نظرة عامة على المشروع" : "Project overview"}</h1></header><ProjectOverviewSummary locale={locale} overview={overview} /></section>;
+}
