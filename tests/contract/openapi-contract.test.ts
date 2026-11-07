@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -294,6 +294,24 @@ function operations(document) {
     if (HTTP_METHODS.has(method.toLowerCase())) result.push({ path, method: method.toLowerCase(), pathItem, operation });
   return result;
 }
+function normalizedRoutePath(path) { return path.replace(/\{[^/]+\}|\[[^/]+\]/g, '{}'); }
+function routeFiles(directory) {
+  assert.ok(existsSync(directory), 'missing application artifact: ' + relative(ROOT, directory));
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) return routeFiles(path);
+    return entry.isFile() && entry.name === 'route.ts' ? [path] : [];
+  });
+}
+function applicationRoutePaths(root = ROOT) {
+  const packagePath = resolve(root, 'package.json'), nextConfigPath = resolve(root, 'next.config.ts');
+  assert.ok(existsSync(packagePath), 'missing build artifact: package.json');
+  assert.ok(existsSync(nextConfigPath), 'missing build artifact: next.config.ts');
+  const packageDocument = JSON.parse(readFileSync(packagePath, 'utf8'));
+  assert.equal(packageDocument.scripts?.build, 'next build', 'application build command changed');
+  const apiRoot = resolve(root, 'src/app/api');
+  return routeFiles(apiRoot).map((path) => '/' + relative(apiRoot, path).replace(/\/route\.ts$/, '')).map(normalizedRoutePath);
+}
 function canonicalSet(values) { return [...values].sort(); }
 function setDiff(expected, actual) { return { missing: canonicalSet([...expected].filter((x) => !actual.has(x))), unexpected: canonicalSet([...actual].filter((x) => !expected.has(x))) }; }
 function contractViolations(document) {
@@ -445,6 +463,13 @@ test('accepted raw OpenAPI bytes are independently SHA-256 pinned', () => {
 test('accepted OpenAPI 3.1 surface and every local ref are pinned', () => {
   assert.match(document.openapi, /^3\.1(?:\.|$)/); assert.equal(Object.keys(document.paths).length, 75);
   assert.equal(operations(document).length, 79); assert.equal(acceptedLocalRefCount, 745);
+});
+test('all 75 accepted paths are backed by application and build artifacts', () => {
+  const expected = canonicalSet(Object.keys(document.paths).map(normalizedRoutePath));
+  const allowedInfrastructure = new Set(['/health/live', '/health/ready']);
+  const actual = canonicalSet(applicationRoutePaths().filter((path) => !allowedInfrastructure.has(path)));
+  assert.equal(new Set(actual).size, actual.length, 'duplicate normalized application route');
+  assert.deepEqual(actual, expected, 'application route files must exactly back the accepted OpenAPI paths');
 });
 test('all operations have exact operation-specific role assignments', () => {
   assert.equal(EXPECTED_ROLES.size, 79); assert.deepEqual(contractViolations(document), []);
