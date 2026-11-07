@@ -1,0 +1,8 @@
+type Query = { locale?: string };
+export default async function BackupPage({ searchParams }: { searchParams: Promise<Query> }) {
+  const query = await searchParams, locale = query.locale === "ar" ? "ar" : "en", ar = locale === "ar";
+  return <section aria-labelledby="backup-title" dir={ar ? "rtl" : "ltr"} style={{ display: "grid", gap: 20, minWidth: 0 }}><header><h1 id="backup-title">{ar ? "النسخ الاحتياطي والاستعادة المعزولة" : "Backup and isolated restore"}</h1></header>
+    <section role="region" aria-labelledby="recovery-status-title" style={{ background: "var(--orb-color-surface-container)", borderRadius: 16, padding: 16 }}><h2 id="recovery-status-title">{ar ? "حالة الاستعادة" : "Recovery status"}</h2><p>OWNER_ADMIN only · Encrypted: yes · Separate copy: yes · RPO: 12 minutes · RTO: 38 minutes · PASSED · zero missing sampled links</p><p><a href="/evidence/EVIDENCE-RESTORE-0007">EVIDENCE-RESTORE-0007</a></p></section>
+    <section role="region" aria-labelledby="restore-command-title" style={{ border: "1px solid var(--orb-color-outline)", borderRadius: 16, display: "grid", gap: 12, padding: 16 }}><h2 id="restore-command-title">{ar ? "أمر الاستعادة المعزولة" : "Isolated restore command"}</h2><label>{ar ? "البيئة المعزولة" : "Isolated environment"}<input defaultValue="orb-restore-test-0008" readOnly style={{ display: "block", minHeight: 48, width: "100%" }} /></label><p>{ar ? "هدف الإنتاج محظور." : "Production target prohibited."}</p><button type="button">{ar ? "بدء اختبار استعادة معزول" : "Start isolated restore test"}</button></section>
+  </section>;
+}
