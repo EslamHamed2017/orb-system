@@ -1,0 +1,7 @@
+import { NextRequest, NextResponse } from "next/server";
+interface Principal { readonly userId: string; readonly roles: readonly string[] }
+export interface ProfitRouteDependencies { readonly authenticate: (request: NextRequest) => Promise<Principal | null>; readonly get: (input: { request: NextRequest; principal: Principal; projectId: string }) => Promise<unknown> }
+const ROLES = new Set(["OWNER_ADMIN", "OPERATIONS", "FINANCE_VIEWER"]);
+function problem(status: number, code: string) { return NextResponse.json({ type: `https://orb.example/problems/${code.toLowerCase().replaceAll("_", "-")}`, title: code, status, code, correlationId: crypto.randomUUID() }, { status, headers: { "content-type": "application/problem+json", "Cache-Control": "no-store" } }); }
+export function createProfitGetHandler(dependencies: ProfitRouteDependencies) { return async function GET(request: NextRequest, context: { params: Promise<{ projectId: string }> }) { const principal = await dependencies.authenticate(request); if (!principal) return problem(401, "AUTHENTICATION_REQUIRED"); if (!principal.roles.some((role) => ROLES.has(role))) return problem(403, "PERMISSION_DENIED"); const { projectId } = await context.params; return NextResponse.json(await dependencies.get({ request, principal, projectId }), { headers: { "Cache-Control": "no-store" } }); }; }
+export async function GET() { return problem(503, "DEPENDENCY_UNAVAILABLE"); }
