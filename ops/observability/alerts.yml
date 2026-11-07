@@ -1,0 +1,27 @@
+groups:
+  - name: orb-release-1
+    rules:
+      - alert: OrbBackupRpoExceeded
+        expr: orb_backup_lag_minutes > 15
+        for: 1m
+        labels: { severity: critical }
+      - alert: OrbRestoreRtoExceeded
+        expr: orb_restore_duration_minutes > 240
+        for: 1m
+        labels: { severity: critical }
+      - alert: OrbJobFailure
+        expr: orb_job_failures_total > 0
+        for: 1m
+        labels: { severity: high }
+      - alert: OrbOutboundSendFailure
+        expr: orb_outbound_send_failures_total > 0
+        for: 1m
+        labels: { severity: high }
+      - alert: OrbAuditChainFailure
+        expr: orb_audit_chain_healthy == 0
+        for: 0m
+        labels: { severity: critical }
+      - alert: OrbDependencyOutage
+        expr: orb_dependency_healthy == 0
+        for: 1m
+        labels: { severity: critical }
