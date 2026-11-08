@@ -1,0 +1,198 @@
+name: orb-acceptance
+
+x-app-environment: &app-environment
+  NODE_ENV: production
+  DATABASE_URL: postgresql://orb_app:${ORB_APP_DB_PASSWORD:?set ORB_APP_DB_PASSWORD}@postgres:5432/orb?sslmode=require
+  OBJECT_STORAGE_ENDPOINT: https://object-store:9000
+  OBJECT_STORAGE_REGION: ${OBJECT_STORAGE_REGION:-us-east-1}
+  OBJECT_STORAGE_BUCKET: ${OBJECT_STORAGE_BUCKET:-orb-evidence}
+  OBJECT_STORAGE_ACCESS_KEY_ID: ${MINIO_APP_ACCESS_KEY:?set MINIO_APP_ACCESS_KEY}
+  OBJECT_STORAGE_SECRET_ACCESS_KEY: ${MINIO_APP_SECRET_KEY:?set MINIO_APP_SECRET_KEY}
+  NODE_EXTRA_CA_CERTS: /run/secrets/minio-ca.crt
+  ORB_APP_ORIGIN: https://${ORB_HOSTNAME:?set ORB_HOSTNAME}
+  ORB_ALLOWED_ORIGINS: https://${ORB_HOSTNAME}
+  AUTH_IDLE_MINUTES: "30"
+  AUTH_ABSOLUTE_MINUTES: "720"
+  ENCRYPTION_KEY_BASE64: ${ENCRYPTION_KEY_BASE64:?set ENCRYPTION_KEY_BASE64}
+  TELEMETRY_ENDPOINT: ${TELEMETRY_ENDPOINT:?set TELEMETRY_ENDPOINT}
+  BACKUP_STATUS_ENDPOINT: ${BACKUP_STATUS_ENDPOINT:?set BACKUP_STATUS_ENDPOINT}
+  ORB_AUDIT_CHAIN_HEALTHY: "1"
+
+services:
+  gateway:
+    image: caddy:2.10.2-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    command:
+      - caddy
+      - reverse-proxy
+      - --from
+      - https://${ORB_HOSTNAME:?set ORB_HOSTNAME}
+      - --to
+      - app:3000
+      - --internal-certs
+    ports:
+      - "${ORB_BIND_ADDRESS:-127.0.0.1}:${ORB_HTTPS_PORT:-8443}:443"
+    depends_on:
+      app:
+        condition: service_healthy
+    read_only: true
+    tmpfs: [/config, /data]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+    networks: [edge, backend]
+
+  app:
+    image: ${ORB_IMAGE:?set immutable ORB_IMAGE digest, for example registry/orb@sha256:...}
+    environment: *app-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+      object-store-init:
+        condition: service_completed_successfully
+    secrets:
+      - source: minio_public_crt
+        target: minio-ca.crt
+        mode: 0444
+    read_only: true
+    tmpfs: [/tmp, /app/.next/cache]
+    user: "10001:10001"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    init: true
+    restart: unless-stopped
+    networks: [backend]
+
+  migrate:
+    image: ${ORB_IMAGE:?set immutable ORB_IMAGE digest}
+    profiles: [migration]
+    entrypoint: [/bin/sh, -eu, -c]
+    command:
+      - |
+        cat > /app/.orb-runtime/prisma.config.ts <<'CONFIG'
+        import { defineConfig, env } from "prisma/config";
+        export default defineConfig({
+          schema: "/app/prisma/schema.prisma",
+          migrations: { path: "/app/prisma/migrations" },
+          datasource: { url: env("DATABASE_URL") },
+        });
+        CONFIG
+        exec node node_modules/prisma/build/index.js migrate deploy --config /app/.orb-runtime/prisma.config.ts
+    environment:
+      DATABASE_URL: postgresql://orb_migrator:${ORB_MIGRATOR_DB_PASSWORD:?set ORB_MIGRATOR_DB_PASSWORD}@postgres:5432/orb?sslmode=require
+    depends_on:
+      postgres:
+        condition: service_healthy
+    read_only: true
+    tmpfs: [/tmp, /app/.orb-runtime]
+    user: "10001:10001"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [backend]
+
+  postgres:
+    image: postgres:18.1-bookworm@sha256:cc9f4143a8d2fa8cf3749d0cb4d26ecf2d53a77a2ac807e9ebd67ae22426221a
+    environment:
+      POSTGRES_DB: orb
+      POSTGRES_USER: orb_migrator
+      POSTGRES_PASSWORD: ${ORB_MIGRATOR_DB_PASSWORD:?set ORB_MIGRATOR_DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: --data-checksums
+    entrypoint: [/bin/bash, -euc]
+    command:
+      - |
+        install -d -m 0700 -o postgres -g postgres /var/lib/postgresql/tls
+        install -m 0644 -o postgres -g postgres /run/secrets/postgres.crt /var/lib/postgresql/tls/server.crt
+        install -m 0600 -o postgres -g postgres /run/secrets/postgres.key /var/lib/postgresql/tls/server.key
+        exec /usr/local/bin/docker-entrypoint.sh postgres -c ssl=on -c ssl_cert_file=/var/lib/postgresql/tls/server.crt -c ssl_key_file=/var/lib/postgresql/tls/server.key
+    secrets:
+      - source: postgres_tls_cert
+        target: postgres.crt
+        mode: 0444
+      - source: postgres_tls_key
+        target: postgres.key
+        mode: 0400
+    volumes: [postgres-data:/var/lib/postgresql]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U orb_migrator -d orb"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    networks: [backend]
+
+  object-store:
+    image: cgr.dev/chainguard/minio:latest@sha256:a1ac4589a5f8136b616e667b48a0bea9719bb10bd45799ea946f24bbedfafde4
+    command: server /data --console-address :9001 --certs-dir /run/secrets
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
+    secrets:
+      - source: minio_public_crt
+        target: public.crt
+        mode: 0444
+      - source: minio_private_key
+        target: private.key
+        mode: 0400
+    volumes: [object-data:/data]
+    restart: unless-stopped
+    networks: [backend]
+
+  object-store-init:
+    image: ${ORB_IMAGE:?set immutable ORB_IMAGE digest}
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD}
+      MINIO_APP_ACCESS_KEY: ${MINIO_APP_ACCESS_KEY:?set MINIO_APP_ACCESS_KEY}
+      MINIO_APP_SECRET_KEY: ${MINIO_APP_SECRET_KEY:?set MINIO_APP_SECRET_KEY}
+      OBJECT_STORAGE_BUCKET: ${OBJECT_STORAGE_BUCKET:-orb-evidence}
+      RETENTION_DAYS: ${RETENTION_DAYS:-2555}
+      MC_CONFIG_DIR: /tmp/.mc
+    entrypoint: [/bin/sh, -eu, -c]
+    command:
+      - |
+        attempts=0
+        until mc alias set orb https://object-store:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}" --insecure; do
+          attempts=$$((attempts + 1))
+          [ "$$attempts" -lt 30 ] || exit 1
+          sleep 1
+        done
+        mc --insecure ready orb
+        mc --insecure mb --ignore-existing --with-lock "orb/$${OBJECT_STORAGE_BUCKET}"
+        mc --insecure version enable "orb/$${OBJECT_STORAGE_BUCKET}"
+        mc --insecure retention set --default GOVERNANCE "$${RETENTION_DAYS}d" "orb/$${OBJECT_STORAGE_BUCKET}"
+        cat > /tmp/orb-app-policy.json <<POLICY
+        {"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:GetBucketLocation","s3:ListBucket","s3:ListBucketVersions"],"Resource":["arn:aws:s3:::$${OBJECT_STORAGE_BUCKET}"]},{"Effect":"Allow","Action":["s3:GetObject","s3:GetObjectVersion","s3:PutObject","s3:PutObjectRetention"],"Resource":["arn:aws:s3:::$${OBJECT_STORAGE_BUCKET}/*"]}]}
+        POLICY
+        mc --insecure admin user add orb "$${MINIO_APP_ACCESS_KEY}" "$${MINIO_APP_SECRET_KEY}" || true
+        mc --insecure admin policy create orb orb-app /tmp/orb-app-policy.json || mc admin policy info orb orb-app >/dev/null
+        mc --insecure admin policy detach orb readwrite --user "$${MINIO_APP_ACCESS_KEY}" >/dev/null 2>&1 || true
+        mc --insecure admin policy attach orb orb-app --user "$${MINIO_APP_ACCESS_KEY}"
+        rm -f /tmp/orb-app-policy.json
+    depends_on:
+      object-store:
+        condition: service_started
+    read_only: true
+    tmpfs: [/tmp]
+    user: "10001:10001"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [backend]
+
+volumes:
+  postgres-data:
+  object-data:
+
+networks:
+  edge:
+  backend:
+    internal: true
+
+secrets:
+  postgres_tls_cert:
+    file: "${POSTGRES_TLS_CERT:?set POSTGRES_TLS_CERT}"
+  postgres_tls_key:
+    file: "${POSTGRES_TLS_KEY:?set POSTGRES_TLS_KEY}"
+  minio_public_crt:
+    file: "${MINIO_PUBLIC_CRT:?set MINIO_PUBLIC_CRT}"
+  minio_private_key:
+    file: "${MINIO_PRIVATE_KEY:?set MINIO_PRIVATE_KEY}"
