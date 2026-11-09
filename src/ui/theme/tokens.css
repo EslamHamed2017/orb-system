@@ -54,6 +54,9 @@ input, select, textarea { background: var(--orb-color-surface-bright); border: 1
 input:hover, select:hover, textarea:hover { border-color: var(--orb-color-on-surface-variant); }
 input:focus, select:focus, textarea:focus { border-color: var(--orb-color-primary); box-shadow: inset 0 0 0 1px var(--orb-color-primary); }
 textarea { min-block-size: 104px; resize: vertical; }
+input[type="file"] { color: var(--orb-color-on-surface-variant); padding: 6px; }
+input[type="file"]::file-selector-button { background: var(--orb-color-primary-container); border: 0; border-radius: var(--orb-shape-pill); color: var(--orb-color-on-primary-container); cursor: pointer; font: var(--orb-type-label); margin-inline-end: 12px; min-block-size: 36px; padding: 0 14px; }
+input[type="file"]::file-selector-button:hover { background: color-mix(in srgb, var(--orb-color-primary) 18%, var(--orb-color-primary-container)); }
 label { color: var(--orb-color-on-surface-variant); font-size: .8125rem; font-weight: 650; }
 label > input, label > select, label > textarea { display: block; inline-size: 100%; margin-block-start: 6px; }
 fieldset { background: var(--orb-color-surface-bright); border: 1px solid var(--orb-color-outline-variant); border-radius: var(--orb-shape-large); margin: 0; min-inline-size: 0; padding: var(--orb-space-6); }

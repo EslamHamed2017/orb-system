@@ -47,6 +47,8 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
   const moreRef = useRef<HTMLButtonElement>(null);
   const suffix = `?locale=${locale}`;
   const label = (english: string, arabic: string) => locale === "ar" ? arabic : english;
+  const specializedProjectSection = /\/(shipments|money|expenses|statements|profit)(?:\/|$)/.test(pathname);
+  const projectsCurrent = pathname.startsWith("/projects") && !specializedProjectSection;
 
   useLayoutEffect(() => {
     document.documentElement.lang = locale;
@@ -58,7 +60,7 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
 
   const primaryLinks = <>
     <NavLink href={`/${suffix}`} label={copy.today} current={pathname === "/"} icon="today" />
-    <NavLink href={`/projects${suffix}`} label={copy.projects} current={pathname.startsWith("/projects")} icon="projects" />
+    <NavLink href={`/projects${suffix}`} label={copy.projects} current={projectsCurrent} icon="projects" />
     <NavLink href={`/approvals${suffix}`} label={copy.approvals} current={pathname === "/approvals"} icon="approvals" />
   </>;
 
