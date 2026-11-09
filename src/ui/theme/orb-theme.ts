@@ -9,19 +9,29 @@ declare module "@mui/material/styles" {
 }
 
 export const orbTheme = createTheme({
+  cssVariables: true,
   palette: {
-    primary: { main: "#28536b", contrastText: "#ffffff" },
-    secondary: { main: "#52606b", contrastText: "#ffffff" },
-    tertiary: { main: "#66587a", contrastText: "#ffffff" },
-    error: { main: "#ba1a1a", contrastText: "#ffffff" },
-    background: { default: "#f7f9fc", paper: "#eaf0f4" },
-    text: { primary: "#191c1e", secondary: "#52606b" },
+    primary: { main: "#0b57d0", dark: "#0842a0", light: "#d3e3fd", contrastText: "#ffffff" },
+    secondary: { main: "#5f6368", contrastText: "#ffffff" },
+    tertiary: { main: "#146c2e", contrastText: "#ffffff" },
+    error: { main: "#b3261e", contrastText: "#ffffff" },
+    warning: { main: "#8a4f00", light: "#ffedc7" },
+    success: { main: "#146c2e", light: "#c4eed0" },
+    background: { default: "#f8fafd", paper: "#ffffff" },
+    text: { primary: "#1f1f1f", secondary: "#5f6368" },
+    divider: "#e2e6eb",
   },
-  shape: { borderRadius: 16 },
+  shape: { borderRadius: 12 },
   spacing: 4,
-  typography: { fontFamily: "system-ui, sans-serif" },
+  typography: {
+    fontFamily: '"Google Sans", "Inter", "Segoe UI", Arial, sans-serif',
+    h1: { fontSize: "2rem", lineHeight: 1.2, fontWeight: 650, letterSpacing: "-.02em" },
+    h2: { fontSize: "1.25rem", lineHeight: 1.3, fontWeight: 650 },
+    button: { fontWeight: 650, textTransform: "none" },
+  },
   components: {
-    MuiButtonBase: { defaultProps: { disableRipple: false }, styleOverrides: { root: { minWidth: 48, minHeight: 48, "&.Mui-focusVisible": { outline: "3px solid #28536b", outlineOffset: 2 } } } },
+    MuiButtonBase: { defaultProps: { disableRipple: false }, styleOverrides: { root: { minWidth: 48, minHeight: 48, "&.Mui-focusVisible": { outline: "3px solid #0b57d0", outlineOffset: 2 } } } },
+    MuiCard: { styleOverrides: { root: { border: "1px solid #e2e6eb", boxShadow: "0 1px 2px rgba(60,64,67,.08)" } } },
   },
 });
 
