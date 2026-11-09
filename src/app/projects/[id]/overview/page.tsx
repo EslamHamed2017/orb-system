@@ -14,5 +14,5 @@ const adapters = Object.fromEntries(REQUIRED_PROJECT_OVERVIEW_ADAPTERS.map((name
 export default async function OverviewPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ locale?: string }> }) {
   const [{ id }, query] = await Promise.all([params, searchParams]), locale = query.locale === "ar" ? "ar" : "en", ar = locale === "ar";
   const overview = await createInMemoryProjectOverviewQuery({ adapters }).getProjectOverview({ projectId: id, principal: { userId: "owner-1", roles: ["OWNER_ADMIN"] } });
-  return <section dir={ar ? "rtl" : "ltr"} style={{ display: "grid", gap: 20 }}><header><p><bdi>{String(overview.project.code)}</bdi></p><h1>{ar ? "نظرة عامة على المشروع" : "Project overview"}</h1></header><ProjectOverviewSummary locale={locale} overview={overview} /></section>;
+  return <div dir={ar ? "rtl" : "ltr"}><ProjectOverviewSummary locale={locale} overview={overview} /></div>;
 }

@@ -1,5 +1,5 @@
 import { createInMemoryTodayQuery, REQUIRED_TODAY_ADAPTERS } from "../modules/dashboard/today-query";
-import { TodayBlockers } from "../ui/features/dashboard/TodayBlockers";
+import { TodayDashboard } from "../ui/features/dashboard/TodayDashboard";
 const PROJECT = "019a6100-1000-7000-8000-000000000001";
 const rows: Record<string, readonly Record<string, unknown>[]> = {
   approvals: [{ id: "approval-1", assignedUserId: "owner-1", projectId: PROJECT, occurredAt: "2026-11-07T09:00:00Z", severity: "ACTION", label: "Contract approval", operationId: "listFixedApprovalInbox", href: "/approvals" }],
@@ -20,5 +20,5 @@ const adapters = Object.fromEntries(REQUIRED_TODAY_ADAPTERS.map((name) => [name,
 export default async function TodayPage({ searchParams }: { searchParams: Promise<{ locale?: string }> }) {
   const query = await searchParams, locale = query.locale === "ar" ? "ar" : "en", ar = locale === "ar";
   const today = await createInMemoryTodayQuery({ now: () => "2026-11-07T12:30:00Z", adapters }).getToday({ principal: { userId: "owner-1", roles: ["OWNER_ADMIN"] }, recentProjectLimit: 5 });
-  return <section dir={ar ? "rtl" : "ltr"} style={{ display: "grid", gap: 20 }}><h1>{ar ? "اليوم" : "Today"}</h1><TodayBlockers locale={locale} items={today.blockers} /><section role="region" aria-label={ar ? "المشروعات الأخيرة" : "Recent projects"}><h2>{ar ? "المشروعات الأخيرة" : "Recent projects"}</h2>{today.recentProjects.map((item) => <p key={item.id}><a href={item.source.href}>{item.label}</a></p>)}</section></section>;
+  return <TodayDashboard locale={locale} blockers={today.blockers} recentProjects={today.recentProjects} />;
 }
