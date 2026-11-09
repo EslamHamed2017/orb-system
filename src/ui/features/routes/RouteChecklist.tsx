@@ -1,3 +1,4 @@
+import s from "../shipments/operations.module.css";
 export type RouteChecklistLocale = "ar" | "en";
 export type RouteChecklistItemState = "NOT_STARTED" | "IN_PROGRESS" | "SATISFIED" | "NOT_APPLICABLE_BY_RULE";
 export interface RouteChecklistItemView { readonly id: string; readonly code: string; readonly kind: "FACT" | "EVIDENCE" | "MILESTONE"; readonly state: RouteChecklistItemState }
@@ -12,12 +13,12 @@ const stateLabels = { en: { NOT_STARTED: "Not started", IN_PROGRESS: "In progres
 
 export function RouteChecklist({ locale, checklist }: Readonly<{ locale: RouteChecklistLocale; checklist: RouteChecklistView }>) {
   const ar = locale === "ar";
-  return <section aria-labelledby="route-checklist-title" aria-label={ar ? "قائمة مسار الشحنة" : "Route checklist"} style={{ display: "grid", gap: 16 }}>
-    <header><h2 id="route-checklist-title">{ar ? "قائمة مسار الشحنة" : "Route checklist"}</h2><p>{ar ? `إصدار القالب ${checklist.templateVersion} · إصدار القائمة ${checklist.version}` : `Template version ${checklist.templateVersion} · Checklist version ${checklist.version}`}</p></header>
-    <ol style={{ display: "grid", gap: 12, paddingInlineStart: 24 }}>{checklist.items.map((item) => <li key={item.id} style={{ padding: 12, border: "1px solid var(--orb-color-outline-variant)", borderRadius: 12 }}>
-      <strong>{labels[item.code]?.[locale] ?? item.code}</strong><p>{stateLabels[locale][item.state]}</p>
-      {item.state !== "NOT_APPLICABLE_BY_RULE" && item.kind === "EVIDENCE" ? <button type="button" data-operation-id="updateRouteEvidenceOrMilestone">{ar ? "رفع دليل" : "Upload evidence"}</button> : null}
-      {item.state !== "NOT_APPLICABLE_BY_RULE" && item.kind === "MILESTONE" ? <button type="button" data-operation-id="updateRouteEvidenceOrMilestone">{ar ? "إكمال المرحلة" : "Complete milestone"}</button> : null}
+  return <section aria-labelledby="route-checklist-title" aria-label={ar ? "قائمة مسار الشحنة" : "Route checklist"} className={s.card}>
+    <header className={s.sectionHeader}><div><h2 id="route-checklist-title">{ar ? "قائمة مسار الشحنة" : "Route checklist"}</h2><p>{ar ? `إصدار القالب ${checklist.templateVersion} · إصدار القائمة ${checklist.version}` : `Template version ${checklist.templateVersion} · Checklist version ${checklist.version}`}</p></div><span className={s.chip}>{checklist.items.filter((item) => item.state === "SATISFIED").length}/{checklist.items.length}</span></header>
+    <ol className={s.routeList}>{checklist.items.map((item, index) => <li key={item.id} className={s.routeItem}>
+      <span className={s.step}>{index + 1}</span><div><strong>{labels[item.code]?.[locale] ?? item.code}</strong><p className={s.helper}>{item.kind} · {stateLabels[locale][item.state]}</p></div>
+      {item.state !== "NOT_APPLICABLE_BY_RULE" && item.kind === "EVIDENCE" ? <button className={s.secondary} type="button" data-operation-id="updateRouteEvidenceOrMilestone">{ar ? "رفع دليل" : "Upload evidence"}</button> : null}
+      {item.state !== "NOT_APPLICABLE_BY_RULE" && item.kind === "MILESTONE" ? <button className={s.secondary} type="button" data-operation-id="updateRouteEvidenceOrMilestone">{ar ? "إكمال المرحلة" : "Complete milestone"}</button> : null}
     </li>)}</ol>
     <a href={`/projects/demo/closure?shipmentId=${checklist.shipmentId}`}>{ar ? "عرض عائق الإغلاق" : "View closure blocker"}</a>
   </section>;

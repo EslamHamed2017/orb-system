@@ -8,6 +8,7 @@ import { RouteChecklist, type RouteChecklistView } from "../routes/RouteChecklis
 import { ShipmentWorkspaceCore } from "./ShipmentWorkspaceCore";
 import type { ShipmentUiState } from "./ExecutionActions";
 import { tabsFor, type WorkspaceLocale, type WorkspaceRole } from "./workspace-tabs";
+import s from "./operations.module.css";
 
 const checklist: RouteChecklistView = { shipmentId: "demo", templateVersion: 1, version: 3, items: [
   { id: "route-origin", code: "ORIGIN_AND_DESTINATION", kind: "FACT", state: "SATISFIED" },
@@ -17,13 +18,13 @@ const checklist: RouteChecklistView = { shipmentId: "demo", templateVersion: 1, 
 const panelStyle = { display: "grid", gap: 16, scrollMarginBlockStart: 80 } as const;
 function TabList({ locale, role }: Readonly<{ locale: WorkspaceLocale; role: WorkspaceRole }>) {
   const tabs = tabsFor("sales", role), ar = locale === "ar";
-  return <nav role="tablist" aria-label={ar ? "مساحة شحنة البيع" : "Sales shipment workspace"} style={{ display: "flex", gap: 8, overflowX: "auto", paddingBlock: 8 }}>
-    {tabs.map((tab, index) => <a key={tab.id} id={`${tab.id}-tab`} role="tab" aria-selected={index === 0} aria-controls={tab.id} href={`#${tab.id}`} style={{ alignItems: "center", background: index === 0 ? "var(--orb-color-primary-container)" : "var(--orb-color-surface-container)", borderRadius: 999, color: "var(--orb-color-on-surface)", display: "inline-flex", flex: "0 0 auto", padding: "8px 16px", textDecoration: "none" }}>{tab.label[locale]}</a>)}
+  return <nav role="tablist" aria-label={ar ? "مساحة شحنة البيع" : "Sales shipment workspace"} className={s.tabs}>
+    {tabs.map((tab, index) => <a key={tab.id} id={`${tab.id}-tab`} role="tab" aria-selected={index === 0} aria-controls={tab.id} href={`#${tab.id}`} className={`${s.tab} ${index === 0 ? s.tabActive : ""}`}>{tab.label[locale]}</a>)}
   </nav>;
 }
 
 function ReadOnlyPanel({ title, reference, locale }: Readonly<{ title: string; reference: string; locale: WorkspaceLocale }>) {
-  return <section role="region" aria-label={title} style={{ background: "var(--orb-color-surface-container)", borderRadius: 16, padding: 16 }}><h2>{title}</h2><p><bdi>{reference}</bdi> · {locale === "ar" ? "عرض للقراءة فقط حسب الدور" : "Role-shaped read-only view"}</p><a href={`/projects/demo/overview?locale=${locale}`}>{locale === "ar" ? "عرض مصدر المشروع" : "View Project source"}</a></section>;
+  return <section role="region" aria-label={title} className={`${s.cardMuted} ${s.readOnly}`}><h2>{title}</h2><p><bdi>{reference}</bdi> · {locale === "ar" ? "عرض للقراءة فقط حسب الدور" : "Role-shaped read-only view"}</p><a href={`/projects/demo/overview?locale=${locale}`}>{locale === "ar" ? "عرض مصدر المشروع" : "View Project source"}</a></section>;
 }
 function Panel({ id, endpoint, children }: Readonly<{ id: string; endpoint: string; children: React.ReactNode }>) {
   return <section id={id} role="tabpanel" aria-labelledby={`${id}-tab`} data-backend-endpoint={endpoint} style={panelStyle}>{children}</section>;
@@ -31,8 +32,8 @@ function Panel({ id, endpoint, children }: Readonly<{ id: string; endpoint: stri
 
 export function SalesShipmentWorkspace({ locale, role, state = "confirmed" }: Readonly<{ locale: WorkspaceLocale; role: WorkspaceRole; state?: ShipmentUiState }>) {
   const readOnly = role === "finance-viewer", ar = locale === "ar";
-  return <article data-complete-shipment-workspace="sales" style={{ display: "grid", gap: 20, minWidth: 0 }}>
-    <header><p><bdi>ORB-SAL-0007</bdi></p><h1>{ar ? "مساحة شحنة البيع" : "Sales shipment workspace"}</h1><p>{ar ? "نقطة تكامل ثابتة لكل مرحلة تشغيلية." : "Stable composition point for every operational stage."}</p></header>
+  return <article data-complete-shipment-workspace="sales" className={s.page}>
+    <header className={s.pageHeader}><div><p className={s.eyebrow}>{ar ? "تنفيذ شحنة البيع" : "Sales execution"}</p><h1>{ar ? "مساحة شحنة البيع" : "Sales shipment workspace"}</h1><p>{ar ? "البيانات والمسار والدليل والمستندات والتسوية في مساحة تشغيل واحدة." : "Dataset, route, evidence, documents, and settlement in one operational workspace."}</p></div><span className={`${s.chip} ${s.warning}`}>{state.toUpperCase()}</span></header><div className={s.contextBar}><div className={s.contextItem}><span>{ar ? "المرجع" : "Reference"}</span><strong><bdi>ORB-SAL-0007</bdi></strong></div><div className={s.contextItem}><span>{ar ? "المشروع" : "Project"}</span><strong><bdi>ORB-PROJ-DEMO</bdi></strong></div><div className={s.contextItem}><span>{ar ? "الإصدار" : "Version"}</span><strong>7</strong></div></div>
     <TabList locale={locale} role={role} />
     <Panel id="sales-dataset" endpoint="/api/sales-shipments/demo">{readOnly ? <ReadOnlyPanel title={ar ? "مجموعة البيانات" : "Dataset"} reference="ORB-SAL-0007 · Version 7" locale={locale} /> : <ShipmentWorkspaceCore kind="sales" locale={locale} state={state} demoState={null} />}</Panel>
     <Panel id="sales-route" endpoint="/api/sales-shipments/demo/route-checklist">{readOnly ? <ReadOnlyPanel title={ar ? "قائمة المسار" : "Route checklist"} reference="Template 1 · Version 3" locale={locale} /> : <RouteChecklist locale={locale} checklist={checklist} />}</Panel>

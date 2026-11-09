@@ -1,65 +1,20 @@
 import { DatasetHistory, type DatasetHistoryRow } from "./DatasetHistory";
 import { ExecutionActions, type ShipmentKind, type ShipmentUiState } from "./ExecutionActions";
 import { QuantitySummary } from "./QuantitySummary";
-
-type DemoState = "tolerance" | "stale" | "replay" | "post-transit" | null;
-const history: readonly DatasetHistoryRow[] = [
-  { revision: 1, datasetId: "DATASET-0001", hash: "6f7a…91c2", reason: "Initial dataset", actor: "Operations user", changedAt: "2026-11-05T08:00:00Z", approvalId: null, invalidatedApprovalIds: ["APR-OLD-1"] },
-  { revision: 2, datasetId: "DATASET-0002", hash: "98da…5e40", reason: "Corrected verified weight", actor: "Operations user", changedAt: "2026-11-05T09:15:00Z", approvalId: "APR-CURRENT-2", invalidatedApprovalIds: [] },
-];
-
-export function ShipmentWorkspaceCore({ kind, locale, state, demoState, canMutate = true }: { readonly kind: ShipmentKind; readonly locale: "en" | "ar"; readonly state: ShipmentUiState; readonly demoState: DemoState; readonly canMutate?: boolean }) {
-  const ar = locale === "ar", supplier = kind === "supplier";
-  const reference = supplier ? "ORB-SUP-0007" : "ORB-SAL-0007";
-  const canRevise = state === "draft" || state === "confirmed";
-  return <article data-shipment-kind={kind} style={{ background: "var(--orb-color-surface-container)", borderRadius: 16, display: "grid", gap: 16, padding: 16 }}>
-    <header>
-      <p>{ar ? (supplier ? "شحنة المورد" : "شحنة البيع") : (supplier ? "Supplier dataset workspace" : "Sales dataset workspace")}</p>
-      <h2>{ar ? (supplier ? "شحنة المورد" : "شحنة البيع") : (supplier ? "Supplier shipment" : "Sales shipment")}</h2>
-      <dl style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 8 }}>
-        <div><dt>{ar ? "مرجع الشحنة" : "Shipment reference"}</dt><dd><bdi>{reference}</bdi></dd></div>
-        <div><dt>{ar ? "المشروع" : "Project"}</dt><dd><bdi>ORB-PROJ-DEMO</bdi></dd></div>
-        <div><dt>{ar ? "الحالة" : "State"}</dt><dd><bdi>{state.toUpperCase()}</bdi></dd></div>
-        <div><dt>{ar ? "الإصدار" : "Version"}</dt><dd><bdi>7</bdi></dd></div>
-      </dl>
-    </header>
-
-    {canMutate && <section aria-label={ar ? "دورة حياة الشحنة" : "Shipment lifecycle"} style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-      <button type="button" data-operation-id={supplier ? "createSupplierShipment" : "createSalesShipment"}>{ar ? "إنشاء الشحنة" : "Create shipment"}</button>
-      <button type="button" data-operation-id={supplier ? "submitSupplierShipmentConfirmation" : "submitSalesShipmentConfirmation"}>{ar ? "إرسال التأكيد للموافقة" : "Submit confirmation"}</button>
-      <button type="button" data-operation-id={supplier ? "confirmSupplierShipment" : "confirmSalesShipment"}>{ar ? "تأكيد الشحنة" : "Confirm shipment"}</button>
-      {!supplier && <button type="button" data-operation-id="setPrimarySupplierSource">{ar ? "تعيين مصدر المورد" : "Set primary supplier source"}</button>}
-      {!supplier && <button type="button" data-operation-id="requestToleranceException">{ar ? "طلب استثناء التحمل" : "Request tolerance exception"}</button>}
-    </section>}
-
-    {!supplier && <label>{ar ? "مصدر المورد الأساسي" : "Primary supplier source"}
-      <select aria-label={ar ? "مصدر المورد الأساسي" : "Primary supplier source"} defaultValue="ORB-SUP-0007" style={{ display: "block", minHeight: 48, width: "min(100%, 32rem)" }}>
-        <option value="ORB-SUP-0007">ORB-SUP-0007 — {ar ? "مؤكدة ومتوافقة" : "Confirmed and compatible"}</option>
-      </select>
-      <small>{ar ? "مصدر واحد مؤكد ومتوافق فقط؛ لا توجد تخصيصات متعددة." : "Exactly one confirmed compatible source is bound."}</small>
-    </label>}
-
-    {!supplier && <QuantitySummary locale={locale} value={{ contracted: "10,000", confirmed: "6,000", delivered: "2,000", cancelledRejected: "500", remaining: "1,500" }} />}
-
-    {demoState === "tolerance" && !supplier && <section role="alert" style={{ border: "2px solid var(--orb-color-error)", borderRadius: 12, padding: 12 }}>
-      <h3>{ar ? "خارج حدود التحمل" : "Outside tolerance"}</h3>
-      <p>{ar ? "المسموح: 9,900 إلى 10,100؛ الفعلي: 10,250." : "Allowed: 9,900 to 10,100; actual: 10,250."}</p>
-      <p>{ar ? "مراجعة مجموعة البيانات 2 • المصدر ORB-SUP-0007" : "Dataset revision 2 • source ORB-SUP-0007"}</p>
-      <button type="button" data-operation-id="requestToleranceException">{ar ? "طلب استثناء" : "Request exception"}</button>
-    </section>}
-
-    <section aria-labelledby={`${kind}-history-title`}>
-      <h3 id={`${kind}-history-title`}>{ar ? "سجل مجموعة البيانات" : "Dataset history"}</h3>
-      {demoState === "tolerance" && !supplier && <p>{ar ? "انتهت الموافقة APR-OLD-1 بعد المراجعة؛ يلزم اعتماد مطابق جديد." : "Approval expired: APR-OLD-1 after revision; a new exact approval is required."}</p>}
-      <DatasetHistory rows={history} locale={locale} />
-    </section>
-
-    {canMutate && canRevise && <section aria-labelledby={`${kind}-revision-title`}>
-      <h3 id={`${kind}-revision-title`}>{ar ? "مراجعة مجموعة البيانات" : "Revise dataset"}</h3>
-      <p>{ar ? "يعرض التدفق الفرق القديم والجديد، ويقبل حقائق مجموعة البيانات فقط مع سبب ودليل اختياري. تنتهي الموافقات وتعود الحالة المؤكدة إلى مسودة." : "The flow shows the old/new diff and accepts dataset facts only, with a reason and optional evidence. Approvals expire and Confirmed resets to Draft."}</p>
-      <button type="button" data-operation-id={supplier ? "reviseSupplierShipmentDataset" : "reviseSalesShipmentDataset"}>{ar ? "مراجعة مجموعة البيانات" : "Revise dataset"}</button>
-    </section>}
-
-    {canMutate && <ExecutionActions kind={kind} state={state} locale={locale} />}
-  </article>;
+import s from "./operations.module.css";
+type DemoState="tolerance"|"stale"|"replay"|"post-transit"|null;
+const history:readonly DatasetHistoryRow[]=[{revision:1,datasetId:"DATASET-0001",hash:"6f7a…91c2",reason:"Initial dataset",actor:"Operations user",changedAt:"2026-11-05T08:00:00Z",approvalId:null,invalidatedApprovalIds:["APR-OLD-1"]},{revision:2,datasetId:"DATASET-0002",hash:"98da…5e40",reason:"Corrected verified weight",actor:"Operations user",changedAt:"2026-11-05T09:15:00Z",approvalId:"APR-CURRENT-2",invalidatedApprovalIds:[]}];
+export function ShipmentWorkspaceCore({kind,locale,state,demoState,canMutate=true}:{readonly kind:ShipmentKind;readonly locale:"en"|"ar";readonly state:ShipmentUiState;readonly demoState:DemoState;readonly canMutate?:boolean}){
+ const ar=locale==="ar",supplier=kind==="supplier",reference=supplier?"ORB-SUP-0007":"ORB-SAL-0007",canRevise=state==="draft"||state==="confirmed"; const terminal=["received","delivered","cancelled","rejected"].includes(state);
+ return <article data-shipment-kind={kind} className={s.card}>
+  <div className={s.sectionHeader}><div><p className={s.eyebrow}>{ar?(supplier?"مجموعة بيانات المورد":"مجموعة بيانات البيع"):(supplier?"Supplier dataset":"Sales dataset")}</p><h2>{ar?(supplier?"شحنة المورد":"شحنة البيع"):(supplier?"Supplier shipment":"Sales shipment")}</h2><p>{ar?"سجل ثابت للحقائق والموافقات وحالة التنفيذ.":"A controlled record of facts, approvals, and execution state."}</p></div><span className={`${s.chip} ${terminal?s.success:s.warning}`}>{state.toUpperCase()}</span></div>
+  <dl className={s.metaGrid}><div><dt>{ar?"مرجع الشحنة":"Shipment reference"}</dt><dd><bdi>{reference}</bdi></dd></div><div><dt>{ar?"المشروع":"Project"}</dt><dd><bdi>ORB-PROJ-DEMO</bdi></dd></div><div><dt>{ar?"الإصدار":"Version"}</dt><dd><bdi>7</bdi></dd></div><div><dt>{ar?"آخر اعتماد":"Approval"}</dt><dd><bdi>APR-CURRENT-2</bdi></dd></div></dl>
+  {canMutate&&<details className={s.disclosure}><summary>{ar?"إنشاء وتأكيد الشحنة":"Create and confirmation controls"}</summary><div className={s.actions}><button className={s.secondary} type="button" data-operation-id={supplier?"createSupplierShipment":"createSalesShipment"}>{ar?"إنشاء الشحنة":"Create shipment"}</button><button className={s.secondary} type="button" data-operation-id={supplier?"submitSupplierShipmentConfirmation":"submitSalesShipmentConfirmation"}>{ar?"إرسال التأكيد":"Submit confirmation"}</button><button className={s.primary} type="button" data-operation-id={supplier?"confirmSupplierShipment":"confirmSalesShipment"}>{ar?"تأكيد الشحنة":"Confirm shipment"}</button>{!supplier&&<button className={s.secondary} type="button" data-operation-id="setPrimarySupplierSource">{ar?"تعيين المصدر":"Set primary source"}</button>}{!supplier&&<button className={s.secondary} type="button" data-operation-id="requestToleranceException">{ar?"طلب استثناء":"Request exception"}</button>}</div></details>}
+  {!supplier&&<div className={s.cardMuted}><label>{ar?"مصدر المورد الأساسي":"Primary supplier source"}<select aria-label={ar?"مصدر المورد الأساسي":"Primary supplier source"} defaultValue="ORB-SUP-0007"><option value="ORB-SUP-0007">ORB-SUP-0007 — {ar?"مؤكدة ومتوافقة":"Confirmed and compatible"}</option></select><small className={s.helper}>{ar?"مصدر مؤكد ومتوافق واحد مرتبط بهذه الشحنة.":"Exactly one confirmed compatible source is bound."}</small></label></div>}
+  {!supplier&&<QuantitySummary locale={locale} value={{contracted:"10,000",confirmed:"6,000",delivered:"2,000",cancelledRejected:"500",remaining:"1,500"}}/>}
+  {demoState==="tolerance"&&!supplier&&<section role="alert" className={`${s.notice} ${s.noticeError}`}><h3>{ar?"خارج حدود التحمل":"Outside tolerance"}</h3><p>{ar?"المسموح: 9,900 إلى 10,100؛ الفعلي: 10,250.":"Allowed: 9,900 to 10,100; actual: 10,250."}</p><button className={s.secondary} type="button" data-operation-id="requestToleranceException">{ar?"طلب استثناء":"Request exception"}</button></section>}
+  <section aria-labelledby={`${kind}-history-title`}><div className={s.sectionHeader}><div><h3 id={`${kind}-history-title`}>{ar?"سجل مجموعة البيانات":"Dataset history"}</h3><p>{ar?"سجل زمني غير قابل للتغيير لكل مراجعة وارتباط اعتماد.":"Immutable chronology of every revision and approval binding."}</p></div></div><DatasetHistory rows={history} locale={locale}/></section>
+  {canMutate&&canRevise&&<details className={s.disclosure}><summary>{ar?"مراجعة مجموعة البيانات":"Revise dataset"}</summary><p>{ar?"يُظهر التدفق الفرق وينهي الموافقات السابقة عند حفظ مراجعة جديدة.":"The flow shows the exact diff and expires previous approvals when saved."}</p><button className={s.secondary} type="button" data-operation-id={supplier?"reviseSupplierShipmentDataset":"reviseSalesShipmentDataset"}>{ar?"بدء المراجعة":"Start revision"}</button></details>}
+  {canMutate&&<ExecutionActions kind={kind} state={state} locale={locale}/>}
+ </article>;
 }

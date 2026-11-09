@@ -1,3 +1,4 @@
+import s from "../../../ui/features/shipments/operations.module.css";
 import { EvidenceViewer, type EvidenceViewerMetadata } from "../../../ui/features/evidence/EvidenceViewer";
 import { SalesShipmentRouteEvidencePanel } from "../../../ui/features/routes/SalesShipmentRouteEvidencePanel";
 import type { RouteChecklistItemView } from "../../../ui/features/routes/RouteChecklist";
@@ -34,7 +35,7 @@ export default async function EvidencePage({ params, searchParams }: Readonly<{ 
     verifiedBy: pending ? null : { displayName: "Owner Admin" },
     sourceLinks: [{ reference: "ORB-SAL-0007", href: `/sales-shipments/${SHIPMENT_ID}`, purpose: locale === "ar" ? "دليل مسار الشحنة" : "Shipment route evidence" }],
   };
-  return <div style={{ display: "grid", gap: 32 }}>
+  return <div className={s.page}>
     <EvidenceViewer locale={locale} metadata={metadata} />
     <SalesShipmentRouteEvidencePanel locale={locale} checklist={{ shipmentId: SHIPMENT_ID, templateVersion: 1, version: 3, items }} />
   </div>;

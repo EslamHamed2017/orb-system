@@ -1,18 +1,3 @@
-export type ShipmentKind = "supplier" | "sales";
-export type ShipmentUiState = "draft" | "confirmed" | "in-transit" | "received" | "delivered" | "cancelled" | "rejected";
-
-export function ExecutionActions({ kind, state, locale }: { readonly kind: ShipmentKind; readonly state: ShipmentUiState; readonly locale: "en" | "ar" }) {
-  const ar = locale === "ar";
-  const actions: readonly string[] = state === "draft"
-    ? [ar ? "إرسال للموافقة" : "Submit for approval", ar ? "إلغاء الشحنة" : "Cancel shipment"]
-    : state === "confirmed"
-      ? [ar ? "تحديد قيد النقل" : "Mark in transit", ar ? "رفض الشحنة" : "Reject shipment", ar ? "إلغاء الشحنة" : "Cancel shipment"]
-      : state === "in-transit"
-        ? [kind === "supplier" ? (ar ? "تحديد مستلمة" : "Mark received") : (ar ? "تحديد مسلمة" : "Mark delivered"), ar ? "رفض الشحنة" : "Reject shipment"]
-        : [];
-  return <section data-execution-actions aria-labelledby={`${kind}-execution-title`}>
-    <h3 id={`${kind}-execution-title`}>{ar ? "إجراءات التنفيذ" : "Execution actions"}</h3>
-    <p>{ar ? "كل إجراء يرسل الإصدار الحالي ومفتاح منع التكرار، ويتطلب سبباً ودليلاً أو وقتاً عند الحاجة." : "Every action sends the current version and an idempotency key, and requires reason plus evidence or time when applicable."}</p>
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>{actions.map((label) => <button key={label} type="button" data-operation-id={kind === "supplier" ? "transitionSupplierShipmentExecution" : "transitionSalesShipmentExecution"}>{label}</button>)}</div>
-  </section>;
-}
+import s from "./operations.module.css";
+export type ShipmentKind="supplier"|"sales"; export type ShipmentUiState="draft"|"confirmed"|"in-transit"|"received"|"delivered"|"cancelled"|"rejected";
+export function ExecutionActions({kind,state,locale}:{readonly kind:ShipmentKind;readonly state:ShipmentUiState;readonly locale:"en"|"ar"}){const ar=locale==="ar"; const actions:readonly {label:string;tone?:string}[]=state==="draft"?[{label:ar?"إرسال للموافقة":"Submit for approval"},{label:ar?"إلغاء الشحنة":"Cancel shipment",tone:"danger"}]:state==="confirmed"?[{label:ar?"تحديد قيد النقل":"Mark in transit"},{label:ar?"رفض الشحنة":"Reject shipment",tone:"danger"},{label:ar?"إلغاء الشحنة":"Cancel shipment",tone:"danger"}]:state==="in-transit"?[{label:kind==="supplier"?(ar?"تحديد مستلمة":"Mark received"):(ar?"تحديد مسلمة":"Mark delivered")},{label:ar?"رفض الشحنة":"Reject shipment",tone:"danger"}]:[];return <section data-execution-actions aria-labelledby={`${kind}-execution-title`} className={s.cardMuted}><div className={s.sectionHeader}><div><h3 id={`${kind}-execution-title`}>{ar?"إجراءات التنفيذ":"Execution actions"}</h3><p>{ar?"تُسجل الإجراءات بالنسخة الحالية ومفتاح منع التكرار.":"Actions are recorded against the current version with an idempotency key."}</p></div><span className={`${s.chip} ${s.warning}`}>{ar?"يتطلب تدقيقاً":"Audited"}</span></div>{actions.length?<div className={s.actions}>{actions.map(a=><button className={a.tone?s.danger:s.primary} key={a.label} type="button" data-operation-id={kind==="supplier"?"transitionSupplierShipmentExecution":"transitionSalesShipmentExecution"}>{a.label}</button>)}</div>:<p className={s.helper}>{ar?"لا توجد انتقالات متاحة من هذه الحالة.":"No transitions are available from this state."}</p>}</section>}

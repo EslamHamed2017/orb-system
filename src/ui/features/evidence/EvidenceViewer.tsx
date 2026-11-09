@@ -1,32 +1,3 @@
-export interface EvidenceViewerMetadata {
-  readonly id: string;
-  readonly sha256: string;
-  readonly byteLength: number;
-  readonly mediaType: string;
-  readonly originalFilename: string;
-  readonly verificationState: "PENDING" | "VERIFIED" | "REJECTED";
-  readonly verifiedAt: string | null;
-  readonly verifiedBy: { readonly displayName: string } | null;
-  readonly sourceLinks: readonly Readonly<{ reference: string; href: string; purpose: string }>[];
-}
-
-export function EvidenceViewer({ locale, metadata }: Readonly<{ locale: "ar" | "en"; metadata: EvidenceViewerMetadata }>) {
-  const ar = locale === "ar";
-  const absent = ar ? "لم يتم التحقق بعد" : "Not verified yet";
-  return <section aria-labelledby="evidence-title" style={{ display: "grid", gap: 16 }}>
-    <header><p>{ar ? "دليل غير قابل للتغيير" : "Immutable evidence"}</p><h1 id="evidence-title">{ar ? "الدليل" : "Evidence"} {metadata.originalFilename}</h1></header>
-    <dl style={{ display: "grid", gridTemplateColumns: "minmax(9rem, auto) 1fr", gap: 8 }}>
-      <dt>{ar ? "الحالة" : "Verification state"}</dt><dd><strong>{metadata.verificationState}</strong></dd>
-      <dt>SHA-256</dt><dd><code style={{ overflowWrap: "anywhere" }}>{metadata.sha256}</code></dd>
-      <dt>{ar ? "نوع الوسائط" : "Media type"}</dt><dd>{metadata.mediaType}</dd>
-      <dt>{ar ? "الحجم" : "Byte size"}</dt><dd>{metadata.byteLength.toLocaleString("en-US")} bytes</dd>
-      <dt>{ar ? "وقت التحقق" : "Verified at"}</dt><dd>{metadata.verifiedAt ?? absent}</dd>
-      <dt>{ar ? "تم التحقق بواسطة" : "Verified by"}</dt><dd>{metadata.verifiedBy?.displayName ?? absent}</dd>
-    </dl>
-    <nav aria-label={ar ? "إجراءات الدليل المدققة" : "Audited evidence actions"} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-      <a href={`/api/evidence/${metadata.id}/content?disposition=inline`}>{ar ? "عرض الملف" : "View file"}</a>
-      <a href={`/api/evidence/${metadata.id}/content?disposition=attachment`}>{ar ? "تنزيل" : "Download"}</a>
-    </nav>
-    <section aria-labelledby="evidence-sources"><h2 id="evidence-sources">{ar ? "روابط المصدر" : "Source links"}</h2><ul>{metadata.sourceLinks.map((link) => <li key={`${link.href}:${link.purpose}`}><a href={link.href}>{link.reference}</a> — {link.purpose}</li>)}</ul></section>
-  </section>;
-}
+import s from "../shipments/operations.module.css";
+export interface EvidenceViewerMetadata{readonly id:string;readonly sha256:string;readonly byteLength:number;readonly mediaType:string;readonly originalFilename:string;readonly verificationState:"PENDING"|"VERIFIED"|"REJECTED";readonly verifiedAt:string|null;readonly verifiedBy:{readonly displayName:string}|null;readonly sourceLinks:readonly Readonly<{reference:string;href:string;purpose:string}>[]}
+export function EvidenceViewer({locale,metadata}:Readonly<{locale:"ar"|"en";metadata:EvidenceViewerMetadata}>){const ar=locale==="ar",absent=ar?"لم يتم التحقق بعد":"Not verified yet",verified=metadata.verificationState==="VERIFIED";return <section aria-labelledby="evidence-title" className={s.page}><header className={s.pageHeader}><div><p className={s.eyebrow}>{ar?"سجل دليل غير قابل للتغيير":"Immutable evidence record"}</p><h1 id="evidence-title">{metadata.originalFilename}</h1><p>{ar?"تحقق من المصدر والسلامة والتتبّع قبل استخدام الملف في العمليات.":"Verify provenance, integrity, and traceability before using this file in operations."}</p></div><span className={`${s.chip} ${verified?s.success:s.warning}`}>{metadata.verificationState}</span></header><div className={s.contextBar}><div className={s.contextItem}><span>{ar?"معرف الدليل":"Evidence ID"}</span><strong><bdi>{metadata.id}</bdi></strong></div><div className={s.contextItem}><span>{ar?"نوع الملف":"Media type"}</span><strong>{metadata.mediaType}</strong></div><div className={s.contextItem}><span>{ar?"الحجم":"Size"}</span><strong>{metadata.byteLength.toLocaleString("en-US")} bytes</strong></div></div><section className={s.card}><div className={s.sectionHeader}><div><h2>{ar?"السلامة والتحقق":"Integrity & verification"}</h2><p>{ar?"بيانات وصفية قابلة للتدقيق مرتبطة بالبايتات المخزنة.":"Auditable metadata bound to the stored bytes."}</p></div><nav className={s.actions} aria-label={ar?"إجراءات الدليل المدققة":"Audited evidence actions"}><a className={s.primary} href={`/api/evidence/${metadata.id}/content?disposition=inline`}>{ar?"عرض الملف":"View file"}</a><a className={s.secondary} href={`/api/evidence/${metadata.id}/content?disposition=attachment`}>{ar?"تنزيل":"Download"}</a></nav></div><dl className={s.metaGrid}><div><dt>SHA-256</dt><dd className={s.hash}>{metadata.sha256}</dd></div><div><dt>{ar?"وقت التحقق":"Verified at"}</dt><dd>{metadata.verifiedAt??absent}</dd></div><div><dt>{ar?"تم التحقق بواسطة":"Verified by"}</dt><dd>{metadata.verifiedBy?.displayName??absent}</dd></div><div><dt>{ar?"الحالة":"State"}</dt><dd>{metadata.verificationState}</dd></div></dl></section><section className={s.card} aria-labelledby="evidence-sources"><div className={s.sectionHeader}><div><h2 id="evidence-sources">{ar?"روابط المصدر":"Source links"}</h2><p>{ar?"السجلات التشغيلية التي تستخدم هذا الدليل.":"Operational records that use this evidence."}</p></div></div><ul>{metadata.sourceLinks.map(link=><li key={`${link.href}:${link.purpose}`}><a href={link.href}>{link.reference}</a> — {link.purpose}</li>)}</ul></section></section>}
