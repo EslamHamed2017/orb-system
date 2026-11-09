@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "signature": {
+    "algorithm": "RSA-SHA256",
+    "publicKeySha256": "a45ab139dbeb7986e00611af8d9a4d14e97823c0f98ab4e609b52eef40067038",
+    "valueBase64": "CLgGMxcHuDtnqd/t7Q+sRjJVhBt+beizdWp1osfALO8Ql5VAevbOM1Vc1tsTKVALfzoEOkS5FrNTCqKF6zWUafEqL/tSVhqmYDwi0BdOfI6XrUVuB7cYD+FMJA8M7ks/GhJ6BsetvFypf55dtVpnB4SrJ8FDdKCURDusA9PYViT0OiDpQs36auQ2OMxcbNZ5do+JJ1LfzHDYG4uL/tJ08CS/p7XtrEsUKhQv4ZRNG/PUAjDp7i84b7gtuJ4DGy+CMYoRyCY0632+1pkDeYFzWctXI0t6G5R2qKPsf4YlK3qJLZvB8mqnCinkW4RgK+7wZdI5lmrks05K70fk3xVOM4gqNV/0T3wbrs0sNcCKGup98GFYZhFuqJHRJD3iQ88gv2MTXbyoCy/Mo05QPw1xOo3UzOkFPCR/H9MqVLcAKVVQ+fXfJbw/785DY+rClDlcqfzCuYtVR5CmMFzQGVUZ0h2bJApsi+avc+te1Mxtrlrd+0kiOA09w7wfE57RZcnQ"
+  },
+  "signedPayload": {
+    "buildManifestSha256": "c7506b10275955464897cbe33f5ce47b41943b781dd1f6eacb003a690f75c855",
+    "candidate": "beta",
+    "containerImage": "orb-r1-1307:beta@sha256:8e3e32ac6281f3a60f4ccaa29ff817ed0b80bfccb3ea3508b0fc395ef37af228",
+    "containerSha256": "8e3e32ac6281f3a60f4ccaa29ff817ed0b80bfccb3ea3508b0fc395ef37af228",
+    "contractGuard": "50 tests passed: openapi-contract, traceability, deferred-surface",
+    "deploymentPerformed": false,
+    "evidenceAwarded": false,
+    "frozenAtUtc": "2026-11-09T02:14:19Z",
+    "gitCommit": "087c1af43522fac95c1fc6d26c65541dd31eeabb",
+    "lockSha256": "6a265d19e788b73d3fd9d9cad075b1152aeb58117b4401ec1f0ea6695afc37be",
+    "openapiOperationCount": 79,
+    "openapiSha256": "4ea820147279f5749cb56aab5a1e2655268f5ff895f4d5278a8ff228d6b10a25",
+    "sbomFile": "/home/hermesops/orb-release-artifacts/orb-r1-1307-beta.spdx.json",
+    "sbomSha256": "1073dc98ac99ebeb5d57e9d043284b078876e0f048d493d47ad1cb9f8304deab",
+    "sourceSha256": "24b1734b2f56ba83fd2d0f19d37271e2c8f7e75c8a9514edf573f72f90f7af79"
+  }
+}
