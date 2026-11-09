@@ -8,7 +8,7 @@ const history: readonly DatasetHistoryRow[] = [
   { revision: 2, datasetId: "DATASET-0002", hash: "98da…5e40", reason: "Corrected verified weight", actor: "Operations user", changedAt: "2026-11-05T09:15:00Z", approvalId: "APR-CURRENT-2", invalidatedApprovalIds: [] },
 ];
 
-export function ShipmentWorkspaceCore({ kind, locale, state, demoState }: { readonly kind: ShipmentKind; readonly locale: "en" | "ar"; readonly state: ShipmentUiState; readonly demoState: DemoState }) {
+export function ShipmentWorkspaceCore({ kind, locale, state, demoState, canMutate = true }: { readonly kind: ShipmentKind; readonly locale: "en" | "ar"; readonly state: ShipmentUiState; readonly demoState: DemoState; readonly canMutate?: boolean }) {
   const ar = locale === "ar", supplier = kind === "supplier";
   const reference = supplier ? "ORB-SUP-0007" : "ORB-SAL-0007";
   const canRevise = state === "draft" || state === "confirmed";
@@ -24,6 +24,14 @@ export function ShipmentWorkspaceCore({ kind, locale, state, demoState }: { read
       </dl>
     </header>
 
+    {canMutate && <section aria-label={ar ? "دورة حياة الشحنة" : "Shipment lifecycle"} style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+      <button type="button" data-operation-id={supplier ? "createSupplierShipment" : "createSalesShipment"}>{ar ? "إنشاء الشحنة" : "Create shipment"}</button>
+      <button type="button" data-operation-id={supplier ? "submitSupplierShipmentConfirmation" : "submitSalesShipmentConfirmation"}>{ar ? "إرسال التأكيد للموافقة" : "Submit confirmation"}</button>
+      <button type="button" data-operation-id={supplier ? "confirmSupplierShipment" : "confirmSalesShipment"}>{ar ? "تأكيد الشحنة" : "Confirm shipment"}</button>
+      {!supplier && <button type="button" data-operation-id="setPrimarySupplierSource">{ar ? "تعيين مصدر المورد" : "Set primary supplier source"}</button>}
+      {!supplier && <button type="button" data-operation-id="requestToleranceException">{ar ? "طلب استثناء التحمل" : "Request tolerance exception"}</button>}
+    </section>}
+
     {!supplier && <label>{ar ? "مصدر المورد الأساسي" : "Primary supplier source"}
       <select aria-label={ar ? "مصدر المورد الأساسي" : "Primary supplier source"} defaultValue="ORB-SUP-0007" style={{ display: "block", minHeight: 48, width: "min(100%, 32rem)" }}>
         <option value="ORB-SUP-0007">ORB-SUP-0007 — {ar ? "مؤكدة ومتوافقة" : "Confirmed and compatible"}</option>
@@ -37,7 +45,7 @@ export function ShipmentWorkspaceCore({ kind, locale, state, demoState }: { read
       <h3>{ar ? "خارج حدود التحمل" : "Outside tolerance"}</h3>
       <p>{ar ? "المسموح: 9,900 إلى 10,100؛ الفعلي: 10,250." : "Allowed: 9,900 to 10,100; actual: 10,250."}</p>
       <p>{ar ? "مراجعة مجموعة البيانات 2 • المصدر ORB-SUP-0007" : "Dataset revision 2 • source ORB-SUP-0007"}</p>
-      <button type="button">{ar ? "طلب استثناء" : "Request exception"}</button>
+      <button type="button" data-operation-id="requestToleranceException">{ar ? "طلب استثناء" : "Request exception"}</button>
     </section>}
 
     <section aria-labelledby={`${kind}-history-title`}>
@@ -46,12 +54,12 @@ export function ShipmentWorkspaceCore({ kind, locale, state, demoState }: { read
       <DatasetHistory rows={history} locale={locale} />
     </section>
 
-    {canRevise && <section aria-labelledby={`${kind}-revision-title`}>
+    {canMutate && canRevise && <section aria-labelledby={`${kind}-revision-title`}>
       <h3 id={`${kind}-revision-title`}>{ar ? "مراجعة مجموعة البيانات" : "Revise dataset"}</h3>
       <p>{ar ? "يعرض التدفق الفرق القديم والجديد، ويقبل حقائق مجموعة البيانات فقط مع سبب ودليل اختياري. تنتهي الموافقات وتعود الحالة المؤكدة إلى مسودة." : "The flow shows the old/new diff and accepts dataset facts only, with a reason and optional evidence. Approvals expire and Confirmed resets to Draft."}</p>
-      <button type="button">{ar ? "مراجعة مجموعة البيانات" : "Revise dataset"}</button>
+      <button type="button" data-operation-id={supplier ? "reviseSupplierShipmentDataset" : "reviseSalesShipmentDataset"}>{ar ? "مراجعة مجموعة البيانات" : "Revise dataset"}</button>
     </section>}
 
-    <ExecutionActions kind={kind} state={state} locale={locale} />
+    {canMutate && <ExecutionActions kind={kind} state={state} locale={locale} />}
   </article>;
 }

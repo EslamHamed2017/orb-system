@@ -1,4 +1,4 @@
-export function ApprovalDialog({ locale }: Readonly<{ locale: "ar" | "en" }>) {
+export function ApprovalDialog({ locale, canDecide = true }: Readonly<{ locale: "ar" | "en"; canDecide?: boolean }>) {
   const ar = locale === "ar";
   const hash = "7069e1419e028a9d1eb82af5753b67e69982964da7619e3683067a7a68c5b468";
   return <section role="region" aria-labelledby="approval-decision-title" style={{ background: "var(--orb-color-surface-container)", borderRadius: 16, display: "grid", gap: 12, minWidth: 0, padding: 16 }}>
@@ -15,6 +15,6 @@ export function ApprovalDialog({ locale }: Readonly<{ locale: "ar" | "en" }>) {
     <p>{ar ? "الدور المطلوب: المالك/المسؤول" : "Required role: OWNER_ADMIN"}</p>
     <p>{ar ? "الموافقة: قيد الانتظار · الإصدار 2" : "Approval: PENDING · version 2"}</p>
     <p><strong>{ar ? "الموافقة الذاتية محظورة" : "Self-approval is forbidden"}</strong> · {ar ? "يجب أن يقرر مالك/مسؤول مختلف." : "A different Owner/Admin must decide."}</p>
-    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}><button type="button" disabled>{ar ? "موافقة" : "Approve"}</button><button type="button">{ar ? "رفض" : "Reject"}</button></div>
+    {canDecide && <div data-required-role="OWNER_ADMIN" style={{ display: "flex", flexWrap: "wrap", gap: 8 }}><button type="button" data-operation-id="decideFixedApproval" disabled>{ar ? "موافقة" : "Approve"}</button><button type="button" data-operation-id="decideFixedApproval">{ar ? "رفض" : "Reject"}</button></div>}
   </section>;
 }

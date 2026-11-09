@@ -61,7 +61,7 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
     <dialog className="orb-dialog" ref={dialogRef} aria-labelledby="orb-more-title" onClose={() => moreRef.current?.focus()}>
       <h2 id="orb-more-title">{copy.menuTitle}</h2>
       <p>{copy.shellTitle}</p>
-      <div className="orb-dialog-actions"><button type="button" onClick={closeMore}>{copy.close}</button></div>
+      <div className="orb-dialog-actions"><button type="button" data-operation-id="signOutCurrentSession">{locale === "ar" ? "تسجيل الخروج" : "Sign out"}</button><button type="button" onClick={closeMore}>{copy.close}</button></div>
     </dialog>
   </div>;
 }

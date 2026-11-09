@@ -17,6 +17,6 @@ export function BlockerGroup({ locale, blockers }: Readonly<{ locale: "ar" | "en
           : <p><strong>{ar ? "غير مؤهل للاستثناء" : "Exception prohibited"}</strong></p>}
       </article>)}
     </div>
-    <button type="button" style={{ marginBlockStart: 16 }}>{ar ? "طلب استثناء" : "Request exception"}</button>
+    <button type="button" data-operation-id="requestClosureException" style={{ marginBlockStart: 16 }}>{ar ? "طلب استثناء" : "Request exception"}</button>
   </section>;
 }

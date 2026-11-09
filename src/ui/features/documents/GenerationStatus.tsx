@@ -11,6 +11,6 @@ export function GenerationStatus({ locale, state = "READY" }: Readonly<{ locale:
       <label>{ar ? "لغة المستند" : "Document language"}<select aria-label={ar ? "لغة المستند" : "Document language"} defaultValue="BILINGUAL"><option value="AR">AR</option><option value="EN">EN</option><option value="BILINGUAL">BILINGUAL</option></select></label>
     </div>
     <p role="status"><strong>{stateLabel}</strong> · <bdi>DOC-0007-R2</bdi></p>
-    {state === "READY" ? <a href="/api/evidence/demo/content?disposition=inline">{ar ? "معاينة المخرجات" : "Preview output"}</a> : <button type="button">{ar ? "تحديث الحالة" : "Refresh status"}</button>}
+    {state === "READY" ? <><a href="/api/evidence/demo/content?disposition=inline">{ar ? "معاينة المخرجات" : "Preview output"}</a><button type="button" data-operation-id="generateShipmentDocument">{ar ? "إنشاء إصدار جديد" : "Generate new version"}</button></> : <button type="button" data-operation-id="generateShipmentDocument">{ar ? "تحديث الحالة" : "Refresh status"}</button>}
   </section>;
 }

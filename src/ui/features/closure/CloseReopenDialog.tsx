@@ -13,7 +13,7 @@ export function CloseReopenDialog({ locale, state }: Readonly<{ locale: "ar" | "
     <p>{ar ? "إصدار المشروع 16" : "Project version 16"} · {ar ? "الموافقة: معتمدة" : "Approval: APPROVED"}</p>
     <label>{ar ? "سبب إعادة الفتح" : "Reopen reason"}<textarea readOnly defaultValue={ar ? "يتطلب رد العميل مراجعة التسوية" : "Customer refund requires settlement review"} style={{ display: "block", width: "100%", minHeight: 88 }} /></label>
     <p>{ar ? "الحالة المالية المعاد حسابها: مغلق ماليًا" : "Recomputed financial state: FINANCIALLY CLOSED"}</p>
-    <button type="button">{ar ? "تطبيق إعادة الفتح" : "Apply reopen"}</button>
+    <button type="button" data-operation-id="reopenProject">{ar ? "تطبيق إعادة الفتح" : "Apply reopen"}</button><button type="button" data-operation-id="submitReopenForApproval">{ar ? "إرسال إعادة الفتح للموافقة" : "Submit reopen for approval"}</button>
   </section>;
   return <>
     {state === "exception" && <section role="region" aria-labelledby="exception-title" style={{ border: "1px solid var(--orb-color-outline)", borderRadius: 16, padding: 16, display: "grid", gap: 12 }}>
@@ -24,8 +24,11 @@ export function CloseReopenDialog({ locale, state }: Readonly<{ locale: "ar" | "
     </section>}
     <section role="region" aria-labelledby="final-close-title" style={{ background: "var(--orb-color-surface-container)", borderRadius: 16, padding: 16 }}>
       <h2 id="final-close-title">{ar ? "الإغلاق النهائي" : "Final close"}</h2>
-      {state === "approved" ? <><p>{ar ? "تقييم حديث" : "Fresh assessment"} <bdi>ASSESSMENT-0015</bdi> · {ar ? "الموافقة: معتمدة" : "Approval: APPROVED"}</p><button type="button">{ar ? "تطبيق الإغلاق النهائي" : "Apply final close"}</button></>
-        : <><p>{ar ? "7 موانع غير مغطاة" : "7 uncovered blockers"}</p><button type="button" disabled>{ar ? "تقديم الإغلاق النهائي" : "Submit final close"}</button></>}
+      {state === "approved" ? <><p>{ar ? "تقييم حديث" : "Fresh assessment"} <bdi>ASSESSMENT-0015</bdi> · {ar ? "الموافقة: معتمدة" : "Approval: APPROVED"}</p><button type="button" data-operation-id="finalCloseProject">{ar ? "تطبيق الإغلاق النهائي" : "Apply final close"}</button></>
+        : <><p>{ar ? "7 موانع غير مغطاة" : "7 uncovered blockers"}</p><button type="button" data-operation-id="submitFinalCloseForApproval" disabled>{ar ? "تقديم الإغلاق النهائي" : "Submit final close"}</button>
+        <button type="button" data-operation-id="finalCloseProject" disabled>{ar ? "تطبيق الإغلاق النهائي" : "Apply final close"}</button>
+        <button type="button" data-operation-id="submitReopenForApproval" disabled>{ar ? "إرسال إعادة الفتح للموافقة" : "Submit reopen for approval"}</button>
+        <button type="button" data-operation-id="reopenProject" disabled>{ar ? "تطبيق إعادة الفتح" : "Apply reopen"}</button></>}
     </section>
   </>;
 }

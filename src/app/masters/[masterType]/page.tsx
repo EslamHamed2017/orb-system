@@ -15,7 +15,7 @@ export default async function MasterPage({ params, searchParams }: { params: Pro
   return <section aria-labelledby="master-title" style={{ display: "grid", gap: 16 }}>
     <header><p>{ar ? "السجلات الأساسية" : "Essential masters"}</p><h1 id="master-title">{name[locale]}</h1></header>
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-      <button type="button">{ar ? `إضافة ${name.singularAr}` : `Add ${name.singularEn}`}</button>
+      <button type="button" data-operation-id="createMasterRecord">{ar ? `إضافة ${name.singularAr}` : `Add ${name.singularEn}`}</button><button type="button" data-operation-id="updateMasterRecord">{ar ? "تحديث السجل" : "Update record"}</button><button type="button">{ar ? "أرشفة السجل" : "Archive record"}</button>
       <label>{ar ? "بحث" : "Search"}<input type="search" name="search" style={{ display: "block", minHeight: 48 }} /></label>
     </div>
     <div role="status" style={{ background: "var(--orb-color-surface-container)", borderRadius: 16, padding: 16 }}>

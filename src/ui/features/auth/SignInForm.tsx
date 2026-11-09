@@ -26,6 +26,6 @@ export function SignInForm({ locale }: { locale: Locale }) {
     <label>{copy.password}<input name="credential" type="password" autoComplete="current-password" required style={{ display: "block", width: "100%", minHeight: 48 }} /></label>
     {mfa && <label>{copy.mfa}<input name="mfa" inputMode="numeric" autoComplete="one-time-code" style={{ display: "block", width: "100%", minHeight: 48 }} /></label>}
     {error && <p role="alert">{copy.error}</p>}
-    <button type="submit" disabled={pending} style={{ minHeight: 48 }}>{pending ? copy.pending : copy.submit}</button>
+    <button type="submit" data-operation-id="signIn" disabled={pending} style={{ minHeight: 48 }}>{pending ? copy.pending : copy.submit}</button>
   </form>;
 }

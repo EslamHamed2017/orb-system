@@ -33,7 +33,7 @@
   --orb-state-pressed: 0.12;
   --orb-state-dragged: 0.16;
   --orb-focus-ring-width: 3px;
-  --orb-touch-target: 48px;
+  --orb-touch-target: 49px;
   --orb-motion-duration-short: 120ms;
   --orb-motion-duration-medium: 240ms;
   background: var(--orb-color-surface);
@@ -45,7 +45,7 @@
 html, body { margin: 0; min-block-size: 100%; max-inline-size: 100%; overflow-x: clip; }
 body { background: var(--orb-color-surface); color: var(--orb-color-on-surface); }
 html[lang="ar"] body { line-height: var(--orb-line-height-arabic); }
-a, button { min-inline-size: var(--orb-touch-target); min-block-size: var(--orb-touch-target); }
+a, button { align-items: center; display: inline-flex; justify-content: center; min-inline-size: var(--orb-touch-target); min-block-size: var(--orb-touch-target); }
 a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   outline: var(--orb-focus-ring-width) solid var(--orb-color-primary);
   outline-offset: 2px;

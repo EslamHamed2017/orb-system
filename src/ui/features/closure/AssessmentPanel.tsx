@@ -18,7 +18,7 @@ export function AssessmentPanel({ locale }: Readonly<{ locale: "ar" | "en" }>) {
       <h2 id="closure-assessment-title">{ar ? "تقييم الإغلاق" : "Closure assessment"}</h2>
       <p><bdi>ASSESSMENT-0014</bdi> · {ar ? "إصدار المشروع 14" : "Project version 14"}</p>
       <p>{ar ? "تجزئة الموانع" : "Blockers hash"}: <bdi style={{ overflowWrap: "anywhere" }}>{HASH}</bdi></p>
-      <button type="button">{ar ? "تحديث التقييم" : "Refresh assessment"}</button>
+      <button type="button" data-operation-id="assessProjectClosure">{ar ? "تحديث التقييم" : "Refresh assessment"}</button>
     </section>
     <BlockerGroup locale={locale} blockers={BLOCKERS} />
   </>;

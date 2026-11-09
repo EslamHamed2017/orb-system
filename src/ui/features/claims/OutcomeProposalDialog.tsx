@@ -11,6 +11,6 @@ export function OutcomeProposalDialog({ locale, state }: Readonly<{ locale: "ar"
     <label>{ar ? "سبب النتيجة" : "Outcome reason"}<textarea defaultValue={ar ? "تم قبول المطالبة بعد مراجعة الجودة" : "Claim accepted after quality review"} readOnly style={{ display: "block", minHeight: 88, width: "100%" }} /></label>
     <label>{ar ? "دليل النتيجة" : "Outcome evidence"}<input defaultValue="EVIDENCE-OUTCOME-0008" readOnly style={{ display: "block", minHeight: 48, width: "100%" }} /></label>
     {state === "rejected" && <p role="status">{ar ? "رُفض الاقتراح؛ تبقى المطالبة قيد المراجعة." : "Proposal rejected; claim remains under review."}</p>}
-    {state === "approved" && <button type="button">{ar ? "تطبيق النتيجة المعتمدة" : "Apply approved outcome"}</button>}
+    {state === "approved" && <button type="button" data-operation-id="applyApprovedClaimOutcome">{ar ? "تطبيق النتيجة المعتمدة" : "Apply approved outcome"}</button>}
   </section>;
 }

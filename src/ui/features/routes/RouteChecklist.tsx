@@ -16,8 +16,8 @@ export function RouteChecklist({ locale, checklist }: Readonly<{ locale: RouteCh
     <header><h2 id="route-checklist-title">{ar ? "قائمة مسار الشحنة" : "Route checklist"}</h2><p>{ar ? `إصدار القالب ${checklist.templateVersion} · إصدار القائمة ${checklist.version}` : `Template version ${checklist.templateVersion} · Checklist version ${checklist.version}`}</p></header>
     <ol style={{ display: "grid", gap: 12, paddingInlineStart: 24 }}>{checklist.items.map((item) => <li key={item.id} style={{ padding: 12, border: "1px solid var(--orb-color-outline-variant)", borderRadius: 12 }}>
       <strong>{labels[item.code]?.[locale] ?? item.code}</strong><p>{stateLabels[locale][item.state]}</p>
-      {item.state !== "NOT_APPLICABLE_BY_RULE" && item.kind === "EVIDENCE" ? <button type="button">{ar ? "رفع دليل" : "Upload evidence"}</button> : null}
-      {item.state !== "NOT_APPLICABLE_BY_RULE" && item.kind === "MILESTONE" ? <button type="button">{ar ? "إكمال المرحلة" : "Complete milestone"}</button> : null}
+      {item.state !== "NOT_APPLICABLE_BY_RULE" && item.kind === "EVIDENCE" ? <button type="button" data-operation-id="updateRouteEvidenceOrMilestone">{ar ? "رفع دليل" : "Upload evidence"}</button> : null}
+      {item.state !== "NOT_APPLICABLE_BY_RULE" && item.kind === "MILESTONE" ? <button type="button" data-operation-id="updateRouteEvidenceOrMilestone">{ar ? "إكمال المرحلة" : "Complete milestone"}</button> : null}
     </li>)}</ol>
     <a href={`/projects/demo/closure?shipmentId=${checklist.shipmentId}`}>{ar ? "عرض عائق الإغلاق" : "View closure blocker"}</a>
   </section>;
