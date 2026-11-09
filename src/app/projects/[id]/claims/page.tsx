@@ -1,17 +1,1 @@
-import { ClaimWorkspace } from "../../../../ui/features/claims/ClaimWorkspace";
-import { SalesShipmentClaimsPanel } from "../../../../ui/features/claims/SalesShipmentClaimsPanel";
-
-type Query = { locale?: string; demoState?: string };
-type DemoState = "open" | "pending" | "rejected" | "approved" | "resolved";
-const states = new Set<DemoState>(["open", "pending", "rejected", "approved", "resolved"]);
-
-export default async function ClaimsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Query> }) {
-  const [{ id }, query] = await Promise.all([params, searchParams]);
-  const locale = query.locale === "ar" ? "ar" : "en", ar = locale === "ar";
-  const demoState = states.has(query.demoState as DemoState) ? query.demoState as DemoState : "open";
-  return <section aria-labelledby="claims-title" dir={ar ? "rtl" : "ltr"} style={{ display: "grid", gap: 20, minWidth: 0 }}>
-    <header><p><bdi>{id}</bdi> · {ar ? "نتائج مضبوطة بالموافقة" : "Approval-controlled outcomes"}</p><h1 id="claims-title">{ar ? "المطالبات البسيطة" : "Simple claims"}</h1><p>{ar ? "تسجل النسخة الأولى النتيجة فقط؛ لا توجد تسويات متقدمة أو إجراءات نهائية مباشرة." : "Release 1 records the outcome only; terminal state requires an exact approved proposal."}</p></header>
-    <ClaimWorkspace locale={locale} demoState={demoState} />
-    <SalesShipmentClaimsPanel locale={locale} />
-  </section>;
-}
+import { ClaimWorkspace } from "../../../../ui/features/claims/ClaimWorkspace";import { SalesShipmentClaimsPanel } from "../../../../ui/features/claims/SalesShipmentClaimsPanel";import { EnterpriseStyles,ErpPageHeader,Kpi } from "../../../../ui/features/admin/EnterpriseUx";type Query={locale?:string;demoState?:string};type DemoState="open"|"pending"|"rejected"|"approved"|"resolved";const states=new Set<DemoState>(["open","pending","rejected","approved","resolved"]);export default async function ClaimsPage({params,searchParams}:{params:Promise<{id:string}>;searchParams:Promise<Query>}){const [{id},query]=await Promise.all([params,searchParams]);const locale=query.locale==="ar"?"ar":"en",ar=locale==="ar",demoState=states.has(query.demoState as DemoState)?query.demoState as DemoState:"open";return <section aria-labelledby="claims-title" dir={ar?"rtl":"ltr"} className="orb-erp"><EnterpriseStyles/><ErpPageHeader titleId="claims-title" eyebrow={<><bdi>{id}</bdi><span>•</span>{ar?"الرقابة والاستثناءات":"Controls & exceptions"}</>} title={ar?"المطالبات البسيطة":"Simple claims"} description={ar?"إدارة المطالبة من الفتح حتى النتيجة النهائية المعتمدة، بدون تجاوز ضوابط الموافقة.":"Manage claims from opening to an approved terminal outcome without bypassing approval controls."} meta={<span className="orb-chip" data-tone={demoState==="resolved"?"success":"warning"}>{demoState.toUpperCase()}</span>}/><div className="orb-summary-grid"><Kpi label={ar?"المطالبات المفتوحة":"Open claims"} value={demoState==="resolved"?"0":"1"}/><Kpi label={ar?"قيد المراجعة":"Under review"} value={demoState==="open"?"0":"1"}/><Kpi label={ar?"مبلغ التعرض":"Exposure"} value={<bdi>USD 0.00</bdi>}/><Kpi label={ar?"مانع إغلاق":"Close blocker"} value={demoState==="resolved"?(ar?"لا":"No"):(ar?"نعم":"Yes")}/></div><ClaimWorkspace locale={locale} demoState={demoState}/><SalesShipmentClaimsPanel locale={locale}/></section>}

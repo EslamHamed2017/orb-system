@@ -1,15 +1,1 @@
-import { SignInForm } from "../../ui/features/auth/SignInForm";
-
-type Locale = "ar" | "en";
-export default async function SignInPage({ searchParams }: { searchParams: Promise<{ locale?: string }> }) {
-  const requested = (await searchParams).locale;
-  const locale: Locale = requested === "ar" ? "ar" : "en", dir = locale === "ar" ? "rtl" : "ltr";
-  return <main lang={locale} dir={dir} style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, fontFamily: "system-ui, sans-serif" }}>
-    <script dangerouslySetInnerHTML={{ __html: `document.documentElement.lang=${JSON.stringify(locale)};document.documentElement.dir=${JSON.stringify(dir)}` }} />
-    <section aria-labelledby="sign-in-heading" style={{ width: "min(100%, 28rem)" }}>
-      <div aria-label="ORB">ORB</div>
-      <h1 id="sign-in-heading">{locale === "ar" ? "تسجيل الدخول" : "Sign in"}</h1>
-      <SignInForm locale={locale} />
-    </section>
-  </main>;
-}
+import { SignInForm } from "../../ui/features/auth/SignInForm";import { EnterpriseStyles } from "../../ui/features/admin/EnterpriseUx";type Locale="ar"|"en";export default async function SignInPage({searchParams}:{searchParams:Promise<{locale?:string}>}){const requested=(await searchParams).locale,locale:Locale=requested==="ar"?"ar":"en",dir=locale==="ar"?"rtl":"ltr",ar=locale==="ar";return <main lang={locale} dir={dir} className="orb-signin"><EnterpriseStyles/><script dangerouslySetInnerHTML={{__html:`document.documentElement.lang=${JSON.stringify(locale)};document.documentElement.dir=${JSON.stringify(dir)}`}}/><section className="orb-signin-brand" aria-label="ORB"><div className="orb-signin-brand-mark">O</div><h1>{ar?"العمل التشغيلي، تحت السيطرة.":"Operations, under control."}</h1><p>{ar?"منصة موحدة للمشاريع والشحنات والمالية والموافقات مع سجل تدقيق كامل.":"One workspace for projects, shipments, finance and approvals—with complete traceability."}</p></section><section className="orb-signin-panel" aria-labelledby="sign-in-heading"><div className="orb-signin-card"><div className="orb-eyebrow">ORB · {ar?"مساحة آمنة":"Secure workspace"}</div><h1 id="sign-in-heading">{ar?"مرحباً بعودتك":"Welcome back"}</h1><p className="orb-muted">{ar?"سجّل الدخول للمتابعة إلى مساحة ORB.":"Sign in to continue to your ORB workspace."}</p><SignInForm locale={locale}/><p className="orb-muted" style={{fontSize:".75rem",marginBlockStart:20}}>{ar?"تخضع جميع عمليات الدخول للتسجيل والمراقبة.":"All access is logged and monitored."}</p></div></section></main>}
