@@ -13,7 +13,7 @@ type RouteName = keyof typeof routeItems;
 
 export default async function EvidencePage({ params, searchParams }: Readonly<{ params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }>) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  const locale = query.locale === "ar" ? "ar" : "en";
+  const locale = query.locale === "ar" ? "ar" : "en", ar = locale === "ar";
   const requestedRoute = typeof query.route === "string" ? query.route : "UAE_IMPORT";
   const route: RouteName = Object.hasOwn(routeItems, requestedRoute) ? requestedRoute as RouteName : "UAE_IMPORT";
   const pending = query.verification === "pending";
@@ -36,6 +36,7 @@ export default async function EvidencePage({ params, searchParams }: Readonly<{ 
     sourceLinks: [{ reference: "ORB-SAL-0007", href: `/sales-shipments/${SHIPMENT_ID}`, purpose: locale === "ar" ? "دليل مسار الشحنة" : "Shipment route evidence" }],
   };
   return <div className={s.page}>
+   <script dangerouslySetInnerHTML={{ __html: `document.documentElement.lang=${JSON.stringify(locale)};document.documentElement.dir=${JSON.stringify(ar ? "rtl" : "ltr")}` }} />
     <EvidenceViewer locale={locale} metadata={metadata} />
     <SalesShipmentRouteEvidencePanel locale={locale} checklist={{ shipmentId: SHIPMENT_ID, templateVersion: 1, version: 3, items }} />
   </div>;

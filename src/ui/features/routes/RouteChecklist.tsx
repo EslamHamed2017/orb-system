@@ -16,7 +16,7 @@ export function RouteChecklist({ locale, checklist }: Readonly<{ locale: RouteCh
   return <section aria-labelledby="route-checklist-title" aria-label={ar ? "قائمة مسار الشحنة" : "Route checklist"} className={s.card}>
     <header className={s.sectionHeader}><div><h2 id="route-checklist-title">{ar ? "قائمة مسار الشحنة" : "Route checklist"}</h2><p>{ar ? `إصدار القالب ${checklist.templateVersion} · إصدار القائمة ${checklist.version}` : `Template version ${checklist.templateVersion} · Checklist version ${checklist.version}`}</p></div><span className={s.chip}>{checklist.items.filter((item) => item.state === "SATISFIED").length}/{checklist.items.length}</span></header>
     <ol className={s.routeList}>{checklist.items.map((item, index) => <li key={item.id} className={s.routeItem}>
-      <span className={s.step}>{index + 1}</span><div><strong>{labels[item.code]?.[locale] ?? item.code}</strong><p className={s.helper}>{item.kind} · {stateLabels[locale][item.state]}</p></div>
+      <span className={s.step}>{index + 1}</span><div><strong>{labels[item.code]?.[locale] ?? item.code}</strong><p className={s.helper}><span>{item.kind}</span> · <span>{stateLabels[locale][item.state]}</span></p></div>
       {item.state !== "NOT_APPLICABLE_BY_RULE" && item.kind === "EVIDENCE" ? <button className={s.secondary} type="button" data-operation-id="updateRouteEvidenceOrMilestone">{ar ? "رفع دليل" : "Upload evidence"}</button> : null}
       {item.state !== "NOT_APPLICABLE_BY_RULE" && item.kind === "MILESTONE" ? <button className={s.secondary} type="button" data-operation-id="updateRouteEvidenceOrMilestone">{ar ? "إكمال المرحلة" : "Complete milestone"}</button> : null}
     </li>)}</ol>
