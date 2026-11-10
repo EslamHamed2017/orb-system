@@ -13,7 +13,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
   return <html lang="en" dir="ltr">
     <body>
       <OrbThemeProvider>
-        <Suspense fallback={<main className="orb-main" aria-busy="true">Loading ORB…</main>}>
+        <Suspense fallback={<div className="orb-main" role="status" aria-busy="true">Loading ORB…</div>}>
           <AppNavigation>{children}</AppNavigation>
         </Suspense>
       </OrbThemeProvider>

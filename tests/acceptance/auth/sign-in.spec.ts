@@ -19,7 +19,7 @@ for (const locale of ["en", "ar"] as const) {
     const response = await responsePromise;
     expect(response.status()).toBe(201);
     expect(response.headers()["x-csrf-token"]).toBeTruthy();
-    const setCookie = response.headers()["set-cookie"] ?? "";
+    const setCookie = (await response.allHeaders())["set-cookie"] ?? "";
     expect(setCookie).toMatch(/__Host-orb_session=/);
     expect(setCookie).toMatch(/Secure/i);
     expect(setCookie).toMatch(/HttpOnly/i);

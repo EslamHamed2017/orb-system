@@ -65,6 +65,7 @@ test("every OpenAPI mutation has one reachable named UI action bound to its exac
   const found = new Map<string, number>();
   for (const route of routes) {
     await page.goto(`${route}${route.includes("?") ? "&" : "?"}locale=en&role=owner-admin`);
+    await expect(page.locator("main h1").first()).toBeVisible();
     for (const control of await page.locator("button[data-operation-id], a[data-operation-id], form[data-operation-id]").all()) {
       const id = await control.getAttribute("data-operation-id");
       if (id) found.set(id, (found.get(id) ?? 0) + 1);

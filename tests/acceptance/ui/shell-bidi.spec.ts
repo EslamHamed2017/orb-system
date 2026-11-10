@@ -15,6 +15,8 @@ async function openShell(page: Page, locale: "ar" | "en", width: number, height:
   await page.setViewportSize({ width, height });
   await page.goto(`/?locale=${locale}`);
   await expect(page.locator("html")).toHaveAttribute("lang", locale);
+  await expect(page.locator("main h1").first()).toBeVisible();
+  await expect(page.locator('main[aria-busy="true"]')).toHaveCount(0);
 }
 
 for (const language of locales) {

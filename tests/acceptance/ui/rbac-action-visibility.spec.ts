@@ -67,6 +67,7 @@ for (const role of ["operations", "finance-viewer"] as const) {
   test(`${role} UI hides owner-only actions instead of relying on server denial`, async ({ page }) => {
     for (const route of ["/approvals", "/admin/users", "/admin/backup", "/projects/demo/closure"]) {
       await page.goto(`${route}?locale=en&role=${role}`);
+      await expect(page.locator("main h1").first()).toBeVisible();
       await expect(page.locator('[data-required-role="OWNER_ADMIN"]')).toHaveCount(0);
       await expect(page.locator("main")).not.toContainText(/start isolated restore test|assign fixed roles|revoke exact session|approve final close|reopen project/i);
     }
@@ -76,6 +77,7 @@ for (const role of ["operations", "finance-viewer"] as const) {
 test("Finance Viewer receives read-only operational screens with no mutation-bound control", async ({ page }) => {
   for (const route of ["/projects", "/projects/demo/overview", "/projects/demo/contracts", "/projects/demo/shipments", "/projects/demo/money", "/projects/demo/expenses", "/projects/demo/statements", "/projects/demo/profit", "/sales-shipments/demo", "/supplier-shipments/demo"]) {
     await page.goto(`${route}?locale=en&role=finance-viewer`);
+    await expect(page.locator("main h1").first()).toBeVisible();
     await expect(page.locator("main button[data-operation-id], main form[data-operation-id]")).toHaveCount(0);
   }
 });
