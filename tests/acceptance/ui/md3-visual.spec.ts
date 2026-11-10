@@ -1,0 +1,11 @@
+import { expect, test, type Page, type TestInfo } from "@playwright/test";
+test.setTimeout(120_000);
+const routes = ["/sign-in", "/", "/masters/customers", "/projects", "/projects/new", "/projects/demo/overview", "/projects/demo/contracts", "/projects/demo/shipments", "/sales-shipments/demo", "/supplier-shipments/demo", "/projects/demo/money", "/projects/demo/expenses", "/projects/demo/statements", "/projects/demo/profit", "/projects/demo/claims", "/projects/demo/closure", "/approvals", "/documents/demo", "/evidence/demo", "/projects/demo/audit", "/admin/users", "/admin/backup"] as const;
+const viewports = [{ name: "desktop", width: 1440, height: 900 }, { name: "tablet", width: 768, height: 1024 }, { name: "phone", width: 390, height: 844 }] as const;
+async function capture(page: Page, route: string, locale: "en" | "ar", viewport: typeof viewports[number], testInfo: TestInfo) {
+  await page.setViewportSize(viewport); const response = await page.goto(`${route}?locale=${locale}`); expect(response?.status(), route).toBeLessThan(400);
+  await expect(page.locator(`main h1:visible, main [role="heading"][aria-level="1"]:visible`).first()).toBeVisible(); await expect(page.locator("html")).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth); expect(overflow, `${route} ${locale} ${viewport.name} horizontal overflow`).toBeLessThanOrEqual(1);
+  const name = `${locale}-${viewport.name}-${route === "/" ? "today" : route.slice(1).replaceAll("/", "-")}.png`; await testInfo.attach(name, { body: await page.screenshot({ fullPage: true, animations: "disabled" }), contentType: "image/png" });
+}
+test.describe("ORB-R1-1205 diagnostic MD3 visual capture", () => { test.skip(({ browserName }) => browserName !== "chromium", "one deterministic capture engine; E15 reruns bind the deployed target"); for (const locale of ["en", "ar"] as const) for (const viewport of viewports) test(`${locale} ${viewport.name} captures every contracted screen`, async ({ page }, testInfo) => { for (const route of routes) await test.step(route, () => capture(page, route, locale, viewport, testInfo)); }); });
