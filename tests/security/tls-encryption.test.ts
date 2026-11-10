@@ -1,0 +1,5 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { assertTransportSecurity, securityHeaders } from "../../src/platform/security/headers.ts";
+test("TLS and encryption policy fail closed",()=>{assert.doesNotThrow(()=>assertTransportSecurity({protocol:"https:",tlsVersion:"TLSv1.3",databaseEncryptedAtRest:true,objectStoreEncryptedAtRest:true}));for(const x of [{protocol:"http:",tlsVersion:"TLSv1.3",databaseEncryptedAtRest:true,objectStoreEncryptedAtRest:true},{protocol:"https:",tlsVersion:"TLSv1.1",databaseEncryptedAtRest:true,objectStoreEncryptedAtRest:true},{protocol:"https:",tlsVersion:"TLSv1.2",databaseEncryptedAtRest:false,objectStoreEncryptedAtRest:true}])assert.throws(()=>assertTransportSecurity(x as any));});
+test("hardening headers prevent downgrade, framing, sniffing, and caching",()=>{const h=securityHeaders();assert.match(h["strict-transport-security"],/max-age=63072000/);assert.equal(h["x-content-type-options"],"nosniff");assert.equal(h["x-frame-options"],"DENY");assert.equal(h["cache-control"],"no-store");assert.match(h["content-security-policy"],/default-src .none./);});

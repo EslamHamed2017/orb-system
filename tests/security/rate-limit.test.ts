@@ -1,0 +1,5 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { SlidingWindowRateLimiter, rateLimitHeaders } from "../../src/platform/http/rate-limit.ts";
+test("rate limits are keyed, bounded, recover, and reject backdating",()=>{const r=new SlidingWindowRateLimiter({limit:2,windowMs:1000});assert.equal(r.consume({key:"a",nowMs:1000}).allowed,true);assert.equal(r.consume({key:"a",nowMs:1000}).allowed,true);const denied=r.consume({key:"a",nowMs:1000});assert.equal(denied.allowed,false);assert.equal(denied.retryAfterSeconds,1);assert.equal(r.consume({key:"b",nowMs:1000}).allowed,true);assert.equal(r.consume({key:"a",nowMs:2001}).allowed,true);assert.throws(()=>r.consume({key:"a",nowMs:2000}));});
+test("denials emit no-store and standard headers",()=>{assert.deepEqual(rateLimitHeaders({allowed:false,limit:5,remaining:0,resetAtMs:2000,retryAfterSeconds:2}),{"cache-control":"no-store","ratelimit-limit":"5","ratelimit-remaining":"0","ratelimit-reset":"2","retry-after":"2"});});

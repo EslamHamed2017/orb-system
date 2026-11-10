@@ -1,0 +1,7 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import test from "node:test";
+import { uploadEvidence } from "../../src/modules/evidence/evidence-service.ts";
+const ID="019a5f9b-7c00-7000-8000-000000000201", SOURCE="019a5f9b-7c00-7000-8000-000000000202";
+function fixture() { const bytes=Buffer.from("clean"), calls={put:0,insert:0,audit:0}; async function* content(){yield bytes;} return {calls,input:{id:ID,content:content(),expectedSha256:createHash("sha256").update(bytes).digest("hex"),originalFilename:"proof.pdf",mediaType:"application/pdf",maxBytes:1024,retentionUntil:"2036-01-01T00:00:00.000Z",sourceLink:{subjectType:"Project",subjectId:SOURCE,purpose:"ROUTE_PROOF"},actor:{userId:"actor",roles:["OPERATIONS"]},transaction:{},malwareScanner:{scan:async()=>({clean:true})},objectStore:{putImmutable:async()=>{calls.put++;return{objectKey:`evidence/${ID}`,objectVersionId:"v1",retentionUntil:"2036-01-01T00:00:00.000Z"};}},repository:{insertEvidence:async()=>{calls.insert++;}},audit:{append:async()=>{calls.audit++;}}}}; }
+test("bad type, oversize, hash mismatch, and malware never persist", async () => { for (const mutate of [(x:any)=>x.input.mediaType="text/html",(x:any)=>x.input.maxBytes=1,(x:any)=>x.input.expectedSha256="0".repeat(64),(x:any)=>x.input.malwareScanner={scan:async()=>({clean:false,signature:"Eicar"})}]) { const x=fixture(); mutate(x); await assert.rejects(uploadEvidence(x.input as any)); assert.deepEqual(x.calls,{put:0,insert:0,audit:0}); } });

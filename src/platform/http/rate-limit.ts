@@ -1,0 +1,8 @@
+export interface RateLimitDecision { readonly allowed:boolean; readonly limit:number; readonly remaining:number; readonly resetAtMs:number; readonly retryAfterSeconds:number }
+export class SlidingWindowRateLimiter {
+  private readonly hits=new Map<string,number[]>(); private lastNowMs=Number.NEGATIVE_INFINITY;
+  readonly limit:number; readonly windowMs:number;
+  constructor(input:{limit:number;windowMs:number}) { if(!Number.isSafeInteger(input.limit)||input.limit<1||!Number.isSafeInteger(input.windowMs)||input.windowMs<1) throw new RangeError("positive integer rate-limit configuration required"); this.limit=input.limit;this.windowMs=input.windowMs; }
+  consume(input:{key:string;nowMs:number}):RateLimitDecision { if(!input.key.trim()||!Number.isSafeInteger(input.nowMs)||input.nowMs<this.lastNowMs) throw new TypeError("valid key and monotonic time required"); this.lastNowMs=input.nowMs; const active=(this.hits.get(input.key)??[]).filter((value)=>value>input.nowMs-this.windowMs); const allowed=active.length<this.limit; if(allowed)active.push(input.nowMs); this.hits.set(input.key,active); const resetAtMs=(active[0]??input.nowMs)+this.windowMs; return Object.freeze({allowed,limit:this.limit,remaining:Math.max(0,this.limit-active.length),resetAtMs,retryAfterSeconds:allowed?0:Math.max(1,Math.ceil((resetAtMs-input.nowMs)/1000))}); }
+}
+export function rateLimitHeaders(decision:RateLimitDecision):Readonly<Record<string,string>> { return Object.freeze({"cache-control":"no-store","ratelimit-limit":String(decision.limit),"ratelimit-remaining":String(decision.remaining),"ratelimit-reset":String(Math.ceil(decision.resetAtMs/1000)),...(decision.allowed?{}:{"retry-after":String(decision.retryAfterSeconds)})}); }
