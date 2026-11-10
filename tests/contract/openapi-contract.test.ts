@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import babelParser from 'next/dist/compiled/babel/parser.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const OPENAPI = resolve(ROOT, 'specs/001-orb-trade-operations/contracts/openapi.yaml');
@@ -303,17 +304,53 @@ function routeFiles(directory) {
     return entry.isFile() && entry.name === 'route.ts' ? [path] : [];
   });
 }
-function applicationRoutePaths(root = ROOT) {
+function exportedHttpMethods(source) {
+  const methods = new Set();
+  const add = (name) => { if (HTTP_METHODS.has(name.toLowerCase())) methods.add(name.toLowerCase()); };
+  let program;
+  try {
+    program = babelParser.parse(source, { sourceType: 'module', plugins: ['typescript'], allowUndeclaredExports: true }).program;
+  } catch (error) {
+    throw new SyntaxError('TypeScript parse failed: ' + error.message, { cause: error });
+  }
+  const runtimeBindings = new Set();
+  const recordDeclaration = (declaration) => {
+    if (declaration?.type === 'FunctionDeclaration' && declaration.id && !declaration.declare) runtimeBindings.add(declaration.id.name);
+    if (declaration?.type === 'VariableDeclaration' && !declaration.declare) {
+      for (const item of declaration.declarations) if (item.id.type === 'Identifier') runtimeBindings.add(item.id.name);
+    }
+  };
+  for (const statement of program.body)
+    recordDeclaration(statement.type === 'ExportNamedDeclaration' ? statement.declaration : statement);
+  for (const statement of program.body) {
+    if (statement.type !== 'ExportNamedDeclaration' || statement.exportKind === 'type' || statement.source) continue;
+    const declaration = statement.declaration;
+    if (declaration?.type === 'FunctionDeclaration' && declaration.id && !declaration.declare) add(declaration.id.name);
+    if (declaration?.type === 'VariableDeclaration' && !declaration.declare) {
+      for (const item of declaration.declarations) if (item.id.type === 'Identifier') add(item.id.name);
+    }
+    for (const specifier of statement.specifiers)
+      if (specifier.type === 'ExportSpecifier' && specifier.exportKind !== 'type' && runtimeBindings.has(specifier.local.name ?? specifier.local.value))
+        add(specifier.exported.name ?? specifier.exported.value);
+  }
+  return canonicalSet(methods);
+}
+function applicationRouteModules(root = ROOT) {
   const packagePath = resolve(root, 'package.json'), nextConfigPath = resolve(root, 'next.config.ts');
   assert.ok(existsSync(packagePath), 'missing build artifact: package.json');
   assert.ok(existsSync(nextConfigPath), 'missing build artifact: next.config.ts');
   const packageDocument = JSON.parse(readFileSync(packagePath, 'utf8'));
   assert.equal(packageDocument.scripts?.build, 'next build', 'application build command changed');
   const apiRoot = resolve(root, 'src/app/api');
-  return routeFiles(apiRoot).map((path) => '/' + relative(apiRoot, path).replace(/\/route\.ts$/, '')).map(normalizedRoutePath);
+  return routeFiles(apiRoot).map((file) => ({
+    file,
+    path: normalizedRoutePath('/' + relative(apiRoot, file).replace(/\/route\.ts$/, '')),
+    methods: new Set(exportedHttpMethods(readFileSync(file, 'utf8'))),
+  }));
 }
 function canonicalSet(values) { return [...values].sort(); }
 function setDiff(expected, actual) { return { missing: canonicalSet([...expected].filter((x) => !actual.has(x))), unexpected: canonicalSet([...actual].filter((x) => !expected.has(x))) }; }
+function routeMethodDiff(expected, actual) { return setDiff(expected, actual); }
 function contractViolations(document) {
   const errors = [];
   const entries = operations(document);
@@ -464,12 +501,39 @@ test('accepted OpenAPI 3.1 surface and every local ref are pinned', () => {
   assert.match(document.openapi, /^3\.1(?:\.|$)/); assert.equal(Object.keys(document.paths).length, 75);
   assert.equal(operations(document).length, 79); assert.equal(acceptedLocalRefCount, 745);
 });
-test('all 75 accepted paths are backed by application and build artifacts', () => {
-  const expected = canonicalSet(Object.keys(document.paths).map(normalizedRoutePath));
+test('route handler export inventory recognizes repository syntax and rejects method drift', () => {
+  assert.deepEqual(exportedHttpMethods('export async function GET() {}\nexport const POST = handler;'), ['get', 'post']);
+  assert.deepEqual(exportedHttpMethods('const GET = handler; export { GET };\nexport { handler as PATCH };'), ['get']);
+  assert.deepEqual(routeMethodDiff(new Set(['get', 'post']), new Set(['get', 'delete'])), { missing: ['post'], unexpected: ['delete'] });
+});
+test('route handler export inventory is syntax-aware and fails closed', () => {
+  assert.deepEqual(exportedHttpMethods('// export const GET = decoy;\nconst text = "export function POST() {}";'), []);
+  assert.deepEqual(exportedHttpMethods('const local = handler; export { local as GET };\nexport { upstream as PATCH } from "./handlers";'), ['get']);
+  assert.deepEqual(exportedHttpMethods('export declare function GET(): void;\nexport declare const POST: () => void;'), []);
+  assert.deepEqual(exportedHttpMethods('export { GET, handler as POST };\nexport { upstream as PATCH } from "./handlers";'), []);
+  assert.deepEqual(exportedHttpMethods('function handler() {}\nconst local = handler;\nexport { handler as GET, local as POST };'), ['get', 'post']);
+  assert.deepEqual(exportedHttpMethods('export function OPTIONS() {}\nexport let HEAD = handler, POST = handler;\nexport var DELETE = handler;'), ['delete', 'head', 'options', 'post']);
+  assert.deepEqual(exportedHttpMethods('const GET = handler; export { GET as POST };'), ['post']);
+  assert.throws(() => exportedHttpMethods('export const GET = ;\nexport function POST( {}'), /TypeScript parse failed/);
+});
+test('all 75 accepted paths and 79 methods are exactly backed by application route exports and build artifacts', () => {
+  const expected = new Map();
+  for (const { path, method } of operations(document)) {
+    const normalized = normalizedRoutePath(path);
+    if (!expected.has(normalized)) expected.set(normalized, new Set());
+    expected.get(normalized).add(method);
+  }
   const allowedInfrastructure = new Set(['/health/live', '/health/ready']);
-  const actual = canonicalSet(applicationRoutePaths().filter((path) => !allowedInfrastructure.has(path)));
-  assert.equal(new Set(actual).size, actual.length, 'duplicate normalized application route');
-  assert.deepEqual(actual, expected, 'application route files must exactly back the accepted OpenAPI paths');
+  const modules = applicationRouteModules().filter(({ path }) => !allowedInfrastructure.has(path));
+  const actualPaths = modules.map(({ path }) => path);
+  assert.equal(new Set(actualPaths).size, actualPaths.length, 'duplicate normalized application route');
+  assert.deepEqual(canonicalSet(actualPaths), canonicalSet(expected.keys()), 'application route files must exactly back the accepted OpenAPI paths');
+  const methodMismatches = [];
+  for (const { file, path, methods } of modules) {
+    const diff = routeMethodDiff(expected.get(path), methods);
+    if (diff.missing.length || diff.unexpected.length) methodMismatches.push({ file: relative(ROOT, file), ...diff });
+  }
+  assert.deepEqual(methodMismatches, [], 'application route modules must export exactly the 79 contracted HTTP methods');
 });
 test('all operations have exact operation-specific role assignments', () => {
   assert.equal(EXPECTED_ROLES.size, 79); assert.deepEqual(contractViolations(document), []);

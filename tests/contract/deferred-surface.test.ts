@@ -11,6 +11,8 @@ const METHODS = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', 'optio
 function text(path) { return readFileSync(resolve(BASE, path), 'utf8'); }
 function normalized(value) { return String(value).replace(/~[01]/g, '/').toLowerCase().replace(/[^a-z0-9]+/g, ''); }
 const FORBIDDEN = [
+  ['general-ledger/accounting surface', /(?:generalledger|chartofaccounts|journalentr(?:y|ies)|trialbalance|inventoryvaluation)/],
+  ['speculative placeholder', /(?:(?:speculative|futurefeature|comingsoon).*(?:placeholder|stub)|(?:placeholder|stub).*(?:feature|speculative|future|comingsoon))/],
   ['multiple/secondary shipment sources or source allocation', /(?:multi(?:ple)?(?:shipment|supplier)?sources?|secondary(?:shipment|supplier)?source|secondarysource|sources?allocation|allocationsource)/],
   ['shared-expense allocation', /(sharedexpenses?|expenseallocation)/],
   ['configurable approval/rule UI', /(configurable(approval|rule)|approvalrules?|approvaldesigner|approvalruleeditor|rule(editor|designer|configurator))/],
@@ -272,6 +274,32 @@ test('every previously missed deferred identifier form is rejected in its struct
     const taskMutation = tasks.replace('; operations listMasterRecords,', '; operations ' + name + ', listMasterRecords,');
     assert.ok(deferredFindings(executableTaskSurfaces(taskMutation)).some((finding) => finding.kind === 'traceOperations' && finding.value === name), 'task identifier escaped detection: ' + name);
   }
+});
+
+test('authoritative accounting and speculative placeholder identifiers are rejected without scanning prose', () => {
+  const identifiers = [
+    'generalLedger', 'generalLedgerAccount', 'chartOfAccounts', 'chartOfAccountsRoute',
+    'journalEntry', 'journalEntryId', 'journalEntries', 'trialBalance', 'inventoryValuation',
+    'speculativePlaceholder', 'futureFeaturePlaceholder', 'placeholderFeature', 'comingSoonStub',
+  ];
+  for (const name of identifiers) {
+    const mutated = structuredClone(api);
+    mutated.components.schemas.DeferredBoundaryProbe = { type: 'object', properties: { [name]: { type: 'string' } } };
+    assert.ok(deferredFindings(openApiSurfaces(mutated)).some((finding) => finding.kind === 'propertyNames' && finding.value.endsWith('.' + name)), name + ' escaped structured detection');
+  }
+
+  for (const name of ['journal', 'placeholder', 'stub', 'journalNotes', 'placeholderText', 'stubResponse']) {
+    const allowed = structuredClone(api);
+    allowed.components.schemas.AllowedBoundaryProbe = { type: 'object', properties: { [name]: { type: 'string' } } };
+    assert.deepEqual(deferredFindings(openApiSurfaces(allowed)), [], name + ' was treated as generically prohibited');
+  }
+
+  const prose = structuredClone(api);
+  prose.components.schemas.AccountingProseProbe = {
+    type: 'object',
+    description: 'General ledger, chart of accounts, journals, journal entries, trial balance, inventory valuation, and speculative placeholders are absent.',
+  };
+  assert.deepEqual(deferredFindings(openApiSurfaces(prose)), []);
 });
 
 test('deferred prose decoys outside structured active identifiers do not cause findings', () => {
