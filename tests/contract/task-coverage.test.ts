@@ -37,6 +37,14 @@ test('actual page ownership must match the immutable primary map', () => {
   assert.throws(() => verifyRepositorySources({ ...repositorySources, tasks }), /page file owner mismatch/);
 });
 
+test('canonical acceptance mappings reject unknown task IDs', () => {
+  const tasks = repositorySources.tasks.replace(
+    '| `listMasterRecords` | `ORB-R1-0001`,',
+    '| `listMasterRecords` | `ORB-R1-9999`,',
+  );
+  assert.throws(() => verifyRepositorySources({ ...repositorySources, tasks }), /unknown mapped task/);
+});
+
 function acceptedCorrectionFixture() {
   return {
     primary: {

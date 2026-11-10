@@ -84,6 +84,13 @@ function parseOperationIds(openapi) {
   exact(ids, [...new Set(ids)], 'OpenAPI operationId'); return ids;
 }
 function requireTask(byId, id) { const task = byId.get(id); if (!task) fail(`missing task ${id}`); return task; }
+function assertKnownMappedTasks(rows, byId, label) {
+  for (const row of rows) {
+    const ids = backticks(row).filter((value) => ORDINARY_ID.test(value) || CORRECTION_ID.test(value));
+    exact(ids, [...new Set(ids)], `${label} mapped tasks`);
+    for (const id of ids) if (!byId.has(id)) fail(`${label}: unknown mapped task ${id}`);
+  }
+}
 function assertPrerequisites(byId) {
   const has = (id, dependency) => {
     const seen = new Set(), pending = [...requireTask(byId, id).prerequisites];
@@ -163,17 +170,23 @@ export function verifyCorrectionModel(model) {
 export function verifyRepositorySources({ tasks: taskSource, openapi, ui, spec, quickstart }) {
   for (const [name, value] of Object.entries({ tasks: taskSource, openapi, ui, spec, quickstart })) if (typeof value !== 'string') fail(`missing source ${name}`);
   const tasks = parseTasks(taskSource), ordinary = tasks.filter((task) => ORDINARY_ID.test(task.id));
+  const byId = new Map(tasks.map((task) => [task.id, task]));
   const edges = verifyGraph(tasks), primary = primaryMap(tasks);
   const operations = parseOperationIds(openapi);
   const expectedRequirements = Array.from({ length: 20 }, (_, i) => `R1-${String(i + 1).padStart(3, '0')}`);
   const expectedInvariants = Array.from({ length: 7 }, (_, i) => `INV-${String(i + 1).padStart(2, '0')}`);
   const requirementAuthority = spec + '\n' + quickstart;
   for (const id of [...expectedRequirements, ...expectedInvariants]) if (!new RegExp(`(^|[^A-Za-z0-9_-])${id}([^A-Za-z0-9_-]|$)`, 'm').test(requirementAuthority)) fail(`authoritative artifacts missing ${id}`);
-  const operationRows = tableRows(taskSource, '### OperationId to implementation/verification tasks (79/79)', '### Requirement/invariant mapping (20/20 + 7/7)').map((row) => backticks(cells(row)[0])[0]).filter(Boolean);
+  const operationTableRows = tableRows(taskSource, '### OperationId to implementation/verification tasks (79/79)', '### Requirement/invariant mapping (20/20 + 7/7)');
+  assertKnownMappedTasks(operationTableRows, byId, 'operation mapping');
+  const operationRows = operationTableRows.map((row) => backticks(cells(row)[0])[0]).filter(Boolean);
   exact(operationRows, operations, 'operation mapping');
-  const requirementRows = tableRows(taskSource, '### Requirement/invariant mapping (20/20 + 7/7)', '### UI route mapping and actual page ownership (21/21)').map((row) => cells(row)[0]).filter((id) => /^(?:R1-\d{3}|INV-\d{2})$/.test(id));
+  const requirementTableRows = tableRows(taskSource, '### Requirement/invariant mapping (20/20 + 7/7)', '### UI route mapping and actual page ownership (21/21)');
+  assertKnownMappedTasks(requirementTableRows, byId, 'requirement/invariant mapping');
+  const requirementRows = requirementTableRows.map((row) => cells(row)[0]).filter((id) => /^(?:R1-\d{3}|INV-\d{2})$/.test(id));
   exact(requirementRows, [...expectedRequirements, ...expectedInvariants], 'requirement/invariant mapping');
-  const uiRows = tableRows(taskSource, '### UI route mapping and actual page ownership (21/21)', '### Numbered evidence mapping (17/17; deployed runtime only)').map(cells).filter((row) => backticks(row[1] || '')[0]?.startsWith('/'));
+  const uiTableRows = tableRows(taskSource, '### UI route mapping and actual page ownership (21/21)', '### Numbered evidence mapping (17/17; deployed runtime only)');
+  const uiRows = uiTableRows.map(cells).filter((row) => backticks(row[1] || '')[0]?.startsWith('/'));
   const routes = uiRows.map((row) => backticks(row[1])[0]);
   const contractRoutes = tableRows(ui, '## Exact screen map', '## Common interaction contract').map((row) => backticks(cells(row)[0])[0]).filter((route) => route?.startsWith('/'));
   exact(routes, contractRoutes, 'UI route mapping');
@@ -186,12 +199,15 @@ export function verifyRepositorySources({ tasks: taskSource, openapi, ui, spec, 
       if (primary.get(path) !== declaredOwner) fail(`actual page file owner mismatch for ${path}: declared ${declaredOwner}, primary ${primary.get(path)}`);
     }
   }
+  assertKnownMappedTasks(uiTableRows, byId, 'UI route mapping');
   const expectedEvidence = Array.from({ length: 17 }, (_, i) => `E${String(i + 1).padStart(2, '0')}`);
-  const evidenceRows = tableRows(taskSource, '### Numbered evidence mapping (17/17; deployed runtime only)', '## Dependency and parallel execution rules').map((row) => cells(row)[0]).filter((id) => /^E\d{2}$/.test(id));
+  const evidenceTableRows = tableRows(taskSource, '### Numbered evidence mapping (17/17; deployed runtime only)', '## Dependency and parallel execution rules');
+  assertKnownMappedTasks(evidenceTableRows, byId, 'evidence mapping');
+  const evidenceRows = evidenceTableRows.map((row) => cells(row)[0]).filter((id) => /^E\d{2}$/.test(id));
   exact(evidenceRows, expectedEvidence, 'evidence mapping');
   const quickEvidence = [...quickstart.matchAll(/^## (E\d{2})\b/gm), ...quickstart.matchAll(/^\*\*(E\d{2})\.\*\*/gm)].map((match) => match[1]);
   exact(quickEvidence, expectedEvidence, 'quickstart evidence');
-  assertPrerequisites(new Map(tasks.map((task) => [task.id, task])));
+  assertPrerequisites(byId);
   const correction = parseCorrectionTasks(tasks, primary);
   return { tasks: ordinary.length, edges, primaryFiles: correction.primaryFiles, correctionOverlays: correction.correctionOverlays, operations: operations.length, requirements: expectedRequirements.length, invariants: expectedInvariants.length, uiRoutes: routes.length, pageFiles: pageFiles.length, evidence: evidenceRows.length };
 }
