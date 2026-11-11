@@ -3,8 +3,10 @@ import { createHash, randomUUID } from "node:crypto";
 import { DecimalAmount } from "../../platform/decimal/index.ts";
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { problemError } from "../../platform/http/problem.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { assertServerPermission, type OperationPrincipal } from "../access/permissions.ts";
 
-type Principal = Readonly<{ userId: string; roles: readonly string[] }>;
+type Principal = OperationPrincipal;
 type Shipment = Readonly<{ id: string; projectId: string; customerId: string; customerNameEn: string; customerNameAr: string; reference: string; activeDatasetId: string; executionState: string; version: number }>;
 type DatasetLine = Readonly<{ id: string; lineNo: number; productDescription: string; quantity: string }>;
 type Dataset = Readonly<{ id: string; shipmentId: string; state: string; lines: readonly DatasetLine[] }>;
@@ -22,7 +24,7 @@ const clone = <T>(value: T): T => structuredClone(value);
 function canonical(value: unknown): string { if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`; if (value && typeof value === "object") return `{${Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`).join(",")}}`; return JSON.stringify(value); }
 const hash = (value: unknown) => createHash("sha256").update(canonical(value)).digest("hex");
 function fail(code: string, status: number, correlationId: string = randomUUID()): never { throw problemError({ code, status, correlationId: correlationId as ReturnType<typeof randomUUID> }); }
-function authorize(principal: Principal | undefined, correlationId: string): Principal { if (!principal?.userId || !Array.isArray(principal.roles) || !principal.roles.some((role) => role === "OWNER_ADMIN" || role === "FINANCE_VIEWER")) fail("PERMISSION_DENIED", 403, correlationId); return principal; }
+function authorize(principal: Principal | undefined, operationId: "createSalesInvoice" | "getSalesInvoice" | "getSalesInvoicePrintData", correlationId: string): Principal { try { assertServerPermission(principal as Principal, operationId); } catch { fail("PERMISSION_DENIED", 403, correlationId); } return principal as Principal; }
 function decimal(value: unknown, correlationId: string): DecimalAmount { try { if (typeof value !== "string") throw new TypeError(); const parsed = DecimalAmount.parse(value); if (parsed.isNegative() || parsed.isZero() || parsed.scale > 6) throw new TypeError(); return parsed; } catch { fail("VALIDATION_FAILED", 400, correlationId); } }
 function six(value: DecimalAmount): string { const [whole, fraction = ""] = value.toString().split("."); return `${whole}.${fraction.padEnd(6, "0")}`; }
 
@@ -32,7 +34,7 @@ export function createInMemorySalesInvoiceService(options: { now: () => string; 
   return {
     async create(input) {
       const correlationId = typeof input.correlationId === "string" ? input.correlationId : randomUUID();
-      const principal = authorize(input.principal as Principal | undefined, correlationId);
+      const principal = authorize(input.principal as Principal | undefined, "createSalesInvoice", correlationId);
       if (typeof input.idempotencyKey !== "string" || input.idempotencyKey.length < 8) fail("VALIDATION_FAILED", 400, correlationId);
       const request = Object.fromEntries(Object.entries(input).filter(([key]) => !["principal", "correlationId", "idempotencyKey"].includes(key)));
       const replayKey = `${principal.userId}:createSalesInvoice:${input.idempotencyKey}`, requestHash = hash(request), prior = state.replay.get(replayKey);
@@ -59,9 +61,9 @@ export function createInMemorySalesInvoiceService(options: { now: () => string; 
       const invoice: SalesInvoice = Object.freeze({ id: randomUUID(), projectId: shipment.projectId, salesShipmentId: shipment.id, salesShipmentDatasetId: dataset.id, customerId: shipment.customerId, reference, invoiceDate: String(input.invoiceDate), currency: String(input.currency), state: "DRAFT", totalAmount: six(total), version: 1, lines: Object.freeze(lines) });
       state.invoices.set(invoice.id, invoice); state.replay.set(replayKey, { hash: requestHash, value: clone(invoice) }); return { value: clone(invoice), replayed: false };
     },
-    async get(input) { authorize(input.principal, `get-${input.invoiceId}`); return clone(current(input.invoiceId, `get-${input.invoiceId}`)); },
+    async get(input) { authorize(input.principal, "getSalesInvoice", `get-${input.invoiceId}`); return clone(current(input.invoiceId, `get-${input.invoiceId}`)); },
     async getPrintData(input) {
-      authorize(input.principal, `print-${input.invoiceId}`); const invoice = current(input.invoiceId, `print-${input.invoiceId}`), shipment = state.shipments.get(invoice.salesShipmentId)!; const ar = input.locale === "ar";
+      authorize(input.principal, "getSalesInvoicePrintData", `print-${input.invoiceId}`); const invoice = current(input.invoiceId, `print-${input.invoiceId}`), shipment = state.shipments.get(invoice.salesShipmentId)!; const ar = input.locale === "ar";
       return Object.freeze({ invoice: clone(invoice), title: ar ? "فاتورة مبيعات" : "Sales invoice", direction: ar ? "rtl" : "ltr", customer: { id: shipment.customerId, name: ar ? shipment.customerNameAr : shipment.customerNameEn }, shipment: { id: shipment.id, reference: shipment.reference }, lines: clone(invoice.lines), totals: { currency: invoice.currency, totalAmount: invoice.totalAmount }, generatedAt: options.now() });
     },
   };

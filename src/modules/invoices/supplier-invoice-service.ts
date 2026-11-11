@@ -5,8 +5,10 @@ import { DecimalAmount } from "../../platform/decimal/index.ts";
 import { problemError } from "../../platform/http/problem.ts";
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { projectSupplierInvoiceProjection, supplierShipmentInvoiceProjection } from "./supplier-invoice-query.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { assertServerPermission, type OperationPrincipal } from "../access/permissions.ts";
 
-type Principal = Readonly<{ userId: string; displayName?: string; roles: readonly string[] }>;
+type Principal = OperationPrincipal & Readonly<{ displayName?: string }>;
 type InvoiceState = "DRAFT" | "PENDING_APPROVAL" | "CONFIRMED" | "REJECTED" | "CANCELLED";
 interface Shipment { readonly id: string; readonly projectId: string; readonly supplierId?: string; readonly activeDatasetId?: string; readonly executionState: string; readonly version: number }
 interface ShipmentDatasetLine { readonly id: string; readonly supplierId: string; readonly quantity: string }
@@ -55,7 +57,7 @@ const digest = (value: unknown) => createHash("sha256").update(canonical(value))
 function fail(code: string, status: number, correlationId: string = randomUUID()): never { throw problemError({ code, status, correlationId }); }
 function six(value: DecimalAmount): string { const [whole, fraction = ""] = value.toString().split("."); return `${whole}.${fraction.padEnd(6, "0")}`; }
 function positiveAmount(value: unknown, correlationId: string): string { try { if (typeof value !== "string") throw new TypeError(); const amount = DecimalAmount.parse(value); if (amount.isNegative() || amount.isZero() || amount.scale > 6) throw new TypeError(); return six(amount); } catch { fail("VALIDATION_FAILED", 400, correlationId); } }
-function actor(input: Record<string, unknown>, correlationId: string): Principal { const value = input.principal as Principal | undefined; if (!value?.userId || !Array.isArray(value.roles) || !value.roles.some((role) => role === "OWNER_ADMIN" || role === "FINANCE_VIEWER")) fail("PERMISSION_DENIED", 403, correlationId); return value; }
+function actor(input: Record<string, unknown>, operationId: string, correlationId: string): Principal { const value = input.principal as Principal | undefined; try { assertServerPermission(value as Principal, operationId); } catch { fail("PERMISSION_DENIED", 403, correlationId); } return value as Principal; }
 function current(state: State, invoiceId: unknown, correlationId: string): StoredInvoice { const invoice = state.invoices.get(String(invoiceId)); if (!invoice) fail("RESOURCE_NOT_FOUND", 404, correlationId); return invoice; }
 function expected(invoice: StoredInvoice, value: unknown, correlationId: string): void { if (!Number.isSafeInteger(value) || value !== invoice.version) fail("STALE_VERSION", 412, correlationId); }
 function publicInvoice(invoice: StoredInvoice): SupplierInvoice { return clone(invoice); }
@@ -65,7 +67,7 @@ export function createInMemorySupplierInvoiceService(options: { now: () => strin
   const state: State = { shipments: new Map(options.shipments.map((row) => [row.id, clone(row)])), datasets: new Map((options.datasets ?? []).map((row) => [row.id, clone(row)])), evidence: new Map(options.evidence.map((row) => [row.id, clone(row)])), invoices: new Map(), approvals: new Map(), replays: new Map(), audit: [] };
   async function once<T>(operation: string, input: Record<string, unknown>, work: (principal: Principal, correlationId: string) => T): Promise<{ value: T; replayed: boolean }> {
     const correlationId = typeof input.correlationId === "string" && input.correlationId ? input.correlationId : randomUUID();
-    const principal = actor(input, correlationId), key = input.idempotencyKey;
+    const principal = actor(input, operation, correlationId), key = input.idempotencyKey;
     if (typeof key !== "string" || key.length < 8) fail("VALIDATION_FAILED", 400, correlationId);
     const request = Object.fromEntries(Object.entries(input).filter(([name]) => !["principal", "correlationId", "idempotencyKey"].includes(name)));
     const scope = `${principal.userId}:${operation}:${key}`, hash = digest(request), prior = state.replays.get(scope);

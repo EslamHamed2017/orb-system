@@ -184,3 +184,57 @@ test("supplier-container mutation, exact-read and consolidation routes require t
   assert.equal((await allowedSummary(new Request("https://orb.example/api/supplier-shipments/x/datasets/y/consolidation"), { params: Promise.resolve(ids) })).status, 200);
   assert.equal(calls, 3);
 });
+
+
+
+test("invoice services require exact resolved operation grants before business access", async () => {
+  const { operationPermissionCode } = await import("../../src/modules/access/permissions.ts");
+  const { createInMemorySalesInvoiceService } = await import("../../src/modules/invoices/sales-invoice-service.ts");
+  const { createInMemorySupplierInvoiceService } = await import("../../src/modules/invoices/supplier-invoice-service.ts");
+  const principal = (operationId: string) => ({ userId: "custom", roles: ["CUSTOM"], permissionCodes: [operationPermissionCode(operationId)] });
+
+  const sales = createInMemorySalesInvoiceService({ now: () => "2026-11-11T00:00:00.000Z", shipments: [], datasets: [] });
+  await assert.rejects(() => sales.create({ principal: principal("getSalesInvoice"), correlationId: "wrong-sales-create" }), (error: any) => error?.problem?.code === "PERMISSION_DENIED");
+  await assert.rejects(() => sales.get({ invoiceId: "missing", principal: principal("createSalesInvoice") }), (error: any) => error?.problem?.code === "PERMISSION_DENIED");
+  await assert.rejects(() => sales.getPrintData({ invoiceId: "missing", principal: principal("getSalesInvoice") }), (error: any) => error?.problem?.code === "PERMISSION_DENIED");
+  await assert.rejects(() => sales.create({ principal: principal("createSalesInvoice"), correlationId: "right-sales-create" }), (error: any) => error?.problem?.code === "VALIDATION_FAILED");
+  await assert.rejects(() => sales.get({ invoiceId: "missing", principal: principal("getSalesInvoice") }), (error: any) => error?.problem?.code === "RESOURCE_NOT_FOUND");
+  await assert.rejects(() => sales.getPrintData({ invoiceId: "missing", principal: principal("getSalesInvoicePrintData") }), (error: any) => error?.problem?.code === "RESOURCE_NOT_FOUND");
+
+  const supplier = createInMemorySupplierInvoiceService({ now: () => "2026-11-11T00:00:00.000Z", shipments: [], evidence: [] });
+  await assert.rejects(() => supplier.create({ principal: principal("submitSupplierInvoice"), correlationId: "wrong-supplier-create" }), (error: any) => error?.problem?.code === "PERMISSION_DENIED");
+  await assert.rejects(() => supplier.create({ principal: principal("createSupplierInvoice"), correlationId: "right-supplier-create" }), (error: any) => error?.problem?.code === "VALIDATION_FAILED");
+});
+
+
+
+test("invoice HTTP routes require exact resolved operation grants before dependencies", async () => {
+  const { operationPermissionCode } = await import("../../src/modules/access/permissions.ts");
+  const salesCreate = await import("../../src/app/api/sales-shipments/[shipmentId]/sales-invoice/route.ts");
+  const salesGet = await import("../../src/app/api/sales-invoices/[invoiceId]/route.ts");
+  const salesPrint = await import("../../src/app/api/sales-invoices/[invoiceId]/print-data/route.ts");
+  const supplierCreate = await import("../../src/app/api/supplier-shipments/[shipmentId]/invoices/route.ts");
+  const principal = (operationId: string) => ({ userId: "custom", roles: ["CUSTOM"], permissionCodes: [operationPermissionCode(operationId)] });
+  let calls = 0;
+
+  const deniedSalesCreate = salesCreate.createPostHandler({ authenticate: async () => principal("getSalesInvoice"), create: async () => { calls += 1; return {}; } });
+  assert.equal((await deniedSalesCreate(new Request("https://orb.example/api/sales-shipments/s/sales-invoice", { method: "POST", body: "{}" }), { params: Promise.resolve({ shipmentId: "s" }) })).status, 403);
+  const allowedSalesCreate = salesCreate.createPostHandler({ authenticate: async () => principal("createSalesInvoice"), create: async () => { calls += 1; return {}; } });
+  assert.equal((await allowedSalesCreate(new Request("https://orb.example/api/sales-shipments/s/sales-invoice", { method: "POST", body: "{}" }), { params: Promise.resolve({ shipmentId: "s" }) })).status, 201);
+
+  const deniedSalesGet = salesGet.createGetHandler({ authenticate: async () => principal("getSalesInvoicePrintData"), get: async () => { calls += 1; return {}; } });
+  assert.equal((await deniedSalesGet(new Request("https://orb.example/api/sales-invoices/i"), { params: Promise.resolve({ invoiceId: "i" }) })).status, 403);
+  const allowedSalesGet = salesGet.createGetHandler({ authenticate: async () => principal("getSalesInvoice"), get: async () => { calls += 1; return {}; } });
+  assert.equal((await allowedSalesGet(new Request("https://orb.example/api/sales-invoices/i"), { params: Promise.resolve({ invoiceId: "i" }) })).status, 200);
+
+  const deniedPrint = salesPrint.createGetHandler({ authenticate: async () => principal("getSalesInvoice"), getPrintData: async () => { calls += 1; return {}; } });
+  assert.equal((await deniedPrint(new Request("https://orb.example/api/sales-invoices/i/print-data"), { params: Promise.resolve({ invoiceId: "i" }) })).status, 403);
+  const allowedPrint = salesPrint.createGetHandler({ authenticate: async () => principal("getSalesInvoicePrintData"), getPrintData: async () => { calls += 1; return {}; } });
+  assert.equal((await allowedPrint(new Request("https://orb.example/api/sales-invoices/i/print-data"), { params: Promise.resolve({ invoiceId: "i" }) })).status, 200);
+
+  const deniedSupplierCreate = supplierCreate.createCreateSupplierInvoicePostHandler({ authenticate: async () => principal("submitSupplierInvoice"), create: async () => { calls += 1; return {}; } });
+  assert.equal((await deniedSupplierCreate(new Request("https://orb.example/api/supplier-shipments/s/invoices", { method: "POST", body: "{}" }), { params: Promise.resolve({ shipmentId: "s" }) })).status, 403);
+  const allowedSupplierCreate = supplierCreate.createCreateSupplierInvoicePostHandler({ authenticate: async () => principal("createSupplierInvoice"), create: async () => { calls += 1; return {}; } });
+  assert.equal((await allowedSupplierCreate(new Request("https://orb.example/api/supplier-shipments/s/invoices", { method: "POST", body: "{}" }), { params: Promise.resolve({ shipmentId: "s" }) })).status, 201);
+  assert.equal(calls, 4);
+});
