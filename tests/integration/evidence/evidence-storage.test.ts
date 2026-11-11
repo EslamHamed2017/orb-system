@@ -46,9 +46,10 @@ function uploadInput(overrides: Record<string, unknown> = {}) {
     mediaType: "application/pdf",
     maxBytes: 1024,
     retentionUntil: RETENTION_UNTIL,
-    sourceLink: { subjectType: "SalesShipment", subjectId: SUBJECT_ID, purpose: "ORIGIN_CERTIFICATE" },
+    sourceLink: { subjectType: "SALES_SHIPMENT", subjectId: SUBJECT_ID, purpose: "ORIGIN_CERTIFICATE" },
     actor: { userId: ACTOR_ID, displayName: "Operations User", roles: ["OPERATIONS"] },
     transaction: { id: "evidence-upload-transaction" },
+    resolveSourceAuthorization: async ({ sourceLink }: any) => ({ ...sourceLink, projectId: SUBJECT_ID, authorizationParentType: sourceLink.subjectType, authorizationParentId: sourceLink.subjectId }),
     malwareScanner: { scan: async () => ({ clean: true as const }) },
     objectStore: {
       putImmutable: async (request: Record<string, unknown>) => {

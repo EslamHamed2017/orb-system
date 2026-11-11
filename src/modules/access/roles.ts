@@ -134,6 +134,11 @@ const OPERATION_ROLES = Object.freeze({
     "OWNER_ADMIN",
     "OPERATIONS"
   ],
+  "listEvidence": [
+    "OWNER_ADMIN",
+    "OPERATIONS",
+    "FINANCE_VIEWER"
+  ],
   "getEvidenceMetadata": [
     "OWNER_ADMIN",
     "OPERATIONS",

@@ -12,7 +12,7 @@ const HTTP_METHODS = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', '
 const ROLES = new Set(['OWNER_ADMIN', 'OPERATIONS', 'FINANCE_VIEWER']);
 const REF = '$ref';
 const roleGroups = [
-  [['OWNER_ADMIN', 'OPERATIONS', 'FINANCE_VIEWER'], ['listCustomers', 'getCustomer', 'listSuppliers', 'getSupplier', 'listProductMovements', 'getSupplierContainerConsolidation', 'listMasterRecords', 'listProjects', 'getProject', 'getFixedRouteChecklist', 'getEvidenceMetadata', 'viewOrDownloadEvidence', 'getDocumentGenerationStatus', 'getOperationalStatement', 'getProjectMarginAndCash', 'requestClosureException', 'submitFinalCloseForApproval', 'submitReopenForApproval', 'listProjectAuditEvents', 'listSupplierShipmentDatasetHistory', 'listSalesShipmentDatasetHistory', 'getOutboundManifestExactPreview', 'listOutboundSendAttempts', 'signOutCurrentSession', 'getSupplierShipmentWorkspace', 'getSalesShipmentWorkspace', 'listSupplierShipmentLines', 'getSupplierShipmentLine', 'listSalesShipmentLines', 'getSalesShipmentLine', 'getContractLineFulfillment', 'listContractLines', 'getContractLine', 'listContractLineVersions']],
+  [['OWNER_ADMIN', 'OPERATIONS', 'FINANCE_VIEWER'], ['listCustomers', 'getCustomer', 'listSuppliers', 'getSupplier', 'listProductMovements', 'getSupplierContainerConsolidation', 'listMasterRecords', 'listProjects', 'getProject', 'getFixedRouteChecklist', 'listEvidence', 'getEvidenceMetadata', 'viewOrDownloadEvidence', 'getDocumentGenerationStatus', 'getOperationalStatement', 'getProjectMarginAndCash', 'requestClosureException', 'submitFinalCloseForApproval', 'submitReopenForApproval', 'listProjectAuditEvents', 'listSupplierShipmentDatasetHistory', 'listSalesShipmentDatasetHistory', 'getOutboundManifestExactPreview', 'listOutboundSendAttempts', 'signOutCurrentSession', 'getSupplierShipmentWorkspace', 'getSalesShipmentWorkspace', 'listSupplierShipmentLines', 'getSupplierShipmentLine', 'listSalesShipmentLines', 'getSalesShipmentLine', 'getContractLineFulfillment', 'listContractLines', 'getContractLine', 'listContractLineVersions']],
   [['OWNER_ADMIN', 'OPERATIONS'], ['createCustomer', 'updateCustomer', 'createSupplier', 'updateSupplier', 'createMasterRecord', 'updateMasterRecord', 'createProjectWithSalesContract', 'createPurchaseContract', 'createContractAmendment', 'submitContractForApproval', 'createSupplierShipment', 'submitSupplierShipmentConfirmation', 'confirmSupplierShipment', 'createSalesShipment', 'setPrimarySupplierSource', 'requestToleranceException', 'confirmSalesShipment', 'updateRouteEvidenceOrMilestone', 'uploadEvidence', 'generateShipmentDocument', 'reviseDocument', 'submitDocumentForApproval', 'cancelDocumentRevision', 'createOutboundManifest', 'submitOutboundManifestForApproval', 'sendApprovedOutboundManifest', 'cancelOutboundManifest', 'createDirectExpense', 'submitDirectExpense', 'openSimpleClaim', 'moveClaimUnderReview', 'submitClaimOutcomeForApproval', 'assessProjectClosure', 'reviseSupplierShipmentDataset', 'reviseSalesShipmentDataset', 'transitionSupplierShipmentExecution', 'transitionSalesShipmentExecution', 'submitApprovedExpenseCorrection', 'applyApprovedExpenseCorrection', 'applyApprovedClaimOutcome', 'reviseOutboundManifest', 'submitSalesShipmentConfirmation', 'createSupplierShipmentLine', 'createSalesShipmentLine', 'allocateShipmentLineSource', 'createContractLine', 'updateContractLine']],
   [['OWNER_ADMIN'], ['listFixedApprovalInbox', 'decideFixedApproval', 'finalCloseProject', 'reopenProject', 'cancelUnexecutedProject', 'listPilotUsers', 'assignFixedPilotRoles', 'revokePilotUserSession', 'getBackupRecoveryStatus', 'startIsolatedRestoreTest', 'getIsolatedRestoreTest', 'listPilotUserSessions']],
   [['OWNER_ADMIN', 'FINANCE_VIEWER'], ['getAccountsSummary', 'listAccountRecords', 'createSalesInvoice', 'getSalesInvoice', 'getSalesInvoicePrintData', 'createSupplierInvoice', 'submitSupplierInvoice', 'confirmSupplierInvoice', 'recordMoneyMovement', 'allocateMoneyMovement', 'reverseMoneyMovement', 'reverseSettlementAllocation', 'cancelUnallocatedSupplierInvoice']],
@@ -429,7 +429,7 @@ function controlViolations(document) {
   return errors;
 }
 function operation(document, id) { return operations(document).find((entry) => entry.operation.operationId === id).operation; }
-const EXPECTED_OPENAPI_SHA256 = '72b1e7a0adc850ec8f45c82c32f74b975dc628657bafc210e0c22da1e3b3550c';
+const EXPECTED_OPENAPI_SHA256 = 'd9d0c367f28dd9b362d26b5a1bc526bb65e610ff0ab7f27b1a1199096971f652';
 function assertAcceptedOpenApiBytes(bytes) {
   const actual = createHash('sha256').update(bytes).digest('hex');
   assert.equal(actual, EXPECTED_OPENAPI_SHA256, 'accepted OpenAPI bytes changed; expected=' + EXPECTED_OPENAPI_SHA256 + ' actual=' + actual);
@@ -499,7 +499,7 @@ test('accepted raw OpenAPI bytes are independently SHA-256 pinned', () => {
 });
 test('accepted OpenAPI 3.1 surface and every local ref are pinned', () => {
   assert.match(document.openapi, /^3\.1(?:\.|$)/); assert.equal(Object.keys(document.paths).length, 95);
-  assert.equal(operations(document).length, 107); assert.equal(acceptedLocalRefCount, 952);
+  assert.equal(operations(document).length, 108); assert.equal(acceptedLocalRefCount, 956);
 });
 test('route handler export inventory recognizes repository syntax and rejects method drift', () => {
   assert.deepEqual(exportedHttpMethods('export async function GET() {}\nexport const POST = handler;'), ['get', 'post']);
@@ -516,7 +516,7 @@ test('route handler export inventory is syntax-aware and fails closed', () => {
   assert.deepEqual(exportedHttpMethods('const GET = handler; export { GET as POST };'), ['post']);
   assert.throws(() => exportedHttpMethods('export const GET = ;\nexport function POST( {}'), /TypeScript parse failed/);
 });
-test('all 95 accepted paths and 107 methods are exactly backed by application route exports and build artifacts', () => {
+test('all 95 accepted paths and 108 methods are exactly backed by application route exports and build artifacts', () => {
   const expected = new Map();
   for (const { path, method } of operations(document)) {
     const normalized = normalizedRoutePath(path);
@@ -533,12 +533,12 @@ test('all 95 accepted paths and 107 methods are exactly backed by application ro
     const diff = routeMethodDiff(expected.get(path), methods);
     if (diff.missing.length || diff.unexpected.length) methodMismatches.push({ file: relative(ROOT, file), ...diff });
   }
-  assert.deepEqual(methodMismatches, [], 'application route modules must export exactly the 107 contracted HTTP methods');
+  assert.deepEqual(methodMismatches, [], 'application route modules must export exactly the 108 contracted HTTP methods');
 });
 test('all operations have exact operation-specific role assignments', () => {
-  assert.equal(EXPECTED_ROLES.size, 107); assert.deepEqual(contractViolations(document), []);
+  assert.equal(EXPECTED_ROLES.size, 108); assert.deepEqual(contractViolations(document), []);
   const snapshot = [...EXPECTED_ROLES].sort(([a], [b]) => a.localeCompare(b));
-  assert.equal(createHash('sha256').update(JSON.stringify(snapshot)).digest('hex'), '9a5a2b7204ee4b02b827f8d1507edbe6740b78c9bec017d5ed1519078148f6e6');
+  assert.equal(createHash('sha256').update(JSON.stringify(snapshot)).digest('hex'), '89d05d8f6fe2edc877bc7a7df63d34055aa00bff723971862f825a83f2375e62');
 });
 test('request controls have exact semantic component refs and operation inventories', () => {
   assert.equal(MUTATION_IDS.size, 68); assert.equal(CONTROL['X-CSRF-Token'].required.size, 67); assert.equal(CONTROL['If-Match'].required.size, 61);

@@ -3,21 +3,23 @@ import { createHash } from "node:crypto";
 import { assertImmutableObject, type ImmutableObjectStore } from "../../platform/object-store/client.ts";
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { streamAndHash } from "../../platform/object-store/hash-stream.ts";
-import type { EvidenceRepository, EvidenceSourceLink, StoredEvidence } from "./evidence-repository.ts";
+import type { AuthorizedEvidenceSourceLink, EvidenceRepository, EvidenceSourceLink, StoredEvidence } from "./evidence-repository.ts";
 
 const ALLOWED_MEDIA_TYPES = new Set(["application/pdf", "image/jpeg", "image/png"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SHA256 = /^[a-f0-9]{64}$/;
+const SUBJECT_TYPES = new Set(["PROJECT", "CONTRACT", "SALES_SHIPMENT", "SUPPLIER_CONTAINER", "SALES_INVOICE", "SUPPLIER_INVOICE", "MONEY_MOVEMENT", "EXPENSE", "CLAIM", "COMMERCIAL_DOCUMENT", "ROUTE_CHECKLIST_ITEM", "APPROVAL"]);
 
 interface Actor { readonly userId: string; readonly displayName?: string; readonly roles: readonly string[] }
 interface AuditAppender { append(...args: unknown[]): Promise<unknown> }
 interface MalwareScanner { scan(bytes: Uint8Array): Promise<{ clean: boolean; signature?: string }> }
 
-type Authorize = (input: { evidence: StoredEvidence; actor: Actor; sourceLinks: readonly EvidenceSourceLink[] }) => Promise<boolean>;
+type Authorize = (input: { evidence: StoredEvidence; actor: Actor; sourceLinks: readonly AuthorizedEvidenceSourceLink[] }) => Promise<boolean>;
+type ResolveSourceAuthorization = (input: { actor: Actor; sourceLink: EvidenceSourceLink }) => Promise<AuthorizedEvidenceSourceLink | null>;
 
 function publicMetadata(evidence: StoredEvidence) {
-  const { objectKey: _objectKey, objectVersionId: _objectVersionId, projectId: _projectId, retentionUntil: _retentionUntil, ...metadata } = evidence;
-  return { ...metadata, immutable: true, retentionUntil: evidence.retentionUntil };
+  const { objectKey: _objectKey, objectVersionId: _objectVersionId, projectId: _projectId, retentionUntil: _retentionUntil, sourceLinks, ...metadata } = evidence;
+  return { ...metadata, sourceLinks: sourceLinks.map(({ subjectType, subjectId, purpose }) => ({ subjectType, subjectId, purpose })), immutable: true, retentionUntil: evidence.retentionUntil };
 }
 
 function assertEvidenceId(value: string): void {
@@ -37,13 +39,18 @@ async function loadAuthorized(input: {
 export async function uploadEvidence<Transaction>(input: {
   id: string; content: AsyncIterable<Uint8Array>; expectedSha256: string; originalFilename: string; mediaType: string;
   maxBytes: number; retentionUntil: string; sourceLink: EvidenceSourceLink; actor: Actor; transaction: Transaction;
-  malwareScanner: MalwareScanner; objectStore: Pick<ImmutableObjectStore, "putImmutable">;
+  resolveSourceAuthorization: ResolveSourceAuthorization; malwareScanner: MalwareScanner; objectStore: Pick<ImmutableObjectStore, "putImmutable">;
   repository: Pick<EvidenceRepository<Transaction>, "insertEvidence">; audit: AuditAppender; now?: () => Date;
 }) {
   assertEvidenceId(input.id);
   if (!SHA256.test(input.expectedSha256)) throw new TypeError("invalid expected hash");
   if (!ALLOWED_MEDIA_TYPES.has(input.mediaType)) throw new TypeError("disallowed evidence media type");
-  if (!input.sourceLink?.subjectType || !UUID.test(input.sourceLink.subjectId) || !input.sourceLink.purpose) throw new TypeError("invalid evidence source link");
+  if (!SUBJECT_TYPES.has(input.sourceLink?.subjectType) || !UUID.test(input.sourceLink.subjectId) || !input.sourceLink.purpose.trim()) throw new TypeError("invalid evidence source link");
+  const authorizedLink = await input.resolveSourceAuthorization({ actor: input.actor, sourceLink: input.sourceLink });
+  if (authorizedLink === null) throw new Error("forbidden evidence source authorization");
+  if (!UUID.test(authorizedLink.projectId) || !authorizedLink.authorizationParentType || !UUID.test(authorizedLink.authorizationParentId)
+    || authorizedLink.subjectType !== input.sourceLink.subjectType || authorizedLink.subjectId !== input.sourceLink.subjectId
+    || authorizedLink.purpose !== input.sourceLink.purpose) throw new TypeError("invalid resolved evidence source authorization");
   const retained: Buffer[] = [];
   const digest = await streamAndHash({ source: input.content, maxBytes: input.maxBytes, write: async (chunk) => { retained.push(Buffer.from(chunk)); } });
   const bytes = Buffer.concat(retained);
@@ -66,7 +73,7 @@ export async function uploadEvidence<Transaction>(input: {
     id: input.id, sha256: digest.sha256, byteLength: digest.byteLength, mediaType: input.mediaType, objectKey: stored.objectKey,
     objectVersionId: stored.objectVersionId, originalFilename: input.originalFilename, verificationState: "PENDING",
     verifiedAt: null, verifiedBy: null, uploadedBy: structuredClone(input.actor), uploadedAt,
-    retentionUntil: stored.retentionUntil, sourceLinks: [structuredClone(input.sourceLink)],
+    retentionUntil: stored.retentionUntil, projectId: authorizedLink.projectId, sourceLinks: [structuredClone(authorizedLink)],
   };
   await input.repository.insertEvidence(input.transaction, record);
   await input.audit.append(input.transaction, {
@@ -96,4 +103,23 @@ export async function openEvidenceContent(input: {
     correlationId: input.correlationId,
   });
   return { ...content, disposition: input.disposition, filename: evidence.originalFilename };
+}
+
+export async function listEvidence(input: {
+  actor: Actor; projectId: string; subjectType?: string; subjectId?: string;
+  repository: Pick<EvidenceRepository, "listEvidence">; authorize: Authorize;
+}) {
+  if (!UUID.test(input.projectId)) throw new TypeError("invalid evidence project identifier");
+  if ((input.subjectType === undefined) !== (input.subjectId === undefined)) throw new TypeError("evidence subject type and identifier must be supplied together");
+  if (input.subjectId !== undefined && !UUID.test(input.subjectId)) throw new TypeError("invalid evidence subject identifier");
+  const records = await input.repository.listEvidence({
+    projectId: input.projectId,
+    ...(input.subjectType ? { subjectType: input.subjectType, subjectId: input.subjectId } : {}),
+  });
+  const authorized: ReturnType<typeof publicMetadata>[] = [];
+  for (const evidence of records) {
+    if (evidence.projectId !== input.projectId) continue;
+    if (await input.authorize({ evidence, actor: input.actor, sourceLinks: evidence.sourceLinks })) authorized.push(publicMetadata(evidence));
+  }
+  return authorized;
 }

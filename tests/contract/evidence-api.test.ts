@@ -40,3 +40,20 @@ test("EvidenceMetadata is closed, immutable, source-linked, and conditionally sh
   assert.match(schema, /const: VERIFIED[\s\S]*then:[\s\S]*verifiedAt:\n              type: string[\s\S]*verifiedBy:\n              \$ref: '#\/components\/schemas\/ActorSnapshot'/);
   assert.match(schema, /const: PENDING[\s\S]*then:[\s\S]*verifiedAt:\n              type: 'null'\n              const: null[\s\S]*verifiedBy:\n              type: 'null'\n              const: null/);
 });
+
+
+test("evidence list route requires project scope and server-side role authorization", async () => {
+  const route = await import("../../src/app/api/evidence/route.ts");
+  const principal = { userId: "019a5f9b-7c00-7000-8000-000000000801", roles: ["OPERATIONS"] };
+  let received: any;
+  const get = route.createEvidenceListGetHandler({ authenticate: async () => principal, list: async (input) => { received = input; return []; } });
+  const response = await get(new (await import("next/server.js")).NextRequest("https://orb.example/api/evidence?projectId=019a5f9b-7c00-7000-8000-000000000802&subjectType=CONTRACT&subjectId=019a5f9b-7c00-7000-8000-000000000803"));
+  assert.equal(response.status, 200);
+  assert.equal(received.projectId, "019a5f9b-7c00-7000-8000-000000000802");
+  assert.equal(received.subjectType, "CONTRACT");
+
+  const malformed = await get(new (await import("next/server.js")).NextRequest("https://orb.example/api/evidence?projectId=019a5f9b-7c00-7000-8000-000000000802&subjectType=CONTRACT"));
+  assert.equal(malformed.status, 400);
+  const denied = route.createEvidenceListGetHandler({ authenticate: async () => ({ userId: "x", roles: [] }), list: async () => { throw new Error("must not run"); } });
+  assert.equal((await denied(new (await import("next/server.js")).NextRequest("https://orb.example/api/evidence?projectId=x"))).status, 403);
+});

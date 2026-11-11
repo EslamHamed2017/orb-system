@@ -781,6 +781,42 @@ paths:
       - OPERATIONS
       summary: Update route evidence or milestone
   /evidence:
+    get:
+      tags:
+      - Evidence
+      operationId: listEvidence
+      parameters:
+      - name: projectId
+        in: query
+        required: true
+        schema:
+          $ref: '#/components/schemas/Uuid'
+      - name: subjectType
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: subjectId
+        in: query
+        required: false
+        schema:
+          $ref: '#/components/schemas/Uuid'
+      responses:
+        '200':
+          description: Project-scoped source-authorized evidence metadata
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EvidenceMetadata'
+        default:
+          $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: List authorized evidence
     post:
       tags:
       - Evidence
