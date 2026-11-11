@@ -36,6 +36,7 @@ model Approval {
   OutboundSendAttempt              OutboundSendAttempt[]
   RouteChecklistItem               RouteChecklistItem[]
   SalesShipmentDataset             SalesShipmentDataset[]
+  SalesInvoice                     SalesInvoice[]
   SupplierInvoice                  SupplierInvoice[]
   SupplierShipmentDataset          SupplierShipmentDataset[]
 }
@@ -554,6 +555,7 @@ model Party {
   DirectExpense                    DirectExpense[]
   MoneyMovement                    MoneyMovement[]
   Project                          Project[]
+  SalesInvoice                     SalesInvoice[]
   SupplierInvoice                  SupplierInvoice[]
   SupplierShipmentDataset          SupplierShipmentDataset[]
   SupplierShipmentDatasetLine      SupplierShipmentDatasetLine[]
@@ -631,11 +633,14 @@ model Project {
   DirectExpense                                        DirectExpense[]
   MoneyMovement                                        MoneyMovement[]
   ProfitSnapshot                                       ProfitSnapshot[]
+  SalesInvoice                                         SalesInvoice[]
   Contract_Project_primary_sales_contract_idToContract Contract?             @relation("Project_primary_sales_contract_idToContract", fields: [primary_sales_contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_100_Project")
   Party                                                Party                 @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_5_Project")
   SalesShipment                                        SalesShipment[]
   SupplierInvoice                                      SupplierInvoice[]
   SupplierShipment                                     SupplierShipment[]
+
+  @@unique([id, customer_id])
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -694,6 +699,51 @@ model RouteChecklistItem {
   @@unique([checklist_id, code])
 }
 
+/// Customer-facing invoice header bound to one exact sales-shipment dataset revision.
+model SalesInvoice {
+  id                        String               @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  project_id                String               @db.Uuid
+  sales_shipment_id         String               @db.Uuid
+  sales_shipment_dataset_id String               @db.Uuid
+  customer_id               String               @db.Uuid
+  reference                 String
+  invoice_date              DateTime             @db.Date
+  currency                  String               @db.Char(3)
+  state                     SalesInvoiceState    @default(DRAFT)
+  approval_id               String?              @db.Uuid
+  cancellation_reason       String?
+  version                   Int                  @default(1)
+  Approval                  Approval?            @relation(fields: [approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Project                   Project              @relation(fields: [project_id, customer_id], references: [id, customer_id], onDelete: NoAction, onUpdate: NoAction)
+  SalesShipment             SalesShipment        @relation(fields: [sales_shipment_id, project_id], references: [id, project_id], onDelete: NoAction, onUpdate: NoAction)
+  SalesShipmentDataset      SalesShipmentDataset @relation(fields: [sales_shipment_dataset_id, sales_shipment_id], references: [id, shipment_id], onDelete: NoAction, onUpdate: NoAction)
+  Party                     Party                @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  SalesInvoiceLine          SalesInvoiceLine[]
+
+  @@unique([id, sales_shipment_dataset_id])
+  @@unique([customer_id, reference])
+  @@unique([sales_shipment_id], map: "one_active_sales_invoice_per_shipment", where: raw("(state <> 'CANCELLED'::\"SalesInvoiceState\")"))
+}
+
+/// Immutable customer invoice line traced to an exact line from the invoice's shipment dataset.
+model SalesInvoiceLine {
+  id                             String                   @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  sales_invoice_id               String                   @db.Uuid
+  sales_shipment_dataset_id      String                   @db.Uuid
+  sales_shipment_dataset_line_id String                   @db.Uuid
+  line_no                        Int
+  description                    String
+  quantity                       Decimal                  @db.Decimal(20, 6)
+  unit_price                     Decimal                  @db.Decimal(20, 6)
+  line_amount                    Decimal                  @db.Decimal(20, 6)
+  created_at                     DateTime                 @default(now()) @db.Timestamptz(6)
+  SalesInvoice                   SalesInvoice             @relation(fields: [sales_invoice_id, sales_shipment_dataset_id], references: [id, sales_shipment_dataset_id], onDelete: NoAction, onUpdate: NoAction)
+  SalesShipmentDatasetLine       SalesShipmentDatasetLine @relation(fields: [sales_shipment_dataset_line_id, sales_shipment_dataset_id], references: [id, sales_shipment_dataset_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([sales_invoice_id, line_no])
+  @@unique([sales_invoice_id, sales_shipment_dataset_line_id])
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
 model SalesShipment {
@@ -712,6 +762,7 @@ model SalesShipment {
   CommercialDocument                                                         CommercialDocument[]
   DirectExpense                                                              DirectExpense[]
   RouteChecklist                                                             RouteChecklist?
+  SalesInvoice                                                               SalesInvoice[]
   SalesShipmentDataset_SalesShipment_active_dataset_idToSalesShipmentDataset SalesShipmentDataset?  @relation("SalesShipment_active_dataset_idToSalesShipmentDataset", fields: [active_dataset_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_106_SalesShipment")
   Project                                                                    Project                @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_16_SalesShipment")
   Contract                                                                   Contract               @relation(fields: [sales_contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_17_SalesShipment")
@@ -773,8 +824,10 @@ model SalesShipmentDataset {
   Contract                                                            Contract                   @relation(fields: [sales_contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_20_SalesShipmentDataset")
   CoffeeSpecification                                                 CoffeeSpecification        @relation(fields: [coffee_specification_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_21_SalesShipmentDataset")
   SalesShipmentDatasetLine                                            SalesShipmentDatasetLine[]
+  SalesInvoice                                                        SalesInvoice[]
 
   @@unique([id, sales_contract_id])
+  @@unique([id, shipment_id])
   @@unique([shipment_id, revision_no])
 }
 
@@ -797,7 +850,9 @@ model SalesShipmentDatasetLine {
   SalesShipmentDataset              SalesShipmentDataset           @relation(fields: [sales_shipment_dataset_id, sales_contract_id], references: [id, sales_contract_id], onDelete: NoAction, onUpdate: NoAction)
   ContractLineVersion               ContractLineVersion            @relation(fields: [contract_line_version_id, sales_contract_id], references: [id, contract_id], onDelete: NoAction, onUpdate: NoAction)
   ShipmentLineSourceAllocation      ShipmentLineSourceAllocation[]
+  SalesInvoiceLine                  SalesInvoiceLine[]
 
+  @@unique([id, sales_shipment_dataset_id])
   @@unique([sales_shipment_dataset_id, line_no])
 }
 
@@ -1266,6 +1321,13 @@ enum SupplierExecutionState {
   RECEIVED
   CANCELLED
   REJECTED
+}
+
+enum SalesInvoiceState {
+  DRAFT
+  PENDING_APPROVAL
+  ISSUED
+  CANCELLED
 }
 
 enum SupplierInvoiceState {

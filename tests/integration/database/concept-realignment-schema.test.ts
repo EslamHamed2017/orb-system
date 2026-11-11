@@ -153,3 +153,47 @@ test("T011 models immutable exact-decimal source allocations between shipment li
   assert.doesNotMatch(allocation, /^\s*(?:updated_at|version)\s+/m,
     "allocation facts are append-only; corrections create a replacement dataset revision");
 });
+
+test("T012 models one active customer sales invoice per sales shipment with line traceability", () => {
+  const invoice = model("SalesInvoice");
+  const invoiceLine = model("SalesInvoiceLine");
+  const shipment = model("SalesShipment");
+  const project = model("Project");
+  const dataset = model("SalesShipmentDataset");
+  const shipmentLine = model("SalesShipmentDatasetLine");
+
+  for (const name of [
+    "project_id", "sales_shipment_id", "sales_shipment_dataset_id", "customer_id",
+    "reference", "invoice_date", "currency", "state", "version",
+  ]) field(invoice, name);
+
+  assert.match(invoice, /fields: \[project_id, customer_id\].+references: \[id, customer_id\]/,
+    "the invoice customer must be the project customer");
+  assert.match(project, /@@unique\(\[id, customer_id\]\)/);
+  assert.match(invoice, /fields: \[sales_shipment_id, project_id\].+references: \[id, project_id\]/,
+    "the invoice shipment must belong to the same project");
+  assert.match(invoice, /fields: \[sales_shipment_dataset_id, sales_shipment_id\].+references: \[id, shipment_id\]/,
+    "the invoice must bind the exact dataset revision of its shipment");
+  assert.match(invoice, /@@unique\(\[sales_shipment_id\].+where: raw\("\(state <> 'CANCELLED'::\\\"SalesInvoiceState\\\"\)"\)/,
+    "only one non-cancelled customer invoice may exist for a sales shipment");
+  assert.match(invoice, /@@unique\(\[customer_id, reference\]\)/);
+  assert.match(shipment, /^\s*SalesInvoice\s+SalesInvoice\[\]/m);
+  assert.match(dataset, /@@unique\(\[id, shipment_id\]\)/);
+
+  for (const name of [
+    "sales_invoice_id", "sales_shipment_dataset_id", "sales_shipment_dataset_line_id",
+    "line_no", "description", "quantity", "unit_price", "line_amount", "created_at",
+  ]) field(invoiceLine, name);
+
+  assert.match(field(invoiceLine, "quantity"), /Decimal.+@db\.Decimal\(20, 6\)/);
+  assert.match(field(invoiceLine, "unit_price"), /Decimal.+@db\.Decimal\(20, 6\)/);
+  assert.match(field(invoiceLine, "line_amount"), /Decimal.+@db\.Decimal\(20, 6\)/);
+  assert.match(invoiceLine, /fields: \[sales_invoice_id, sales_shipment_dataset_id\].+references: \[id, sales_shipment_dataset_id\]/,
+    "invoice lines must use the dataset revision bound to their invoice");
+  assert.match(invoiceLine, /fields: \[sales_shipment_dataset_line_id, sales_shipment_dataset_id\].+references: \[id, sales_shipment_dataset_id\]/,
+    "invoice lines must trace to exact lines from that shipment dataset");
+  assert.match(invoiceLine, /@@unique\(\[sales_invoice_id, line_no\]\)/);
+  assert.match(invoiceLine, /@@unique\(\[sales_invoice_id, sales_shipment_dataset_line_id\]\)/);
+  assert.match(shipmentLine, /@@unique\(\[id, sales_shipment_dataset_id\]\)/);
+  assert.match(shipmentLine, /^\s*SalesInvoiceLine\s+SalesInvoiceLine\[\]/m);
+});

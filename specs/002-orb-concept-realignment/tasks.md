@@ -14,7 +14,7 @@
 - [x] T009 Add SupplierShipmentDatasetLine linked to the exact approved purchase ContractLineVersion
 - [x] T010 Evolve SupplierShipment into the physical container header and move supplier/contract ownership to its dataset lines
 - [x] T011 Add ShipmentLineSourceAllocation plus fulfillment, exact-decimal concurrency and tolerance constraints
-- [ ] T012 Add SalesInvoice and SalesInvoiceLine with one active sales invoice per sales shipment
+- [x] T012 Add SalesInvoice and SalesInvoiceLine with one active sales invoice per sales shipment
 - [ ] T013 Add SupplierInvoiceLine and enforce same-supplier shipment-line attribution
 - [ ] T014 Add generic transaction serial registry and uniqueness rules
 - [ ] T015 Harden existing EvidenceObject/EvidenceLink with project scope, subject allowlist and parent authorization metadata
