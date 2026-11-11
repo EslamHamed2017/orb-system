@@ -13,7 +13,7 @@ function normalized(value) { return String(value).replace(/~[01]/g, '/').toLower
 const FORBIDDEN = [
   ['general-ledger/accounting surface', /(?:generalledger|chartofaccounts|journalentr(?:y|ies)|trialbalance|inventoryvaluation)/],
   ['speculative placeholder', /(?:(?:speculative|futurefeature|comingsoon).*(?:placeholder|stub)|(?:placeholder|stub).*(?:feature|speculative|future|comingsoon))/],
-  ['multiple/secondary shipment sources or source allocation', /(?:multi(?:ple)?(?:shipment|supplier)?sources?|secondary(?:shipment|supplier)?source|secondarysource|sources?allocation|allocationsource)/],
+  ['multiple/secondary aggregate shipment sources', /(?:multi(?:ple)?(?:shipment|supplier)?sources?|secondary(?:shipment|supplier)?source|secondarysource)/],
   ['shared-expense allocation', /(sharedexpenses?|expenseallocation)/],
   ['configurable approval/rule UI', /(configurable(approval|rule)|approvalrules?|approvaldesigner|approvalruleeditor|rule(editor|designer|configurator))/],
   ['dynamic route designer', /(dynamicroutes?|routedesigner|routetemplateeditor)/],
@@ -143,7 +143,7 @@ const api = parseYaml(text('contracts/openapi.yaml'));
 const ui = text('contracts/ui-workflows.md'), tasks = text('tasks.md');
 
 test('active structured OpenAPI identifiers expose no deferred feature', () => {
-  const surfaces = openApiSurfaces(api); assert.equal(surfaces.operationIds.length, 90); assert.ok(surfaces.propertyNames.length > 0 && surfaces.schemaKeys.length > surfaces.propertyNames.length);
+  const surfaces = openApiSurfaces(api); assert.equal(surfaces.operationIds.length, 92); assert.ok(surfaces.propertyNames.length > 0 && surfaces.schemaKeys.length > surfaces.propertyNames.length);
   assert.deepEqual(deferredFindings(surfaces), []);
 });
 test('active UI route/action/control cells and executable task identifiers expose no deferred feature', () => {

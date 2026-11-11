@@ -1592,6 +1592,45 @@ paths:
         default: { $ref: '#/components/responses/Problem' }
       x-required-roles: [OWNER_ADMIN, OPERATIONS, FINANCE_VIEWER]
       summary: Read an immutable sales shipment dataset line
+  /sales-shipment-lines/{lineId}/source-allocations:
+    post:
+      tags: [Shipments]
+      operationId: allocateShipmentLineSource
+      parameters:
+      - $ref: '#/components/parameters/LineId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [supplierShipmentDatasetLineId, quantity]
+              properties:
+                supplierShipmentDatasetLineId: { $ref: '#/components/schemas/Uuid' }
+                quantity: { $ref: '#/components/schemas/Decimal' }
+      responses:
+        '201': { $ref: '#/components/responses/Entity' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS]
+      summary: Allocate an inbound supplier line to an outbound sales line
+  /contract-line-versions/{versionId}/fulfillment:
+    get:
+      tags: [Contracts, Shipments]
+      operationId: getContractLineFulfillment
+      parameters:
+      - name: versionId
+        in: path
+        required: true
+        schema: { $ref: '#/components/schemas/Uuid' }
+      responses:
+        '200': { $ref: '#/components/responses/Entity' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS, FINANCE_VIEWER]
+      summary: Read exact fulfilled and remaining quantity and value for a contract line version
   /supplier-shipments/{shipmentId}/execution-transitions:
     post:
       tags:

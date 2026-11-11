@@ -354,6 +354,15 @@ const OPERATION_ROLES = Object.freeze({
     "OPERATIONS",
     "FINANCE_VIEWER"
   ],
+  "allocateShipmentLineSource": [
+    "OWNER_ADMIN",
+    "OPERATIONS"
+  ],
+  "getContractLineFulfillment": [
+    "OWNER_ADMIN",
+    "OPERATIONS",
+    "FINANCE_VIEWER"
+  ],
   "listContractLines": [
     "OWNER_ADMIN",
     "OPERATIONS",

@@ -30,7 +30,8 @@
   - Verification note (2026-11-11): strict typecheck and the full 411-test suite pass; nested list/create/get APIs reject non-draft datasets, arbitrary or cross-contract/unapproved line versions, duplicate contract-line use, invalid facts, and unauthorized writes.
 - [x] T022 Supplier shipment line APIs with purchase-line validation
   - Verification note (2026-11-11): strict typecheck and the full 428-test suite pass; nested list/create/get APIs reject non-draft datasets, arbitrary, sales, cross-contract, cross-supplier, unapproved, duplicate, malformed, and unauthorized writes.
-- [ ] T023 Partial fulfillment, source-allocation and remaining-quantity/value query
+- [x] T023 Partial fulfillment, source-allocation and remaining-quantity/value query
+  - Verification note (2026-11-11): strict typecheck and the full 432-test suite pass; exact-decimal line allocations require a serializable locked repository transaction, enforce sales/source capacity and project/product compatibility, and expose authorized remaining quantity/value queries.
 - [ ] T024 Multi-supplier container consolidation APIs
 - [ ] T025 Product master CRUD and status controls
 - [ ] T026 Product movement/traceability query across projects

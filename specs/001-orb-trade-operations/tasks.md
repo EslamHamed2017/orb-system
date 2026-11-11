@@ -665,6 +665,8 @@ These tables are validation input, not additional tasks. Every mapped task carri
 | `createPurchaseContract` | `ORB-R1-0001`, `ORB-R1-0002`, `ORB-R1-0105`, `ORB-R1-0203`, `ORB-R1-0204`, `ORB-R1-0303`, `ORB-R1-0304`, `ORB-R1-0305`, `ORB-R1-1204`, `ORB-R1-1205`, `ORB-R1-1206`, `ORB-R1-1301`, `ORB-R1-1302`, `ORB-R1-1303`, `ORB-R1-1304`, `ORB-R1-1305`, `ORB-R1-1309`, `ORB-R1-1315` |
 | `createContractAmendment` | `ORB-R1-0001`, `ORB-R1-0002`, `ORB-R1-0105`, `ORB-R1-0203`, `ORB-R1-0204`, `ORB-R1-0303`, `ORB-R1-0304`, `ORB-R1-0305`, `ORB-R1-1204`, `ORB-R1-1205`, `ORB-R1-1206`, `ORB-R1-1301`, `ORB-R1-1302`, `ORB-R1-1303`, `ORB-R1-1304`, `ORB-R1-1305`, `ORB-R1-1309`, `ORB-R1-1315` |
 | `submitContractForApproval` | `ORB-R1-0001`, `ORB-R1-0002`, `ORB-R1-0105`, `ORB-R1-0203`, `ORB-R1-0204`, `ORB-R1-0303`, `ORB-R1-0304`, `ORB-R1-0305`, `ORB-R1-1204`, `ORB-R1-1205`, `ORB-R1-1206`, `ORB-R1-1301`, `ORB-R1-1302`, `ORB-R1-1303`, `ORB-R1-1304`, `ORB-R1-1305`, `ORB-R1-1309`, `ORB-R1-1315` |
+| `allocateShipmentLineSource` | `ORB-R1-0404` |
+| `getContractLineFulfillment` | `ORB-R1-0304`, `ORB-R1-0404` |
 | `listContractLines` | `ORB-R1-0304` |
 | `createContractLine` | `ORB-R1-0304` |
 | `getContractLine` | `ORB-R1-0304` |
