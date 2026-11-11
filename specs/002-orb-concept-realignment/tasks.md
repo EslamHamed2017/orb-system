@@ -17,7 +17,7 @@
 - [x] T012 Add SalesInvoice and SalesInvoiceLine with one active sales invoice per sales shipment
 - [x] T013 Add SupplierInvoiceLine and enforce same-supplier shipment-line attribution
 - [x] T014 Add generic transaction serial registry and uniqueness rules
-- [ ] T015 Harden existing EvidenceObject/EvidenceLink with project scope, subject allowlist and parent authorization metadata
+- [x] T015 Harden existing EvidenceObject/EvidenceLink with project scope, subject allowlist and parent authorization metadata
 - [ ] T016 Add Permission, Role, RolePermission and user assignment models
 - [ ] T017 Generate expand migration, feature-flag cutover and application-rollback procedure with no database down-migration
 - [ ] T018 Backfill legacy records 1:1, preserve v1 hashes, define v2 line hashes, and reconcile row/quantity/value totals

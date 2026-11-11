@@ -2,7 +2,7 @@
   "version": 1,
   "schema": {
     "models": 49,
-    "enums": 36
+    "enums": 37
   },
   "seed": {
     "tables": 27,

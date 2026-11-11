@@ -265,3 +265,37 @@ test("T014 models an immutable generic transaction serial registry with collisio
     "SUPPLIER_PAYMENT", "EXPENSE",
   ]) assert.match(type[1], new RegExp(`^\\s*${value}\\s*$`, "m"));
 });
+
+test("T015 scopes evidence to a project and records a closed subject plus authorization parent", () => {
+  const evidence = model("EvidenceObject");
+  const link = model("EvidenceLink");
+  const project = model("Project");
+
+  field(evidence, "project_id");
+  assert.match(evidence, /fields: \[project_id\].+references: \[id\]/,
+    "evidence objects must carry their authorization project directly");
+  assert.match(evidence, /@@unique\(\[id, project_id\]\)/,
+    "links need a composite evidence/project target to prevent cross-project attachment leaks");
+  assert.match(project, /^\s*EvidenceObject\s+EvidenceObject\[\]/m);
+
+  for (const name of [
+    "evidence_id", "project_id", "subject_type", "subject_id",
+    "authorization_parent_type", "authorization_parent_id", "purpose",
+  ]) field(link, name);
+  assert.match(field(link, "subject_type"), /EvidenceSubjectType/,
+    "source subjects must use a closed allowlist");
+  assert.match(field(link, "authorization_parent_type"), /EvidenceSubjectType/,
+    "the parent used for access decisions must use the same closed allowlist");
+  assert.match(link, /fields: \[evidence_id, project_id\].+references: \[id, project_id\]/,
+    "an evidence link cannot claim a project different from its object");
+  assert.match(link, /@@index\(\[project_id, authorization_parent_type, authorization_parent_id\]\)/,
+    "parent authorization lookups must be project-scoped and indexed");
+
+  const subjectType = schema.match(/enum\s+EvidenceSubjectType\s*\{([\s\S]*?)\n\}/m);
+  assert.ok(subjectType, "missing closed EvidenceSubjectType enum");
+  for (const value of [
+    "PROJECT", "CONTRACT", "SALES_SHIPMENT", "SUPPLIER_CONTAINER", "SALES_INVOICE",
+    "SUPPLIER_INVOICE", "MONEY_MOVEMENT", "EXPENSE", "CLAIM", "COMMERCIAL_DOCUMENT",
+    "ROUTE_CHECKLIST_ITEM", "APPROVAL",
+  ]) assert.match(subjectType[1], new RegExp(`^\\s*${value}\\s*$`, "m"));
+});
