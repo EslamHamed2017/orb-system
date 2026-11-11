@@ -131,3 +131,25 @@ test("T010 treats supplier shipments as physical containers with line-owned supp
   for (const legacy of ["purchase_contract_id"]) field(container, legacy);
   for (const legacy of ["purchase_contract_id", "supplier_id"]) field(dataset, legacy);
 });
+
+test("T011 models immutable exact-decimal source allocations between shipment lines", () => {
+  const allocation = model("ShipmentLineSourceAllocation");
+  const salesLine = model("SalesShipmentDatasetLine");
+  const supplierLine = model("SupplierShipmentDatasetLine");
+
+  for (const name of [
+    "sales_shipment_dataset_line_id", "supplier_shipment_dataset_line_id", "quantity", "created_at",
+  ]) field(allocation, name);
+
+  assert.match(field(allocation, "quantity"), /Decimal.+@db\.Decimal\(20, 6\)/,
+    "fulfillment quantities must use exact fixed-scale decimals");
+  assert.match(allocation, /fields: \[sales_shipment_dataset_line_id\].+references: \[id\]/);
+  assert.match(allocation, /fields: \[supplier_shipment_dataset_line_id\].+references: \[id\]/);
+  assert.match(allocation, /@@unique\(\[sales_shipment_dataset_line_id, supplier_shipment_dataset_line_id\]\)/,
+    "concurrent retries must converge on one allocation per source/target pair");
+  assert.match(allocation, /@@index\(\[supplier_shipment_dataset_line_id\]\)/);
+  assert.match(salesLine, /^\s*ShipmentLineSourceAllocation\s+ShipmentLineSourceAllocation\[\]/m);
+  assert.match(supplierLine, /^\s*ShipmentLineSourceAllocation\s+ShipmentLineSourceAllocation\[\]/m);
+  assert.doesNotMatch(allocation, /^\s*(?:updated_at|version)\s+/m,
+    "allocation facts are append-only; corrections create a replacement dataset revision");
+});
