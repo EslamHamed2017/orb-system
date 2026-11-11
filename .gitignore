@@ -27,3 +27,5 @@ backups/
 .DS_Store
 .vscode/
 .idea/
+# Isolated task worktrees
+.worktrees/
