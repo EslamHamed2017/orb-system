@@ -101,7 +101,7 @@ Each active operation is exercised once with an allowed role and once with a den
 | Documents | `generateShipmentDocument`, `getDocumentGenerationStatus`, `reviseDocument`, `submitDocumentForApproval`, `cancelDocumentRevision`, `createOutboundManifest`, `submitOutboundManifestForApproval`, `sendApprovedOutboundManifest`, `cancelOutboundManifest`, `getOutboundManifestExactPreview`, `reviseOutboundManifest`, `listOutboundSendAttempts` | Document workspace | E02 + E08/E09 |
 | Evidence | `uploadEvidence`, `getEvidenceMetadata`, `viewOrDownloadEvidence` | Evidence viewer | E02 + E07 |
 | Expenses | `createDirectExpense`, `submitDirectExpense`, `submitApprovedExpenseCorrection`, `applyApprovedExpenseCorrection` | Expenses | E02 + E11 |
-| Masters | `listMasterRecords`, `createMasterRecord`, `updateMasterRecord` | Masters | E02 + E03 |
+| Masters | `listMasterRecords`, `createMasterRecord`, `updateMasterRecord`, `listProductMovements` | Masters | E02 + E03 |
 | Money | `recordMoneyMovement`, `allocateMoneyMovement`, `reverseMoneyMovement`, `reverseSettlementAllocation` | Money | E02 + E10 |
 | Projects | `listProjects`, `createProjectWithSalesContract`, `getProject`, `cancelUnexecutedProject` | Projects/Overview | E02 + E04/E14 |
 | Recovery | `getBackupRecoveryStatus`, `startIsolatedRestoreTest`, `getIsolatedRestoreTest` | Pilot administration/Backup | E02 + E17 |

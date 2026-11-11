@@ -105,6 +105,25 @@ paths:
       - OWNER_ADMIN
       - OPERATIONS
       summary: Update master record
+  /products/{productId}/movements:
+    get:
+      tags: [Masters]
+      operationId: listProductMovements
+      parameters:
+      - $ref: '#/components/parameters/ProductId'
+      - name: projectId
+        in: query
+        required: false
+        schema: { $ref: '#/components/schemas/Uuid' }
+      responses:
+        '200':
+          description: Cross-project product traceability without stock balance or inventory valuation
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProductMovementPage' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS, FINANCE_VIEWER]
+      summary: List product movement traceability across projects
   /projects:
     get:
       tags:
@@ -2173,6 +2192,12 @@ components:
       description: Secure HttpOnly __Host- cookie; SameSite=Strict, Path=/, no Domain; rotation and expiry are defined by
         x-cookie-auth-policy.
   parameters:
+    ProductId:
+      name: productId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
     ProjectId:
       name: projectId
       in: path
@@ -2525,6 +2550,45 @@ components:
           schema:
             $ref: '#/components/schemas/Approval'
   schemas:
+    ProductMovementSourceAllocation:
+      type: object
+      additionalProperties: false
+      required: [supplierShipmentLineId, quantity]
+      properties:
+        supplierShipmentLineId: { $ref: '#/components/schemas/Uuid' }
+        quantity: { $ref: '#/components/schemas/Decimal' }
+    ProductMovement:
+      type: object
+      additionalProperties: false
+      required: [id, occurredAt, direction, projectId, productId, quantity, transactionType, transactionId, shipmentLineId, contractLineVersionId, counterpartyId, sourceAllocations]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        occurredAt: { type: string, format: date-time }
+        direction: { type: string, enum: [INBOUND, OUTBOUND] }
+        projectId: { $ref: '#/components/schemas/Uuid' }
+        productId: { $ref: '#/components/schemas/Uuid' }
+        quantity: { $ref: '#/components/schemas/Decimal' }
+        transactionType: { type: string, enum: [SUPPLIER_CONTAINER, SALES_SHIPMENT] }
+        transactionId: { $ref: '#/components/schemas/Uuid' }
+        shipmentLineId: { $ref: '#/components/schemas/Uuid' }
+        contractLineVersionId: { $ref: '#/components/schemas/Uuid' }
+        counterpartyId: { $ref: '#/components/schemas/Uuid' }
+        sourceAllocations:
+          type: array
+          items: { $ref: '#/components/schemas/ProductMovementSourceAllocation' }
+    ProductMovementPage:
+      type: object
+      additionalProperties: false
+      required: [productId, projectId, items]
+      properties:
+        productId: { $ref: '#/components/schemas/Uuid' }
+        projectId:
+          oneOf:
+          - { $ref: '#/components/schemas/Uuid' }
+          - { type: 'null' }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ProductMovement' }
     ProductStatus:
       type: string
       enum: [ACTIVE, INACTIVE]

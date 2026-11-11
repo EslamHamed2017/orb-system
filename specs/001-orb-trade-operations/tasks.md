@@ -652,10 +652,11 @@ A future correction is the sole exception for editing an already primary-owned p
 
 These tables are validation input, not additional tasks. Every mapped task carries the corresponding trace above.
 
-### OperationId to implementation/verification tasks (80/80)
+### OperationId to implementation/verification tasks (94/94)
 
 | operationId | Tasks |
 |---|---|
+| `listProductMovements` | `ORB-R1-0301`, `ORB-R1-0302` |
 | `listMasterRecords` | `ORB-R1-0001`, `ORB-R1-0002`, `ORB-R1-0105`, `ORB-R1-0203`, `ORB-R1-0204`, `ORB-R1-0301`, `ORB-R1-0302`, `ORB-R1-0305`, `ORB-R1-1204`, `ORB-R1-1205`, `ORB-R1-1206`, `ORB-R1-1301`, `ORB-R1-1302`, `ORB-R1-1303`, `ORB-R1-1304`, `ORB-R1-1305`, `ORB-R1-1309`, `ORB-R1-1315` |
 | `createMasterRecord` | `ORB-R1-0001`, `ORB-R1-0002`, `ORB-R1-0105`, `ORB-R1-0203`, `ORB-R1-0204`, `ORB-R1-0301`, `ORB-R1-0302`, `ORB-R1-0305`, `ORB-R1-1204`, `ORB-R1-1205`, `ORB-R1-1206`, `ORB-R1-1301`, `ORB-R1-1302`, `ORB-R1-1303`, `ORB-R1-1304`, `ORB-R1-1305`, `ORB-R1-1309`, `ORB-R1-1315` |
 | `updateMasterRecord` | `ORB-R1-0001`, `ORB-R1-0002`, `ORB-R1-0105`, `ORB-R1-0203`, `ORB-R1-0204`, `ORB-R1-0301`, `ORB-R1-0302`, `ORB-R1-0305`, `ORB-R1-1204`, `ORB-R1-1205`, `ORB-R1-1206`, `ORB-R1-1301`, `ORB-R1-1302`, `ORB-R1-1303`, `ORB-R1-1304`, `ORB-R1-1305`, `ORB-R1-1309`, `ORB-R1-1315` |
