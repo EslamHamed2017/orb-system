@@ -272,25 +272,27 @@ model ContractLine {
 
 /// Immutable commercial facts for one stable line in one ContractVersion snapshot.
 model ContractLineVersion {
-  id                       String              @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
-  contract_id              String              @db.Uuid
-  contract_line_id         String              @db.Uuid
-  contract_version_id      String              @db.Uuid
-  coffee_specification_id  String              @db.Uuid
-  quantity                 Decimal             @db.Decimal(20, 6)
-  unit_price               Decimal             @db.Decimal(20, 6)
-  currency                 String              @db.Char(3)
+  id                       String                     @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  contract_id              String                     @db.Uuid
+  contract_line_id         String                     @db.Uuid
+  contract_version_id      String                     @db.Uuid
+  coffee_specification_id  String                     @db.Uuid
+  quantity                 Decimal                    @db.Decimal(20, 6)
+  unit_price               Decimal                    @db.Decimal(20, 6)
+  currency                 String                     @db.Char(3)
   incoterm                 String
   named_place              String
-  quantity_tolerance_under Decimal             @default(0) @db.Decimal
-  quantity_tolerance_over  Decimal             @default(0) @db.Decimal
+  quantity_tolerance_under Decimal                    @default(0) @db.Decimal
+  quantity_tolerance_over  Decimal                    @default(0) @db.Decimal
   payment_terms            String
   document_terms           String
-  created_at               DateTime            @default(now()) @db.Timestamptz(6)
-  ContractLine             ContractLine        @relation(fields: [contract_line_id, contract_id], references: [id, contract_id], onDelete: NoAction, onUpdate: NoAction)
-  ContractVersion          ContractVersion     @relation(fields: [contract_version_id, contract_id], references: [id, contract_id], onDelete: NoAction, onUpdate: NoAction)
-  CoffeeSpecification      CoffeeSpecification @relation(fields: [coffee_specification_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  created_at               DateTime                   @default(now()) @db.Timestamptz(6)
+  ContractLine             ContractLine               @relation(fields: [contract_line_id, contract_id], references: [id, contract_id], onDelete: NoAction, onUpdate: NoAction)
+  ContractVersion          ContractVersion            @relation(fields: [contract_version_id, contract_id], references: [id, contract_id], onDelete: NoAction, onUpdate: NoAction)
+  CoffeeSpecification      CoffeeSpecification        @relation(fields: [coffee_specification_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  SalesShipmentDatasetLine SalesShipmentDatasetLine[]
 
+  @@unique([id, contract_id])
   @@unique([contract_version_id, contract_line_id])
 }
 
@@ -719,26 +721,26 @@ model SalesShipment {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
 model SalesShipmentDataset {
-  id                                                                  String              @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
-  shipment_id                                                         String              @db.Uuid
+  id                                                                  String                     @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  shipment_id                                                         String                     @db.Uuid
   revision_no                                                         Int
   dataset_version                                                     Int
-  dataset_hash                                                        String              @db.Char(64)
-  sales_contract_id                                                   String              @db.Uuid
-  coffee_specification_id                                             String              @db.Uuid
+  dataset_hash                                                        String                     @db.Char(64)
+  sales_contract_id                                                   String                     @db.Uuid
+  coffee_specification_id                                             String                     @db.Uuid
   product_description                                                 String
   customer_purchase_order_reference                                   String?
   marks_and_numbers                                                   String?
-  quantity                                                            Decimal             @db.Decimal(20, 6)
+  quantity                                                            Decimal                    @db.Decimal(20, 6)
   bag_count                                                           Int
-  bag_weight                                                          Decimal             @db.Decimal(20, 6)
-  net_weight                                                          Decimal             @db.Decimal(20, 6)
-  gross_weight                                                        Decimal             @db.Decimal(20, 6)
-  origin_country                                                      String              @db.Char(2)
+  bag_weight                                                          Decimal                    @db.Decimal(20, 6)
+  net_weight                                                          Decimal                    @db.Decimal(20, 6)
+  gross_weight                                                        Decimal                    @db.Decimal(20, 6)
+  origin_country                                                      String                     @db.Char(2)
   origin_location                                                     String
   load_location                                                       String
   discharge_location                                                  String
-  destination_country                                                 String              @db.Char(2)
+  destination_country                                                 String                     @db.Char(2)
   destination_location                                                String
   incoterm                                                            String
   named_place                                                         String
@@ -749,25 +751,49 @@ model SalesShipmentDataset {
   transport_reference                                                 String
   vessel_or_vehicle                                                   String?
   voyage_or_trip                                                      String?
-  estimated_departure                                                 DateTime?           @db.Timestamptz(6)
-  estimated_arrival                                                   DateTime?           @db.Timestamptz(6)
-  planned_shipment_at                                                 DateTime?           @db.Timestamptz(6)
+  estimated_departure                                                 DateTime?                  @db.Timestamptz(6)
+  estimated_arrival                                                   DateTime?                  @db.Timestamptz(6)
+  planned_shipment_at                                                 DateTime?                  @db.Timestamptz(6)
   notes                                                               String?
-  state                                                               DatasetState        @default(DRAFT)
-  approval_id                                                         String?             @db.Uuid
-  created_by                                                          String              @db.Uuid
-  created_at                                                          DateTime            @default(now()) @db.Timestamptz(6)
+  state                                                               DatasetState               @default(DRAFT)
+  approval_id                                                         String?                    @db.Uuid
+  created_by                                                          String                     @db.Uuid
+  created_at                                                          DateTime                   @default(now()) @db.Timestamptz(6)
   revision_reason                                                     String
-  invalidated_approval_ids                                            String[]            @db.Uuid
+  invalidated_approval_ids                                            String[]                   @db.Uuid
   DocumentRevision                                                    DocumentRevision[]
-  SalesShipment_SalesShipment_active_dataset_idToSalesShipmentDataset SalesShipment[]     @relation("SalesShipment_active_dataset_idToSalesShipmentDataset")
-  Approval                                                            Approval?           @relation(fields: [approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_107_SalesShipmentDataset")
-  User                                                                User                @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_108_SalesShipmentDataset")
-  SalesShipment_SalesShipmentDataset_shipment_idToSalesShipment       SalesShipment       @relation("SalesShipmentDataset_shipment_idToSalesShipment", fields: [shipment_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_19_SalesShipmentDataset")
-  Contract                                                            Contract            @relation(fields: [sales_contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_20_SalesShipmentDataset")
-  CoffeeSpecification                                                 CoffeeSpecification @relation(fields: [coffee_specification_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_21_SalesShipmentDataset")
+  SalesShipment_SalesShipment_active_dataset_idToSalesShipmentDataset SalesShipment[]            @relation("SalesShipment_active_dataset_idToSalesShipmentDataset")
+  Approval                                                            Approval?                  @relation(fields: [approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_107_SalesShipmentDataset")
+  User                                                                User                       @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_108_SalesShipmentDataset")
+  SalesShipment_SalesShipmentDataset_shipment_idToSalesShipment       SalesShipment              @relation("SalesShipmentDataset_shipment_idToSalesShipment", fields: [shipment_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_19_SalesShipmentDataset")
+  Contract                                                            Contract                   @relation(fields: [sales_contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_20_SalesShipmentDataset")
+  CoffeeSpecification                                                 CoffeeSpecification        @relation(fields: [coffee_specification_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_21_SalesShipmentDataset")
+  SalesShipmentDatasetLine                                            SalesShipmentDatasetLine[]
 
+  @@unique([id, sales_contract_id])
   @@unique([shipment_id, revision_no])
+}
+
+/// Immutable product/quantity facts for one line in a sales-shipment dataset revision.
+model SalesShipmentDatasetLine {
+  id                                String               @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  sales_shipment_dataset_id         String               @db.Uuid
+  sales_contract_id                 String               @db.Uuid
+  line_no                           Int
+  contract_line_version_id          String               @db.Uuid
+  product_description               String
+  customer_purchase_order_reference String?
+  marks_and_numbers                 String?
+  quantity                          Decimal              @db.Decimal(20, 6)
+  bag_count                         Int
+  bag_weight                        Decimal              @db.Decimal(20, 6)
+  net_weight                        Decimal              @db.Decimal(20, 6)
+  gross_weight                      Decimal              @db.Decimal(20, 6)
+  created_at                        DateTime             @default(now()) @db.Timestamptz(6)
+  SalesShipmentDataset              SalesShipmentDataset @relation(fields: [sales_shipment_dataset_id, sales_contract_id], references: [id, sales_contract_id], onDelete: NoAction, onUpdate: NoAction)
+  ContractLineVersion               ContractLineVersion  @relation(fields: [contract_line_version_id, sales_contract_id], references: [id, contract_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([sales_shipment_dataset_id, line_no])
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.

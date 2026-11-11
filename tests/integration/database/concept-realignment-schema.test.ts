@@ -52,3 +52,30 @@ test("T007 models stable contract lines and immutable version facts without remo
   ]) field(contractVersion, legacy);
   assert.match(contractVersion, /^\s*ContractLineVersion\s+ContractLineVersion\[\]/m);
 });
+
+test("T008 models immutable sales shipment lines tied to exact contract-line versions", () => {
+  const dataset = model("SalesShipmentDataset");
+  const line = model("SalesShipmentDatasetLine");
+  const contractLineVersion = model("ContractLineVersion");
+
+  for (const name of [
+    "sales_shipment_dataset_id", "sales_contract_id", "line_no", "contract_line_version_id",
+    "product_description", "customer_purchase_order_reference", "quantity", "bag_count", "bag_weight", "net_weight", "gross_weight", "marks_and_numbers",
+  ]) field(line, name);
+
+  assert.match(field(line, "quantity"), /Decimal.+@db\.Decimal\(20, 6\)/);
+  assert.match(field(line, "bag_weight"), /Decimal.+@db\.Decimal\(20, 6\)/);
+  assert.match(field(line, "net_weight"), /Decimal.+@db\.Decimal\(20, 6\)/);
+  assert.match(field(line, "gross_weight"), /Decimal.+@db\.Decimal\(20, 6\)/);
+  assert.match(line, /@@unique\(\[sales_shipment_dataset_id, line_no\]\)/);
+  assert.match(line, /fields: \[sales_shipment_dataset_id, sales_contract_id\].+references: \[id, sales_contract_id\]/);
+  assert.match(line, /fields: \[contract_line_version_id, sales_contract_id\].+references: \[id, contract_id\]/);
+  assert.match(dataset, /@@unique\(\[id, sales_contract_id\]\)/);
+  assert.match(dataset, /^\s*SalesShipmentDatasetLine\s+SalesShipmentDatasetLine\[\]/m);
+  assert.match(contractLineVersion, /^\s*SalesShipmentDatasetLine\s+SalesShipmentDatasetLine\[\]/m);
+  assert.doesNotMatch(line, /^\s*(?:updated_at|version)\s+/m, "dataset-line facts are immutable within a dataset revision");
+
+  for (const legacy of [
+    "coffee_specification_id", "quantity", "bag_count", "bag_weight", "net_weight", "gross_weight", "marks_and_numbers",
+  ]) field(dataset, legacy);
+});
