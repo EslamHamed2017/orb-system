@@ -54,3 +54,46 @@ test("customer and supplier master operations require their resolved domain gran
   await assert.doesNotReject(() => service.list({ masterType: "customers", principal: principal("listCustomers") }));
   await assert.rejects(() => service.create({ ...command, idempotencyKey: "wrong-domain-grant", correlationId: "wrong-domain-grant", principal: principal("createSupplier") }), (error: any) => error?.problem?.code === "PERMISSION_DENIED");
 });
+
+
+test("contract-line APIs enforce operation-specific resolved grants in the domain service", async () => {
+  const { operationPermissionCode } = await import("../../src/modules/access/permissions.ts");
+  const { createContractLineService } = await import("../../src/modules/contracts/contract-line-service.ts");
+  const contractId = "019a5f9b-7c00-7000-8000-000000000101";
+  const versionId = "019a5f9b-7c00-7000-8000-000000000201";
+  const specificationId = "019a5f9b-7c00-7000-8000-000000000401";
+  let inserted = false;
+  const repository = {
+    async getContractVersion() { return { id: versionId, contractId, state: "DRAFT" }; },
+    async getLine() { return null; },
+    async nextLineNo() { return 1; },
+    async insertLine(input: any) { inserted = true; return { id: input.id, contractId, lineNo: input.lineNo, currentVersion: input.version }; },
+    async insertLineVersion(input: any) { return input; },
+    async listLines() { return []; },
+    async listLineVersions() { return []; },
+  };
+  const service = createContractLineService({ repository });
+  const principal = (operationId: string) => ({ userId: "custom", roles: ["CUSTOM"], permissionCodes: [operationPermissionCode(operationId)] });
+  const facts = { coffeeSpecificationId: specificationId, quantity: "10", unitPrice: "5", currency: "USD", incoterm: "FOB", namedPlace: "Dubai", quantityToleranceUnder: "0", quantityToleranceOver: "0", paymentTerms: "Net 30", documentTerms: "Originals" };
+
+  await assert.rejects(() => service.create({ contractId, contractVersionId: versionId, facts, correlationId: "wrong-grant", principal: principal("listContractLines") } as any), (error: any) => error?.problem?.code === "PERMISSION_DENIED");
+  assert.equal(inserted, false);
+  await assert.doesNotReject(() => service.create({ contractId, contractVersionId: versionId, facts, correlationId: "correct-grant", principal: principal("createContractLine") } as any));
+  await assert.rejects(() => service.list({ contractId, correlationId: "wrong-read-grant", principal: principal("getContractLine") } as any), (error: any) => error?.problem?.code === "PERMISSION_DENIED");
+  await assert.doesNotReject(() => service.list({ contractId, correlationId: "correct-read-grant", principal: principal("listContractLines") } as any));
+});
+
+
+test("contract-line HTTP routes accept the exact resolved grant and reject a different grant", async () => {
+  const { operationPermissionCode } = await import("../../src/modules/access/permissions.ts");
+  const { createContractLinesPostHandler } = await import("../../src/app/api/contracts/[contractId]/lines/route.ts");
+  const contractId = "019a5f9b-7c00-7000-8000-000000000101";
+  const custom = (operationId: string) => ({ userId: "custom", roles: ["CUSTOM"], permissionCodes: [operationPermissionCode(operationId)] });
+  let calls = 0;
+  const request = () => new Request(`https://orb.example/api/contracts/${contractId}/lines`, { method: "POST", body: "{}" });
+  const allowed = createContractLinesPostHandler({ authenticate: async () => custom("createContractLine"), create: async () => { calls += 1; return { id: "line" }; } });
+  assert.equal((await allowed(request(), { params: Promise.resolve({ contractId }) })).status, 201);
+  const denied = createContractLinesPostHandler({ authenticate: async () => custom("listContractLines"), create: async () => { calls += 1; return {}; } });
+  assert.equal((await denied(request(), { params: Promise.resolve({ contractId }) })).status, 403);
+  assert.equal(calls, 1);
+});

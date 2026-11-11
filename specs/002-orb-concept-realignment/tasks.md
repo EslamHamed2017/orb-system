@@ -57,7 +57,7 @@
 - [x] T035 User, role and permission administration APIs
   - Verification note (2026-11-11): owner-only bilingual user lifecycle, configurable role creation/assignment, granular permission catalog and role-grant replacement APIs are contract-pinned and route-backed; strict typecheck, all 521 tests with zero skips, and the production build pass.
 - [ ] T036 Enforce permissions server-side on all new APIs
-  - Progress note (2026-11-11): added a fail-closed operation-permission policy with explicit resolved grants taking precedence over the legacy pilot-role bridge; Accounts, Reports, Settings, access administration, and customer/supplier master services now enforce operation-specific grants. Remaining domain API seams must be migrated before completion.
+  - Progress note (2026-11-11): added a fail-closed operation-permission policy with explicit resolved grants taking precedence over the legacy pilot-role bridge; Accounts, Reports, Settings, access administration, customer/supplier masters, and contract-line service plus HTTP routes now enforce operation-specific grants. The contract-line slice passed strict typecheck, all 527 tests, and the production build. Remaining domain API seams must be migrated before completion.
 
 ## Phase 3 — Core UI and 360° navigation
 - [ ] T037 Multi-line sales contract form and detail page

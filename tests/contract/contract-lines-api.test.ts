@@ -12,6 +12,7 @@ const ids = {
   line: "019a5f9b-7c00-7000-8000-000000000301",
   specification: "019a5f9b-7c00-7000-8000-000000000401",
 };
+const OWNER = { userId: "owner", roles: ["OWNER_ADMIN"] };
 const facts = { coffeeSpecificationId: ids.specification, quantity: "100.000000", unitPrice: "5.250000", currency: "USD", incoterm: "FOB", namedPlace: "Dubai", quantityToleranceUnder: "0", quantityToleranceOver: "2.500000", paymentTerms: "Net 30", documentTerms: "Original documents" };
 
 function repository(): ContractLineRepository & { versions: any[] } {
@@ -31,7 +32,7 @@ function repository(): ContractLineRepository & { versions: any[] } {
 test("contract-line service creates a stable line and appends immutable v2 facts", async () => {
   const repo = repository();
   const service = createContractLineService({ repository: repo, newId: () => ids.line });
-  const created = await service.create({ contractId: ids.contract, contractVersionId: ids.version1, facts, correlationId: "create-line" });
+  const created = await service.create({ principal: OWNER, contractId: ids.contract, contractVersionId: ids.version1, facts, correlationId: "create-line" });
   assert.equal(created.lineNo, 2);
   assert.equal(repo.versions.length, 1);
   assert.equal(repo.versions[0].contractVersionId, ids.version1);
@@ -43,9 +44,9 @@ test("contract-line service creates a stable line and appends immutable v2 facts
 test("contract-line update appends to a new draft contract version and preserves history", async () => {
   const repo = repository();
   const service = createContractLineService({ repository: repo, newId: () => ids.line });
-  await service.update({ contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version1, facts, correlationId: "v1" });
-  await service.update({ contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version2, facts: { ...facts, quantity: "80.000000" }, correlationId: "v2" });
-  const history = await service.versions({ contractId: ids.contract, lineId: ids.line, correlationId: "history" });
+  await service.update({ principal: OWNER, contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version1, facts, correlationId: "v1" });
+  await service.update({ principal: OWNER, contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version2, facts: { ...facts, quantity: "80.000000" }, correlationId: "v2" });
+  const history = await service.versions({ principal: OWNER, contractId: ids.contract, lineId: ids.line, correlationId: "history" });
   assert.deepEqual(history.map((row) => row.contractVersionId), [ids.version1, ids.version2]);
   assert.equal(history[0].facts.quantity, "100.000000");
   assert.equal(history[1].facts.quantity, "80.000000");
@@ -54,16 +55,16 @@ test("contract-line update appends to a new draft contract version and preserves
 test("contract-line service rejects invalid facts, cross-contract versions, and duplicate snapshot writes", async () => {
   const repo = repository();
   const service = createContractLineService({ repository: repo, newId: () => ids.line });
-  await assert.rejects(() => service.create({ contractId: ids.contract, contractVersionId: ids.version1, facts: { ...facts, quantity: "0" }, correlationId: "bad" }), (error: any) => error.problem?.code === "VALIDATION_FAILED");
-  await assert.rejects(() => service.create({ contractId: ids.otherContract, contractVersionId: ids.version1, facts, correlationId: "cross" }), (error: any) => error.problem?.code === "RESOURCE_NOT_FOUND");
-  await service.update({ contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version1, facts, correlationId: "first" });
-  await assert.rejects(() => service.update({ contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version1, facts, correlationId: "duplicate" }), (error: any) => error.problem?.code === "CONTRACT_LINE_VERSION_EXISTS");
+  await assert.rejects(() => service.create({ principal: OWNER, contractId: ids.contract, contractVersionId: ids.version1, facts: { ...facts, quantity: "0" }, correlationId: "bad" }), (error: any) => error.problem?.code === "VALIDATION_FAILED");
+  await assert.rejects(() => service.create({ principal: OWNER, contractId: ids.otherContract, contractVersionId: ids.version1, facts, correlationId: "cross" }), (error: any) => error.problem?.code === "RESOURCE_NOT_FOUND");
+  await service.update({ principal: OWNER, contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version1, facts, correlationId: "first" });
+  await assert.rejects(() => service.update({ principal: OWNER, contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version1, facts, correlationId: "duplicate" }), (error: any) => error.problem?.code === "CONTRACT_LINE_VERSION_EXISTS");
 });
 
 test("contract-line approval validation returns a deterministic manifest for the exact complete draft", async () => {
   const repo = repository();
   const service = createContractLineService({ repository: repo, newId: () => ids.line });
-  await service.update({ contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version1, facts, correlationId: "approval-line" });
+  await service.update({ principal: OWNER, contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version1, facts, correlationId: "approval-line" });
 
   const manifest = await service.validateApproval({ contractId: ids.contract, contractVersionId: ids.version1, correlationId: "approval" });
 
@@ -75,7 +76,7 @@ test("contract-line approval validation returns a deterministic manifest for the
 test("contract-line amendment validation requires an approved source and a complete distinct draft", async () => {
   const repo = repository();
   const service = createContractLineService({ repository: repo, newId: () => ids.line });
-  await service.update({ contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version1, facts, correlationId: "source-line" });
+  await service.update({ principal: OWNER, contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version1, facts, correlationId: "source-line" });
   repo.getContractVersion = async (contractId, versionId) => contractId !== ids.contract ? null
     : versionId === ids.version1 ? { id: versionId, contractId, state: "APPROVED" }
     : versionId === ids.version2 ? { id: versionId, contractId, state: "DRAFT" }
@@ -90,8 +91,8 @@ test("contract-line amendment validation requires an approved source and a compl
 test("contract-line amendment validation accepts carried-forward snapshots and approved lines stay immutable", async () => {
   const repo = repository();
   const service = createContractLineService({ repository: repo, newId: () => ids.line });
-  await service.update({ contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version1, facts, correlationId: "source-line" });
-  await service.update({ contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version2, facts: { ...facts, quantity: "90.000000" }, correlationId: "draft-line" });
+  await service.update({ principal: OWNER, contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version1, facts, correlationId: "source-line" });
+  await service.update({ principal: OWNER, contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version2, facts: { ...facts, quantity: "90.000000" }, correlationId: "draft-line" });
   repo.getContractVersion = async (contractId, versionId) => contractId !== ids.contract ? null
     : versionId === ids.version1 ? { id: versionId, contractId, state: "APPROVED" }
     : versionId === ids.version2 ? { id: versionId, contractId, state: "DRAFT" }
@@ -99,7 +100,7 @@ test("contract-line amendment validation accepts carried-forward snapshots and a
 
   await service.validateAmendment({ contractId: ids.contract, sourceVersionId: ids.version1, draftVersionId: ids.version2, correlationId: "amendment-complete" });
   await assert.rejects(
-    () => service.update({ contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version1, facts: { ...facts, quantity: "1" }, correlationId: "approved-edit" }),
+    () => service.update({ principal: OWNER, contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version1, facts: { ...facts, quantity: "1" }, correlationId: "approved-edit" }),
     (error: any) => error.problem?.code === "IMMUTABLE_VERSION",
   );
 });

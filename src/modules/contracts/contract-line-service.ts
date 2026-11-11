@@ -1,6 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { problemError } from "../../platform/http/problem.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { assertServerPermission, type OperationPrincipal } from "../access/permissions.ts";
 
 export interface ContractLineFacts {
   readonly coffeeSpecificationId: string;
@@ -38,15 +40,16 @@ export interface ContractLineService {
   list(input: ReadInput): Promise<readonly ContractLineRecord[]>;
   get(input: ReadInput & { lineId: string }): Promise<ContractLineRecord>;
   versions(input: ReadInput & { lineId: string }): Promise<readonly StoredContractLineVersion[]>;
-  validateApproval(input: ReadInput & { contractVersionId: string }): Promise<ContractLineApprovalManifest>;
-  validateAmendment(input: ReadInput & { sourceVersionId: string; draftVersionId: string }): Promise<void>;
+  validateApproval(input: InternalReadInput & { contractVersionId: string }): Promise<ContractLineApprovalManifest>;
+  validateAmendment(input: InternalReadInput & { sourceVersionId: string; draftVersionId: string }): Promise<void>;
 }
 export interface ContractLineApprovalManifest {
   readonly lineCount: number;
   readonly lineVersionIds: readonly string[];
   readonly linesHash: string;
 }
-interface ReadInput { readonly contractId: string; readonly correlationId: string }
+interface InternalReadInput { readonly contractId: string; readonly correlationId: string }
+interface ReadInput extends InternalReadInput { readonly principal: OperationPrincipal }
 interface LineWrite extends ReadInput { readonly contractVersionId: string; readonly facts: unknown }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -54,6 +57,9 @@ const DECIMAL = /^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,6})?$/;
 const KEYS = ["coffeeSpecificationId", "quantity", "unitPrice", "currency", "incoterm", "namedPlace", "quantityToleranceUnder", "quantityToleranceOver", "paymentTerms", "documentTerms"] as const;
 function fail(code: string, status: number, correlationId: string): never { throw problemError({ code, status, correlationId }); }
 function validId(value: string, correlationId: string): void { if (!UUID.test(value)) fail("VALIDATION_FAILED", 400, correlationId); }
+function authorize(principal: OperationPrincipal, operationId: string, correlationId: string): void {
+  try { assertServerPermission(principal, operationId); } catch { fail("PERMISSION_DENIED", 403, correlationId); }
+}
 function validateFacts(value: unknown, correlationId: string): ContractLineFacts {
   if (!value || typeof value !== "object" || Array.isArray(value)) fail("VALIDATION_FAILED", 400, correlationId);
   const row = value as Record<string, unknown>;
@@ -87,21 +93,23 @@ export function createContractLineService(options: { repository: ContractLineRep
   }
   return {
     async create(input) {
+      authorize(input.principal, "createContractLine", input.correlationId);
       await draft(input.contractId, input.contractVersionId, input.correlationId);
       const facts = validateFacts(input.facts, input.correlationId), lineId = id(), lineNo = await options.repository.nextLineNo(input.contractId);
       const version = versionRecord({ id: id(), contractId: input.contractId, lineId, contractVersionId: input.contractVersionId, facts });
       return options.repository.insertLine({ id: lineId, contractId: input.contractId, lineNo, version });
     },
     async update(input) {
+      authorize(input.principal, "updateContractLine", input.correlationId);
       await line(input.contractId, input.lineId, input.correlationId);
       await draft(input.contractId, input.contractVersionId, input.correlationId);
       const existing = await options.repository.listLineVersions(input.contractId, input.lineId);
       if (existing.some((item) => item.contractVersionId === input.contractVersionId)) fail("CONTRACT_LINE_VERSION_EXISTS", 409, input.correlationId);
       return options.repository.insertLineVersion(versionRecord({ id: id(), contractId: input.contractId, lineId: input.lineId, contractVersionId: input.contractVersionId, facts: validateFacts(input.facts, input.correlationId) }));
     },
-    async list(input) { validId(input.contractId, input.correlationId); return options.repository.listLines(input.contractId); },
-    async get(input) { return line(input.contractId, input.lineId, input.correlationId); },
-    async versions(input) { await line(input.contractId, input.lineId, input.correlationId); return options.repository.listLineVersions(input.contractId, input.lineId); },
+    async list(input) { authorize(input.principal, "listContractLines", input.correlationId); validId(input.contractId, input.correlationId); return options.repository.listLines(input.contractId); },
+    async get(input) { authorize(input.principal, "getContractLine", input.correlationId); return line(input.contractId, input.lineId, input.correlationId); },
+    async versions(input) { authorize(input.principal, "listContractLineVersions", input.correlationId); await line(input.contractId, input.lineId, input.correlationId); return options.repository.listLineVersions(input.contractId, input.lineId); },
     async validateAmendment(input) {
       validId(input.contractId, input.correlationId); validId(input.sourceVersionId, input.correlationId); validId(input.draftVersionId, input.correlationId);
       if (input.sourceVersionId === input.draftVersionId) fail("VALIDATION_FAILED", 400, input.correlationId);
