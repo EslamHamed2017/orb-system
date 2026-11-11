@@ -1,3 +1,5 @@
+import { localizedDomainTerms } from "../../platform/i18n/domain-terminology";
+
 export const en = {
   language: "English",
   primaryNavigation: "Primary navigation",
@@ -9,6 +11,7 @@ export const en = {
   menuTitle: "More destinations",
   shellTitle: "Trade operations",
   reference: "ORB-R1",
+  domain: localizedDomainTerms("en"),
   states: {
     loading: { title: "Loading", detail: "The latest operational data is loading." },
     empty: { title: "Nothing here yet", detail: "Create the first operational record.", action: "View projects" },

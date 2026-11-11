@@ -63,3 +63,30 @@
 - Material Design 3 with ORB branding.
 - No external communication without owner approval.
 - Plan architecture and migration before implementing the line-item redesign.
+
+## Canonical bilingual domain terminology
+The following labels are frozen for application copy, API documentation, print output, and acceptance tests. Concept identifiers are stable implementation keys.
+
+| Concept key | English | العربية | Usage |
+|---|---|---|---|
+| `project` | Project | مشروع | The 360-degree workspace for related records. |
+| `product` | Product | منتج | A traded product/specification, not free-stock inventory. |
+| `salesContract` | Sales contract | عقد بيع | The customer commercial agreement. |
+| `purchaseContract` | Purchase contract | عقد شراء | The supplier commercial agreement. |
+| `contractLine` | Contract line | بند عقد | A versioned product, quantity, price, and commercial-data line. |
+| `salesShipment` | Sales shipment | شحنة بيع | Customer-facing fulfillment against approved sales-contract lines. |
+| `supplierContainer` | Supplier container | حاوية موردين | The physical inbound container; it may consolidate lines from multiple suppliers. |
+| `shipmentLine` | Shipment line | بند شحنة | Fulfillment linked to an exact approved contract-line version. |
+| `salesInvoice` | Sales invoice | فاتورة مبيعات | The customer invoice grouped per sales shipment. |
+| `supplierInvoice` | Supplier invoice | فاتورة مورد | A supplier-attributable invoice. |
+| `accounts` | Accounts | الحسابات | Operational/commercial tracking, never a general ledger. |
+| `collection` | Collection | تحصيل | Money received from a customer. |
+| `supplierPayment` | Supplier payment | دفعة مورد | Money paid to a supplier. |
+| `expense` | Expense | مصروف | A project or transaction operational cost. |
+| `attachment` | Attachment | مرفق | An access-controlled file linked to a source transaction. |
+| `productMovement` | Product movement | حركة منتج | Cross-project traceability without stock balance or valuation. |
+| `remainingQuantity` | Remaining quantity | الكمية المتبقية | Approved contract-line quantity not yet fulfilled. |
+
+Usage rules:
+- **Sales shipment / شحنة بيع** and **Supplier container / حاوية موردين** are distinct concepts and must not be used interchangeably.
+- **Accounts / الحسابات** means operational commercial records only; do not label or describe it as a general ledger.
