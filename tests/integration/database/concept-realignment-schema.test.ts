@@ -299,3 +299,52 @@ test("T015 scopes evidence to a project and records a closed subject plus author
     "ROUTE_CHECKLIST_ITEM", "APPROVAL",
   ]) assert.match(subjectType[1], new RegExp(`^\\s*${value}\\s*$`, "m"));
 });
+
+test("T016 models configurable granular permissions, roles, grants, and auditable user assignments", () => {
+  const permission = model("Permission");
+  const role = model("Role");
+  const grant = model("RolePermission");
+  const assignment = model("UserRoleAssignment");
+  const user = model("User");
+  const legacyAssignment = model("UserRole");
+
+  for (const name of ["code", "name_en", "name_ar", "category", "description_en", "description_ar", "created_at"])
+    field(permission, name);
+  assert.match(field(permission, "code"), /String.+@unique/,
+    "permission codes are stable server-side authorization keys");
+  assert.match(field(permission, "category"), /PermissionCategory/,
+    "permissions distinguish screen, operation, sensitive-value, and approval controls");
+  assert.match(permission, /^\s*RolePermission\s+RolePermission\[\]/m);
+
+  for (const name of ["code", "name_en", "name_ar", "description_en", "description_ar", "is_system", "is_active", "created_at", "updated_at"])
+    field(role, name);
+  assert.match(field(role, "code"), /String.+@unique/);
+  assert.match(role, /^\s*RolePermission\s+RolePermission\[\]/m);
+  assert.match(role, /^\s*UserRoleAssignment\s+UserRoleAssignment\[\]/m);
+
+  for (const name of ["role_id", "permission_id", "granted_by", "granted_at"])
+    field(grant, name);
+  assert.match(grant, /@@unique\(\[role_id, permission_id\]\)/,
+    "a role cannot receive the same permission twice");
+  assert.match(grant, /fields: \[role_id\].+references: \[id\]/);
+  assert.match(grant, /fields: \[permission_id\].+references: \[id\]/);
+  assert.match(grant, /fields: \[granted_by\].+references: \[id\]/,
+    "permission grants retain their responsible administrator");
+
+  for (const name of ["user_id", "role_id", "assigned_by", "assigned_at", "revoked_at", "revoked_by"])
+    field(assignment, name);
+  assert.match(assignment, /@@unique\(\[user_id, role_id\]\)/,
+    "a user-role assignment has one auditable lifecycle");
+  assert.match(assignment, /fields: \[user_id\].+references: \[id\]/);
+  assert.match(assignment, /fields: \[role_id\].+references: \[id\]/);
+  assert.match(assignment, /fields: \[assigned_by\].+references: \[id\]/);
+  assert.match(assignment, /fields: \[revoked_by\].+references: \[id\]/);
+  assert.match(user, /^\s*UserRoleAssignment_UserRoleAssignment_user_idToUser\s+UserRoleAssignment\[\]/m);
+
+  for (const legacy of ["user_id", "role"]) field(legacyAssignment, legacy);
+
+  const categories = schema.match(/enum\s+PermissionCategory\s*\{([\s\S]*?)\n\}/m);
+  assert.ok(categories, "missing closed PermissionCategory enum");
+  for (const value of ["SCREEN", "OPERATION", "SENSITIVE_VALUE", "APPROVAL"])
+    assert.match(categories[1], new RegExp(`^\\s*${value}\\s*$`, "m"));
+});

@@ -1109,6 +1109,68 @@ model TransactionSerial {
   @@index([project_id, transaction_type])
 }
 
+/// Stable server-side authorization key. Permissions are additive so legacy pilot roles can coexist during cutover.
+model Permission {
+  id             String             @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  code           String             @unique
+  name_en        String
+  name_ar        String
+  category       PermissionCategory
+  description_en String
+  description_ar String
+  created_at     DateTime           @default(now()) @db.Timestamptz(6)
+  RolePermission RolePermission[]
+}
+
+/// Configurable bilingual role. System roles may be protected by administration APIs without hard-coding authorization decisions.
+model Role {
+  id                 String               @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  code               String               @unique
+  name_en            String
+  name_ar            String
+  description_en     String
+  description_ar     String
+  is_system          Boolean              @default(false)
+  is_active          Boolean              @default(true)
+  created_at         DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime             @updatedAt @db.Timestamptz(6)
+  RolePermission     RolePermission[]
+  UserRoleAssignment UserRoleAssignment[]
+}
+
+/// Auditable grant of one granular permission to one configurable role.
+model RolePermission {
+  id            String     @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  role_id       String     @db.Uuid
+  permission_id String     @db.Uuid
+  granted_by    String     @db.Uuid
+  granted_at    DateTime   @default(now()) @db.Timestamptz(6)
+  Role          Role       @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Permission    Permission @relation(fields: [permission_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User          User       @relation("RolePermission_granted_byToUser", fields: [granted_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([role_id, permission_id])
+  @@index([permission_id])
+}
+
+/// Configurable role assignment with retained grant and revocation responsibility.
+model UserRoleAssignment {
+  id                                        String    @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  user_id                                   String    @db.Uuid
+  role_id                                   String    @db.Uuid
+  assigned_by                               String    @db.Uuid
+  assigned_at                               DateTime  @default(now()) @db.Timestamptz(6)
+  revoked_at                                DateTime? @db.Timestamptz(6)
+  revoked_by                                String?   @db.Uuid
+  User_UserRoleAssignment_user_idToUser     User      @relation("UserRoleAssignment_user_idToUser", fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User_UserRoleAssignment_assigned_byToUser User      @relation("UserRoleAssignment_assigned_byToUser", fields: [assigned_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User_UserRoleAssignment_revoked_byToUser  User?     @relation("UserRoleAssignment_revoked_byToUser", fields: [revoked_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Role                                      Role      @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([user_id, role_id])
+  @@index([role_id])
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model User {
   id                                         String                    @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
@@ -1135,6 +1197,10 @@ model User {
   ShipmentExecutionEvent                     ShipmentExecutionEvent[]
   SupplierShipmentDataset                    SupplierShipmentDataset[]
   TransactionSerial                          TransactionSerial[]
+  RolePermission                             RolePermission[]     @relation("RolePermission_granted_byToUser")
+  UserRoleAssignment_UserRoleAssignment_user_idToUser     UserRoleAssignment[] @relation("UserRoleAssignment_user_idToUser")
+  UserRoleAssignment_UserRoleAssignment_assigned_byToUser UserRoleAssignment[] @relation("UserRoleAssignment_assigned_byToUser")
+  UserRoleAssignment_UserRoleAssignment_revoked_byToUser  UserRoleAssignment[] @relation("UserRoleAssignment_revoked_byToUser")
   UserRole                                   UserRole[]
 }
 
@@ -1147,6 +1213,13 @@ model UserRole {
   User    User      @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_1_UserRole")
 
   @@unique([user_id, role])
+}
+
+enum PermissionCategory {
+  SCREEN
+  OPERATION
+  SENSITIVE_VALUE
+  APPROVAL
 }
 
 enum TransactionType {
