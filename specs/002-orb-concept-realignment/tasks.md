@@ -9,7 +9,7 @@
 - [x] T006 Create isolated PostgreSQL/object-storage migration and restore environment; eliminate skipped real-DB migration gate
 
 ## Phase 1 — Schema foundation
-- [ ] T007 Add stable ContractLine plus immutable ContractLineVersion under ContractVersion without dropping legacy fields
+- [x] T007 Add stable ContractLine plus immutable ContractLineVersion under ContractVersion without dropping legacy fields
 - [ ] T008 Add SalesShipmentDatasetLine linked to the exact approved ContractLineVersion
 - [ ] T009 Add SupplierShipmentDatasetLine linked to the exact approved purchase ContractLineVersion
 - [ ] T010 Evolve SupplierShipment into the physical container header and move supplier/contract ownership to its dataset lines

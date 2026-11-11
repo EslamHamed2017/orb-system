@@ -172,6 +172,7 @@ model CoffeeSpecification {
   attributes              Json
   version                 Int                       @default(1)
   ContractVersion         ContractVersion[]
+  ContractLineVersion     ContractLineVersion[]
   SalesShipmentDataset    SalesShipmentDataset[]
   SupplierShipmentDataset SupplierShipmentDataset[]
 }
@@ -209,6 +210,7 @@ model Contract {
   Project_Contract_project_idToProject                        Project                   @relation("Contract_project_idToProject", fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_6_Contract")
   Party                                                       Party                     @relation(fields: [counterparty_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_7_Contract")
   ContractVersion_ContractVersion_contract_idToContract       ContractVersion[]         @relation("ContractVersion_contract_idToContract")
+  ContractLine                                                ContractLine[]
   MoneyMovement                                               MoneyMovement[]
   Project_Project_primary_sales_contract_idToContract         Project[]                 @relation("Project_primary_sales_contract_idToContract")
   SalesShipment                                               SalesShipment[]
@@ -223,34 +225,73 @@ model Contract {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
 model ContractVersion {
-  id                                                   String               @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
-  contract_id                                          String               @db.Uuid
+  id                                                   String                @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  contract_id                                          String                @db.Uuid
   revision_no                                          Int
-  effective_date                                       DateTime             @db.Date
+  effective_date                                       DateTime              @db.Date
   amendment_reason                                     String?
-  coffee_specification_id                              String               @db.Uuid
-  quantity                                             Decimal              @db.Decimal(20, 6)
-  unit_price                                           Decimal              @db.Decimal(20, 6)
-  currency                                             String               @db.Char(3)
+  coffee_specification_id                              String                @db.Uuid
+  quantity                                             Decimal               @db.Decimal(20, 6)
+  unit_price                                           Decimal               @db.Decimal(20, 6)
+  currency                                             String                @db.Char(3)
   route                                                RouteTemplateCode
   incoterm                                             String
   named_place                                          String
-  quantity_tolerance_under                             Decimal              @default(0) @db.Decimal
-  quantity_tolerance_over                              Decimal              @default(0) @db.Decimal
-  net_weight_tolerance_under                           Decimal              @default(0) @db.Decimal
-  net_weight_tolerance_over                            Decimal              @default(0) @db.Decimal
-  gross_weight_tolerance_under                         Decimal              @default(0) @db.Decimal
-  gross_weight_tolerance_over                          Decimal              @default(0) @db.Decimal
+  quantity_tolerance_under                             Decimal               @default(0) @db.Decimal
+  quantity_tolerance_over                              Decimal               @default(0) @db.Decimal
+  net_weight_tolerance_under                           Decimal               @default(0) @db.Decimal
+  net_weight_tolerance_over                            Decimal               @default(0) @db.Decimal
+  gross_weight_tolerance_under                         Decimal               @default(0) @db.Decimal
+  gross_weight_tolerance_over                          Decimal               @default(0) @db.Decimal
   payment_terms                                        String
   document_terms                                       String
-  state                                                ContractVersionState @default(DRAFT)
-  approval_id                                          String?              @db.Uuid
-  Contract_Contract_active_version_idToContractVersion Contract[]           @relation("Contract_active_version_idToContractVersion")
-  Approval                                             Approval?            @relation(fields: [approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_102_ContractVersion")
-  Contract_ContractVersion_contract_idToContract       Contract             @relation("ContractVersion_contract_idToContract", fields: [contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_8_ContractVersion")
-  CoffeeSpecification                                  CoffeeSpecification  @relation(fields: [coffee_specification_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_9_ContractVersion")
+  state                                                ContractVersionState  @default(DRAFT)
+  approval_id                                          String?               @db.Uuid
+  Contract_Contract_active_version_idToContractVersion Contract[]            @relation("Contract_active_version_idToContractVersion")
+  Approval                                             Approval?             @relation(fields: [approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_102_ContractVersion")
+  Contract_ContractVersion_contract_idToContract       Contract              @relation("ContractVersion_contract_idToContract", fields: [contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_8_ContractVersion")
+  ContractLineVersion                                  ContractLineVersion[]
+  CoffeeSpecification                                  CoffeeSpecification   @relation(fields: [coffee_specification_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_9_ContractVersion")
 
   @@unique([contract_id, revision_no])
+  @@unique([id, contract_id])
+}
+
+/// Stable identity for a commercial line across contract amendments.
+model ContractLine {
+  id                  String                @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  contract_id         String                @db.Uuid
+  line_no             Int
+  created_at          DateTime              @default(now()) @db.Timestamptz(6)
+  Contract            Contract              @relation(fields: [contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ContractLineVersion ContractLineVersion[]
+
+  @@unique([id, contract_id])
+  @@unique([contract_id, line_no])
+}
+
+/// Immutable commercial facts for one stable line in one ContractVersion snapshot.
+model ContractLineVersion {
+  id                       String              @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  contract_id              String              @db.Uuid
+  contract_line_id         String              @db.Uuid
+  contract_version_id      String              @db.Uuid
+  coffee_specification_id  String              @db.Uuid
+  quantity                 Decimal             @db.Decimal(20, 6)
+  unit_price               Decimal             @db.Decimal(20, 6)
+  currency                 String              @db.Char(3)
+  incoterm                 String
+  named_place              String
+  quantity_tolerance_under Decimal             @default(0) @db.Decimal
+  quantity_tolerance_over  Decimal             @default(0) @db.Decimal
+  payment_terms            String
+  document_terms           String
+  created_at               DateTime            @default(now()) @db.Timestamptz(6)
+  ContractLine             ContractLine        @relation(fields: [contract_line_id, contract_id], references: [id, contract_id], onDelete: NoAction, onUpdate: NoAction)
+  ContractVersion          ContractVersion     @relation(fields: [contract_version_id, contract_id], references: [id, contract_id], onDelete: NoAction, onUpdate: NoAction)
+  CoffeeSpecification      CoffeeSpecification @relation(fields: [coffee_specification_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([contract_version_id, contract_line_id])
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
