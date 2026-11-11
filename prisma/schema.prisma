@@ -289,6 +289,8 @@ model ContractLineVersion {
   quantity_tolerance_over     Decimal                       @default(0) @db.Decimal
   payment_terms               String
   document_terms              String
+  hash_version                Int                           @default(2)
+  line_hash                   String                        @db.Char(64)
   created_at                  DateTime                      @default(now()) @db.Timestamptz(6)
   ContractLine                ContractLine                  @relation(fields: [contract_line_id, contract_id], references: [id, contract_id], onDelete: NoAction, onUpdate: NoAction)
   ContractVersion             ContractVersion               @relation(fields: [contract_version_id, contract_id], references: [id, contract_id], onDelete: NoAction, onUpdate: NoAction)
@@ -857,6 +859,8 @@ model SalesShipmentDatasetLine {
   bag_weight                        Decimal                        @db.Decimal(20, 6)
   net_weight                        Decimal                        @db.Decimal(20, 6)
   gross_weight                      Decimal                        @db.Decimal(20, 6)
+  hash_version                      Int                            @default(2)
+  line_hash                         String                         @db.Char(64)
   created_at                        DateTime                       @default(now()) @db.Timestamptz(6)
   SalesShipmentDataset              SalesShipmentDataset           @relation(fields: [sales_shipment_dataset_id, sales_contract_id], references: [id, sales_contract_id], onDelete: NoAction, onUpdate: NoAction)
   ContractLineVersion               ContractLineVersion            @relation(fields: [contract_line_version_id, sales_contract_id], references: [id, contract_id], onDelete: NoAction, onUpdate: NoAction)
@@ -1063,6 +1067,8 @@ model SupplierShipmentDatasetLine {
   bag_weight                   Decimal                        @db.Decimal(20, 6)
   net_weight                   Decimal                        @db.Decimal(20, 6)
   gross_weight                 Decimal                        @db.Decimal(20, 6)
+  hash_version                 Int                            @default(2)
+  line_hash                    String                         @db.Char(64)
   created_at                   DateTime                       @default(now()) @db.Timestamptz(6)
   SupplierShipmentDataset      SupplierShipmentDataset        @relation(fields: [supplier_shipment_dataset_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   Contract                     Contract                       @relation(fields: [purchase_contract_id, supplier_id], references: [id, counterparty_id], onDelete: NoAction, onUpdate: NoAction)

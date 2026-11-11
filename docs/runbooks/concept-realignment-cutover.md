@@ -32,6 +32,14 @@ ORB_REALIGNMENT_READ_PATH=compare
 ORB_REALIGNMENT_READ_PATH=v2
 ```
 
+## T018 deterministic backfill and reconciliation
+
+- Migration `202611110002_concept_realignment_backfill` maps each legacy contract version and shipment dataset to exactly one line using the source UUID as the target UUID. Reruns therefore upsert the same rows rather than duplicating them.
+- Shipment datasets bind to the contract active version first, then the latest approved revision, then the latest revision. This resolves the version relationship absent from the Release 1 schema deterministically.
+- Existing `dataset_hash` and `Approval.subject_hash` values remain v1 and are never rewritten. Backfilled line payloads receive `hash_version = 2` and a lowercase SHA-256 `line_hash` from the explicit `orb_line_hash_v2` JSON payload contract. Native multi-line changes require a new approval; a v1 approval must never be treated as approval of a changed v2 payload.
+- Query `orb_concept_realignment_reconciliation` by entity and currency. Do not enable comparison reads unless `legacy_rows = v2_rows`, `legacy_quantity = v2_quantity`, and `legacy_value = v2_value` for every row.
+- The isolated migration gate seeds approved legacy contract/shipment rows, executes the backfill twice, proves v1 hashes unchanged, proves v2 hashes stable, and requires zero reconciliation deltas.
+
 ## Forward procedure
 
 1. Deploy the expand migration while the old application remains active.

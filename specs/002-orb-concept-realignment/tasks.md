@@ -20,7 +20,7 @@
 - [x] T015 Harden existing EvidenceObject/EvidenceLink with project scope, subject allowlist and parent authorization metadata
 - [x] T016 Add Permission, Role, RolePermission and user assignment models
 - [x] T017 Generate expand migration, feature-flag cutover and application-rollback procedure with no database down-migration
-- [ ] T018 Backfill legacy records 1:1, preserve v1 hashes, define v2 line hashes, and reconcile row/quantity/value totals
+- [x] T018 Backfill legacy records 1:1, preserve v1 hashes, define v2 line hashes, and reconcile row/quantity/value totals
 
 ## Phase 2 — Domain APIs
 - [ ] T019 Contract line create/read/update/version APIs
