@@ -95,7 +95,7 @@ test("T009 models immutable supplier shipment lines tied to exact purchase contr
   assert.match(field(line, "net_weight"), /Decimal.+@db\.Decimal\(20, 6\)/);
   assert.match(field(line, "gross_weight"), /Decimal.+@db\.Decimal\(20, 6\)/);
   assert.match(line, /@@unique\(\[supplier_shipment_dataset_id, line_no\]\)/);
-  assert.match(line, /fields: \[supplier_shipment_dataset_id, purchase_contract_id\].+references: \[id, purchase_contract_id\]/);
+  assert.match(line, /fields: \[supplier_shipment_dataset_id\].+references: \[id\]/);
   assert.match(line, /fields: \[contract_line_version_id, purchase_contract_id\].+references: \[id, contract_id\]/);
   assert.match(dataset, /@@unique\(\[id, purchase_contract_id\]\)/);
   assert.match(dataset, /^\s*SupplierShipmentDatasetLine\s+SupplierShipmentDatasetLine\[\]/m);
@@ -105,4 +105,29 @@ test("T009 models immutable supplier shipment lines tied to exact purchase contr
   for (const legacy of [
     "supplier_id", "coffee_specification_id", "supplier_lot_reference", "quantity", "bag_count", "bag_weight", "net_weight", "gross_weight",
   ]) field(dataset, legacy);
+});
+
+test("T010 treats supplier shipments as physical containers with line-owned supplier and purchase-contract attribution", () => {
+  const container = model("SupplierShipment");
+  const dataset = model("SupplierShipmentDataset");
+  const line = model("SupplierShipmentDatasetLine");
+  const contract = model("Contract");
+  const party = model("Party");
+
+  field(container, "project_id");
+  field(container, "reference");
+  field(container, "active_dataset_id");
+  assert.match(schema, /Physical inbound container header[\s\S]+model SupplierShipment\s*\{/);
+
+  field(line, "supplier_id");
+  assert.match(line, /fields: \[supplier_shipment_dataset_id\].+references: \[id\]/,
+    "container lines must not be coupled to the dataset legacy purchase contract");
+  assert.match(line, /fields: \[purchase_contract_id, supplier_id\].+references: \[id, counterparty_id\]/,
+    "the database must bind every purchase contract to the line supplier");
+  assert.match(contract, /@@unique\(\[id, counterparty_id\]\)/);
+  assert.match(contract, /^\s*SupplierShipmentDatasetLine\s+SupplierShipmentDatasetLine\[\]/m);
+  assert.match(party, /^\s*SupplierShipmentDatasetLine\s+SupplierShipmentDatasetLine\[\]/m);
+
+  for (const legacy of ["purchase_contract_id"]) field(container, legacy);
+  for (const legacy of ["purchase_contract_id", "supplier_id"]) field(dataset, legacy);
 });
