@@ -95,7 +95,7 @@ Each active operation is exercised once with an allowed role and once with a den
 | Access | `signIn`, `signOutCurrentSession`, `listPilotUsers`, `assignFixedPilotRoles`, `revokePilotUserSession`, `listPilotUserSessions` | Sign in / Pilot administration | E02 + E03/E16 |
 | Accounts | `runOperationalReport`, `getAccountsSummary`, `listAccountRecords` | Accounts hub | E02 + E10/E12 |
 | Approvals | `requestToleranceException`, `listFixedApprovalInbox`, `decideFixedApproval` | Approval inbox | E02 + E04/E06/E09/E11/E13/E14 |
-| Audit | `listProjectAuditEvents` | Audit timeline | E02 + E16 |
+| Audit | `listProjectAuditEvents`, `getSettings`, `updateSettings` | Audit timeline / Settings controls | E02 + E16 |
 | Claims | `openSimpleClaim`, `moveClaimUnderReview`, `submitClaimOutcomeForApproval`, `applyApprovedClaimOutcome` | Claims | E02 + E13 |
 | Closure | `assessProjectClosure`, `requestClosureException`, `finalCloseProject`, `submitFinalCloseForApproval`, `reopenProject`, `submitReopenForApproval` | Closure | E02 + E14 |
 | Contracts | `createPurchaseContract`, `createContractAmendment`, `submitContractForApproval`, `listContractLines`, `createContractLine`, `getContractLine`, `updateContractLine`, `listContractLineVersions` | Contracts | E02 + E04 |

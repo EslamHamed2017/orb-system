@@ -1179,6 +1179,40 @@ model UserRoleAssignment {
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+
+/// Organization-wide non-secret control-center values. One singleton row is updated with optimistic version checks.
+model SystemSettings {
+  id                 String               @id @default("default")
+  organization       Json
+  numbering          Json
+  print              Json
+  version            Int                  @default(1)
+  updated_at         DateTime?            @db.Timestamptz(6)
+  updated_by         String?              @db.Uuid
+  User               User?                @relation(fields: [updated_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  SettingsAuditEvent SettingsAuditEvent[]
+}
+
+/// Append-only organization settings history retaining exact before/after snapshots and actor responsibility.
+model SettingsAuditEvent {
+  id               String         @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  settings_id      String
+  action           String
+  actor_id         String         @db.Uuid
+  occurred_at      DateTime       @db.Timestamptz(6)
+  reason           String
+  before_version   Int
+  after_version    Int
+  changed_sections String[]
+  before           Json
+  after            Json
+  SystemSettings   SystemSettings @relation(fields: [settings_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User             User           @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([settings_id, after_version])
+  @@index([occurred_at])
+}
+
 model User {
   id                                         String                    @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
   auth_subject                               String                    @unique
@@ -1192,6 +1226,8 @@ model User {
   Approval_Approval_requester_idToUser       Approval[]                @relation("Approval_requester_idToUser")
   Approval_Approval_approver_idToUser        Approval[]                @relation("Approval_approver_idToUser")
   AuditEvent                                 AuditEvent[]
+  SystemSettings                             SystemSettings[]
+  SettingsAuditEvent                         SettingsAuditEvent[]
   IdempotencyRecord                          IdempotencyRecord[]
   OutboundSendAttempt                        OutboundSendAttempt[]
   PilotSession_PilotSession_user_idToUser    PilotSession[]            @relation("PilotSession_user_idToUser")

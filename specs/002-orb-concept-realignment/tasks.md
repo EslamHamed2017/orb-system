@@ -52,7 +52,8 @@
   - Verification note (2026-11-11): uploads now resolve and persist project-scoped authorization-parent metadata before object storage, list/read/download filter through source authorization, and Prisma writes all hardened EvidenceObject/EvidenceLink fields; strict typecheck, the canonical 485-test suite, and the production build pass.
 - [x] T033 Reports query layer for operational pilot reports
   - Verification note (2026-11-11): finance-authorized contract-fulfillment, Accounts, and project-profitability report queries support deterministic project/date filtering and exact-decimal summaries without general-ledger, stock, or valuation semantics; strict typecheck, all 501 tests, and the production build pass.
-- [ ] T034 Settings read/update APIs with audit trail
+- [x] T034 Settings read/update APIs with audit trail
+  - Verification note (2026-11-11): owner-only non-secret settings reads and optimistic versioned updates cover bilingual organization, numbering and print controls; every update requires a reason and appends an immutable before/after audit record. Focused TDD contracts, strict typecheck, the full suite, production build, and the isolated PostgreSQL/object-store gate pass with all five migrations and zero skipped database tests.
 - [ ] T035 User, role and permission administration APIs
 - [ ] T036 Enforce permissions server-side on all new APIs
 

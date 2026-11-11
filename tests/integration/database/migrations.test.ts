@@ -172,7 +172,7 @@ test("cutover runbook defines safe flag stages and application-only rollback", {
 
 test("migration history contains the initial and concept-realignment expand migrations", { skip: redReason }, () => {
   const directories = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
-  assert.deepEqual(directories, ["202611050001_r1_initial", "202611110001_concept_realignment_expand", "202611110002_concept_realignment_backfill", "202611110003_product_status_expand"]);
+  assert.deepEqual(directories, ["202611050001_r1_initial", "202611110001_concept_realignment_expand", "202611110002_concept_realignment_backfill", "202611110003_product_status_expand", "202611110034_settings_audit"]);
 });
 
 

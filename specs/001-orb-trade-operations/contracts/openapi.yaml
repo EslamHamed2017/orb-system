@@ -47,6 +47,40 @@ tags:
 - name: Audit
   description: Audit operations in the fixed Release 1 pilot.
 paths:
+  /settings:
+    get:
+      tags: [Audit]
+      operationId: getSettings
+      summary: Read non-secret organization settings
+      responses:
+        '200':
+          description: Current versioned settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SystemSettings' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN]
+    patch:
+      tags: [Audit]
+      operationId: updateSettings
+      summary: Update settings and append immutable audit history
+      parameters:
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SettingsUpdate' }
+      responses:
+        '200':
+          description: Updated versioned settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SystemSettings' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN]
   /reports/{reportType}:
     get:
       tags: [Statements]
@@ -2855,6 +2889,83 @@ components:
           schema:
             $ref: '#/components/schemas/Approval'
   schemas:
+    OrganizationSettings:
+      type: object
+      additionalProperties: false
+      required: [legalNameEn, legalNameAr, defaultLocale, timeZone]
+      properties:
+        legalNameEn: { type: string, minLength: 1, maxLength: 160 }
+        legalNameAr: { type: string, minLength: 1, maxLength: 160 }
+        defaultLocale: { type: string, enum: [en, ar] }
+        timeZone: { type: string, minLength: 1, maxLength: 160 }
+    NumberingSettings:
+      type: object
+      additionalProperties: false
+      required: [salesContractPrefix, purchaseContractPrefix, salesShipmentPrefix, supplierContainerPrefix]
+      properties:
+        salesContractPrefix: { type: string, pattern: '^[A-Z][A-Z0-9-]{0,7}$' }
+        purchaseContractPrefix: { type: string, pattern: '^[A-Z][A-Z0-9-]{0,7}$' }
+        salesShipmentPrefix: { type: string, pattern: '^[A-Z][A-Z0-9-]{0,7}$' }
+        supplierContainerPrefix: { type: string, pattern: '^[A-Z][A-Z0-9-]{0,7}$' }
+    PrintSettings:
+      type: object
+      additionalProperties: false
+      required: [footerEn, footerAr, showLogo]
+      properties:
+        footerEn: { type: string, minLength: 1, maxLength: 500 }
+        footerAr: { type: string, minLength: 1, maxLength: 500 }
+        showLogo: { type: boolean }
+    OrganizationSettingsPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        legalNameEn: { type: string, minLength: 1, maxLength: 160 }
+        legalNameAr: { type: string, minLength: 1, maxLength: 160 }
+        defaultLocale: { type: string, enum: [en, ar] }
+        timeZone: { type: string, minLength: 1, maxLength: 160 }
+    NumberingSettingsPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        salesContractPrefix: { type: string, pattern: '^[A-Z][A-Z0-9-]{0,7}$' }
+        purchaseContractPrefix: { type: string, pattern: '^[A-Z][A-Z0-9-]{0,7}$' }
+        salesShipmentPrefix: { type: string, pattern: '^[A-Z][A-Z0-9-]{0,7}$' }
+        supplierContainerPrefix: { type: string, pattern: '^[A-Z][A-Z0-9-]{0,7}$' }
+    PrintSettingsPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        footerEn: { type: string, minLength: 1, maxLength: 500 }
+        footerAr: { type: string, minLength: 1, maxLength: 500 }
+        showLogo: { type: boolean }
+    SystemSettings:
+      type: object
+      additionalProperties: false
+      required: [organization, numbering, print, version, updatedAt, updatedBy]
+      properties:
+        organization: { $ref: '#/components/schemas/OrganizationSettings' }
+        numbering: { $ref: '#/components/schemas/NumberingSettings' }
+        print: { $ref: '#/components/schemas/PrintSettings' }
+        version: { type: integer, minimum: 1 }
+        updatedAt: { type: [string, 'null'], format: date-time }
+        updatedBy: { type: [string, 'null'], format: uuid }
+    SettingsUpdate:
+      type: object
+      additionalProperties: false
+      required: [reason, patch]
+      properties:
+        reason: { type: string, minLength: 8, maxLength: 500 }
+        patch:
+          type: object
+          additionalProperties: false
+          minProperties: 1
+          properties:
+            organization: { $ref: '#/components/schemas/OrganizationSettingsPatch' }
+            numbering: { $ref: '#/components/schemas/NumberingSettingsPatch' }
+            print: { $ref: '#/components/schemas/PrintSettingsPatch' }
     PartyInput:
       type: object
       additionalProperties: false
