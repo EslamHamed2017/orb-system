@@ -3,6 +3,8 @@ import { ProductsMasterPage } from "../../../ui/features/masters/ProductsMasterP
 import type { ProductStatusFilter } from "../../../ui/features/masters/product-directory";
 import { CustomersPage } from "../../../ui/features/masters/CustomersPage";
 import type { CustomerStatusFilter } from "../../../ui/features/masters/customer-directory";
+import { SuppliersPage } from "../../../ui/features/masters/SuppliersPage";
+import type { SupplierStatusFilter } from "../../../ui/features/masters/supplier-directory";
 
 const NAMES = {
   customers: { en: "Customers", ar: "العملاء", singularEn: "customer", singularAr: "عميل" },
@@ -19,6 +21,10 @@ export default async function MasterPage({ params, searchParams }: { params: Pro
   if (masterType === "customers") {
     const status: CustomerStatusFilter = query.status === "ACTIVE" || query.status === "INACTIVE" ? query.status : "ALL";
     return <CustomersPage locale={locale} query={query.q ?? ""} status={status}/>;
+  }
+  if (masterType === "suppliers") {
+    const status: SupplierStatusFilter = query.status === "ACTIVE" || query.status === "INACTIVE" ? query.status : "ALL";
+    return <SuppliersPage locale={locale} query={query.q ?? ""} status={status}/>;
   }
   if (masterType === "coffee") {
     const status: ProductStatusFilter = query.status === "ACTIVE" || query.status === "INACTIVE" ? query.status : "ALL";
