@@ -26,7 +26,8 @@
 - [x] T019 Contract line create/read/update/version APIs
 - [x] T020 Contract line approval and amendment validation
   - Verification note (2026-11-11): focused contract-line tests, typecheck, and the full test suite pass; the RBAC inventory pin is synchronized with the accepted 84-operation OpenAPI surface.
-- [ ] T021 Sales shipment line APIs with contract-line validation
+- [x] T021 Sales shipment line APIs with contract-line validation
+  - Verification note (2026-11-11): strict typecheck and the full 411-test suite pass; nested list/create/get APIs reject non-draft datasets, arbitrary or cross-contract/unapproved line versions, duplicate contract-line use, invalid facts, and unauthorized writes.
 - [ ] T022 Supplier shipment line APIs with purchase-line validation
 - [ ] T023 Partial fulfillment, source-allocation and remaining-quantity/value query
 - [ ] T024 Multi-supplier container consolidation APIs

@@ -1504,6 +1504,50 @@ paths:
       - OWNER_ADMIN
       - OPERATIONS
       summary: Revise sales shipment dataset
+  /sales-shipments/{shipmentId}/datasets/{datasetId}/lines:
+    get:
+      tags: [Shipments]
+      operationId: listSalesShipmentLines
+      parameters:
+      - $ref: '#/components/parameters/ShipmentId'
+      - $ref: '#/components/parameters/DatasetId'
+      responses:
+        '200': { $ref: '#/components/responses/EntityPage' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS, FINANCE_VIEWER]
+      summary: List immutable lines in a sales shipment dataset
+    post:
+      tags: [Shipments]
+      operationId: createSalesShipmentLine
+      parameters:
+      - $ref: '#/components/parameters/ShipmentId'
+      - $ref: '#/components/parameters/DatasetId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SalesShipmentLineInput' }
+      responses:
+        '201': { $ref: '#/components/responses/Entity' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS]
+      summary: Add a line tied to an exact approved sales-contract line version
+  /sales-shipments/{shipmentId}/datasets/{datasetId}/lines/{lineId}:
+    get:
+      tags: [Shipments]
+      operationId: getSalesShipmentLine
+      parameters:
+      - $ref: '#/components/parameters/ShipmentId'
+      - $ref: '#/components/parameters/DatasetId'
+      - $ref: '#/components/parameters/LineId'
+      responses:
+        '200': { $ref: '#/components/responses/Entity' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS, FINANCE_VIEWER]
+      summary: Read an immutable sales shipment dataset line
   /supplier-shipments/{shipmentId}/execution-transitions:
     post:
       tags:
@@ -2048,6 +2092,18 @@ components:
       required: true
       schema:
         $ref: '#/components/schemas/Uuid'
+    DatasetId:
+      name: datasetId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
+    LineId:
+      name: lineId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Uuid'
     DocumentId:
       name: documentId
       in: path
@@ -2421,6 +2477,35 @@ components:
           $ref: '#/components/schemas/Uuid'
         salesContract:
           $ref: '#/components/schemas/ContractInput'
+    SalesShipmentLineInput:
+      type: object
+      additionalProperties: false
+      required:
+      - contractLineVersionId
+      - productDescription
+      - customerPurchaseOrderReference
+      - marksAndNumbers
+      - quantity
+      - bagCount
+      - bagWeight
+      - netWeight
+      - grossWeight
+      properties:
+        contractLineVersionId: { $ref: '#/components/schemas/Uuid' }
+        productDescription: { type: string, minLength: 1, maxLength: 2000 }
+        customerPurchaseOrderReference:
+          oneOf:
+          - { type: string, minLength: 1, maxLength: 500 }
+          - { type: 'null' }
+        marksAndNumbers:
+          oneOf:
+          - { type: string, minLength: 1, maxLength: 500 }
+          - { type: 'null' }
+        quantity: { $ref: '#/components/schemas/Decimal' }
+        bagCount: { type: integer, minimum: 1 }
+        bagWeight: { $ref: '#/components/schemas/Decimal' }
+        netWeight: { $ref: '#/components/schemas/Decimal' }
+        grossWeight: { $ref: '#/components/schemas/Decimal' }
     ContractLineInput:
       type: object
       additionalProperties: false
