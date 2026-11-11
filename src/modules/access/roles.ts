@@ -179,6 +179,18 @@ const OPERATION_ROLES = Object.freeze({
   "decideFixedApproval": [
     "OWNER_ADMIN"
   ],
+  "createSalesInvoice": [
+    "OWNER_ADMIN",
+    "FINANCE_VIEWER"
+  ],
+  "getSalesInvoice": [
+    "OWNER_ADMIN",
+    "FINANCE_VIEWER"
+  ],
+  "getSalesInvoicePrintData": [
+    "OWNER_ADMIN",
+    "FINANCE_VIEWER"
+  ],
   "createSupplierInvoice": [
     "OWNER_ADMIN",
     "FINANCE_VIEWER"

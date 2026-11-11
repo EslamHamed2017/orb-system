@@ -40,11 +40,11 @@ function contractRoleMap(): Map<string, string[]> {
   return result;
 }
 
-test("authorization exposes exactly the three composable roles and mirrors all 102 operation contracts", async () => {
+test("authorization exposes exactly the three composable roles and mirrors all 105 operation contracts", async () => {
   const roles = await loadRoles();
   assert.deepEqual(roles.PILOT_ROLES, FIXED_ROLES);
   const contract = contractRoleMap();
-  assert.equal(contract.size, 102);
+  assert.equal(contract.size, 105);
   for (const [operationId, expected] of contract) {
     assert.deepEqual([...roles.requiredRolesForOperation(operationId)].sort(), expected, operationId);
     for (const role of FIXED_ROLES) {
