@@ -2350,12 +2350,163 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PilotUserPage'
+                $ref: '#/components/schemas/AccessUserPage'
         default:
           $ref: '#/components/responses/Problem'
       x-required-roles:
       - OWNER_ADMIN
-      summary: List pilot users
+      summary: List users
+    post:
+      tags:
+      - Access
+      operationId: createUser
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccessUserInput'
+      responses:
+        '201':
+          description: Created user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessUser'
+        default:
+          $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      summary: Create user
+  /users/{userId}:
+    patch:
+      tags:
+      - Access
+      operationId: updateUser
+      parameters:
+      - $ref: '#/components/parameters/UserId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAccessUserInput'
+      responses:
+        '200':
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessUser'
+        default:
+          $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      summary: Update user
+  /roles:
+    get:
+      tags:
+      - Access
+      operationId: listRoles
+      responses:
+        '200':
+          description: Configurable roles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRolePage'
+        default:
+          $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      summary: List configurable roles
+    post:
+      tags:
+      - Access
+      operationId: createRole
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccessRoleInput'
+      responses:
+        '201':
+          description: Created role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRole'
+        default:
+          $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      summary: Create configurable role
+  /roles/{roleId}/permissions:
+    put:
+      tags:
+      - Access
+      operationId: replaceRolePermissions
+      parameters:
+      - name: roleId
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/Uuid'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [permissionCodes]
+              properties:
+                permissionCodes:
+                  type: array
+                  uniqueItems: true
+                  items: { type: string, minLength: 2, maxLength: 120 }
+      responses:
+        '200':
+          description: Updated role grants
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRole'
+        default:
+          $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      summary: Replace role permissions
+  /permissions:
+    get:
+      tags:
+      - Access
+      operationId: listPermissions
+      responses:
+        '200':
+          description: Granular permission catalog
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessPermissionPage'
+        default:
+          $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      summary: List granular permissions
   /users/{userId}/roles:
     put:
       tags:
@@ -5142,6 +5293,95 @@ components:
       description: For sequenceNo 1 previousEventHash is JSON null. For every later event it equals the immediately preceding
         project eventHash, including across page boundaries. Clients recompute each event using the exact AuditEvent hash-payload
         fields and verify both page anchors.
+    AccessPermission:
+      type: object
+      additionalProperties: false
+      required: [code, nameEn, nameAr, category, descriptionEn, descriptionAr]
+      properties:
+        code: { type: string, minLength: 2, maxLength: 120 }
+        nameEn: { type: string, minLength: 1 }
+        nameAr: { type: string, minLength: 1 }
+        category: { type: string, enum: [SCREEN, OPERATION, SENSITIVE_VALUE, APPROVAL] }
+        descriptionEn: { type: string, minLength: 1 }
+        descriptionAr: { type: string, minLength: 1 }
+    AccessPermissionPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AccessPermission' } }
+    AccessRole:
+      type: object
+      additionalProperties: false
+      required: [id, code, nameEn, nameAr, descriptionEn, descriptionAr, permissionCodes, isSystem, isActive, createdAt, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]+$' }
+        nameEn: { type: string, minLength: 1 }
+        nameAr: { type: string, minLength: 1 }
+        descriptionEn: { type: string, minLength: 1 }
+        descriptionAr: { type: string, minLength: 1 }
+        permissionCodes: { type: array, uniqueItems: true, items: { type: string } }
+        isSystem: { type: boolean }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    AccessRolePage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AccessRole' } }
+    CreateAccessRoleInput:
+      type: object
+      additionalProperties: false
+      required: [code, nameEn, nameAr, descriptionEn, descriptionAr, permissionCodes]
+      properties:
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]+$' }
+        nameEn: { type: string, minLength: 1 }
+        nameAr: { type: string, minLength: 1 }
+        descriptionEn: { type: string, minLength: 1 }
+        descriptionAr: { type: string, minLength: 1 }
+        permissionCodes: { type: array, uniqueItems: true, items: { type: string } }
+    AccessUser:
+      type: object
+      additionalProperties: false
+      required: [id, authSubject, nameEn, nameAr, locale, status, roleCodes, createdAt, updatedAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        authSubject: { type: string, minLength: 1, maxLength: 255 }
+        nameEn: { type: string, minLength: 1 }
+        nameAr: { type: string, minLength: 1 }
+        locale: { type: string, enum: [en, ar] }
+        status: { type: string, enum: [ACTIVE, SUSPENDED] }
+        roleCodes: { type: array, uniqueItems: true, items: { type: string } }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    AccessUserPage:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AccessUser' } }
+    CreateAccessUserInput:
+      type: object
+      additionalProperties: false
+      required: [authSubject, nameEn, nameAr, locale, roleCodes]
+      properties:
+        authSubject: { type: string, minLength: 1, maxLength: 255 }
+        nameEn: { type: string, minLength: 1 }
+        nameAr: { type: string, minLength: 1 }
+        locale: { type: string, enum: [en, ar] }
+        roleCodes: { type: array, uniqueItems: true, items: { type: string } }
+    UpdateAccessUserInput:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        nameEn: { type: string, minLength: 1 }
+        nameAr: { type: string, minLength: 1 }
+        locale: { type: string, enum: [en, ar] }
+        status: { type: string, enum: [ACTIVE, SUSPENDED] }
     PilotUser:
       type: object
       additionalProperties: false

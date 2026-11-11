@@ -1,0 +1,4 @@
+import { NextResponse } from "next/server.js";
+export interface AccessPrincipal { readonly userId: string; readonly roles: readonly string[] }
+export function accessProblem(status: number, code: string) { return NextResponse.json({ type: `https://orb.example/problems/${code.toLowerCase().replaceAll("_", "-")}`, title: code, status, code, correlationId: crypto.randomUUID() }, { status, headers: { "content-type": "application/problem+json", "Cache-Control": "no-store" } }); }
+export async function requireAccessOwner(request: Request, authenticate: (request: Request) => Promise<AccessPrincipal | null>): Promise<AccessPrincipal | Response> { const principal = await authenticate(request); if (!principal) return accessProblem(401, "AUTHENTICATION_REQUIRED"); if (!principal.roles.includes("OWNER_ADMIN")) return accessProblem(403, "PERMISSION_DENIED"); return principal; }

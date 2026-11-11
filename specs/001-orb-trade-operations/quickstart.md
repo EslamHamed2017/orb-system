@@ -92,7 +92,7 @@ Each active operation is exercised once with an allowed role and once with a den
 
 | Tag | Active operationIds (complete) | UI action | Numbered evidence |
 |---|---|---|---|
-| Access | `signIn`, `signOutCurrentSession`, `listPilotUsers`, `assignFixedPilotRoles`, `revokePilotUserSession`, `listPilotUserSessions` | Sign in / Pilot administration | E02 + E03/E16 |
+| Access | `signIn`, `signOutCurrentSession`, `listPilotUsers`, `assignFixedPilotRoles`, `revokePilotUserSession`, `listPilotUserSessions`, `createUser`, `updateUser`, `listRoles`, `createRole`, `replaceRolePermissions`, `listPermissions` | Sign in / Pilot administration | E02 + E03/E16 |
 | Accounts | `runOperationalReport`, `getAccountsSummary`, `listAccountRecords` | Accounts hub | E02 + E10/E12 |
 | Approvals | `requestToleranceException`, `listFixedApprovalInbox`, `decideFixedApproval` | Approval inbox | E02 + E04/E06/E09/E11/E13/E14 |
 | Audit | `listProjectAuditEvents`, `getSettings`, `updateSettings` | Audit timeline / Settings controls | E02 + E16 |
