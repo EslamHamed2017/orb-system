@@ -8,18 +8,22 @@ import { projectSupplierInvoiceProjection, supplierShipmentInvoiceProjection } f
 
 type Principal = Readonly<{ userId: string; displayName?: string; roles: readonly string[] }>;
 type InvoiceState = "DRAFT" | "PENDING_APPROVAL" | "CONFIRMED" | "REJECTED" | "CANCELLED";
-interface Shipment { readonly id: string; readonly projectId: string; readonly supplierId: string; readonly executionState: string; readonly version: number }
+interface Shipment { readonly id: string; readonly projectId: string; readonly supplierId?: string; readonly activeDatasetId?: string; readonly executionState: string; readonly version: number }
+interface ShipmentDatasetLine { readonly id: string; readonly supplierId: string; readonly quantity: string }
+interface ShipmentDataset { readonly id: string; readonly shipmentId: string; readonly state: string; readonly lines: readonly ShipmentDatasetLine[] }
+export interface SupplierInvoiceLine { readonly id: string; readonly lineNo: number; readonly supplierShipmentDatasetId: string; readonly supplierShipmentDatasetLineId: string; readonly supplierId: string; readonly description: string; readonly quantity: string; readonly unitPrice: string; readonly lineAmount: string }
 interface Evidence { readonly id: string; readonly projectId: string; readonly state: string; readonly sha256: string }
 export interface SupplierInvoice {
   readonly id: string; readonly projectId: string; readonly supplierShipmentId: string; readonly supplierId: string;
   readonly reference: string; readonly invoiceDate: string; readonly amount: string; readonly outstandingAmount: string;
   readonly allocatedAmount: string; readonly currency: string; readonly evidenceId: string; readonly state: InvoiceState;
   readonly approvalId: string | null; readonly cancellationReason: string | null; readonly version: number;
+  readonly lines: readonly SupplierInvoiceLine[];
 }
 interface StoredInvoice {
   id: string; projectId: string; supplierShipmentId: string; supplierId: string; reference: string; invoiceDate: string;
   amount: string; outstandingAmount: string; allocatedAmount: string; currency: string; evidenceId: string; state: InvoiceState;
-  approvalId: string | null; cancellationReason: string | null; version: number;
+  approvalId: string | null; cancellationReason: string | null; version: number; lines: readonly SupplierInvoiceLine[];
 }
 interface Approval {
   readonly id: string; readonly actionCode: "SUPPLIER_INVOICE_CONFIRMATION"; readonly subjectType: "SUPPLIER_INVOICE";
@@ -28,7 +32,7 @@ interface Approval {
   readonly version: number; readonly approverId?: string; readonly decidedAt?: string;
 }
 interface State {
-  shipments: Map<string, Shipment>; evidence: Map<string, Evidence>; invoices: Map<string, StoredInvoice>;
+  shipments: Map<string, Shipment>; datasets: Map<string, ShipmentDataset>; evidence: Map<string, Evidence>; invoices: Map<string, StoredInvoice>;
   approvals: Map<string, Approval>; replays: Map<string, { hash: string; value: unknown }>; audit: Readonly<Record<string, unknown>>[];
 }
 export interface SupplierInvoiceService {
@@ -55,10 +59,10 @@ function actor(input: Record<string, unknown>, correlationId: string): Principal
 function current(state: State, invoiceId: unknown, correlationId: string): StoredInvoice { const invoice = state.invoices.get(String(invoiceId)); if (!invoice) fail("RESOURCE_NOT_FOUND", 404, correlationId); return invoice; }
 function expected(invoice: StoredInvoice, value: unknown, correlationId: string): void { if (!Number.isSafeInteger(value) || value !== invoice.version) fail("STALE_VERSION", 412, correlationId); }
 function publicInvoice(invoice: StoredInvoice): SupplierInvoice { return clone(invoice); }
-function subjectHash(invoice: StoredInvoice): string { return digest({ id: invoice.id, projectId: invoice.projectId, supplierShipmentId: invoice.supplierShipmentId, supplierId: invoice.supplierId, reference: invoice.reference, invoiceDate: invoice.invoiceDate, amount: invoice.amount, currency: invoice.currency, evidenceId: invoice.evidenceId }); }
+function subjectHash(invoice: StoredInvoice): string { return digest({ id: invoice.id, projectId: invoice.projectId, supplierShipmentId: invoice.supplierShipmentId, supplierId: invoice.supplierId, reference: invoice.reference, invoiceDate: invoice.invoiceDate, amount: invoice.amount, currency: invoice.currency, evidenceId: invoice.evidenceId, lines: invoice.lines }); }
 
-export function createInMemorySupplierInvoiceService(options: { now: () => string; shipments: readonly Shipment[]; evidence: readonly Evidence[] }): SupplierInvoiceService {
-  const state: State = { shipments: new Map(options.shipments.map((row) => [row.id, clone(row)])), evidence: new Map(options.evidence.map((row) => [row.id, clone(row)])), invoices: new Map(), approvals: new Map(), replays: new Map(), audit: [] };
+export function createInMemorySupplierInvoiceService(options: { now: () => string; shipments: readonly Shipment[]; datasets?: readonly ShipmentDataset[]; evidence: readonly Evidence[] }): SupplierInvoiceService {
+  const state: State = { shipments: new Map(options.shipments.map((row) => [row.id, clone(row)])), datasets: new Map((options.datasets ?? []).map((row) => [row.id, clone(row)])), evidence: new Map(options.evidence.map((row) => [row.id, clone(row)])), invoices: new Map(), approvals: new Map(), replays: new Map(), audit: [] };
   async function once<T>(operation: string, input: Record<string, unknown>, work: (principal: Principal, correlationId: string) => T): Promise<{ value: T; replayed: boolean }> {
     const correlationId = typeof input.correlationId === "string" && input.correlationId ? input.correlationId : randomUUID();
     const principal = actor(input, correlationId), key = input.idempotencyKey;
@@ -79,10 +83,31 @@ export function createInMemorySupplierInvoiceService(options: { now: () => strin
         if (!shipment) fail("RESOURCE_NOT_FOUND", 404, correlationId);
         if (input.expectedVersion !== shipment.version) fail("STALE_VERSION", 412, correlationId);
         const evidence = state.evidence.get(String(input.evidenceId));
-        if (shipment.executionState !== "RECEIVED" || input.supplierId !== shipment.supplierId || !evidence || evidence.projectId !== shipment.projectId || evidence.state !== "AVAILABLE") fail("VALIDATION_FAILED", 400, correlationId);
-        if (!reference || !DATE.test(String(input.invoiceDate)) || !CURRENCY.test(String(input.currency))) fail("VALIDATION_FAILED", 400, correlationId);
-        const amount = positiveAmount(input.amount, correlationId);
-        const invoice: StoredInvoice = { id: randomUUID(), projectId: shipment.projectId, supplierShipmentId: shipment.id, supplierId: shipment.supplierId, reference, invoiceDate: String(input.invoiceDate), amount, outstandingAmount: amount, allocatedAmount: "0.000000", currency: String(input.currency), evidenceId: evidence.id, state: "DRAFT", approvalId: null, cancellationReason: null, version: 1 };
+        const supplierId = typeof input.supplierId === "string" ? input.supplierId : "";
+        if (shipment.executionState !== "RECEIVED" || (shipment.supplierId !== undefined && supplierId !== shipment.supplierId) || !evidence || evidence.projectId !== shipment.projectId || evidence.state !== "AVAILABLE") fail("VALIDATION_FAILED", 400, correlationId);
+        if (!supplierId || !reference || !DATE.test(String(input.invoiceDate)) || !CURRENCY.test(String(input.currency))) fail("VALIDATION_FAILED", 400, correlationId);
+        let amount = input.lines === undefined ? positiveAmount(input.amount, correlationId) : "";
+        let lines: readonly SupplierInvoiceLine[] = Object.freeze([]);
+        if (input.lines !== undefined) {
+          const dataset = state.datasets.get(String(shipment.activeDatasetId));
+          if (!dataset || dataset.shipmentId !== shipment.id || dataset.state !== "APPROVED" || !Array.isArray(input.lines) || input.lines.length === 0) fail("VALIDATION_FAILED", 400, correlationId);
+          const sources = new Map(dataset.lines.map((line) => [line.id, line])), seen = new Set<string>(); let total = DecimalAmount.parse("0");
+          lines = Object.freeze(input.lines.map((raw, index): SupplierInvoiceLine => {
+            if (!raw || typeof raw !== "object" || Array.isArray(raw)) fail("VALIDATION_FAILED", 400, correlationId);
+            const item = raw as Record<string, unknown>, source = sources.get(String(item.shipmentLineId));
+            if (!source) fail("VALIDATION_FAILED", 400, correlationId);
+            if (source.supplierId !== supplierId) fail("SUPPLIER_ATTRIBUTION_MISMATCH", 409, correlationId);
+            if (seen.has(source.id) || typeof item.description !== "string" || !item.description.trim()) fail("VALIDATION_FAILED", 400, correlationId);
+            seen.add(source.id); const quantity = DecimalAmount.parse(positiveAmount(item.quantity, correlationId)), unitPrice = DecimalAmount.parse(positiveAmount(item.unitPrice, correlationId));
+            if (quantity.compare(DecimalAmount.parse(source.quantity)) > 0) fail("VALIDATION_FAILED", 400, correlationId);
+            const lineAmount = quantity.multiply(unitPrice); if (lineAmount.scale > 6) fail("VALIDATION_FAILED", 400, correlationId); total = total.add(lineAmount);
+            return Object.freeze({ id: randomUUID(), lineNo: index + 1, supplierShipmentDatasetId: dataset.id, supplierShipmentDatasetLineId: source.id, supplierId, description: item.description.trim(), quantity: six(quantity), unitPrice: six(unitPrice), lineAmount: six(lineAmount) });
+          }));
+          const derivedAmount = six(total);
+          if (input.amount !== undefined && positiveAmount(input.amount, correlationId) !== derivedAmount) fail("INVOICE_TOTAL_MISMATCH", 409, correlationId);
+          amount = derivedAmount;
+        }
+        const invoice: StoredInvoice = { id: randomUUID(), projectId: shipment.projectId, supplierShipmentId: shipment.id, supplierId, reference, invoiceDate: String(input.invoiceDate), amount, outstandingAmount: amount, allocatedAmount: "0.000000", currency: String(input.currency), evidenceId: evidence.id, state: "DRAFT", approvalId: null, cancellationReason: null, version: 1, lines };
         state.invoices.set(invoice.id, invoice); audit("SUPPLIER_INVOICE_CREATED", principal, invoice, correlationId); return publicInvoice(invoice);
       });
     },

@@ -42,7 +42,8 @@
   - Verification note (2026-11-11): dedicated typed customer/supplier list, create, exact-read, update/archive contracts and route factories reuse the validated party master lifecycle with server-side role checks; strict typecheck, all 464 tests, and the production build pass.
 - [x] T028 Customer invoice create/read/print data APIs
   - Verification note (2026-11-11): one active customer invoice is grouped per sales shipment with immutable exact shipment-line traceability, partial quantity bounds, exact-decimal totals, authorized reads, and deterministic EN/LTR or AR/RTL print data; strict typecheck, the full test suite, and the production build pass.
-- [ ] T029 Supplier invoice line and supplier-attribution APIs
+- [x] T029 Supplier invoice line and supplier-attribution APIs
+  - Verification note (2026-11-11): supplier invoices are line-driven against the physical container's exact approved active-dataset lines, derive exact-decimal totals server-side, reject cross-supplier attribution, and preserve legacy single-supplier compatibility during cutover; strict typecheck, all 465 tests, and the production build pass.
 - [ ] T030 Global Accounts summary/list APIs with project filters
 - [ ] T031 Transaction reference allocator for all core movements with concurrency guarantees
 - [ ] T032 EvidenceObject/EvidenceLink attachment upload/list/download authorization service

@@ -54,22 +54,28 @@ test("every invoice mutation carries exact concurrency, idempotency and CSRF con
   }
 });
 
-test("create accepts only one shipment invoice's exact supplier, reference, date, decimal, currency and evidence", () => {
+test("create requires supplier-attributable container lines and derives the invoice amount", () => {
   const create = operation("/supplier-shipments/{shipmentId}/invoices");
   assert.equal(create.requestBody.required, true);
   assert.equal(create.requestBody.content["application/json"].schema.$ref, "#/components/schemas/SupplierInvoiceInput");
   assert.equal(create.responses["201"].$ref, "#/components/responses/Entity");
 
   const input = api.components.schemas.SupplierInvoiceInput;
-  const fields = ["supplierId", "reference", "invoiceDate", "amount", "currency", "evidenceId"];
+  const fields = ["supplierId", "reference", "invoiceDate", "currency", "evidenceId", "lines"];
   assert.equal(input.additionalProperties, false);
   assert.deepEqual(input.required, fields);
   assert.deepEqual(Object.keys(input.properties), fields);
   assert.equal(input.properties.supplierId.$ref, "#/components/schemas/Uuid");
   assert.equal(input.properties.invoiceDate.format, "date");
-  assert.equal(input.properties.amount.$ref, "#/components/schemas/Decimal");
   assert.equal(input.properties.currency.$ref, "#/components/schemas/Currency");
   assert.equal(input.properties.evidenceId.$ref, "#/components/schemas/Uuid");
+  assert.equal(input.properties.lines.type, "array");
+  assert.equal(input.properties.lines.minItems, 1);
+  assert.equal(input.properties.lines.items.$ref, "#/components/schemas/SupplierInvoiceLineInput");
+  const line = api.components.schemas.SupplierInvoiceLineInput;
+  assert.equal(line.additionalProperties, false);
+  assert.deepEqual(line.required, ["shipmentLineId", "description", "quantity", "unitPrice"]);
+  assert.deepEqual(Object.keys(line.properties), ["shipmentLineId", "description", "quantity", "unitPrice"]);
 });
 
 test("submit creates the fixed approval and confirm binds only its exact identifier", () => {
@@ -96,4 +102,18 @@ test("cancel is a reasoned command and all failures use the shared problem contr
     "/supplier-invoices/{invoiceId}/confirm",
     "/supplier-invoices/{invoiceId}/cancel",
   ]) assert.equal(operation(path).responses.default.$ref, "#/components/responses/Problem", path);
+});
+
+
+test("create route forwards the parsed supplier-attributable line payload", async () => {
+  const { createCreateSupplierInvoicePostHandler } = await import("../../src/app/api/supplier-shipments/[shipmentId]/invoices/route.ts");
+  let received: any;
+  const handler = createCreateSupplierInvoicePostHandler({
+    authenticate: async () => ({ userId: "finance", roles: ["FINANCE_VIEWER"] }),
+    create: async (input: any) => { received = input; return { id: "invoice" }; },
+  });
+  const body = { supplierId: "019a5f9b-7c00-7000-8000-000000007004", reference: "S-1", invoiceDate: "2026-11-11", currency: "USD", evidenceId: "019a5f9b-7c00-7000-8000-000000007006", lines: [{ shipmentLineId: "019a5f9b-7c00-7000-8000-000000007021", description: "Coffee", quantity: "1", unitPrice: "2" }] };
+  const response = await handler(new Request("https://orb.test/api/supplier-shipments/container/invoices", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }), { params: Promise.resolve({ shipmentId: "container" }) });
+  assert.equal(response.status, 201);
+  assert.deepEqual(received.body, body);
 });

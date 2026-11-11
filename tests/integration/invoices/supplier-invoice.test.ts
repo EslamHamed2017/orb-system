@@ -153,3 +153,31 @@ test("a replacement confirmed invoice restores the received-shipment closure pre
   assert.equal((await service.supplierShipmentProjection(SHIPMENT_ID)).hasConfirmedNonCancelledInvoice, true);
   assert.equal((await service.projectProjection(PROJECT_ID)).supplierInvoiceClosurePrerequisiteMet, true);
 });
+
+
+test("supplier invoice lines resolve only to the selected supplier in the container active dataset", async () => {
+  const module = await loadInvoices();
+  const datasetId = "019a5f9b-7c00-7000-8000-000000007020";
+  const supplierLineId = "019a5f9b-7c00-7000-8000-000000007021";
+  const otherSupplierLineId = "019a5f9b-7c00-7000-8000-000000007022";
+  const service = module.createInMemorySupplierInvoiceService({
+    now: () => "2026-11-07T12:00:00.000Z",
+    shipments: [{ id: SHIPMENT_ID, projectId: PROJECT_ID, activeDatasetId: datasetId, executionState: "RECEIVED", version: 4 }],
+    datasets: [{ id: datasetId, shipmentId: SHIPMENT_ID, state: "APPROVED", lines: [
+      { id: supplierLineId, supplierId: SUPPLIER_ID, quantity: "10.000000" },
+      { id: otherSupplierLineId, supplierId: OTHER_SUPPLIER_ID, quantity: "8.000000" },
+    ] }],
+    evidence: [{ id: EVIDENCE_ID, projectId: PROJECT_ID, state: "AVAILABLE", sha256: "a".repeat(64) }],
+  });
+  const created = await service.create({ shipmentId: SHIPMENT_ID, expectedVersion: 4, supplierId: SUPPLIER_ID, reference: "SUP-LINES-1", invoiceDate: "2026-11-06", currency: "USD", evidenceId: EVIDENCE_ID, lines: [
+    { shipmentLineId: supplierLineId, description: "Supplier coffee", quantity: "10.000000", unitPrice: "2.500000" },
+  ], ...command("supplier-lines-create") });
+
+  assert.equal(created.value.amount, "25.000000");
+  assert.deepEqual(created.value.lines.map((line: any) => ({ source: line.supplierShipmentDatasetLineId, supplierId: line.supplierId, amount: line.lineAmount })), [
+    { source: supplierLineId, supplierId: SUPPLIER_ID, amount: "25.000000" },
+  ]);
+  await assert.rejects(() => service.create({ shipmentId: SHIPMENT_ID, expectedVersion: 4, supplierId: SUPPLIER_ID, reference: "SUP-LINES-CROSS", invoiceDate: "2026-11-06", amount: "8.000000", currency: "USD", evidenceId: EVIDENCE_ID, lines: [
+    { shipmentLineId: otherSupplierLineId, description: "Other supplier coffee", quantity: "8.000000", unitPrice: "1.000000" },
+  ], ...command("supplier-lines-cross") }), problem("SUPPLIER_ATTRIBUTION_MISMATCH", 409));
+});
