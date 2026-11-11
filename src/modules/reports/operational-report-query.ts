@@ -1,20 +1,21 @@
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { DecimalAmount } from "../../platform/decimal/index.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { assertServerPermission, type OperationPrincipal } from "../access/permissions.ts";
 
 export const OPERATIONAL_REPORT_TYPES = Object.freeze(["CONTRACT_FULFILLMENT", "ACCOUNTS", "PROJECT_PROFITABILITY"] as const);
 export type OperationalReportType = typeof OPERATIONAL_REPORT_TYPES[number];
-export interface ReportsPrincipal { readonly userId: string; readonly roles: readonly string[] }
+export interface ReportsPrincipal extends OperationPrincipal {}
 interface BaseRow { readonly id: string; readonly reportType: OperationalReportType; readonly projectId: string; readonly occurredOn: string; readonly reference: string; readonly currency: string }
 export interface ContractFulfillmentReportRow extends BaseRow { readonly reportType: "CONTRACT_FULFILLMENT"; readonly contractedQuantity: string; readonly fulfilledQuantity: string; readonly contractedValue: string; readonly fulfilledValue: string }
 export interface AccountsReportRow extends BaseRow { readonly reportType: "ACCOUNTS"; readonly accountType: string; readonly amount: string; readonly outstandingAmount: string }
 export interface ProjectProfitabilityReportRow extends BaseRow { readonly reportType: "PROJECT_PROFITABILITY"; readonly salesAmount: string; readonly supplierAmount: string; readonly expenseAmount: string }
 export type OperationalReportRow = ContractFulfillmentReportRow | AccountsReportRow | ProjectProfitabilityReportRow;
 
-const ALLOWED_ROLES = new Set(["OWNER_ADMIN", "FINANCE_VIEWER"]);
 const TYPES = new Set<string>(OPERATIONAL_REPORT_TYPES);
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 function authorize(principal: ReportsPrincipal): void {
-  if (!principal?.userId || !principal.roles.some((role) => ALLOWED_ROLES.has(role))) throw new TypeError("Reports access denied");
+  try { assertServerPermission(principal, "runOperationalReport"); } catch { throw new TypeError("Reports access denied"); }
 }
 function date(value: string | undefined, name: string): void {
   if (value === undefined) return;

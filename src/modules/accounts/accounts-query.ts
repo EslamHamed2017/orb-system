@@ -1,22 +1,23 @@
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { DecimalAmount } from "../../platform/decimal/index.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { assertServerPermission, type OperationPrincipal } from "../access/permissions.ts";
 
 export const ACCOUNT_RECORD_TYPES = Object.freeze([
   "SALES_INVOICE", "SUPPLIER_INVOICE", "COLLECTION", "SUPPLIER_PAYMENT", "EXPENSE",
 ] as const);
 export type AccountRecordType = typeof ACCOUNT_RECORD_TYPES[number];
-export interface AccountsPrincipal { readonly userId: string; readonly roles: readonly string[] }
+export interface AccountsPrincipal extends OperationPrincipal {}
 export interface AccountRecord {
   readonly id: string; readonly projectId: string; readonly type: AccountRecordType; readonly occurredOn: string;
   readonly state: string; readonly partyId?: string; readonly reference: string; readonly currency: string;
   readonly amount: string; readonly outstandingAmount: string;
 }
 
-const ALLOWED_ROLES = new Set(["OWNER_ADMIN", "FINANCE_VIEWER"]);
 const INACTIVE_STATES = new Set(["CANCELLED", "REVERSED"]);
 const TYPES = new Set<string>(ACCOUNT_RECORD_TYPES);
-function authorize(principal: AccountsPrincipal): void {
-  if (!principal?.userId || !principal.roles.some((role) => ALLOWED_ROLES.has(role))) throw new TypeError("Accounts access denied");
+function authorize(principal: AccountsPrincipal, operationId: "getAccountsSummary" | "listAccountRecords"): void {
+  try { assertServerPermission(principal, operationId); } catch { throw new TypeError("Accounts access denied"); }
 }
 function six(value: DecimalAmount): string {
   const [whole, fraction = ""] = value.toString().split(".");
@@ -37,7 +38,7 @@ export function createInMemoryAccountsQuery(options: { readonly records?: readon
   const active = (projectId?: string) => records.filter((row) => !INACTIVE_STATES.has(row.state) && (!projectId || row.projectId === projectId));
   return Object.freeze({
     async summary(input: { readonly principal: AccountsPrincipal; readonly projectId?: string }) {
-      authorize(input.principal);
+      authorize(input.principal, "getAccountsSummary");
       const selected = active(input.projectId);
       const currencies = [...new Set(selected.map((row) => row.currency))].sort();
       const currencySections = currencies.map((currency) => {
@@ -58,7 +59,7 @@ export function createInMemoryAccountsQuery(options: { readonly records?: readon
       return Object.freeze({ projectId: input.projectId ?? null, recordCount: selected.length, currencySections: Object.freeze(currencySections) });
     },
     async list(input: { readonly principal: AccountsPrincipal; readonly type: AccountRecordType; readonly projectId?: string }) {
-      authorize(input.principal);
+      authorize(input.principal, "listAccountRecords");
       if (!TYPES.has(input.type)) throw new TypeError("Unknown account record type");
       const items = active(input.projectId).filter((row) => row.type === input.type)
         .sort((left, right) => right.occurredOn.localeCompare(left.occurredOn) || left.id.localeCompare(right.id));
