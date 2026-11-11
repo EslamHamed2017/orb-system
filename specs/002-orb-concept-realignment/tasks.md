@@ -1,7 +1,7 @@
 # ORB Concept Realignment — Execution Tasks
 
 ## Phase 0 — Safety and baseline
-- [ ] T001 Preserve and verify current uncommitted accessibility/navigation fixes
+- [x] T001 Preserve and verify current uncommitted accessibility/navigation fixes
 - [ ] T002 Run baseline typecheck, unit/contract tests, build, and focused E2E
 - [ ] T003 Record current database schema and seed counts
 - [ ] T004 Freeze approved domain terminology in Arabic and English

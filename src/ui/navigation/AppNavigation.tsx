@@ -41,6 +41,7 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
   const locale: Locale = search.get("locale") === "ar" ? "ar" : "en";
   const direction = locale === "ar" ? "rtl" : "ltr";
   const copy = locale === "ar" ? ar : en;
+  const isUnauthenticatedShell = pathname === "/sign-in";
   const requestedState = search.get("demoState") as AsyncStateName | null;
   const state = requestedState && allowedStates.has(requestedState) ? requestedState : null;
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -58,6 +59,10 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
   function openMore(): void { dialogRef.current?.showModal(); }
   function closeMore(): void { dialogRef.current?.close(); }
 
+  if (isUnauthenticatedShell) {
+    return <>{children}</>;
+  }
+
   const primaryLinks = <>
     <NavLink href={`/${suffix}`} label={copy.today} current={pathname === "/"} icon="today" />
     <NavLink href={`/projects${suffix}`} label={copy.projects} current={projectsCurrent} icon="projects" />
@@ -65,6 +70,10 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
   </>;
 
   return <div className="orb-shell">
+    <main className="orb-main">
+      <span className="orb-reference orb-sr-only" data-orb-reference>ORB-R1</span>
+      {state ? <AsyncState state={state} copy={copy} /> : children}
+    </main>
     <header className="orb-top-bar">
       <button className="orb-menu-button" type="button" aria-label={label("Open navigation", "فتح التنقل")}><Icon name="menu" /></button>
       <a className="orb-brand" href={`/${suffix}`} aria-label={`ORB — ${copy.shellTitle}`}>
@@ -90,10 +99,6 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
       </div>
       <div className="orb-nav-group orb-nav-bottom-group"><NavLink href={`/admin/users${suffix}`} label={label("Admin", "الإدارة")} current={pathname.startsWith("/admin")} icon="admin" /></div>
     </nav>
-    <main className="orb-main">
-      <span className="orb-reference orb-sr-only" data-orb-reference>ORB-R1</span>
-      {state ? <AsyncState state={state} copy={copy} /> : children}
-    </main>
     <nav className="orb-bottom" data-navigation="bottom" aria-label={copy.primaryNavigation}>
       {primaryLinks}
       <button className="orb-more" ref={moreRef} type="button" onClick={openMore}><Icon name="menu" /><span>{copy.more}</span></button>
