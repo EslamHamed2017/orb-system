@@ -1,0 +1,71 @@
+name: orb-isolated
+
+services:
+  migration-postgres:
+    image: postgres:18.1-bookworm@sha256:cc9f4143a8d2fa8cf3749d0cb4d26ecf2d53a77a2ac807e9ebd67ae22426221a
+    environment:
+      POSTGRES_DB: orb_migration
+      POSTGRES_USER: orb_migrator
+      POSTGRES_PASSWORD: ${ORB_ISOLATED_DB_PASSWORD:?set ORB_ISOLATED_DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: --data-checksums
+    ports:
+      - "127.0.0.1:${ORB_MIGRATION_DB_PORT:?set ORB_MIGRATION_DB_PORT}:5432"
+    volumes:
+      - migration-postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U orb_migrator -d orb_migration"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [backend]
+
+  restore-postgres:
+    image: postgres:18.1-bookworm@sha256:cc9f4143a8d2fa8cf3749d0cb4d26ecf2d53a77a2ac807e9ebd67ae22426221a
+    environment:
+      POSTGRES_DB: orb_restore
+      POSTGRES_USER: orb_migrator
+      POSTGRES_PASSWORD: ${ORB_ISOLATED_DB_PASSWORD:?set ORB_ISOLATED_DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: --data-checksums
+    ports:
+      - "127.0.0.1:${ORB_RESTORE_DB_PORT:?set ORB_RESTORE_DB_PORT}:5432"
+    volumes:
+      - restore-postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U orb_migrator -d orb_restore"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [backend]
+
+  migration-object-store:
+    image: cgr.dev/chainguard/minio:latest@sha256:a1ac4589a5f8136b616e667b48a0bea9719bb10bd45799ea946f24bbedfafde4
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${ORB_ISOLATED_MINIO_USER:?set ORB_ISOLATED_MINIO_USER}
+      MINIO_ROOT_PASSWORD: ${ORB_ISOLATED_MINIO_PASSWORD:?set ORB_ISOLATED_MINIO_PASSWORD}
+    ports:
+      - "127.0.0.1:${ORB_MIGRATION_OBJECT_PORT:?set ORB_MIGRATION_OBJECT_PORT}:9000"
+    volumes:
+      - migration-object-data:/data
+    networks: [backend]
+
+  restore-object-store:
+    image: cgr.dev/chainguard/minio:latest@sha256:a1ac4589a5f8136b616e667b48a0bea9719bb10bd45799ea946f24bbedfafde4
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${ORB_ISOLATED_MINIO_USER:?set ORB_ISOLATED_MINIO_USER}
+      MINIO_ROOT_PASSWORD: ${ORB_ISOLATED_MINIO_PASSWORD:?set ORB_ISOLATED_MINIO_PASSWORD}
+    ports:
+      - "127.0.0.1:${ORB_RESTORE_OBJECT_PORT:?set ORB_RESTORE_OBJECT_PORT}:9000"
+    volumes:
+      - restore-object-data:/data
+    networks: [backend]
+
+volumes:
+  migration-postgres-data:
+  restore-postgres-data:
+  migration-object-data:
+  restore-object-data:
+
+networks:
+  backend: {}

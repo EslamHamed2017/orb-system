@@ -6,7 +6,7 @@
 - [x] T003 Repair CI topology: separate offline, local-browser, and deployed acceptance gates and record baseline schema/seed counts
 - [x] T004 Freeze approved domain terminology in Arabic and English
 - [x] T005 Confirm customer-invoice vs supplier-invoice grouping rule in spec
-- [ ] T006 Create isolated PostgreSQL/object-storage migration and restore environment; eliminate skipped real-DB migration gate
+- [x] T006 Create isolated PostgreSQL/object-storage migration and restore environment; eliminate skipped real-DB migration gate
 
 ## Phase 1 — Schema foundation
 - [ ] T007 Add stable ContractLine plus immutable ContractLineVersion under ContractVersion without dropping legacy fields

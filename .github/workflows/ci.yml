@@ -44,8 +44,23 @@ jobs:
           pnpm audit --json > "$RUNNER_TEMP/pnpm-audit.json" || true
           node scripts/verify-build-manifest.mjs --assert-audit "$RUNNER_TEMP/pnpm-audit.json"
 
-  local-browser:
+  isolated-infrastructure:
     needs: offline
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - run: corepack enable
+      - run: corepack prepare pnpm@12.16.1 --activate
+      - run: pnpm install --frozen-lockfile --strict-peer-dependencies
+      - name: Real PostgreSQL migration and isolated object restore gate
+        run: ops/acceptance/run-isolated-infrastructure-gate.sh
+
+  local-browser:
+    needs: [offline, isolated-infrastructure]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
