@@ -38,7 +38,8 @@
   - Verification note (2026-11-11): product create/list/exact-read/update services use immutable references and explicit ACTIVE/INACTIVE status (no deletion); the additive PostgreSQL status migration passed fresh isolated deployment and idempotent backfill with zero skips, strict typecheck passed, and the canonical 448-test suite passed.
 - [x] T026 Product movement/traceability query across projects
   - Verification note (2026-11-11): the authorized product movement API returns deterministic inbound/outbound traceability across projects with optional project filtering and source-allocation lineage, while exposing no stock balance or inventory valuation; strict typecheck, the full 462-test suite, and the production build pass.
-- [ ] T027 Customer and supplier UI-ready CRUD contracts
+- [x] T027 Customer and supplier UI-ready CRUD contracts
+  - Verification note (2026-11-11): dedicated typed customer/supplier list, create, exact-read, update/archive contracts and route factories reuse the validated party master lifecycle with server-side role checks; strict typecheck, all 464 tests, and the production build pass.
 - [ ] T028 Customer invoice create/read/print data APIs
 - [ ] T029 Supplier invoice line and supplier-attribution APIs
 - [ ] T030 Global Accounts summary/list APIs with project filters

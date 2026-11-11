@@ -10,6 +10,42 @@ const OPERATION_ROLES = Object.freeze({
     "OPERATIONS",
     "FINANCE_VIEWER"
   ],
+  "listCustomers": [
+    "OWNER_ADMIN",
+    "OPERATIONS",
+    "FINANCE_VIEWER"
+  ],
+  "createCustomer": [
+    "OWNER_ADMIN",
+    "OPERATIONS"
+  ],
+  "getCustomer": [
+    "OWNER_ADMIN",
+    "OPERATIONS",
+    "FINANCE_VIEWER"
+  ],
+  "updateCustomer": [
+    "OWNER_ADMIN",
+    "OPERATIONS"
+  ],
+  "listSuppliers": [
+    "OWNER_ADMIN",
+    "OPERATIONS",
+    "FINANCE_VIEWER"
+  ],
+  "createSupplier": [
+    "OWNER_ADMIN",
+    "OPERATIONS"
+  ],
+  "getSupplier": [
+    "OWNER_ADMIN",
+    "OPERATIONS",
+    "FINANCE_VIEWER"
+  ],
+  "updateSupplier": [
+    "OWNER_ADMIN",
+    "OPERATIONS"
+  ],
   "listMasterRecords": [
     "OWNER_ADMIN",
     "OPERATIONS",

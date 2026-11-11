@@ -47,6 +47,160 @@ tags:
 - name: Audit
   description: Audit operations in the fixed Release 1 pilot.
 paths:
+  /customers:
+    get:
+      tags: [Masters]
+      operationId: listCustomers
+      responses:
+        '200':
+          description: Customer directory
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Party' } }
+                  nextCursor: { type: [string, 'null'] }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS, FINANCE_VIEWER]
+      summary: List customers
+    post:
+      tags: [Masters]
+      operationId: createCustomer
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PartyInput' }
+      responses:
+        '201':
+          description: Customer created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Party' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS]
+      summary: Create customer
+  /customers/{customerId}:
+    parameters:
+    - name: customerId
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/Uuid' }
+    get:
+      tags: [Masters]
+      operationId: getCustomer
+      responses:
+        '200':
+          description: Customer detail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Party' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS, FINANCE_VIEWER]
+      summary: Get customer
+    patch:
+      tags: [Masters]
+      operationId: updateCustomer
+      parameters:
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PartyPatch' }
+      responses:
+        '200':
+          description: Customer updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Party' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS]
+      summary: Update or archive customer
+  /suppliers:
+    get:
+      tags: [Masters]
+      operationId: listSuppliers
+      responses:
+        '200':
+          description: Supplier directory
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, nextCursor]
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Party' } }
+                  nextCursor: { type: [string, 'null'] }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS, FINANCE_VIEWER]
+      summary: List suppliers
+    post:
+      tags: [Masters]
+      operationId: createSupplier
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PartyInput' }
+      responses:
+        '201':
+          description: Supplier created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Party' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS]
+      summary: Create supplier
+  /suppliers/{supplierId}:
+    parameters:
+    - name: supplierId
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/Uuid' }
+    get:
+      tags: [Masters]
+      operationId: getSupplier
+      responses:
+        '200':
+          description: Supplier detail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Party' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS, FINANCE_VIEWER]
+      summary: Get supplier
+    patch:
+      tags: [Masters]
+      operationId: updateSupplier
+      parameters:
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PartyPatch' }
+      responses:
+        '200':
+          description: Supplier updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Party' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS]
+      summary: Update or archive supplier
   /masters/{masterType}:
     parameters:
     - $ref: '#/components/parameters/MasterType'
@@ -2550,6 +2704,39 @@ components:
           schema:
             $ref: '#/components/schemas/Approval'
   schemas:
+    PartyInput:
+      type: object
+      additionalProperties: false
+      required: [reference, legalNameAr, legalNameEn, countryCode]
+      properties:
+        reference: { type: string, minLength: 1 }
+        legalNameAr: { type: string, minLength: 1 }
+        legalNameEn: { type: string, minLength: 1 }
+        countryCode: { type: string, pattern: '^[A-Z]{2}$' }
+        sensitiveIdentity: { type: string, minLength: 1, writeOnly: true }
+    PartyPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        legalNameAr: { type: string, minLength: 1 }
+        legalNameEn: { type: string, minLength: 1 }
+        countryCode: { type: string, pattern: '^[A-Z]{2}$' }
+        sensitiveIdentity: { type: string, minLength: 1, writeOnly: true }
+        active: { type: boolean }
+    Party:
+      type: object
+      additionalProperties: false
+      required: [id, reference, legalNameAr, legalNameEn, countryCode, active, version]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        reference: { type: string }
+        legalNameAr: { type: string }
+        legalNameEn: { type: string }
+        countryCode: { type: string }
+        sensitiveIdentity: { type: string }
+        active: { type: boolean }
+        version: { type: integer, minimum: 1 }
     ProductMovementSourceAllocation:
       type: object
       additionalProperties: false

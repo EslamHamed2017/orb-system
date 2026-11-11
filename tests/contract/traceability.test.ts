@@ -170,7 +170,7 @@ const evidence = Array.from({ length: 17 }, (_, i) => 'E' + String(i + 1).padSta
 test('all accepted contract artifacts exist', () => {
   for (const file of ['contracts/openapi.yaml', 'contracts/problem-details.md', 'contracts/ui-workflows.md']) assert.ok(existsSync(resolve(BASE, file)), 'missing accepted contract: ' + file);
 });
-test('tasks and quickstart exactly map all 94 operationIds', () => {
+test('tasks and quickstart exactly map all 102 operationIds', () => {
   assertExactInventory(ids, ids, 'OpenAPI operationIds must be unique'); verifyOperationMappings(tasks, quickstart, ids);
 });
 test('tasks and quickstart have exact R1 and INV row inventories and mappings', () => {
