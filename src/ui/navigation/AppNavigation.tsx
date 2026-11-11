@@ -7,7 +7,7 @@ import { en } from "../i18n/en";
 import { AsyncState, type AsyncStateName } from "../components/AsyncState";
 
 type Locale = "ar" | "en";
-type IconName = "today" | "projects" | "approvals" | "shipments" | "finance" | "documents" | "reports" | "admin" | "search" | "help" | "bell" | "menu" | "plus";
+type IconName = "today" | "projects" | "approvals" | "products" | "shipments" | "finance" | "documents" | "reports" | "admin" | "search" | "help" | "bell" | "menu" | "plus";
 const allowedStates = new Set<AsyncStateName>(["loading", "empty", "error", "permission-denied", "offline", "stale-version"]);
 
 function Icon({ name, size = 22 }: { readonly name: IconName; readonly size?: number }) {
@@ -15,6 +15,7 @@ function Icon({ name, size = 22 }: { readonly name: IconName; readonly size?: nu
     today: <><path d="M3 11 12 4l9 7v9H3z"/><path d="M9 20v-6h6v6"/></>,
     projects: <><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/></>,
     approvals: <><path d="M6 3h12v18H6z"/><path d="m9 12 2 2 4-5"/></>,
+    products: <><path d="M4 7 12 3l8 4-8 4z"/><path d="m4 7 8 4 8-4v10l-8 4-8-4z"/><path d="M12 11v10"/></>,
     shipments: <><path d="M3 7h11v10H3zM14 10h4l3 3v4h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></>,
     finance: <><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M7 6V4h10v2M8 13h8"/></>,
     documents: <><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6"/></>,
@@ -92,6 +93,7 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
     </header>
     <nav className="orb-rail" data-navigation="rail" data-variant="compact" aria-label={copy.primaryNavigation}>
       <div className="orb-nav-group"><span className="orb-nav-heading">{label("Workspace", "مساحة العمل")}</span>{primaryLinks}
+        <NavLink href={`/masters/coffee${suffix}`} label={label("Products", "المنتجات")} current={pathname === "/masters/coffee"} icon="products" />
         <NavLink href={`/projects/demo/shipments${suffix}`} label={label("Shipments", "الشحنات")} current={pathname.includes("shipments")} icon="shipments" />
         <NavLink href={`/projects/demo/money${suffix}`} label={label("Finance", "المالية")} current={pathname.includes("money") || pathname.includes("expenses") || pathname.includes("statements")} icon="finance" />
         <NavLink href={`/documents/demo${suffix}`} label={label("Documents", "المستندات")} current={pathname.startsWith("/documents")} icon="documents" />
@@ -106,6 +108,7 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
     <dialog className="orb-dialog" ref={dialogRef} aria-labelledby="orb-more-title" onClose={() => moreRef.current?.focus()}>
       <h2 id="orb-more-title">{copy.menuTitle}</h2><p>{copy.shellTitle}</p>
       <nav className="orb-dialog-links" aria-label={label("More destinations", "وجهات إضافية")}>
+        <a href={`/masters/coffee${suffix}`}><Icon name="products" />{label("Products", "المنتجات")}</a>
         <a href={`/projects/demo/shipments${suffix}`}><Icon name="shipments" />{label("Shipments", "الشحنات")}</a>
         <a href={`/projects/demo/money${suffix}`}><Icon name="finance" />{label("Finance", "المالية")}</a>
         <a href={`/documents/demo${suffix}`}><Icon name="documents" />{label("Documents", "المستندات")}</a>
