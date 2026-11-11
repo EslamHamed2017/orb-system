@@ -4,13 +4,15 @@ import { assertImmutableObject, type ImmutableObjectStore } from "../../platform
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { streamAndHash } from "../../platform/object-store/hash-stream.ts";
 import type { AuthorizedEvidenceSourceLink, EvidenceRepository, EvidenceSourceLink, StoredEvidence } from "./evidence-repository.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { assertServerPermission, type OperationPrincipal } from "../access/permissions.ts";
 
 const ALLOWED_MEDIA_TYPES = new Set(["application/pdf", "image/jpeg", "image/png"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SHA256 = /^[a-f0-9]{64}$/;
 const SUBJECT_TYPES = new Set(["PROJECT", "CONTRACT", "SALES_SHIPMENT", "SUPPLIER_CONTAINER", "SALES_INVOICE", "SUPPLIER_INVOICE", "MONEY_MOVEMENT", "EXPENSE", "CLAIM", "COMMERCIAL_DOCUMENT", "ROUTE_CHECKLIST_ITEM", "APPROVAL"]);
 
-interface Actor { readonly userId: string; readonly displayName?: string; readonly roles: readonly string[] }
+interface Actor extends OperationPrincipal { readonly displayName?: string }
 interface AuditAppender { append(...args: unknown[]): Promise<unknown> }
 interface MalwareScanner { scan(bytes: Uint8Array): Promise<{ clean: boolean; signature?: string }> }
 
@@ -42,6 +44,7 @@ export async function uploadEvidence<Transaction>(input: {
   resolveSourceAuthorization: ResolveSourceAuthorization; malwareScanner: MalwareScanner; objectStore: Pick<ImmutableObjectStore, "putImmutable">;
   repository: Pick<EvidenceRepository<Transaction>, "insertEvidence">; audit: AuditAppender; now?: () => Date;
 }) {
+  assertServerPermission(input.actor, "uploadEvidence");
   assertEvidenceId(input.id);
   if (!SHA256.test(input.expectedSha256)) throw new TypeError("invalid expected hash");
   if (!ALLOWED_MEDIA_TYPES.has(input.mediaType)) throw new TypeError("disallowed evidence media type");
@@ -86,6 +89,7 @@ export async function uploadEvidence<Transaction>(input: {
 export async function getEvidenceMetadata(input: {
   evidenceId: string; actor: Actor; repository: Pick<EvidenceRepository, "findEvidenceById">; authorize: Authorize;
 }) {
+  assertServerPermission(input.actor, "getEvidenceMetadata");
   return publicMetadata(await loadAuthorized(input));
 }
 
@@ -94,6 +98,7 @@ export async function openEvidenceContent(input: {
   repository: Pick<EvidenceRepository, "findEvidenceById">; authorize: Authorize;
   objectStore: Pick<ImmutableObjectStore, "getImmutable">; audit: AuditAppender; correlationId?: string;
 }) {
+  assertServerPermission(input.actor, "viewOrDownloadEvidence");
   if (input.disposition !== "inline" && input.disposition !== "attachment") throw new TypeError("invalid evidence disposition");
   const evidence = await loadAuthorized(input);
   const content = await input.objectStore.getImmutable({ objectKey: evidence.objectKey, objectVersionId: evidence.objectVersionId });
@@ -109,6 +114,7 @@ export async function listEvidence(input: {
   actor: Actor; projectId: string; subjectType?: string; subjectId?: string;
   repository: Pick<EvidenceRepository, "listEvidence">; authorize: Authorize;
 }) {
+  assertServerPermission(input.actor, "listEvidence");
   if (!UUID.test(input.projectId)) throw new TypeError("invalid evidence project identifier");
   if ((input.subjectType === undefined) !== (input.subjectId === undefined)) throw new TypeError("evidence subject type and identifier must be supplied together");
   if (input.subjectId !== undefined && !UUID.test(input.subjectId)) throw new TypeError("invalid evidence subject identifier");

@@ -284,3 +284,49 @@ test("product movement requires its resolved grant before repository or route de
   assert.equal((await allowed(new Request(`https://orb.example/api/products/${productId}/movements`), { params: Promise.resolve({ productId }) })).status, 200);
   assert.equal(calls, 1);
 });
+
+
+test("evidence APIs require exact resolved grants before storage, repository, or route dependencies", async () => {
+  const { operationPermissionCode } = await import("../../src/modules/access/permissions.ts");
+  const evidence = await import("../../src/modules/evidence/evidence-service.ts");
+  const collection = await import("../../src/app/api/evidence/route.ts");
+  const metadata = await import("../../src/app/api/evidence/[evidenceId]/route.ts");
+  const content = await import("../../src/app/api/evidence/[evidenceId]/content/route.ts");
+  const { NextRequest } = await import("next/server.js");
+  const principal = (operationId: string) => ({ userId: "custom", roles: ["CUSTOM"], permissionCodes: [operationPermissionCode(operationId)] });
+  const evidenceId = "019a5f9b-7c00-7000-8000-000000000701";
+  const projectId = "019a5f9b-7c00-7000-8000-000000000702";
+  let calls = 0;
+
+  await assert.rejects(() => evidence.listEvidence({
+    actor: principal("getEvidenceMetadata"), projectId,
+    repository: { listEvidence: async () => { calls += 1; return []; } }, authorize: async () => true,
+  }), /permission/i);
+  assert.equal(calls, 0);
+  await assert.doesNotReject(() => evidence.listEvidence({
+    actor: principal("listEvidence"), projectId,
+    repository: { listEvidence: async () => { calls += 1; return []; } }, authorize: async () => true,
+  }));
+  assert.equal(calls, 1);
+
+  const deniedList = collection.createEvidenceListGetHandler({ authenticate: async () => principal("getEvidenceMetadata"), list: async () => { calls += 1; return []; } });
+  assert.equal((await deniedList(new NextRequest(`https://orb.example/api/evidence?projectId=${projectId}`))).status, 403);
+  const allowedList = collection.createEvidenceListGetHandler({ authenticate: async () => principal("listEvidence"), list: async () => { calls += 1; return []; } });
+  assert.equal((await allowedList(new NextRequest(`https://orb.example/api/evidence?projectId=${projectId}`))).status, 200);
+
+  const deniedUpload = collection.createEvidencePostHandler({ authenticate: async () => principal("listEvidence"), handle: async () => { calls += 1; return {}; } });
+  assert.equal((await deniedUpload(new NextRequest("https://orb.example/api/evidence", { method: "POST" }))).status, 403);
+  const allowedUpload = collection.createEvidencePostHandler({ authenticate: async () => principal("uploadEvidence"), handle: async () => { calls += 1; return {}; } });
+  assert.equal((await allowedUpload(new NextRequest("https://orb.example/api/evidence", { method: "POST" }))).status, 201);
+
+  const deniedMetadata = metadata.createEvidenceMetadataGetHandler({ authenticate: async () => principal("viewOrDownloadEvidence"), handle: async () => { calls += 1; return {}; } });
+  assert.equal((await deniedMetadata(new NextRequest(`https://orb.example/api/evidence/${evidenceId}`), { params: Promise.resolve({ evidenceId }) })).status, 403);
+  const allowedMetadata = metadata.createEvidenceMetadataGetHandler({ authenticate: async () => principal("getEvidenceMetadata"), handle: async () => { calls += 1; return {}; } });
+  assert.equal((await allowedMetadata(new NextRequest(`https://orb.example/api/evidence/${evidenceId}`), { params: Promise.resolve({ evidenceId }) })).status, 200);
+
+  const deniedContent = content.createEvidenceContentGetHandler({ authenticate: async () => principal("getEvidenceMetadata"), handle: async () => { calls += 1; return { body: "x", contentType: "text/plain", disposition: "inline" }; } });
+  assert.equal((await deniedContent(new NextRequest(`https://orb.example/api/evidence/${evidenceId}/content`), { params: Promise.resolve({ evidenceId }) })).status, 403);
+  const allowedContent = content.createEvidenceContentGetHandler({ authenticate: async () => principal("viewOrDownloadEvidence"), handle: async () => { calls += 1; return { body: "x", contentType: "text/plain", disposition: "inline" }; } });
+  assert.equal((await allowedContent(new NextRequest(`https://orb.example/api/evidence/${evidenceId}/content`), { params: Promise.resolve({ evidenceId }) })).status, 200);
+  assert.equal(calls, 5);
+});
