@@ -671,6 +671,9 @@ These tables are validation input, not additional tasks. Every mapped task carri
 | `updateContractLine` | `ORB-R1-0304` |
 | `listContractLineVersions` | `ORB-R1-0304` |
 | `createSupplierShipment` | `ORB-R1-0001`, `ORB-R1-0002`, `ORB-R1-0105`, `ORB-R1-0203`, `ORB-R1-0204`, `ORB-R1-0401`, `ORB-R1-0402`, `ORB-R1-0407`, `ORB-R1-1204`, `ORB-R1-1205`, `ORB-R1-1206`, `ORB-R1-1301`, `ORB-R1-1302`, `ORB-R1-1303`, `ORB-R1-1304`, `ORB-R1-1305`, `ORB-R1-1309`, `ORB-R1-1315` |
+| `listSupplierShipmentLines` | `ORB-R1-0404` |
+| `createSupplierShipmentLine` | `ORB-R1-0404` |
+| `getSupplierShipmentLine` | `ORB-R1-0404` |
 | `submitSupplierShipmentConfirmation` | `ORB-R1-0001`, `ORB-R1-0002`, `ORB-R1-0105`, `ORB-R1-0203`, `ORB-R1-0204`, `ORB-R1-0403`, `ORB-R1-0404`, `ORB-R1-0407`, `ORB-R1-1204`, `ORB-R1-1205`, `ORB-R1-1206`, `ORB-R1-1301`, `ORB-R1-1302`, `ORB-R1-1303`, `ORB-R1-1304`, `ORB-R1-1305`, `ORB-R1-1309`, `ORB-R1-1315` |
 | `confirmSupplierShipment` | `ORB-R1-0001`, `ORB-R1-0002`, `ORB-R1-0105`, `ORB-R1-0203`, `ORB-R1-0204`, `ORB-R1-0403`, `ORB-R1-0404`, `ORB-R1-0407`, `ORB-R1-1204`, `ORB-R1-1205`, `ORB-R1-1206`, `ORB-R1-1301`, `ORB-R1-1302`, `ORB-R1-1303`, `ORB-R1-1304`, `ORB-R1-1305`, `ORB-R1-1309`, `ORB-R1-1315` |
 | `createSalesShipment` | `ORB-R1-0001`, `ORB-R1-0002`, `ORB-R1-0105`, `ORB-R1-0203`, `ORB-R1-0204`, `ORB-R1-0401`, `ORB-R1-0402`, `ORB-R1-0407`, `ORB-R1-1204`, `ORB-R1-1205`, `ORB-R1-1206`, `ORB-R1-1301`, `ORB-R1-1302`, `ORB-R1-1303`, `ORB-R1-1304`, `ORB-R1-1305`, `ORB-R1-1309`, `ORB-R1-1315` |

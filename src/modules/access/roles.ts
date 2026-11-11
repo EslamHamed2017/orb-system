@@ -326,6 +326,20 @@ const OPERATION_ROLES = Object.freeze({
   "listPilotUserSessions": [
     "OWNER_ADMIN"
   ],
+  "listSupplierShipmentLines": [
+    "OWNER_ADMIN",
+    "OPERATIONS",
+    "FINANCE_VIEWER"
+  ],
+  "createSupplierShipmentLine": [
+    "OWNER_ADMIN",
+    "OPERATIONS"
+  ],
+  "getSupplierShipmentLine": [
+    "OWNER_ADMIN",
+    "OPERATIONS",
+    "FINANCE_VIEWER"
+  ],
   "listSalesShipmentLines": [
     "OWNER_ADMIN",
     "OPERATIONS",

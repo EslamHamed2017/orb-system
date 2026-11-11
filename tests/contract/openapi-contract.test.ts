@@ -12,14 +12,14 @@ const HTTP_METHODS = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', '
 const ROLES = new Set(['OWNER_ADMIN', 'OPERATIONS', 'FINANCE_VIEWER']);
 const REF = '$ref';
 const roleGroups = [
-  [['OWNER_ADMIN', 'OPERATIONS', 'FINANCE_VIEWER'], ['listMasterRecords', 'listProjects', 'getProject', 'getFixedRouteChecklist', 'getEvidenceMetadata', 'viewOrDownloadEvidence', 'getDocumentGenerationStatus', 'getOperationalStatement', 'getProjectMarginAndCash', 'requestClosureException', 'submitFinalCloseForApproval', 'submitReopenForApproval', 'listProjectAuditEvents', 'listSupplierShipmentDatasetHistory', 'listSalesShipmentDatasetHistory', 'getOutboundManifestExactPreview', 'listOutboundSendAttempts', 'signOutCurrentSession', 'getSupplierShipmentWorkspace', 'getSalesShipmentWorkspace', 'listSalesShipmentLines', 'getSalesShipmentLine', 'listContractLines', 'getContractLine', 'listContractLineVersions']],
-  [['OWNER_ADMIN', 'OPERATIONS'], ['createMasterRecord', 'updateMasterRecord', 'createProjectWithSalesContract', 'createPurchaseContract', 'createContractAmendment', 'submitContractForApproval', 'createSupplierShipment', 'submitSupplierShipmentConfirmation', 'confirmSupplierShipment', 'createSalesShipment', 'setPrimarySupplierSource', 'requestToleranceException', 'confirmSalesShipment', 'updateRouteEvidenceOrMilestone', 'uploadEvidence', 'generateShipmentDocument', 'reviseDocument', 'submitDocumentForApproval', 'cancelDocumentRevision', 'createOutboundManifest', 'submitOutboundManifestForApproval', 'sendApprovedOutboundManifest', 'cancelOutboundManifest', 'createDirectExpense', 'submitDirectExpense', 'openSimpleClaim', 'moveClaimUnderReview', 'submitClaimOutcomeForApproval', 'assessProjectClosure', 'reviseSupplierShipmentDataset', 'reviseSalesShipmentDataset', 'transitionSupplierShipmentExecution', 'transitionSalesShipmentExecution', 'submitApprovedExpenseCorrection', 'applyApprovedExpenseCorrection', 'applyApprovedClaimOutcome', 'reviseOutboundManifest', 'submitSalesShipmentConfirmation', 'createSalesShipmentLine', 'createContractLine', 'updateContractLine']],
+  [['OWNER_ADMIN', 'OPERATIONS', 'FINANCE_VIEWER'], ['listMasterRecords', 'listProjects', 'getProject', 'getFixedRouteChecklist', 'getEvidenceMetadata', 'viewOrDownloadEvidence', 'getDocumentGenerationStatus', 'getOperationalStatement', 'getProjectMarginAndCash', 'requestClosureException', 'submitFinalCloseForApproval', 'submitReopenForApproval', 'listProjectAuditEvents', 'listSupplierShipmentDatasetHistory', 'listSalesShipmentDatasetHistory', 'getOutboundManifestExactPreview', 'listOutboundSendAttempts', 'signOutCurrentSession', 'getSupplierShipmentWorkspace', 'getSalesShipmentWorkspace', 'listSupplierShipmentLines', 'getSupplierShipmentLine', 'listSalesShipmentLines', 'getSalesShipmentLine', 'listContractLines', 'getContractLine', 'listContractLineVersions']],
+  [['OWNER_ADMIN', 'OPERATIONS'], ['createMasterRecord', 'updateMasterRecord', 'createProjectWithSalesContract', 'createPurchaseContract', 'createContractAmendment', 'submitContractForApproval', 'createSupplierShipment', 'submitSupplierShipmentConfirmation', 'confirmSupplierShipment', 'createSalesShipment', 'setPrimarySupplierSource', 'requestToleranceException', 'confirmSalesShipment', 'updateRouteEvidenceOrMilestone', 'uploadEvidence', 'generateShipmentDocument', 'reviseDocument', 'submitDocumentForApproval', 'cancelDocumentRevision', 'createOutboundManifest', 'submitOutboundManifestForApproval', 'sendApprovedOutboundManifest', 'cancelOutboundManifest', 'createDirectExpense', 'submitDirectExpense', 'openSimpleClaim', 'moveClaimUnderReview', 'submitClaimOutcomeForApproval', 'assessProjectClosure', 'reviseSupplierShipmentDataset', 'reviseSalesShipmentDataset', 'transitionSupplierShipmentExecution', 'transitionSalesShipmentExecution', 'submitApprovedExpenseCorrection', 'applyApprovedExpenseCorrection', 'applyApprovedClaimOutcome', 'reviseOutboundManifest', 'submitSalesShipmentConfirmation', 'createSupplierShipmentLine', 'createSalesShipmentLine', 'createContractLine', 'updateContractLine']],
   [['OWNER_ADMIN'], ['listFixedApprovalInbox', 'decideFixedApproval', 'finalCloseProject', 'reopenProject', 'cancelUnexecutedProject', 'listPilotUsers', 'assignFixedPilotRoles', 'revokePilotUserSession', 'getBackupRecoveryStatus', 'startIsolatedRestoreTest', 'getIsolatedRestoreTest', 'listPilotUserSessions']],
   [['OWNER_ADMIN', 'FINANCE_VIEWER'], ['createSupplierInvoice', 'submitSupplierInvoice', 'confirmSupplierInvoice', 'recordMoneyMovement', 'allocateMoneyMovement', 'reverseMoneyMovement', 'reverseSettlementAllocation', 'cancelUnallocatedSupplierInvoice']],
   [[], ['signIn']],
 ];
 const EXPECTED_ROLES = new Map(roleGroups.flatMap(([roles, ids]) => ids.map((id) => [id, [...roles].sort()])));
-const MUTATION_IDS = new Set(['createMasterRecord', 'updateMasterRecord', 'createProjectWithSalesContract', 'createPurchaseContract', 'createContractAmendment', 'submitContractForApproval', 'createSupplierShipment', 'submitSupplierShipmentConfirmation', 'confirmSupplierShipment', 'createSalesShipment', 'setPrimarySupplierSource', 'requestToleranceException', 'confirmSalesShipment', 'updateRouteEvidenceOrMilestone', 'uploadEvidence', 'generateShipmentDocument', 'reviseDocument', 'submitDocumentForApproval', 'cancelDocumentRevision', 'createOutboundManifest', 'submitOutboundManifestForApproval', 'sendApprovedOutboundManifest', 'cancelOutboundManifest', 'decideFixedApproval', 'createSupplierInvoice', 'submitSupplierInvoice', 'confirmSupplierInvoice', 'recordMoneyMovement', 'allocateMoneyMovement', 'reverseMoneyMovement', 'createDirectExpense', 'submitDirectExpense', 'openSimpleClaim', 'moveClaimUnderReview', 'submitClaimOutcomeForApproval', 'assessProjectClosure', 'requestClosureException', 'finalCloseProject', 'submitFinalCloseForApproval', 'reopenProject', 'submitReopenForApproval', 'reviseSupplierShipmentDataset', 'reviseSalesShipmentDataset', 'transitionSupplierShipmentExecution', 'transitionSalesShipmentExecution', 'reverseSettlementAllocation', 'submitApprovedExpenseCorrection', 'applyApprovedExpenseCorrection', 'cancelUnexecutedProject', 'applyApprovedClaimOutcome', 'reviseOutboundManifest', 'submitSalesShipmentConfirmation', 'cancelUnallocatedSupplierInvoice', 'signIn', 'signOutCurrentSession', 'assignFixedPilotRoles', 'revokePilotUserSession', 'startIsolatedRestoreTest', 'createSalesShipmentLine', 'createContractLine', 'updateContractLine']);
+const MUTATION_IDS = new Set(['createMasterRecord', 'updateMasterRecord', 'createProjectWithSalesContract', 'createPurchaseContract', 'createContractAmendment', 'submitContractForApproval', 'createSupplierShipment', 'submitSupplierShipmentConfirmation', 'confirmSupplierShipment', 'createSalesShipment', 'setPrimarySupplierSource', 'requestToleranceException', 'confirmSalesShipment', 'updateRouteEvidenceOrMilestone', 'uploadEvidence', 'generateShipmentDocument', 'reviseDocument', 'submitDocumentForApproval', 'cancelDocumentRevision', 'createOutboundManifest', 'submitOutboundManifestForApproval', 'sendApprovedOutboundManifest', 'cancelOutboundManifest', 'decideFixedApproval', 'createSupplierInvoice', 'submitSupplierInvoice', 'confirmSupplierInvoice', 'recordMoneyMovement', 'allocateMoneyMovement', 'reverseMoneyMovement', 'createDirectExpense', 'submitDirectExpense', 'openSimpleClaim', 'moveClaimUnderReview', 'submitClaimOutcomeForApproval', 'assessProjectClosure', 'requestClosureException', 'finalCloseProject', 'submitFinalCloseForApproval', 'reopenProject', 'submitReopenForApproval', 'reviseSupplierShipmentDataset', 'reviseSalesShipmentDataset', 'transitionSupplierShipmentExecution', 'transitionSalesShipmentExecution', 'reverseSettlementAllocation', 'submitApprovedExpenseCorrection', 'applyApprovedExpenseCorrection', 'cancelUnexecutedProject', 'applyApprovedClaimOutcome', 'reviseOutboundManifest', 'submitSalesShipmentConfirmation', 'cancelUnallocatedSupplierInvoice', 'signIn', 'signOutCurrentSession', 'assignFixedPilotRoles', 'revokePilotUserSession', 'startIsolatedRestoreTest', 'createSupplierShipmentLine', 'createSalesShipmentLine', 'createContractLine', 'updateContractLine']);
 const NO_IF_MATCH = new Set(['createMasterRecord', 'createProjectWithSalesContract', 'uploadEvidence', 'signIn', 'startIsolatedRestoreTest']);
 const CONTROL = {
   'Idempotency-Key': { component: 'IdempotencyKey', required: MUTATION_IDS, minLength: 16, maxLength: 128 },
@@ -429,7 +429,7 @@ function controlViolations(document) {
   return errors;
 }
 function operation(document, id) { return operations(document).find((entry) => entry.operation.operationId === id).operation; }
-const EXPECTED_OPENAPI_SHA256 = '1d81a4b59835709ee8dd3f1b06b2131e317893a8a9fa1c4c2335a3d0330914e4';
+const EXPECTED_OPENAPI_SHA256 = '0414f3a20103286907063853b905686ef517c3717095ce98685dd150473b06ee';
 function assertAcceptedOpenApiBytes(bytes) {
   const actual = createHash('sha256').update(bytes).digest('hex');
   assert.equal(actual, EXPECTED_OPENAPI_SHA256, 'accepted OpenAPI bytes changed; expected=' + EXPECTED_OPENAPI_SHA256 + ' actual=' + actual);
@@ -498,8 +498,8 @@ test('accepted raw OpenAPI bytes are independently SHA-256 pinned', () => {
   assert.throws(() => assertAcceptedOpenApiBytes(proseOnlyDrift), new RegExp('expected=' + EXPECTED_OPENAPI_SHA256 + ' actual=[0-9a-f]{64}'));
 });
 test('accepted OpenAPI 3.1 surface and every local ref are pinned', () => {
-  assert.match(document.openapi, /^3\.1(?:\.|$)/); assert.equal(Object.keys(document.paths).length, 80);
-  assert.equal(operations(document).length, 87); assert.equal(acceptedLocalRefCount, 809);
+  assert.match(document.openapi, /^3\.1(?:\.|$)/); assert.equal(Object.keys(document.paths).length, 82);
+  assert.equal(operations(document).length, 90); assert.equal(acceptedLocalRefCount, 831);
 });
 test('route handler export inventory recognizes repository syntax and rejects method drift', () => {
   assert.deepEqual(exportedHttpMethods('export async function GET() {}\nexport const POST = handler;'), ['get', 'post']);
@@ -516,7 +516,7 @@ test('route handler export inventory is syntax-aware and fails closed', () => {
   assert.deepEqual(exportedHttpMethods('const GET = handler; export { GET as POST };'), ['post']);
   assert.throws(() => exportedHttpMethods('export const GET = ;\nexport function POST( {}'), /TypeScript parse failed/);
 });
-test('all 80 accepted paths and 87 methods are exactly backed by application route exports and build artifacts', () => {
+test('all 82 accepted paths and 90 methods are exactly backed by application route exports and build artifacts', () => {
   const expected = new Map();
   for (const { path, method } of operations(document)) {
     const normalized = normalizedRoutePath(path);
@@ -533,15 +533,15 @@ test('all 80 accepted paths and 87 methods are exactly backed by application rou
     const diff = routeMethodDiff(expected.get(path), methods);
     if (diff.missing.length || diff.unexpected.length) methodMismatches.push({ file: relative(ROOT, file), ...diff });
   }
-  assert.deepEqual(methodMismatches, [], 'application route modules must export exactly the 87 contracted HTTP methods');
+  assert.deepEqual(methodMismatches, [], 'application route modules must export exactly the 90 contracted HTTP methods');
 });
 test('all operations have exact operation-specific role assignments', () => {
-  assert.equal(EXPECTED_ROLES.size, 87); assert.deepEqual(contractViolations(document), []);
+  assert.equal(EXPECTED_ROLES.size, 90); assert.deepEqual(contractViolations(document), []);
   const snapshot = [...EXPECTED_ROLES].sort(([a], [b]) => a.localeCompare(b));
-  assert.equal(createHash('sha256').update(JSON.stringify(snapshot)).digest('hex'), '90ee94372888b3c422c3bd377541362098c26913296a413700954f78a42d7279');
+  assert.equal(createHash('sha256').update(JSON.stringify(snapshot)).digest('hex'), '277dbd2a9905599fa7b19e1250234f38f76956391c92ecbc1b9636b6a96e731f');
 });
 test('request controls have exact semantic component refs and operation inventories', () => {
-  assert.equal(MUTATION_IDS.size, 61); assert.equal(CONTROL['X-CSRF-Token'].required.size, 60); assert.equal(CONTROL['If-Match'].required.size, 56);
+  assert.equal(MUTATION_IDS.size, 62); assert.equal(CONTROL['X-CSRF-Token'].required.size, 61); assert.equal(CONTROL['If-Match'].required.size, 57);
   assert.deepEqual(controlViolations(document), []);
 });
 test('role narrowing and broadening mutations fail closed', () => {

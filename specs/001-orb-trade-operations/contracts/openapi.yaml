@@ -1504,6 +1504,50 @@ paths:
       - OWNER_ADMIN
       - OPERATIONS
       summary: Revise sales shipment dataset
+  /supplier-shipments/{shipmentId}/datasets/{datasetId}/lines:
+    get:
+      tags: [Shipments]
+      operationId: listSupplierShipmentLines
+      parameters:
+      - $ref: '#/components/parameters/ShipmentId'
+      - $ref: '#/components/parameters/DatasetId'
+      responses:
+        '200': { $ref: '#/components/responses/EntityPage' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS, FINANCE_VIEWER]
+      summary: List immutable lines in a supplier shipment dataset
+    post:
+      tags: [Shipments]
+      operationId: createSupplierShipmentLine
+      parameters:
+      - $ref: '#/components/parameters/ShipmentId'
+      - $ref: '#/components/parameters/DatasetId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SupplierShipmentLineInput' }
+      responses:
+        '201': { $ref: '#/components/responses/Entity' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS]
+      summary: Add a line tied to an exact approved purchase-contract line version and supplier
+  /supplier-shipments/{shipmentId}/datasets/{datasetId}/lines/{lineId}:
+    get:
+      tags: [Shipments]
+      operationId: getSupplierShipmentLine
+      parameters:
+      - $ref: '#/components/parameters/ShipmentId'
+      - $ref: '#/components/parameters/DatasetId'
+      - $ref: '#/components/parameters/LineId'
+      responses:
+        '200': { $ref: '#/components/responses/Entity' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS, FINANCE_VIEWER]
+      summary: Read an immutable supplier shipment dataset line
   /sales-shipments/{shipmentId}/datasets/{datasetId}/lines:
     get:
       tags: [Shipments]
@@ -2477,6 +2521,25 @@ components:
           $ref: '#/components/schemas/Uuid'
         salesContract:
           $ref: '#/components/schemas/ContractInput'
+    SupplierShipmentLineInput:
+      type: object
+      additionalProperties: false
+      required:
+      - contractLineVersionId
+      - supplierLotReference
+      - quantity
+      - bagCount
+      - bagWeight
+      - netWeight
+      - grossWeight
+      properties:
+        contractLineVersionId: { $ref: '#/components/schemas/Uuid' }
+        supplierLotReference: { type: string, minLength: 1, maxLength: 500 }
+        quantity: { $ref: '#/components/schemas/Decimal' }
+        bagCount: { type: integer, minimum: 1 }
+        bagWeight: { $ref: '#/components/schemas/Decimal' }
+        netWeight: { $ref: '#/components/schemas/Decimal' }
+        grossWeight: { $ref: '#/components/schemas/Decimal' }
     SalesShipmentLineInput:
       type: object
       additionalProperties: false
