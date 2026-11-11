@@ -238,3 +238,23 @@ test("invoice HTTP routes require exact resolved operation grants before depende
   assert.equal((await allowedSupplierCreate(new Request("https://orb.example/api/supplier-shipments/s/invoices", { method: "POST", body: "{}" }), { params: Promise.resolve({ shipmentId: "s" }) })).status, 201);
   assert.equal(calls, 4);
 });
+
+
+test("fulfillment routes require exact resolved operation grants before dependencies", async () => {
+  const { operationPermissionCode } = await import("../../src/modules/access/permissions.ts");
+  const allocation = await import("../../src/app/api/sales-shipment-lines/[lineId]/source-allocations/route.ts");
+  const fulfillment = await import("../../src/app/api/contract-line-versions/[versionId]/fulfillment/route.ts");
+  const principal = (operationId: string) => ({ userId: "custom", roles: ["CUSTOM"], permissionCodes: [operationPermissionCode(operationId)] });
+  let calls = 0;
+
+  const deniedAllocation = allocation.createPostHandler({ authenticate: async () => principal("getContractLineFulfillment"), allocate: async () => { calls += 1; return {}; } });
+  assert.equal((await deniedAllocation(new Request("https://orb.example/api/sales-shipment-lines/line/source-allocations", { method: "POST", body: "{}" }), { params: Promise.resolve({ lineId: "line" }) })).status, 403);
+  const allowedAllocation = allocation.createPostHandler({ authenticate: async () => principal("allocateShipmentLineSource"), allocate: async () => { calls += 1; return {}; } });
+  assert.equal((await allowedAllocation(new Request("https://orb.example/api/sales-shipment-lines/line/source-allocations", { method: "POST", body: "{}" }), { params: Promise.resolve({ lineId: "line" }) })).status, 201);
+
+  const deniedFulfillment = fulfillment.createGetHandler({ authenticate: async () => principal("allocateShipmentLineSource"), remaining: async () => { calls += 1; return {}; } });
+  assert.equal((await deniedFulfillment(new Request("https://orb.example/api/contract-line-versions/version/fulfillment"), { params: Promise.resolve({ versionId: "version" }) })).status, 403);
+  const allowedFulfillment = fulfillment.createGetHandler({ authenticate: async () => principal("getContractLineFulfillment"), remaining: async () => { calls += 1; return {}; } });
+  assert.equal((await allowedFulfillment(new Request("https://orb.example/api/contract-line-versions/version/fulfillment"), { params: Promise.resolve({ versionId: "version" }) })).status, 200);
+  assert.equal(calls, 2);
+});
