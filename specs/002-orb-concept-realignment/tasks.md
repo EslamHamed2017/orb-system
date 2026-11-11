@@ -16,7 +16,7 @@
 - [x] T011 Add ShipmentLineSourceAllocation plus fulfillment, exact-decimal concurrency and tolerance constraints
 - [x] T012 Add SalesInvoice and SalesInvoiceLine with one active sales invoice per sales shipment
 - [x] T013 Add SupplierInvoiceLine and enforce same-supplier shipment-line attribution
-- [ ] T014 Add generic transaction serial registry and uniqueness rules
+- [x] T014 Add generic transaction serial registry and uniqueness rules
 - [ ] T015 Harden existing EvidenceObject/EvidenceLink with project scope, subject allowlist and parent authorization metadata
 - [ ] T016 Add Permission, Role, RolePermission and user assignment models
 - [ ] T017 Generate expand migration, feature-flag cutover and application-rollback procedure with no database down-migration

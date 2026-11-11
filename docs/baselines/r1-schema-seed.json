@@ -1,8 +1,8 @@
 {
   "version": 1,
   "schema": {
-    "models": 48,
-    "enums": 35
+    "models": 49,
+    "enums": 36
   },
   "seed": {
     "tables": 27,

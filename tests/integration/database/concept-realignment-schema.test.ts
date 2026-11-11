@@ -229,3 +229,39 @@ test("T013 models supplier invoice lines with database-enforced same-supplier co
   assert.doesNotMatch(invoiceLine, /^\s*(?:updated_at|version)\s+/m,
     "supplier invoice line facts are immutable; corrections replace the invoice");
 });
+
+test("T014 models an immutable generic transaction serial registry with collision-proof uniqueness", () => {
+  const serial = model("TransactionSerial");
+  const project = model("Project");
+  const user = model("User");
+
+  for (const name of [
+    "project_id", "transaction_type", "subject_id", "serial", "series_key",
+    "sequence_no", "allocated_at", "allocated_by",
+  ]) field(serial, name);
+
+  assert.match(field(serial, "transaction_type"), /TransactionType/,
+    "serial subjects must use a closed transaction-type allowlist");
+  assert.match(field(serial, "serial"), /String.+@unique/,
+    "a printable serial must never identify two transactions anywhere in ORB");
+  assert.match(serial, /@@unique\(\[transaction_type, subject_id\]\)/,
+    "a transaction may receive only one immutable serial");
+  assert.match(serial, /@@unique\(\[series_key, sequence_no\]\)/,
+    "concurrent allocation in a numbering series must reject sequence collisions");
+  assert.match(serial, /fields: \[project_id\].+references: \[id\]/,
+    "every serial must retain its project scope for authorization and traceability");
+  assert.match(serial, /fields: \[allocated_by\].+references: \[id\]/,
+    "serial allocation must retain the responsible user");
+  assert.match(project, /^\s*TransactionSerial\s+TransactionSerial\[\]/m);
+  assert.match(user, /^\s*TransactionSerial\s+TransactionSerial\[\]/m);
+  assert.doesNotMatch(serial, /^\s*(?:updated_at|version)\s+/m,
+    "allocated serials are immutable registry facts");
+
+  const type = schema.match(/enum\s+TransactionType\s*\{([\s\S]*?)\n\}/m);
+  assert.ok(type, "missing closed TransactionType enum");
+  for (const value of [
+    "PROJECT", "SALES_CONTRACT", "PURCHASE_CONTRACT", "SALES_SHIPMENT",
+    "SUPPLIER_CONTAINER", "SALES_INVOICE", "SUPPLIER_INVOICE", "COLLECTION",
+    "SUPPLIER_PAYMENT", "EXPENSE",
+  ]) assert.match(type[1], new RegExp(`^\\s*${value}\\s*$`, "m"));
+});
