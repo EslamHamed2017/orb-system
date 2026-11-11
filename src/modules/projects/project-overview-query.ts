@@ -1,5 +1,5 @@
 export const REQUIRED_PROJECT_OVERVIEW_ADAPTERS = Object.freeze([
-  "project", "shipments", "routes", "documents", "settlement", "expenses", "claims", "closure", "audit", "marginAndCash",
+  "project", "shipments", "routes", "documents", "settlement", "expenses", "claims", "closure", "audit", "marginAndCash", "linkedRecords",
 ] as const);
 
 type AdapterName = typeof REQUIRED_PROJECT_OVERVIEW_ADAPTERS[number];
@@ -17,6 +17,18 @@ function sectionMap(value: unknown, name: string): Map<string, Row> {
   const result = new Map<string, Row>();
   for (const item of list(value, name)) { const row = record(item, name); if (typeof row.currency !== "string") throw new TypeError(`invalid Project overview ${name} currency`); result.set(row.currency, row); }
   return result;
+}
+const LINKED_RECORD_KEYS = Object.freeze([
+  "contracts", "supplierContainers", "salesShipments", "salesInvoices", "supplierInvoices",
+  "collections", "supplierPayments", "expenses", "claims", "attachments",
+] as const);
+function linkedRecordCounts(value: unknown): Readonly<Record<typeof LINKED_RECORD_KEYS[number], number>> {
+  const source = record(value, "linkedRecords");
+  return Object.freeze(Object.fromEntries(LINKED_RECORD_KEYS.map((key) => {
+    const count = source[key];
+    if (!Number.isSafeInteger(count) || Number(count) < 0) throw new TypeError(`invalid Project overview linkedRecords ${key}`);
+    return [key, Number(count)];
+  })) as Record<typeof LINKED_RECORD_KEYS[number], number>);
 }
 function blockers(family: string, value: unknown): readonly Row[] {
   return list(record(value, family).blockers, `${family} blockers`).map((item) => Object.freeze({ family, ...structuredClone(record(item, `${family} blocker`)) }));
@@ -49,6 +61,7 @@ export function createInMemoryProjectOverviewQuery(options: { readonly adapters:
         project: Object.freeze({ id: project.id, code: project.code, state: project.state, version: project.version, customerName: project.customerName }),
         quantities: Object.freeze({ supplier: structuredClone(shipments.supplier), sales: structuredClone(shipments.sales) }),
         money: Object.freeze(money), blockers: Object.freeze(allBlockers),
+        linkedRecords: linkedRecordCounts(source.linkedRecords),
         auditSummary: Object.freeze({ eventCount: audit.eventCount, lastSequenceNo: audit.lastSequenceNo, lastEventHash: audit.lastEventHash, continuityVerified: audit.continuityVerified, href: audit.href }),
       });
     },

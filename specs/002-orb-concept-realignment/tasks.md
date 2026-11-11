@@ -71,7 +71,8 @@
   - Verification note (2026-11-11): the bilingual EN/LTR and AR/RTL supplier-container workspace consolidates multiple suppliers and approved purchase-contract-line versions in one physical container while preserving per-line supplier/contract attribution, exact-decimal totals, draft-only mutation, and separate-supplier invoice guidance. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and seven managed Chromium workspace journeys pass.
 - [x] T041 Partial fulfillment and remaining quantities visualization
   - Verification note (2026-11-11): sales-shipment detail now visualizes exact line-level prior fulfillment, current shipment quantity, cumulative progress, and remaining quantity with accessible bilingual EN/LTR and AR/RTL progress indicators. Exact-decimal unit tests, inconsistency/over-fulfillment guards, strict typecheck, all 535 canonical tests with zero skips, the production build, and seven managed Chromium acceptance journeys pass.
-- [ ] T042 Project 360° overview with linked record counts and actions
+- [x] T042 Project 360° overview with linked record counts and actions
+  - Verification note (2026-11-11): the bilingual project overview now consumes fail-closed authoritative linked-record counts and provides direct project-scoped actions for contracts, supplier containers, sales shipments, customer/supplier invoices, collections/payments, expenses, claims, attachments, and audit. Focused integration tests, strict typecheck, all 535 canonical tests, the production build, and six Chromium EN/LTR and AR/RTL journeys pass.
 - [ ] T043 Bidirectional breadcrumbs/related-record navigation
 - [ ] T044 Products master page
 - [ ] T045 Product movement/history page

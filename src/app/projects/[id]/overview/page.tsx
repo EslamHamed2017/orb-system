@@ -7,6 +7,7 @@ const data: Record<string, unknown> = {
   settlement: { currencySections: [{ currency: "USD", receivable: "1000.000000", payable: "700.000000", unallocated: "50.000000" }], blockers: [{ id: "money", code: "UNALLOCATED_MONEY", href: "/projects/demo/money" }] },
   expenses: { currencySections: [{ currency: "USD", approved: "25.000000", pending: "5.000000" }], blockers: [{ id: "expense", code: "EXPENSE_PENDING", href: "/projects/demo/expenses" }] },
   claims: { open: 1, blockers: [{ id: "claim", code: "CLAIM_INCOMPLETE", href: "/projects/demo/claims" }] }, closure: { blockers: [{ id: "closure", code: "SALES_SHIPMENT_NOT_DELIVERED", href: "/projects/demo/closure" }] },
+  linkedRecords: { contracts: 3, supplierContainers: 2, salesShipments: 1, salesInvoices: 1, supplierInvoices: 2, collections: 1, supplierPayments: 2, expenses: 2, claims: 1, attachments: 4 },
   audit: { eventCount: 9, lastSequenceNo: 9, lastEventHash: "a".repeat(64), continuityVerified: true, href: "/projects/demo/audit" },
   marginAndCash: { currencySections: [{ currency: "USD", measures: { expectedMargin: { amount: "300.000000" }, committedMargin: { amount: "275.000000" }, actualOperationalMargin: { amount: "250.000000" }, cashPosition: { amount: "100.000000" } } }] },
 };

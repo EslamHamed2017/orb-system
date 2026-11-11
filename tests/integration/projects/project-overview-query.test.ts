@@ -4,7 +4,7 @@ import test from "node:test";
 const PROJECT_ID = "019a6100-2000-7000-8000-000000000001";
 const OWNER = Object.freeze({ userId: "owner-1", roles: ["OWNER_ADMIN"] });
 const FINANCE = Object.freeze({ userId: "finance-1", roles: ["FINANCE_VIEWER"] });
-const requiredAdapters = ["project", "shipments", "routes", "documents", "settlement", "expenses", "claims", "closure", "audit", "marginAndCash"] as const;
+const requiredAdapters = ["project", "shipments", "routes", "documents", "settlement", "expenses", "claims", "closure", "audit", "marginAndCash", "linkedRecords"] as const;
 type OverviewModule = {
   REQUIRED_PROJECT_OVERVIEW_ADAPTERS: readonly string[];
   createInMemoryProjectOverviewQuery(options: { adapters: Record<string, (projectId: string) => Promise<unknown>> }): {
@@ -26,6 +26,7 @@ function fixture() {
     claims: { open: 1, blockers: [{ id: "claim-blocker", code: "CLAIM_INCOMPLETE", href: `/projects/${PROJECT_ID}/claims` }] },
     closure: { assessmentId: "assessment-1", state: "CURRENT", blockers: [{ id: "closure-blocker", code: "SALES_SHIPMENT_NOT_DELIVERED", href: `/projects/${PROJECT_ID}/closure` }] },
     audit: { eventCount: 9, lastSequenceNo: 9, lastEventHash: "a".repeat(64), continuityVerified: true, href: `/projects/${PROJECT_ID}/audit` },
+    linkedRecords: { contracts: 3, supplierContainers: 2, salesShipments: 1, salesInvoices: 1, supplierInvoices: 2, collections: 1, supplierPayments: 2, expenses: 2, claims: 1, attachments: 4 },
     marginAndCash: { currencySections: [{ currency: "USD", measures: { expectedMargin: { amount: "300.000000" }, committedMargin: { amount: "275.000000" }, actualOperationalMargin: { amount: "250.000000" }, cashPosition: { amount: "100.000000" } } }] },
   };
   const adapters = Object.fromEntries(requiredAdapters.map((name) => [name, async (projectId: string) => {
@@ -56,8 +57,21 @@ test("Project overview reports authoritative state, quantities, money, all block
   assert.deepEqual(result.money[0].marginAndCash, { expectedMargin: "300.000000", committedMargin: "275.000000", actualOperationalMargin: "250.000000", cashPosition: "100.000000" });
   assert.deepEqual(result.blockers.map((item: any) => item.family), ["routes", "documents", "settlement", "expenses", "claims", "closure"]);
   for (const blocker of result.blockers) assert.match(blocker.href, /^\//);
+  assert.deepEqual(result.linkedRecords, { contracts: 3, supplierContainers: 2, salesShipments: 1, salesInvoices: 1, supplierInvoices: 2, collections: 1, supplierPayments: 2, expenses: 2, claims: 1, attachments: 4 });
   assert.deepEqual(result.auditSummary, { eventCount: 9, lastSequenceNo: 9, lastEventHash: "a".repeat(64), continuityVerified: true, href: `/projects/${PROJECT_ID}/audit` });
   assert.ok(!JSON.stringify(result).includes("estimated"), "overview must not fabricate an estimated aggregate");
+});
+
+test("Project overview fails closed when any linked-record count is missing, negative, fractional, or non-numeric", async () => {
+  const module = await moduleUnderTest();
+  for (const invalid of [undefined, -1, 1.5, "2"]) {
+    const { state, adapters } = fixture();
+    (state.linkedRecords as Record<string, unknown>).contracts = invalid;
+    await assert.rejects(
+      module.createInMemoryProjectOverviewQuery({ adapters }).getProjectOverview({ projectId: PROJECT_ID, principal: OWNER }),
+      /invalid Project overview linkedRecords contracts/,
+    );
+  }
 });
 
 test("overview role shaping preserves financial read access without exposing Owner-only action metadata", async () => {

@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 const copy = {
-  en: { today: "Today", recent: "Recent projects", overview: "Project overview", blockers: "Operational blockers", quantities: "Shipment quantities", money: "Money and margin", audit: "Audit summary" },
-  ar: { today: "اليوم", recent: "المشروعات الأخيرة", overview: "نظرة عامة على المشروع", blockers: "العوائق التشغيلية", quantities: "كميات الشحنات", money: "الأموال والهامش", audit: "ملخص التدقيق" },
+  en: { today: "Today", recent: "Recent projects", overview: "Project overview", blockers: "Operational blockers", quantities: "Shipment quantities", money: "Money and margin", audit: "Audit summary", related: "Related records" },
+  ar: { today: "اليوم", recent: "المشروعات الأخيرة", overview: "نظرة عامة على المشروع", blockers: "العوائق التشغيلية", quantities: "كميات الشحنات", money: "الأموال والهامش", audit: "ملخص التدقيق", related: "السجلات المرتبطة" },
 } as const;
 
 for (const locale of ["en", "ar"] as const) {
@@ -28,6 +28,13 @@ for (const locale of ["en", "ar"] as const) {
     for (const code of ["ROUTE_ITEM_INCOMPLETE", "CINV_MISSING", "UNALLOCATED_MONEY", "EXPENSE_PENDING", "CLAIM_INCOMPLETE", "SALES_SHIPMENT_NOT_DELIVERED"])
       await expect(blockers.getByText(code, { exact: true })).toBeVisible();
     await expect(page.getByRole("region", { name: copy[locale].audit })).toContainText(/sequence 9.*continuity.*verified/i);
+    const related = page.getByRole("region", { name: copy[locale].related });
+    const linkedRecords = { contracts: [3, "contracts"], supplierContainers: [2, "shipments"], salesShipments: [1, "shipments"], salesInvoices: [1, "money"], supplierInvoices: [2, "money"], collections: [1, "money"], supplierPayments: [2, "money"], expenses: [2, "expenses"], claims: [1, "claims"], attachments: [4, "audit"] } as const;
+    for (const [key, [count, path]] of Object.entries(linkedRecords)) {
+      const record = related.getByTestId(`project-record-${key}`);
+      await expect(record.getByText(String(count), { exact: true })).toBeVisible();
+      await expect(record.getByRole("link")).toHaveAttribute("href", new RegExp(`^/projects/demo/${path}\\?locale=${locale}`));
+    }
   });
 }
 
