@@ -97,3 +97,33 @@ test("contract-line HTTP routes accept the exact resolved grant and reject a dif
   assert.equal((await denied(request(), { params: Promise.resolve({ contractId }) })).status, 403);
   assert.equal(calls, 1);
 });
+
+
+test("sales-shipment line APIs require exact resolved operation grants before repository access", async () => {
+  const { operationPermissionCode } = await import("../../src/modules/access/permissions.ts");
+  const { createSalesShipmentLineService } = await import("../../src/modules/shipments/sales-shipment-line-service.ts");
+  const route = await import("../../src/app/api/sales-shipments/[shipmentId]/datasets/[datasetId]/lines/route.ts");
+  const shipmentId = "019a5f9b-7c00-7000-8000-000000000101";
+  const datasetId = "019a5f9b-7c00-7000-8000-000000000102";
+  const principal = (operationId: string) => ({ userId: "custom", roles: ["CUSTOM"], permissionCodes: [operationPermissionCode(operationId)] });
+  let datasetReads = 0;
+  const service = createSalesShipmentLineService({ repository: {
+    async getDataset() { datasetReads += 1; return { id: datasetId, shipmentId, salesContractId: "019a5f9b-7c00-7000-8000-000000000103", state: "DRAFT" }; },
+    async getApprovedContractLineVersion() { return null; }, async nextLineNo() { return 1; },
+    async findByContractLineVersion() { return null; }, async insert(input: any) { return input; },
+    async list() { return []; }, async get() { return null; },
+  } });
+  await assert.rejects(() => service.list({ shipmentId, datasetId, correlationId: "wrong", principal: principal("getSalesShipmentLine") }), (error: any) => error?.problem?.code === "PERMISSION_DENIED");
+  assert.equal(datasetReads, 0);
+  await assert.doesNotReject(() => service.list({ shipmentId, datasetId, correlationId: "right", principal: principal("listSalesShipmentLines") }));
+  assert.equal(datasetReads, 1);
+
+  let calls = 0;
+  const denied = route.createGetHandler({ authenticate: async () => principal("getSalesShipmentLine"), list: async () => { calls += 1; return []; } });
+  const response = await denied(new Request("https://orb.example/api/sales-shipments/x/datasets/y/lines"), { params: Promise.resolve({ shipmentId, datasetId }) });
+  assert.equal(response.status, 403);
+  assert.equal(calls, 0);
+  const allowed = route.createGetHandler({ authenticate: async () => principal("listSalesShipmentLines"), list: async () => { calls += 1; return []; } });
+  assert.equal((await allowed(new Request("https://orb.example/api/sales-shipments/x/datasets/y/lines"), { params: Promise.resolve({ shipmentId, datasetId }) })).status, 200);
+  assert.equal(calls, 1);
+});

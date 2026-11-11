@@ -1,6 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { problemError } from "../../platform/http/problem.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { assertServerPermission, type OperationPrincipal } from "../access/permissions.ts";
 
 export interface SalesShipmentDatasetRecord { readonly id: string; readonly shipmentId: string; readonly salesContractId: string; readonly state: string }
 export interface ApprovedContractLineVersion { readonly id: string; readonly contractId: string; readonly coffeeSpecificationId: string; readonly quantity: string; readonly unitPrice: string; readonly approvalState: string }
@@ -34,15 +36,18 @@ export interface SalesShipmentLineRepository {
   get(datasetId: string, lineId: string): Promise<SalesShipmentLineRecord | null>;
 }
 export interface SalesShipmentLineService {
-  create(input: { shipmentId: string; datasetId: string; facts: unknown; correlationId: string }): Promise<SalesShipmentLineRecord>;
-  list(input: { shipmentId: string; datasetId: string; correlationId: string }): Promise<readonly SalesShipmentLineRecord[]>;
-  get(input: { shipmentId: string; datasetId: string; lineId: string; correlationId: string }): Promise<SalesShipmentLineRecord>;
+  create(input: { shipmentId: string; datasetId: string; facts: unknown; correlationId: string; principal: OperationPrincipal }): Promise<SalesShipmentLineRecord>;
+  list(input: { shipmentId: string; datasetId: string; correlationId: string; principal: OperationPrincipal }): Promise<readonly SalesShipmentLineRecord[]>;
+  get(input: { shipmentId: string; datasetId: string; lineId: string; correlationId: string; principal: OperationPrincipal }): Promise<SalesShipmentLineRecord>;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DECIMAL = /^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,6})?$/;
 const KEYS = ["contractLineVersionId", "productDescription", "customerPurchaseOrderReference", "marksAndNumbers", "quantity", "bagCount", "bagWeight", "netWeight", "grossWeight"] as const;
 function fail(code: string, status: number, correlationId: string): never { throw problemError({ code, status, correlationId }); }
+function authorize(principal: OperationPrincipal, operationId: string, correlationId: string): void {
+  try { assertServerPermission(principal, operationId); } catch { fail("PERMISSION_DENIED", 403, correlationId); }
+}
 function validId(value: string, correlationId: string): void { if (!UUID.test(value)) fail("VALIDATION_FAILED", 400, correlationId); }
 function positiveDecimal(value: unknown): value is string { return typeof value === "string" && DECIMAL.test(value) && Number(value) > 0; }
 function optionalText(value: unknown): value is string | null { return value === null || (typeof value === "string" && value.trim().length > 0 && value.length <= 500); }
@@ -80,6 +85,7 @@ export function createSalesShipmentLineService(options: { repository: SalesShipm
   }
   return {
     async create(input) {
+      authorize(input.principal, "createSalesShipmentLine", input.correlationId);
       const target = await dataset(input.shipmentId, input.datasetId, input.correlationId);
       if (target.state !== "DRAFT") fail("IMMUTABLE_VERSION", 409, input.correlationId);
       const facts = validateFacts(input.facts, input.correlationId);
@@ -91,8 +97,9 @@ export function createSalesShipmentLineService(options: { repository: SalesShipm
       const lineHash = createHash("sha256").update(canonical(base)).digest("hex");
       return options.repository.insert(Object.freeze({ ...base, lineHash }));
     },
-    async list(input) { const target = await dataset(input.shipmentId, input.datasetId, input.correlationId); return options.repository.list(target.id); },
+    async list(input) { authorize(input.principal, "listSalesShipmentLines", input.correlationId); const target = await dataset(input.shipmentId, input.datasetId, input.correlationId); return options.repository.list(target.id); },
     async get(input) {
+      authorize(input.principal, "getSalesShipmentLine", input.correlationId);
       const target = await dataset(input.shipmentId, input.datasetId, input.correlationId); validId(input.lineId, input.correlationId);
       const found = await options.repository.get(target.id, input.lineId);
       if (found === null) fail("RESOURCE_NOT_FOUND", 404, input.correlationId);
