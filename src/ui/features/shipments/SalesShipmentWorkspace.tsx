@@ -8,6 +8,7 @@ import { RouteChecklist, type RouteChecklistView } from "../routes/RouteChecklis
 import { ShipmentWorkspaceCore } from "./ShipmentWorkspaceCore";
 import type { ShipmentUiState } from "./ExecutionActions";
 import { tabsFor, type WorkspaceLocale, type WorkspaceRole } from "./workspace-tabs";
+import { ProjectContextNavigation } from "../../navigation/ProjectContextNavigation";
 import s from "./operations.module.css";
 
 const checklist: RouteChecklistView = { shipmentId: "demo", templateVersion: 1, version: 3, items: [
@@ -30,9 +31,10 @@ function Panel({ id, endpoint, children }: Readonly<{ id: string; endpoint: stri
   return <section id={id} role="tabpanel" aria-labelledby={`${id}-tab`} data-backend-endpoint={endpoint} style={panelStyle}>{children}</section>;
 }
 
-export function SalesShipmentWorkspace({ locale, role, state = "confirmed" }: Readonly<{ locale: WorkspaceLocale; role: WorkspaceRole; state?: ShipmentUiState }>) {
+export function SalesShipmentWorkspace({ locale, role, state = "confirmed", projectId = "demo", shipmentId = "demo" }: Readonly<{ locale: WorkspaceLocale; role: WorkspaceRole; state?: ShipmentUiState; projectId?: string; shipmentId?: string }>) {
   const readOnly = role === "finance-viewer", ar = locale === "ar";
   return <article data-complete-shipment-workspace="sales" className={s.page}>
+    <ProjectContextNavigation locale={locale} projectId={projectId} current="salesShipment" recordId={shipmentId} />
  <script dangerouslySetInnerHTML={{ __html: `document.documentElement.lang=${JSON.stringify(locale)};document.documentElement.dir=${JSON.stringify(ar ? "rtl" : "ltr")}` }} />
     <header className={s.pageHeader}><div><p className={s.eyebrow}>{ar ? "تنفيذ شحنة البيع" : "Sales execution"}</p><h1>{ar ? "مساحة شحنة البيع" : "Sales shipment workspace"}</h1><p>{ar ? "البيانات والمسار والدليل والمستندات والتسوية في مساحة تشغيل واحدة." : "Dataset, route, evidence, documents, and settlement in one operational workspace."}</p></div><span className={`${s.chip} ${s.warning}`}>{state.toUpperCase()}</span></header><div className={s.contextBar}><div className={s.contextItem}><span>{ar ? "المرجع" : "Reference"}</span><strong><bdi>ORB-SAL-0007</bdi></strong></div><div className={s.contextItem}><span>{ar ? "المشروع" : "Project"}</span><strong><bdi>ORB-PROJ-DEMO</bdi></strong></div><div className={s.contextItem}><span>{ar ? "الإصدار" : "Version"}</span><strong>7</strong></div></div>
     <TabList locale={locale} role={role} />

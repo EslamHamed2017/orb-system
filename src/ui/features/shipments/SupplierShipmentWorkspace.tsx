@@ -4,6 +4,7 @@ import { SupplierShipmentStatementPanel } from "../statements/SupplierShipmentSt
 import { ShipmentWorkspaceCore } from "./ShipmentWorkspaceCore";
 import type { ShipmentUiState } from "./ExecutionActions";
 import { tabsFor, type WorkspaceLocale, type WorkspaceRole } from "./workspace-tabs";
+import { ProjectContextNavigation } from "../../navigation/ProjectContextNavigation";
 import s from "./operations.module.css";
 
 const panelStyle = { display: "grid", gap: 16, scrollMarginBlockStart: 80 } as const;
@@ -19,9 +20,10 @@ function ReadOnlyPanel({ title, reference, locale }: Readonly<{ title: string; r
 function Panel({ id, endpoint, children }: Readonly<{ id: string; endpoint: string; children: React.ReactNode }>) {
   return <section id={id} role="tabpanel" aria-labelledby={`${id}-tab`} data-backend-endpoint={endpoint} style={panelStyle}>{children}</section>;
 }
-export function SupplierShipmentWorkspace({ locale, role, state = "confirmed" }: Readonly<{ locale: WorkspaceLocale; role: WorkspaceRole; state?: ShipmentUiState }>) {
+export function SupplierShipmentWorkspace({ locale, role, state = "confirmed", projectId = "demo", shipmentId = "demo" }: Readonly<{ locale: WorkspaceLocale; role: WorkspaceRole; state?: ShipmentUiState; projectId?: string; shipmentId?: string }>) {
   const readOnly = role === "finance-viewer", ar = locale === "ar";
   return <article data-complete-shipment-workspace="supplier" className={s.page}>
+    <ProjectContextNavigation locale={locale} projectId={projectId} current="supplierContainer" recordId={shipmentId} />
  <script dangerouslySetInnerHTML={{ __html: `document.documentElement.lang=${JSON.stringify(locale)};document.documentElement.dir=${JSON.stringify(ar ? "rtl" : "ltr")}` }} />
     <header className={s.pageHeader}><div><p className={s.eyebrow}>{ar ? "تنفيذ شحنة المورد" : "Supplier execution"}</p><h1>{ar ? "مساحة شحنة المورد" : "Supplier shipment workspace"}</h1><p>{ar ? "مجموعة البيانات والدليل والفاتورة والدفع والبيان في مساحة تشغيل واحدة." : "Dataset, evidence, invoice, payment, and statement in one operational workspace."}</p></div><span className={`${s.chip} ${s.warning}`}>{state.toUpperCase()}</span></header><div className={s.contextBar}><div className={s.contextItem}><span>{ar ? "المرجع" : "Reference"}</span><strong><bdi>ORB-SUP-0007</bdi></strong></div><div className={s.contextItem}><span>{ar ? "المشروع" : "Project"}</span><strong><bdi>ORB-PROJ-DEMO</bdi></strong></div><div className={s.contextItem}><span>{ar ? "الإصدار" : "Version"}</span><strong>7</strong></div></div>
     <TabList locale={locale} role={role} />

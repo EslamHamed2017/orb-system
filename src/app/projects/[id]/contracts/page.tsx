@@ -1,6 +1,7 @@
 import { ContractVersionDiff } from "../../../../ui/features/contracts/ContractVersionDiff";
 import { SalesContractLines } from "../../../../ui/features/contracts/SalesContractLines";
 import { PurchaseContractLines } from "../../../../ui/features/contracts/PurchaseContractLines";
+import { ProjectContextNavigation } from "../../../../ui/navigation/ProjectContextNavigation";
 
 const SALES_CONTRACT_LINES = [
   { id: "scl-1-v2", productId: "ethiopia", productName: "Ethiopia Guji", quantity: "6000", unit: "kg", unitPrice: "5.25", currency: "USD", incoterm: "FOB", namedPlace: "Djibouti", paymentTerms: "Net 30", documentTerms: "Original documents", remainingQuantity: "2500" },
@@ -16,7 +17,7 @@ import s from "../../../../ui/features/shipments/operations.module.css";
 export default async function ContractsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ locale?: string; demoState?: string; role?: string }> }) {
   const [{ id }, query] = await Promise.all([params, searchParams]); const ar = query.locale === "ar", canMutate = query.role !== "finance-viewer";
   if (query.demoState === "forbidden") return <section role="alert" className={`${s.notice} ${s.noticeError}`}><h1>{ar ? "الصلاحية مطلوبة" : "Permission required"}</h1><p>{ar ? "دورك الثابت لا يسمح بهذا الإجراء." : "Your fixed role does not permit this action."}</p><a className={s.secondary} href={`/projects?locale=${ar ? "ar" : "en"}`}>{ar ? "العودة إلى المشاريع" : "Return to projects"}</a></section>;
-  return <section aria-labelledby="contracts-title" className={s.page}>
+  return <section aria-labelledby="contracts-title" className={s.page}><ProjectContextNavigation locale={ar ? "ar" : "en"} projectId={id} current="contracts" />
     <header className={s.pageHeader}><div><p className={s.eyebrow}>{ar ? "إدارة المشروع" : "Project operations"}</p><h1 id="contracts-title">{ar ? "العقود" : "Contracts"}</h1><p>{ar ? "تحكم في إصدارات البيع والشراء وسجل الموافقات من مساحة واحدة." : "Manage sales and purchase versions with a complete approval trail."}</p></div>{canMutate && <button className={s.primary} type="button" data-operation-id="createPurchaseContract">{ar ? "إضافة عقد شراء" : "Add purchase contract"}</button>}</header>
     <div className={s.contextBar}><div className={s.contextItem}><span>{ar ? "المشروع" : "Project"}</span><strong><bdi>{id}</bdi></strong></div><div className={s.contextItem}><span>{ar ? "عقد البيع" : "Sales contract"}</span><strong><bdi>SC-0002</bdi></strong></div><div className={s.contextItem}><span>{ar ? "الإصدار" : "Version"}</span><strong>2</strong></div><span className={`${s.chip} ${s.success}`}>{ar ? "معتمد" : "Approved"}</span></div>
     <nav className={s.tabs} aria-label={ar ? "أقسام العقود" : "Contract sections"}><a className={`${s.tab} ${s.tabActive}`} aria-current="page" href="#sales">{ar ? "عقد البيع" : "Sales contract"}</a><a className={s.tab} href="#purchase">{ar ? "عقود الشراء" : "Purchase contracts"}</a><a className={s.tab} href="#history">{ar ? "سجل الإصدارات" : "Version history"}</a></nav>

@@ -1,10 +1,12 @@
 import { ShipmentWorkspaceCore } from "../../../../ui/features/shipments/ShipmentWorkspaceCore";
 import type { ShipmentUiState } from "../../../../ui/features/shipments/ExecutionActions";
+import { ProjectContextNavigation } from "../../../../ui/navigation/ProjectContextNavigation";
 import s from "../../../../ui/features/shipments/operations.module.css";
 type Query={locale?:string;state?:string;demoState?:string;role?:string};
 function uiState(value:string|undefined):ShipmentUiState{return (["draft","confirmed","in-transit","received","delivered","cancelled","rejected"] as const).includes(value as ShipmentUiState)?value as ShipmentUiState:"confirmed"}
 export default async function ProjectShipmentsPage({params,searchParams}:{params:Promise<{id:string}>;searchParams:Promise<Query>}){const [{id},query]=await Promise.all([params,searchParams]);const locale=query.locale==="ar"?"ar":"en",ar=locale==="ar",state=uiState(query.state),canMutate=query.role!=="finance-viewer";const demoState=(["tolerance","stale","replay","post-transit"] as const).find(v=>v===query.demoState)??null;const supplierState:ShipmentUiState=state==="delivered"?"received":state,salesState:ShipmentUiState=state==="received"?"delivered":state;
 return <section aria-labelledby="shipments-title" className={s.page}>
+ <ProjectContextNavigation locale={locale} projectId={id} current="shipments" />
  <script dangerouslySetInnerHTML={{ __html: `document.documentElement.lang=${JSON.stringify(locale)};document.documentElement.dir=${JSON.stringify(ar ? "rtl" : "ltr")}` }} />
  <header className={s.pageHeader}><div><p className={s.eyebrow}>{ar?"تنفيذ المشروع":"Project execution"}</p><h1 id="shipments-title">{ar?"الشحنات":"Shipments"}</h1><p>{ar?"تابع مجموعة بيانات المورد والبيع والكميات وحالة التنفيذ دون فقدان السياق.":"Track supplier and sales datasets, quantities, and execution status without losing context."}</p></div>{canMutate&&<a className={s.primary} href="#sales-dataset">{ar?"إدارة شحنة البيع":"Manage sales shipment"}</a>}</header>
  <div className={s.contextBar}><div className={s.contextItem}><span>{ar?"المشروع":"Project"}</span><strong><bdi>{id}</bdi></strong></div><div className={s.contextItem}><span>{ar?"العميل":"Customer"}</span><strong>Northstar Roasters</strong></div><div className={s.contextItem}><span>{ar?"الكمية المتعاقدة":"Contracted"}</span><strong><bdi>10,500 kg</bdi></strong></div><span className={`${s.chip} ${s.success}`}>{ar?"نشط":"Active"}</span></div>

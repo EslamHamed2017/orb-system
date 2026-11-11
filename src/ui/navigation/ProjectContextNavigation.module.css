@@ -1,0 +1,12 @@
+.context { display: grid; gap: 10px; margin-block-end: 20px; }
+.breadcrumb, .related { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.breadcrumb { color: var(--orb-color-on-surface-variant, #4d5c68); font-size: 0.875rem; }
+.breadcrumb li { display: inline-flex; align-items: center; gap: 8px; }
+.breadcrumb li:not(:last-child)::after { content: "/"; color: var(--orb-color-outline, #71808d); }
+.context a { color: var(--orb-color-primary, #005a6a); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.current { color: var(--orb-color-on-surface, #172126); font-weight: 650; }
+.related { border: 1px solid var(--orb-color-outline-variant, #c2c8cc); border-radius: 12px; padding: 8px; background: var(--orb-color-surface-container-low, #f7f9fa); }
+.related a { display: inline-flex; min-height: 36px; align-items: center; padding-inline: 12px; border-radius: 9px; text-decoration: none; font-weight: 600; }
+.related a:hover { background: var(--orb-color-secondary-container, #d5eef2); }
+.related a[aria-current="page"] { color: var(--orb-color-on-primary-container, #002f37); background: var(--orb-color-primary-container, #a9effa); }
+@media (max-width: 600px) { .related { flex-wrap: nowrap; overflow-x: auto; } .related li { flex: 0 0 auto; } }
