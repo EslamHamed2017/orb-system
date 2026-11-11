@@ -429,7 +429,7 @@ function controlViolations(document) {
   return errors;
 }
 function operation(document, id) { return operations(document).find((entry) => entry.operation.operationId === id).operation; }
-const EXPECTED_OPENAPI_SHA256 = '6b19b9ca363aa380e369e473c86c57f081d1f49c3b343ff6e24b9c8507741cc6';
+const EXPECTED_OPENAPI_SHA256 = '78bc8b4de9270a01bd7452a5eab7363d2e5c9b280f3e71d8bc68b4ba4df73877';
 function assertAcceptedOpenApiBytes(bytes) {
   const actual = createHash('sha256').update(bytes).digest('hex');
   assert.equal(actual, EXPECTED_OPENAPI_SHA256, 'accepted OpenAPI bytes changed; expected=' + EXPECTED_OPENAPI_SHA256 + ' actual=' + actual);

@@ -51,3 +51,8 @@ test("master route factories enforce list role shaping and deny Finance mutation
   assert.equal((await response.json()).code, "PERMISSION_DENIED");
   assert.equal(createCalled, false);
 });
+
+
+test("product contract exposes explicit non-destructive lifecycle statuses", () => {
+  assert.match(OPENAPI, /ProductStatus:[\s\S]*enum: \[ACTIVE, INACTIVE\]/);
+});

@@ -348,3 +348,13 @@ test("T016 models configurable granular permissions, roles, grants, and auditabl
   for (const value of ["SCREEN", "OPERATION", "SENSITIVE_VALUE", "APPROVAL"])
     assert.match(categories[1], new RegExp(`^\\s*${value}\\s*$`, "m"));
 });
+
+
+test("T025 gives the existing product master an explicit non-destructive lifecycle status", () => {
+  const product = model("CoffeeSpecification");
+  assert.match(field(product, "status"), /ProductStatus.+@default\(ACTIVE\)/);
+  const status = schema.match(/enum\s+ProductStatus\s*\{([\s\S]*?)\n\}/m);
+  assert.ok(status, "missing closed ProductStatus enum");
+  assert.match(status[1], /^\s*ACTIVE\s*$/m);
+  assert.match(status[1], /^\s*INACTIVE\s*$/m);
+});

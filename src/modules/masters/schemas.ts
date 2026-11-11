@@ -21,6 +21,7 @@ export function validateMasterPayload(type: MasterType, payload: MasterPayload, 
   } else if (type === "coffee") {
     required(["reference", "origin", "type", "grade", "cropYear", "bagType", "standardBagWeight"]);
     if (result.standardBagWeight !== undefined && !/^[0-9]+(?:\.[0-9]{1,6})?$/.test(String(result.standardBagWeight))) invalid(context.locale, context.correlationId);
+    if ("active" in result || (result.status !== undefined && result.status !== "ACTIVE" && result.status !== "INACTIVE")) invalid(context.locale, context.correlationId);
   } else if (type === "currencies") {
     required(["code"]);
     if (result.code !== undefined && !FIXED_CURRENCIES.has(String(result.code))) invalid(context.locale, context.correlationId);

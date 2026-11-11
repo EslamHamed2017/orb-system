@@ -11,6 +11,7 @@ import { isMasterType, referenceOf, uniquenessScope, validateMasterPayload, type
 export interface MasterAuditEvent extends Readonly<Record<string, unknown>> { readonly action: string; readonly actorId: string; readonly aggregateVersion: number; }
 export interface MasterService {
   list(input: { masterType: MasterType; principal: MasterPrincipal }): Promise<readonly Readonly<Record<string, unknown> & { id: string; version: number }>[] >;
+  get(input: { masterType: MasterType; recordId: string; principal: MasterPrincipal; correlationId: string; locale?: string }): Promise<Readonly<Record<string, unknown> & { id: string; version: number }>>;
   create(input: { masterType: MasterType; payload: MasterPayload; principal: MasterPrincipal; idempotencyKey: string; correlationId: string; locale?: string }): Promise<{ value: Readonly<Record<string, unknown> & { id: string; version: number }>; replayed: boolean }>;
   update(input: { masterType: MasterType; recordId: string; payload: MasterPayload; expectedVersion: number; principal: MasterPrincipal; idempotencyKey: string; correlationId: string; locale?: string }): Promise<{ value: Readonly<Record<string, unknown> & { id: string; version: number }>; replayed: boolean }>;
 }
@@ -33,6 +34,12 @@ export function createInMemoryMasterService(input: { idempotencyStore: Idempoten
   const expose = (record: StoredMasterRecord, principal: MasterPrincipal) => projectMasterRecord({ ...record, ...(principal.roles.includes("OWNER_ADMIN") && record.sensitiveIdentityCiphertext ? { sensitiveIdentity: decrypt(String(record.sensitiveIdentityCiphertext)) } : {}) }, principal);
   const service: MasterService = {
     async list({ masterType, principal }) { authorize(principal, false, "master-list"); return listProjectedMasters(records.values(), masterType, principal).map((row) => { const stored=records.get(String(row.id))!; return expose(stored, principal); }); },
+    async get(command) {
+      authorize(command.principal, false, command.correlationId, command.locale);
+      const record = records.get(command.recordId);
+      if (!record || record.masterType !== command.masterType) throw problemError({ code: "RESOURCE_NOT_FOUND", status: 404, correlationId: command.correlationId, locale: command.locale });
+      return expose(record, command.principal);
+    },
     async create(command) {
       authorize(command.principal, true, command.correlationId, command.locale);
       return executeIdempotently(input.idempotencyStore, { actorId: command.principal.userId, operationId: "createMasterRecord", key: command.idempotencyKey, request: { masterType: command.masterType, payload: command.payload }, correlationId: command.correlationId, locale: command.locale }, async () => {
@@ -40,7 +47,8 @@ export function createInMemoryMasterService(input: { idempotencyStore: Idempoten
         const payload=validateMasterPayload(command.masterType,command.payload,{ locale:command.locale,correlationId:command.correlationId }), reference=referenceOf(command.masterType,payload), scope=`${uniquenessScope(command.masterType)}:${reference}`;
         if (reference && unique.has(scope)) throw problemError({ code:"DUPLICATE_REFERENCE",status:409,correlationId:command.correlationId,locale:command.locale });
         const id=uuidV7(), sensitive=typeof payload.sensitiveIdentity === "string" ? encrypt(payload.sensitiveIdentity) : undefined; delete payload.sensitiveIdentity;
-        const record: StoredMasterRecord={ id,masterType:command.masterType,version:1,active:true,...payload,...(sensitive?{sensitiveIdentityCiphertext:sensitive}:{}) }; records.set(id,record); if(reference) unique.set(scope,id);
+        const lifecycle = command.masterType === "coffee" ? { status: "ACTIVE" } : { active: true };
+        const record: StoredMasterRecord={ id,masterType:command.masterType,version:1,...lifecycle,...payload,...(sensitive?{sensitiveIdentityCiphertext:sensitive}:{}) }; records.set(id,record); if(reference) unique.set(scope,id);
         audit.push(Object.freeze({ action:"MASTER_CREATED",actorId:command.principal.userId,aggregateId:id,aggregateVersion:1,occurredAt:input.now(),afterHash:hash(record),correlationId:command.correlationId }));
         return { status:201,value:expose(record,command.principal) };
       }).then(({value,replayed})=>({value,replayed}));
@@ -54,7 +62,7 @@ export function createInMemoryMasterService(input: { idempotencyStore: Idempoten
         if("reference" in patch || "code" in patch) { const nextRef=referenceOf(command.masterType,{...current,...patch}); const oldRef=referenceOf(command.masterType,current); if(nextRef!==oldRef) throw problemError({code:"IMMUTABLE_VERSION",status:409,correlationId:command.correlationId,locale:command.locale}); }
         const sensitive=typeof patch.sensitiveIdentity === "string" ? encrypt(patch.sensitiveIdentity) : undefined; delete patch.sensitiveIdentity;
         const next: StoredMasterRecord={...current,...patch,...(sensitive?{sensitiveIdentityCiphertext:sensitive}:{}),version:current.version+1}; records.set(next.id,next);
-        const archived=current.active!==false && next.active===false; audit.push(Object.freeze({action:archived?"MASTER_ARCHIVED":"MASTER_UPDATED",actorId:command.principal.userId,aggregateId:next.id,aggregateVersion:next.version,occurredAt:input.now(),afterHash:hash(next),correlationId:command.correlationId}));
+        const archived=(current.active!==false && next.active===false) || (current.status==="ACTIVE" && next.status==="INACTIVE"); audit.push(Object.freeze({action:archived?"MASTER_ARCHIVED":"MASTER_UPDATED",actorId:command.principal.userId,aggregateId:next.id,aggregateVersion:next.version,occurredAt:input.now(),afterHash:hash(next),correlationId:command.correlationId}));
         return {status:200,value:expose(next,command.principal)};
       }).then(({value,replayed})=>({value,replayed}));
     },

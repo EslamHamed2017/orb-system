@@ -171,6 +171,7 @@ model CoffeeSpecification {
   bag_type                String
   standard_bag_weight     Decimal                   @db.Decimal(20, 6)
   attributes              Json
+  status                  ProductStatus             @default(ACTIVE)
   version                 Int                       @default(1)
   ContractVersion         ContractVersion[]
   ContractLineVersion     ContractLineVersion[]
@@ -1219,6 +1220,11 @@ model UserRole {
   User    User      @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_1_UserRole")
 
   @@unique([user_id, role])
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
 }
 
 enum PermissionCategory {

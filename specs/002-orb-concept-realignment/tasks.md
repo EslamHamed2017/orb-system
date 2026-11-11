@@ -34,7 +34,8 @@
   - Verification note (2026-11-11): strict typecheck and the full 432-test suite pass; exact-decimal line allocations require a serializable locked repository transaction, enforce sales/source capacity and project/product compatibility, and expose authorized remaining quantity/value queries.
 - [x] T024 Multi-supplier container consolidation APIs
   - Verification note (2026-11-11): strict typecheck and the full 447-test suite pass; supplier-container lines now carry explicit purchase-contract/supplier ownership, reject cross-project or mismatched approved lines, support multiple suppliers in one physical dataset, and expose an exact-decimal supplier-attributable consolidation summary API.
-- [ ] T025 Product master CRUD and status controls
+- [x] T025 Product master CRUD and status controls
+  - Verification note (2026-11-11): product create/list/exact-read/update services use immutable references and explicit ACTIVE/INACTIVE status (no deletion); the additive PostgreSQL status migration passed fresh isolated deployment and idempotent backfill with zero skips, strict typecheck passed, and the canonical 448-test suite passed.
 - [ ] T026 Product movement/traceability query across projects
 - [ ] T027 Customer and supplier UI-ready CRUD contracts
 - [ ] T028 Customer invoice create/read/print data APIs

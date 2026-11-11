@@ -12,6 +12,7 @@ type Principal = Readonly<{ userId: string; roles: readonly string[] }>;
 type MasterRecord = Readonly<Record<string, unknown> & { id: string; version: number }>;
 interface MasterService {
   list(input: { masterType: MasterType; principal: Principal }): Promise<readonly MasterRecord[]>;
+  get(input: { masterType: MasterType; recordId: string; principal: Principal; correlationId: string; locale?: string }): Promise<MasterRecord>;
   create(input: { masterType: MasterType; payload: Record<string, unknown>; principal: Principal; idempotencyKey: string; correlationId: string; locale?: string }): Promise<{ value: MasterRecord; replayed: boolean }>;
   update(input: { masterType: MasterType; recordId: string; payload: Record<string, unknown>; expectedVersion: number; principal: Principal; idempotencyKey: string; correlationId: string; locale?: string }): Promise<{ value: MasterRecord; replayed: boolean }>;
 }
@@ -99,4 +100,35 @@ test("validation problems localize safely and every mutation appends actor/versi
     ["MASTER_CREATED", OPERATIONS.userId, 1], ["MASTER_ARCHIVED", OPERATIONS.userId, 2],
   ]);
   assert.ok(events.every((event) => event.occurredAt === "2026-11-06T12:00:00.000Z" && typeof event.afterHash === "string"));
+});
+
+
+test("product master supports read and explicit ACTIVE/INACTIVE status controls", async () => {
+  const { subject } = await service();
+  const created = await subject.create({
+    masterType: "coffee",
+    payload: { reference: "PROD-001", origin: "ET", type: "Arabica", grade: "Grade 1", cropYear: "2026", bagType: "JUTE", standardBagWeight: "60.000000", attributes: {} },
+    ...common("product-create-0001"),
+  });
+  assert.equal(created.value.status, "ACTIVE");
+  const found = await subject.get({ masterType: "coffee", recordId: created.value.id, principal: FINANCE, correlationId: "product-get-0001" });
+  assert.equal(found.reference, "PROD-001");
+
+  const inactive = await subject.update({ masterType: "coffee", recordId: created.value.id, payload: { status: "INACTIVE" }, expectedVersion: 1, ...common("product-deactivate-0001") });
+  assert.equal(inactive.value.status, "INACTIVE");
+  const active = await subject.update({ masterType: "coffee", recordId: created.value.id, payload: { status: "ACTIVE" }, expectedVersion: 2, ...common("product-reactivate-0001") });
+  assert.equal(active.value.status, "ACTIVE");
+});
+
+test("product master rejects invalid status, deletion semantics, and reference changes", async () => {
+  const { subject } = await service();
+  const created = await subject.create({
+    masterType: "coffee",
+    payload: { reference: "PROD-002", origin: "BR", type: "Arabica", grade: "NY2", cropYear: "2026", bagType: "JUTE", standardBagWeight: "60.000000" },
+    ...common("product-create-0002"),
+  });
+  await assert.rejects(() => subject.update({ masterType: "coffee", recordId: created.value.id, payload: { status: "DELETED" }, expectedVersion: 1, ...common("product-status-invalid") }), isProblem("VALIDATION_FAILED", 400));
+  await assert.rejects(() => subject.update({ masterType: "coffee", recordId: created.value.id, payload: { active: false }, expectedVersion: 1, ...common("product-active-legacy") }), isProblem("VALIDATION_FAILED", 400));
+  await assert.rejects(() => subject.update({ masterType: "coffee", recordId: created.value.id, payload: { reference: "PROD-CHANGED" }, expectedVersion: 1, ...common("product-reference-change") }), isProblem("IMMUTABLE_VERSION", 409));
+  await assert.rejects(() => subject.get({ masterType: "coffee", recordId: "019a5f9b-7c00-7000-8000-000000009999", principal: OWNER, correlationId: "product-not-found" }), isProblem("RESOURCE_NOT_FOUND", 404));
 });

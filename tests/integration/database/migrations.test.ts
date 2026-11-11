@@ -12,10 +12,11 @@ const MIGRATIONS = resolve(ROOT, "prisma/migrations");
 const INITIAL = resolve(MIGRATIONS, "202611050001_r1_initial/migration.sql");
 const EXPAND = resolve(MIGRATIONS, "202611110001_concept_realignment_expand/migration.sql");
 const BACKFILL = resolve(MIGRATIONS, "202611110002_concept_realignment_backfill/migration.sql");
+const PRODUCT_STATUS = resolve(MIGRATIONS, "202611110003_product_status_expand/migration.sql");
 const CUTOVER = resolve(ROOT, "docs/runbooks/concept-realignment-cutover.md");
 const LOCK = resolve(MIGRATIONS, "migration_lock.toml");
 const PRISMA_CLI = resolve(ROOT, "node_modules/prisma/build/index.js");
-const missing = [SCHEMA, INITIAL, EXPAND, BACKFILL, CUTOVER, LOCK].filter((path) => !existsSync(path));
+const missing = [SCHEMA, INITIAL, EXPAND, BACKFILL, PRODUCT_STATUS, CUTOVER, LOCK].filter((path) => !existsSync(path));
 const redReason = missing.length
   ? `ORB-R1-0202 migration artifacts are missing: ${missing.map((path) => path.slice(ROOT.length + 1)).join(", ")}`
   : undefined;
@@ -171,5 +172,13 @@ test("cutover runbook defines safe flag stages and application-only rollback", {
 
 test("migration history contains the initial and concept-realignment expand migrations", { skip: redReason }, () => {
   const directories = readdirSync(MIGRATIONS, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
-  assert.deepEqual(directories, ["202611050001_r1_initial", "202611110001_concept_realignment_expand", "202611110002_concept_realignment_backfill"]);
+  assert.deepEqual(directories, ["202611050001_r1_initial", "202611110001_concept_realignment_expand", "202611110002_concept_realignment_backfill", "202611110003_product_status_expand"]);
+});
+
+
+test("T025 product status migration is additive and defaults existing products active", { skip: redReason }, () => {
+  const sql = readFileSync(PRODUCT_STATUS, "utf8");
+  assert.match(sql, /CREATE TYPE "ProductStatus" AS ENUM \('ACTIVE', 'INACTIVE'\)/);
+  assert.match(sql, /ADD COLUMN "status" "ProductStatus" NOT NULL DEFAULT 'ACTIVE'/);
+  assert.doesNotMatch(sql, /\bDROP\s+(?:TABLE|COLUMN|TYPE)\b/i);
 });

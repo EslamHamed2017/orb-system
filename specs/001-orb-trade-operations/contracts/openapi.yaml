@@ -2525,6 +2525,10 @@ components:
           schema:
             $ref: '#/components/schemas/Approval'
   schemas:
+    ProductStatus:
+      type: string
+      enum: [ACTIVE, INACTIVE]
+      description: Product lifecycle status; inactive products remain traceable and are never deleted.
     Uuid:
       type: string
       format: uuid
