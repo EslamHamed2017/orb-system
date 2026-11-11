@@ -1,6 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { problemError } from "../../platform/http/problem.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { assertServerPermission, type OperationPrincipal } from "../access/permissions.ts";
 
 export interface SupplierShipmentDatasetRecord { readonly id: string; readonly shipmentId: string; readonly projectId: string; readonly purchaseContractId?: string; readonly supplierId?: string; readonly state: string }
 export interface ApprovedPurchaseContractLineVersion { readonly id: string; readonly contractId: string; readonly counterpartyId: string; readonly projectId: string; readonly contractKind: string; readonly quantity: string; readonly unitPrice: string; readonly approvalState: string }
@@ -16,16 +18,19 @@ export interface SupplierShipmentLineRepository {
   get(datasetId: string, lineId: string): Promise<SupplierShipmentLineRecord | null>;
 }
 export interface SupplierShipmentLineService {
-  create(input: { shipmentId: string; datasetId: string; facts: unknown; correlationId: string }): Promise<SupplierShipmentLineRecord>;
-  list(input: { shipmentId: string; datasetId: string; correlationId: string }): Promise<readonly SupplierShipmentLineRecord[]>;
-  get(input: { shipmentId: string; datasetId: string; lineId: string; correlationId: string }): Promise<SupplierShipmentLineRecord>;
-  getConsolidation(input: { shipmentId: string; datasetId: string; correlationId: string }): Promise<SupplierContainerConsolidation>;
+  create(input: { shipmentId: string; datasetId: string; facts: unknown; correlationId: string; principal: OperationPrincipal }): Promise<SupplierShipmentLineRecord>;
+  list(input: { shipmentId: string; datasetId: string; correlationId: string; principal: OperationPrincipal }): Promise<readonly SupplierShipmentLineRecord[]>;
+  get(input: { shipmentId: string; datasetId: string; lineId: string; correlationId: string; principal: OperationPrincipal }): Promise<SupplierShipmentLineRecord>;
+  getConsolidation(input: { shipmentId: string; datasetId: string; correlationId: string; principal: OperationPrincipal }): Promise<SupplierContainerConsolidation>;
 }
 export interface SupplierContainerConsolidation { readonly containerId: string; readonly datasetId: string; readonly supplierCount: number; readonly lineCount: number; readonly totalQuantity: string; readonly suppliers: readonly { readonly supplierId: string; readonly purchaseContractIds: readonly string[]; readonly lineCount: number; readonly quantity: string }[] }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DECIMAL = /^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,6})?$/;
 const KEYS = ["purchaseContractId", "supplierId", "contractLineVersionId", "supplierLotReference", "quantity", "bagCount", "bagWeight", "netWeight", "grossWeight"] as const;
 function fail(code: string, status: number, correlationId: string): never { throw problemError({ code, status, correlationId }); }
+function authorize(principal: OperationPrincipal, operationId: string, correlationId: string): void {
+  try { assertServerPermission(principal, operationId); } catch { fail("PERMISSION_DENIED", 403, correlationId); }
+}
 function validId(value: string, correlationId: string): void { if (!UUID.test(value)) fail("VALIDATION_FAILED", 400, correlationId); }
 function positiveDecimal(value: unknown): value is string { return typeof value === "string" && DECIMAL.test(value) && Number(value) > 0; }
 function validateFacts(value: unknown, correlationId: string): SupplierShipmentLineFacts {
@@ -58,6 +63,7 @@ export function createSupplierShipmentLineService(options: { repository: Supplie
   }
   return {
     async create(input) {
+      authorize(input.principal, "createSupplierShipmentLine", input.correlationId);
       const target = await dataset(input.shipmentId, input.datasetId, input.correlationId);
       if (target.state !== "DRAFT") fail("IMMUTABLE_VERSION", 409, input.correlationId);
       const facts = validateFacts(input.facts, input.correlationId);
@@ -67,8 +73,8 @@ export function createSupplierShipmentLineService(options: { repository: Supplie
       const base = { id: newId(), supplierShipmentDatasetId: target.id, lineNo: await options.repository.nextLineNo(target.id), ...facts, hashVersion: 2 as const };
       return options.repository.insert(Object.freeze({ ...base, lineHash: createHash("sha256").update(canonical(base)).digest("hex") }));
     },
-    async list(input) { const target = await dataset(input.shipmentId, input.datasetId, input.correlationId); return options.repository.list(target.id); },
-    async get(input) { const target = await dataset(input.shipmentId, input.datasetId, input.correlationId); validId(input.lineId, input.correlationId); const found = await options.repository.get(target.id, input.lineId); if (!found) fail("RESOURCE_NOT_FOUND", 404, input.correlationId); return found; },
-    async getConsolidation(input) { const target = await dataset(input.shipmentId, input.datasetId, input.correlationId); return summarize(input.shipmentId, target.id, await options.repository.list(target.id)); },
+    async list(input) { authorize(input.principal, "listSupplierShipmentLines", input.correlationId); const target = await dataset(input.shipmentId, input.datasetId, input.correlationId); return options.repository.list(target.id); },
+    async get(input) { authorize(input.principal, "getSupplierShipmentLine", input.correlationId); const target = await dataset(input.shipmentId, input.datasetId, input.correlationId); validId(input.lineId, input.correlationId); const found = await options.repository.get(target.id, input.lineId); if (!found) fail("RESOURCE_NOT_FOUND", 404, input.correlationId); return found; },
+    async getConsolidation(input) { authorize(input.principal, "getSupplierContainerConsolidation", input.correlationId); const target = await dataset(input.shipmentId, input.datasetId, input.correlationId); return summarize(input.shipmentId, target.id, await options.repository.list(target.id)); },
   };
 }

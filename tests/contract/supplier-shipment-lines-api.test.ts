@@ -13,6 +13,7 @@ const id = {
   otherLineVersion: "019a5f9b-7c00-7000-8000-000000000206",
   line: "019a5f9b-7c00-7000-8000-000000000207",
 };
+const principal = { userId: "owner", roles: ["OWNER_ADMIN"] };
 const facts = { purchaseContractId: id.contract, supplierId: id.supplier, contractLineVersionId: id.lineVersion, supplierLotReference: "LOT-42", quantity: "25.500000", bagCount: 425, bagWeight: "0.060000", netWeight: "25.500000", grossWeight: "25.900000" };
 
 function repository(): SupplierShipmentLineRepository & { rows: any[] } {
@@ -32,7 +33,7 @@ function repository(): SupplierShipmentLineRepository & { rows: any[] } {
 test("supplier shipment line creation binds facts to the exact approved purchase-contract line and supplier", async () => {
   const repo = repository();
   const service = createSupplierShipmentLineService({ repository: repo, newId: () => id.line });
-  const created = await service.create({ shipmentId: id.shipment, datasetId: id.dataset, facts, correlationId: "create-supplier-line" });
+  const created = await service.create({ shipmentId: id.shipment, datasetId: id.dataset, facts, correlationId: "create-supplier-line", principal });
   assert.equal(created.purchaseContractId, id.contract);
   assert.equal(created.supplierId, id.supplier);
   assert.equal(created.contractLineVersionId, id.lineVersion);
@@ -40,30 +41,30 @@ test("supplier shipment line creation binds facts to the exact approved purchase
   assert.equal(created.hashVersion, 2);
   assert.match(created.lineHash, /^[a-f0-9]{64}$/);
   assert.equal(Object.isFrozen(created), true);
-  assert.deepEqual(await service.list({ shipmentId: id.shipment, datasetId: id.dataset, correlationId: "list" }), [created]);
-  assert.equal(await service.get({ shipmentId: id.shipment, datasetId: id.dataset, lineId: id.line, correlationId: "get" }), created);
+  assert.deepEqual(await service.list({ shipmentId: id.shipment, datasetId: id.dataset, correlationId: "list", principal }), [created]);
+  assert.equal(await service.get({ shipmentId: id.shipment, datasetId: id.dataset, lineId: id.line, correlationId: "get", principal }), created);
 });
 
 test("supplier shipment lines reject arbitrary, sales, cross-contract, cross-supplier, unapproved, duplicate and immutable writes", async () => {
   const repo = repository();
   const service = createSupplierShipmentLineService({ repository: repo, newId: () => id.line });
-  await assert.rejects(() => service.create({ shipmentId: id.shipment, datasetId: id.dataset, facts: { ...facts, contractLineVersionId: id.otherLineVersion }, correlationId: "arbitrary" }), (error: any) => error.problem?.code === "APPROVED_PURCHASE_CONTRACT_LINE_REQUIRED");
+  await assert.rejects(() => service.create({ shipmentId: id.shipment, datasetId: id.dataset, facts: { ...facts, contractLineVersionId: id.otherLineVersion }, correlationId: "arbitrary", principal }), (error: any) => error.problem?.code === "APPROVED_PURCHASE_CONTRACT_LINE_REQUIRED");
   const valid = { id: id.lineVersion, contractId: id.contract, counterpartyId: id.supplier, projectId: id.shipment, contractKind: "PURCHASE", quantity: "100", unitPrice: "5", approvalState: "APPROVED" };
   for (const override of [{ contractKind: "SALES" }, { contractId: "019a5f9b-7c00-7000-8000-000000000999" }, { counterpartyId: "019a5f9b-7c00-7000-8000-000000000998" }, { approvalState: "PENDING_APPROVAL" }]) {
     repo.getApprovedPurchaseContractLineVersion = async () => ({ ...valid, ...override });
-    await assert.rejects(() => service.create({ shipmentId: id.shipment, datasetId: id.dataset, facts, correlationId: "wrong-source" }), (error: any) => error.problem?.code === "APPROVED_PURCHASE_CONTRACT_LINE_REQUIRED");
+    await assert.rejects(() => service.create({ shipmentId: id.shipment, datasetId: id.dataset, facts, correlationId: "wrong-source", principal }), (error: any) => error.problem?.code === "APPROVED_PURCHASE_CONTRACT_LINE_REQUIRED");
   }
   repo.getApprovedPurchaseContractLineVersion = async () => valid;
-  await service.create({ shipmentId: id.shipment, datasetId: id.dataset, facts, correlationId: "first" });
-  await assert.rejects(() => service.create({ shipmentId: id.shipment, datasetId: id.dataset, facts, correlationId: "duplicate" }), (error: any) => error.problem?.code === "SHIPMENT_CONTRACT_LINE_DUPLICATE");
+  await service.create({ shipmentId: id.shipment, datasetId: id.dataset, facts, correlationId: "first", principal });
+  await assert.rejects(() => service.create({ shipmentId: id.shipment, datasetId: id.dataset, facts, correlationId: "duplicate", principal }), (error: any) => error.problem?.code === "SHIPMENT_CONTRACT_LINE_DUPLICATE");
   repo.getDataset = async () => ({ id: id.dataset, shipmentId: id.shipment, projectId: id.shipment, purchaseContractId: id.contract, supplierId: id.supplier, state: "APPROVED" });
-  await assert.rejects(() => service.create({ shipmentId: id.shipment, datasetId: id.dataset, facts: { ...facts, contractLineVersionId: id.otherLineVersion }, correlationId: "immutable" }), (error: any) => error.problem?.code === "IMMUTABLE_VERSION");
+  await assert.rejects(() => service.create({ shipmentId: id.shipment, datasetId: id.dataset, facts: { ...facts, contractLineVersionId: id.otherLineVersion }, correlationId: "immutable", principal }), (error: any) => error.problem?.code === "IMMUTABLE_VERSION");
 });
 
 test("supplier shipment line facts fail closed", async () => {
   const service = createSupplierShipmentLineService({ repository: repository() });
   for (const invalid of [{ ...facts, quantity: "0" }, { ...facts, bagCount: 0 }, { ...facts, supplierLotReference: "" }, { ...facts, surprise: true }]) {
-    await assert.rejects(() => service.create({ shipmentId: id.shipment, datasetId: id.dataset, facts: invalid, correlationId: "invalid" }), (error: any) => error.problem?.code === "VALIDATION_FAILED");
+    await assert.rejects(() => service.create({ shipmentId: id.shipment, datasetId: id.dataset, facts: invalid, correlationId: "invalid", principal }), (error: any) => error.problem?.code === "VALIDATION_FAILED");
   }
 });
 

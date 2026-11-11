@@ -127,3 +127,60 @@ test("sales-shipment line APIs require exact resolved operation grants before re
   assert.equal((await allowed(new Request("https://orb.example/api/sales-shipments/x/datasets/y/lines"), { params: Promise.resolve({ shipmentId, datasetId }) })).status, 200);
   assert.equal(calls, 1);
 });
+
+
+test("supplier-shipment line APIs require exact resolved operation grants before repository access", async () => {
+  const { operationPermissionCode } = await import("../../src/modules/access/permissions.ts");
+  const { createSupplierShipmentLineService } = await import("../../src/modules/shipments/supplier-shipment-line-service.ts");
+  const route = await import("../../src/app/api/supplier-shipments/[shipmentId]/datasets/[datasetId]/lines/route.ts");
+  const shipmentId = "019a5f9b-7c00-7000-8000-000000000201";
+  const datasetId = "019a5f9b-7c00-7000-8000-000000000202";
+  const principal = (operationId: string) => ({ userId: "custom", roles: ["CUSTOM"], permissionCodes: [operationPermissionCode(operationId)] });
+  let datasetReads = 0;
+  const service = createSupplierShipmentLineService({ repository: {
+    async getDataset() { datasetReads += 1; return { id: datasetId, shipmentId, projectId: shipmentId, state: "DRAFT" }; },
+    async getApprovedPurchaseContractLineVersion() { return null; }, async nextLineNo() { return 1; },
+    async findByContractLineVersion() { return null; }, async insert(input: any) { return input; },
+    async list() { return []; }, async get() { return null; },
+  } });
+  await assert.rejects(() => service.list({ shipmentId, datasetId, correlationId: "wrong", principal: principal("getSupplierShipmentLine") } as any), (error: any) => error?.problem?.code === "PERMISSION_DENIED");
+  assert.equal(datasetReads, 0);
+  await assert.doesNotReject(() => service.list({ shipmentId, datasetId, correlationId: "right", principal: principal("listSupplierShipmentLines") } as any));
+  assert.equal(datasetReads, 1);
+
+  let calls = 0;
+  const denied = route.createGetHandler({ authenticate: async () => principal("getSupplierShipmentLine"), list: async () => { calls += 1; return []; } });
+  const response = await denied(new Request("https://orb.example/api/supplier-shipments/x/datasets/y/lines"), { params: Promise.resolve({ shipmentId, datasetId }) });
+  assert.equal(response.status, 403);
+  assert.equal(calls, 0);
+  const allowed = route.createGetHandler({ authenticate: async () => principal("listSupplierShipmentLines"), list: async () => { calls += 1; return []; } });
+  assert.equal((await allowed(new Request("https://orb.example/api/supplier-shipments/x/datasets/y/lines"), { params: Promise.resolve({ shipmentId, datasetId }) })).status, 200);
+  assert.equal(calls, 1);
+});
+
+
+test("supplier-container mutation, exact-read and consolidation routes require their own grants", async () => {
+  const { operationPermissionCode } = await import("../../src/modules/access/permissions.ts");
+  const collection = await import("../../src/app/api/supplier-shipments/[shipmentId]/datasets/[datasetId]/lines/route.ts");
+  const item = await import("../../src/app/api/supplier-shipments/[shipmentId]/datasets/[datasetId]/lines/[lineId]/route.ts");
+  const consolidation = await import("../../src/app/api/supplier-shipments/[shipmentId]/datasets/[datasetId]/consolidation/route.ts");
+  const principal = (operationId: string) => ({ userId: "custom", roles: ["CUSTOM"], permissionCodes: [operationPermissionCode(operationId)] });
+  const ids = { shipmentId: "shipment", datasetId: "dataset" };
+  let calls = 0;
+
+  const deniedCreate = collection.createPostHandler({ authenticate: async () => principal("listSupplierShipmentLines"), create: async () => { calls += 1; return {}; } });
+  assert.equal((await deniedCreate(new Request("https://orb.example/api/supplier-shipments/x/datasets/y/lines", { method: "POST", body: "{}" }), { params: Promise.resolve(ids) })).status, 403);
+  const allowedCreate = collection.createPostHandler({ authenticate: async () => principal("createSupplierShipmentLine"), create: async () => { calls += 1; return {}; } });
+  assert.equal((await allowedCreate(new Request("https://orb.example/api/supplier-shipments/x/datasets/y/lines", { method: "POST", body: "{}" }), { params: Promise.resolve(ids) })).status, 201);
+
+  const deniedItem = item.createGetHandler({ authenticate: async () => principal("listSupplierShipmentLines"), get: async () => { calls += 1; return {}; } });
+  assert.equal((await deniedItem(new Request("https://orb.example/api/supplier-shipments/x/datasets/y/lines/z"), { params: Promise.resolve({ ...ids, lineId: "line" }) })).status, 403);
+  const allowedItem = item.createGetHandler({ authenticate: async () => principal("getSupplierShipmentLine"), get: async () => { calls += 1; return {}; } });
+  assert.equal((await allowedItem(new Request("https://orb.example/api/supplier-shipments/x/datasets/y/lines/z"), { params: Promise.resolve({ ...ids, lineId: "line" }) })).status, 200);
+
+  const deniedSummary = consolidation.createGetHandler({ authenticate: async () => principal("listSupplierShipmentLines"), getConsolidation: async () => { calls += 1; return {}; } });
+  assert.equal((await deniedSummary(new Request("https://orb.example/api/supplier-shipments/x/datasets/y/consolidation"), { params: Promise.resolve(ids) })).status, 403);
+  const allowedSummary = consolidation.createGetHandler({ authenticate: async () => principal("getSupplierContainerConsolidation"), getConsolidation: async () => { calls += 1; return {}; } });
+  assert.equal((await allowedSummary(new Request("https://orb.example/api/supplier-shipments/x/datasets/y/consolidation"), { params: Promise.resolve(ids) })).status, 200);
+  assert.equal(calls, 3);
+});

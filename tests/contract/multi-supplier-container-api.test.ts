@@ -12,6 +12,7 @@ const id = {
   versionB: "019a5f9b-7c00-7000-8000-000000000309", lineA: "019a5f9b-7c00-7000-8000-000000000310",
   lineB: "019a5f9b-7c00-7000-8000-000000000311",
 };
+const principal = { userId: "owner", roles: ["OWNER_ADMIN"] };
 function facts(contract:string,supplier:string,version:string,quantity:string) { return { purchaseContractId:contract, supplierId:supplier, contractLineVersionId:version, supplierLotReference:`LOT-${supplier.at(-1)}`, quantity, bagCount:10, bagWeight:"60.000000", netWeight:quantity, grossWeight:quantity }; }
 function repository(): SupplierShipmentLineRepository & { rows:any[] } {
   const rows:any[]=[];
@@ -31,9 +32,9 @@ function repository(): SupplierShipmentLineRepository & { rows:any[] } {
 
 test("one physical supplier container accepts approved purchase lines from multiple suppliers in its project", async()=>{
   const repo=repository(); let next=0; const service=createSupplierShipmentLineService({repository:repo,newId:()=>[id.lineA,id.lineB][next++]});
-  await service.create({shipmentId:id.shipment,datasetId:id.dataset,facts:facts(id.contractA,id.supplierA,id.versionA,"25.500000"),correlationId:"supplier-a"});
-  await service.create({shipmentId:id.shipment,datasetId:id.dataset,facts:facts(id.contractB,id.supplierB,id.versionB,"14.500000"),correlationId:"supplier-b"});
-  const consolidation=await service.getConsolidation({shipmentId:id.shipment,datasetId:id.dataset,correlationId:"summary"});
+  await service.create({shipmentId:id.shipment,datasetId:id.dataset,facts:facts(id.contractA,id.supplierA,id.versionA,"25.500000"),correlationId:"supplier-a",principal});
+  await service.create({shipmentId:id.shipment,datasetId:id.dataset,facts:facts(id.contractB,id.supplierB,id.versionB,"14.500000"),correlationId:"supplier-b",principal});
+  const consolidation=await service.getConsolidation({shipmentId:id.shipment,datasetId:id.dataset,correlationId:"summary",principal});
   assert.equal(consolidation.containerId,id.shipment); assert.equal(consolidation.datasetId,id.dataset);
   assert.equal(consolidation.supplierCount,2); assert.equal(consolidation.lineCount,2); assert.equal(consolidation.totalQuantity,"40.000000");
   assert.deepEqual(consolidation.suppliers.map(row=>[row.supplierId,row.purchaseContractIds,row.lineCount,row.quantity]),[
@@ -44,9 +45,9 @@ test("one physical supplier container accepts approved purchase lines from multi
 test("container line ownership fails closed for cross-project or mismatched supplier purchase lines",async()=>{
   const repo=repository(); const service=createSupplierShipmentLineService({repository:repo});
   repo.getApprovedPurchaseContractLineVersion=async()=>({id:id.versionA,contractId:id.contractA,counterpartyId:id.supplierA,projectId:"019a5f9b-7c00-7000-8000-000000000999",contractKind:"PURCHASE",quantity:"100",unitPrice:"5",approvalState:"APPROVED"});
-  await assert.rejects(()=>service.create({shipmentId:id.shipment,datasetId:id.dataset,facts:facts(id.contractA,id.supplierA,id.versionA,"1.000000"),correlationId:"cross-project"}),(e:any)=>e.problem?.code==="APPROVED_PURCHASE_CONTRACT_LINE_REQUIRED");
+  await assert.rejects(()=>service.create({shipmentId:id.shipment,datasetId:id.dataset,facts:facts(id.contractA,id.supplierA,id.versionA,"1.000000"),correlationId:"cross-project",principal}),(e:any)=>e.problem?.code==="APPROVED_PURCHASE_CONTRACT_LINE_REQUIRED");
   repo.getApprovedPurchaseContractLineVersion=async()=>({id:id.versionA,contractId:id.contractA,counterpartyId:id.supplierA,projectId:id.project,contractKind:"PURCHASE",quantity:"100",unitPrice:"5",approvalState:"APPROVED"});
-  await assert.rejects(()=>service.create({shipmentId:id.shipment,datasetId:id.dataset,facts:facts(id.contractA,id.supplierB,id.versionA,"1.000000"),correlationId:"wrong-supplier"}),(e:any)=>e.problem?.code==="APPROVED_PURCHASE_CONTRACT_LINE_REQUIRED");
+  await assert.rejects(()=>service.create({shipmentId:id.shipment,datasetId:id.dataset,facts:facts(id.contractA,id.supplierB,id.versionA,"1.000000"),correlationId:"wrong-supplier",principal}),(e:any)=>e.problem?.code==="APPROVED_PURCHASE_CONTRACT_LINE_REQUIRED");
 });
 
 test("multi-supplier consolidation API is read-authorized and specified",async()=>{
