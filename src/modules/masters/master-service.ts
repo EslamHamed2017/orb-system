@@ -2,6 +2,8 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:
 // @ts-expect-error Node native TypeScript execution requires the source extension.
 import { problemError } from "../../platform/http/problem.ts";
 // @ts-expect-error Node native TypeScript execution requires the source extension.
+import { assertServerPermission } from "../access/permissions.ts";
+// @ts-expect-error Node native TypeScript execution requires the source extension.
 import { executeIdempotently, type IdempotencyStore } from "../../platform/idempotency/store.ts";
 // @ts-expect-error Node native TypeScript execution requires the source extension.
 import { listProjectedMasters, projectMasterRecord, type MasterPrincipal, type StoredMasterRecord } from "./master-query.ts";
@@ -16,9 +18,16 @@ export interface MasterService {
   update(input: { masterType: MasterType; recordId: string; payload: MasterPayload; expectedVersion: number; principal: MasterPrincipal; idempotencyKey: string; correlationId: string; locale?: string }): Promise<{ value: Readonly<Record<string, unknown> & { id: string; version: number }>; replayed: boolean }>;
 }
 const internals = new WeakMap<MasterService, { audit: MasterAuditEvent[] }>();
-function authorize(principal: MasterPrincipal, mutation: boolean, correlationId: string, locale?: string): void {
-  const allowed = mutation ? ["OWNER_ADMIN", "OPERATIONS"] : ["OWNER_ADMIN", "OPERATIONS", "FINANCE_VIEWER"];
-  if (!principal.roles.some((role) => allowed.includes(role))) throw problemError({ code: "PERMISSION_DENIED", status: 403, correlationId, locale });
+type MasterAction = "list" | "get" | "create" | "update";
+function operationId(masterType: MasterType, action: MasterAction): string {
+  if (masterType === "customers") return `${action}${action === "list" ? "Customers" : "Customer"}`;
+  if (masterType === "suppliers") return `${action}${action === "list" ? "Suppliers" : "Supplier"}`;
+  if (action === "list" || action === "get") return "listMasterRecords";
+  return action === "create" ? "createMasterRecord" : "updateMasterRecord";
+}
+function authorize(principal: MasterPrincipal, masterType: MasterType, action: MasterAction, correlationId: string, locale?: string): void {
+  try { assertServerPermission(principal, operationId(masterType, action)); }
+  catch { throw problemError({ code: "PERMISSION_DENIED", status: 403, correlationId, locale }); }
 }
 function uuidV7(): string {
   const bytes = randomBytes(16); let time = Date.now();
@@ -33,15 +42,15 @@ export function createInMemoryMasterService(input: { idempotencyStore: Idempoten
   const decrypt = (encoded: string) => { const data=Buffer.from(encoded,"base64"), decipher=createDecipheriv("aes-256-gcm",encryptionKey,data.subarray(0,12)); decipher.setAuthTag(data.subarray(12,28)); return Buffer.concat([decipher.update(data.subarray(28)),decipher.final()]).toString("utf8"); };
   const expose = (record: StoredMasterRecord, principal: MasterPrincipal) => projectMasterRecord({ ...record, ...(principal.roles.includes("OWNER_ADMIN") && record.sensitiveIdentityCiphertext ? { sensitiveIdentity: decrypt(String(record.sensitiveIdentityCiphertext)) } : {}) }, principal);
   const service: MasterService = {
-    async list({ masterType, principal }) { authorize(principal, false, "master-list"); return listProjectedMasters(records.values(), masterType, principal).map((row) => { const stored=records.get(String(row.id))!; return expose(stored, principal); }); },
+    async list({ masterType, principal }) { authorize(principal, masterType, "list", "master-list"); return listProjectedMasters(records.values(), masterType, principal).map((row) => { const stored=records.get(String(row.id))!; return expose(stored, principal); }); },
     async get(command) {
-      authorize(command.principal, false, command.correlationId, command.locale);
+      authorize(command.principal, command.masterType, "get", command.correlationId, command.locale);
       const record = records.get(command.recordId);
       if (!record || record.masterType !== command.masterType) throw problemError({ code: "RESOURCE_NOT_FOUND", status: 404, correlationId: command.correlationId, locale: command.locale });
       return expose(record, command.principal);
     },
     async create(command) {
-      authorize(command.principal, true, command.correlationId, command.locale);
+      authorize(command.principal, command.masterType, "create", command.correlationId, command.locale);
       return executeIdempotently(input.idempotencyStore, { actorId: command.principal.userId, operationId: "createMasterRecord", key: command.idempotencyKey, request: { masterType: command.masterType, payload: command.payload }, correlationId: command.correlationId, locale: command.locale }, async () => {
         if (!isMasterType(command.masterType)) throw problemError({ code: "VALIDATION_FAILED", status: 400, correlationId: command.correlationId, locale: command.locale });
         const payload=validateMasterPayload(command.masterType,command.payload,{ locale:command.locale,correlationId:command.correlationId }), reference=referenceOf(command.masterType,payload), scope=`${uniquenessScope(command.masterType)}:${reference}`;
@@ -54,7 +63,7 @@ export function createInMemoryMasterService(input: { idempotencyStore: Idempoten
       }).then(({value,replayed})=>({value,replayed}));
     },
     async update(command) {
-      authorize(command.principal,true,command.correlationId,command.locale);
+      authorize(command.principal,command.masterType,"update",command.correlationId,command.locale);
       return executeIdempotently(input.idempotencyStore,{ actorId:command.principal.userId,operationId:"updateMasterRecord",key:command.idempotencyKey,request:{masterType:command.masterType,recordId:command.recordId,payload:command.payload,expectedVersion:command.expectedVersion},correlationId:command.correlationId,locale:command.locale },async()=>{
         const current=records.get(command.recordId); if(!current || current.masterType!==command.masterType) throw problemError({code:"RESOURCE_NOT_FOUND",status:404,correlationId:command.correlationId,locale:command.locale});
         if(current.version!==command.expectedVersion) throw problemError({code:"STALE_VERSION",status:412,correlationId:command.correlationId,locale:command.locale,extensions:{currentVersion:current.version}});

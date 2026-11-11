@@ -1,7 +1,8 @@
 import type { MasterType } from "./schemas.ts";
+import type { OperationPrincipal } from "../access/permissions.ts";
 
 export interface StoredMasterRecord extends Record<string, unknown> { id: string; masterType: MasterType; version: number; }
-export interface MasterPrincipal { readonly userId: string; readonly roles: readonly string[]; }
+export interface MasterPrincipal extends OperationPrincipal {}
 export function projectMasterRecord(record: StoredMasterRecord, principal: MasterPrincipal): Readonly<Record<string, unknown> & { id: string; version: number }> {
   const projected = Object.fromEntries(Object.entries(record).filter(([key]) => key !== "masterType" && key !== "sensitiveIdentityCiphertext"));
   if (!principal.roles.includes("OWNER_ADMIN")) delete projected.sensitiveIdentity;

@@ -39,3 +39,18 @@ test("Accounts, Reports, Settings and access administration enforce resolved ope
   await assert.doesNotReject(() => access.listPermissions({ principal: principal("listPermissions") }));
   await assert.rejects(() => access.listPermissions({ principal: principal("listRoles") }), /access administration denied/i);
 });
+
+
+test("customer and supplier master operations require their resolved domain grants", async () => {
+  const { operationPermissionCode } = await import("../../src/modules/access/permissions.ts");
+  const { createInMemoryMasterService } = await import("../../src/modules/masters/master-service.ts");
+  const { InMemoryIdempotencyStore } = await import("../../src/platform/idempotency/store.ts");
+  const service = createInMemoryMasterService({ idempotencyStore: new InMemoryIdempotencyStore(), now: () => "2026-11-11T00:00:00.000Z" });
+  const principal = (operationId: string) => ({ userId: "custom", roles: ["CUSTOM"], permissionCodes: [operationPermissionCode(operationId)] });
+  const command = { masterType: "customers" as const, payload: { reference: "CUST-GRANT", legalNameAr: "عميل", legalNameEn: "Customer", countryCode: "AE" }, idempotencyKey: "granular-customer-create", correlationId: "granular-customer-create" };
+
+  await assert.doesNotReject(() => service.create({ ...command, principal: principal("createCustomer") }));
+  await assert.rejects(() => service.list({ masterType: "customers", principal: principal("listSuppliers") }), (error: any) => error?.problem?.code === "PERMISSION_DENIED");
+  await assert.doesNotReject(() => service.list({ masterType: "customers", principal: principal("listCustomers") }));
+  await assert.rejects(() => service.create({ ...command, idempotencyKey: "wrong-domain-grant", correlationId: "wrong-domain-grant", principal: principal("createSupplier") }), (error: any) => error?.problem?.code === "PERMISSION_DENIED");
+});
