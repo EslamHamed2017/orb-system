@@ -258,3 +258,29 @@ test("fulfillment routes require exact resolved operation grants before dependen
   assert.equal((await allowedFulfillment(new Request("https://orb.example/api/contract-line-versions/version/fulfillment"), { params: Promise.resolve({ versionId: "version" }) })).status, 200);
   assert.equal(calls, 2);
 });
+
+
+test("product movement requires its resolved grant before repository or route dependency access", async () => {
+  const { operationPermissionCode } = await import("../../src/modules/access/permissions.ts");
+  const { createProductMovementService } = await import("../../src/modules/masters/product-movement-service.ts");
+  const route = await import("../../src/app/api/products/[productId]/movements/route.ts");
+  const productId = "019a5f9b-7c00-7000-8000-000000000501";
+  const principal = (operationId: string) => ({ userId: "custom", roles: ["CUSTOM"], permissionCodes: [operationPermissionCode(operationId)] });
+  let repositoryReads = 0;
+  const service = createProductMovementService({ repository: {
+    async productExists() { repositoryReads += 1; return true; },
+    async listByProduct() { repositoryReads += 1; return []; },
+  } });
+
+  await assert.rejects(() => service.list({ productId, correlationId: "wrong", principal: principal("listCustomers") } as any), (error: any) => error?.problem?.code === "PERMISSION_DENIED");
+  assert.equal(repositoryReads, 0);
+  await assert.doesNotReject(() => service.list({ productId, correlationId: "right", principal: principal("listProductMovements") } as any));
+  assert.equal(repositoryReads, 2);
+
+  let calls = 0;
+  const denied = route.createProductMovementsGetHandler({ authenticate: async () => principal("listCustomers"), list: async () => { calls += 1; return {}; } });
+  assert.equal((await denied(new Request(`https://orb.example/api/products/${productId}/movements`), { params: Promise.resolve({ productId }) })).status, 403);
+  const allowed = route.createProductMovementsGetHandler({ authenticate: async () => principal("listProductMovements"), list: async () => { calls += 1; return {}; } });
+  assert.equal((await allowed(new Request(`https://orb.example/api/products/${productId}/movements`), { params: Promise.resolve({ productId }) })).status, 200);
+  assert.equal(calls, 1);
+});

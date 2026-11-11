@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server.js";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { assertServerPermission, type OperationPrincipal } from "../../../../../modules/access/permissions.ts";
 
-export interface ProductMovementPrincipal { readonly userId: string; readonly roles: readonly string[] }
+export interface ProductMovementPrincipal extends OperationPrincipal {}
 export interface ProductMovementsRouteDependencies {
   readonly authenticate: (request: Request) => Promise<ProductMovementPrincipal | null>;
   readonly list?: (input: { request: Request; productId: string; projectId?: string; principal: ProductMovementPrincipal }) => Promise<unknown>;
@@ -12,7 +14,7 @@ export function createProductMovementsGetHandler(dependencies: ProductMovementsR
   return async (request: Request, context: { params: Promise<{ productId: string }> }) => {
     const principal = await dependencies.authenticate(request);
     if (!principal) return problem(401, "AUTHENTICATION_REQUIRED");
-    if (!principal.roles.some((role) => ["OWNER_ADMIN", "OPERATIONS", "FINANCE_VIEWER"].includes(role))) return problem(403, "PERMISSION_DENIED");
+    try { assertServerPermission(principal, "listProductMovements"); } catch { return problem(403, "PERMISSION_DENIED"); }
     if (!dependencies.list) return problem(503, "DEPENDENCY_UNAVAILABLE");
     const { productId } = await context.params;
     const projectId = new URL(request.url).searchParams.get("projectId") ?? undefined;

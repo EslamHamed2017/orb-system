@@ -29,7 +29,7 @@ const repository: ProductMovementRepository = {
 
 test("product movement query returns chronological cross-project traceability without inventory balances", async () => {
   const service = createProductMovementService({ repository });
-  const result = await service.list({ productId: id.product, correlationId: "movement-all" });
+  const result = await service.list({ productId: id.product, correlationId: "movement-all", principal: { userId: "operations", roles: ["OPERATIONS"] } });
   assert.equal(result.productId, id.product);
   assert.deepEqual(result.items.map((row) => [row.direction, row.projectId, row.quantity]), [
     ["INBOUND", id.projectA, "12.500000"],
@@ -40,6 +40,6 @@ test("product movement query returns chronological cross-project traceability wi
   assert.equal("stockOnHand" in result, false);
   assert.equal("inventoryValue" in result, false);
 
-  const project = await service.list({ productId: id.product, projectId: id.projectA, correlationId: "movement-project" });
+  const project = await service.list({ productId: id.product, projectId: id.projectA, correlationId: "movement-project", principal: { userId: "operations", roles: ["OPERATIONS"] } });
   assert.deepEqual(project.items.map((row) => row.projectId), [id.projectA, id.projectA]);
 });

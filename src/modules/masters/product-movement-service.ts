@@ -1,5 +1,7 @@
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { problemError } from "../../platform/http/problem.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { assertServerPermission, type OperationPrincipal } from "../access/permissions.ts";
 
 export type ProductMovementDirection = "INBOUND" | "OUTBOUND";
 export type ProductMovementTransactionType = "SUPPLIER_CONTAINER" | "SALES_SHIPMENT";
@@ -23,7 +25,7 @@ export interface ProductMovementRepository {
   listByProduct(productId: string): Promise<readonly ProductMovementRecord[]>;
 }
 export interface ProductMovementService {
-  list(input: { productId: string; projectId?: string; correlationId: string }): Promise<Readonly<{ productId: string; projectId: string | null; items: readonly ProductMovementRecord[] }>>;
+  list(input: { productId: string; projectId?: string; correlationId: string; principal: OperationPrincipal }): Promise<Readonly<{ productId: string; projectId: string | null; items: readonly ProductMovementRecord[] }>>;
 }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DECIMAL = /^(?:0|[1-9][0-9]*)(?:\.([0-9]{1,6}))?$/;
@@ -43,6 +45,7 @@ function normalize(row: ProductMovementRecord, productId: string, correlationId:
 export function createProductMovementService(options: { repository: ProductMovementRepository }): ProductMovementService {
   return {
     async list(input) {
+      try { assertServerPermission(input.principal, "listProductMovements"); } catch { fail("PERMISSION_DENIED", 403, input.correlationId); }
       validId(input.productId, input.correlationId);
       if (input.projectId !== undefined) validId(input.projectId, input.correlationId);
       if (!await options.repository.productExists(input.productId)) fail("RESOURCE_NOT_FOUND", 404, input.correlationId);
