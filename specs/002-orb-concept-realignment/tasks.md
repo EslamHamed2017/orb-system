@@ -46,7 +46,8 @@
   - Verification note (2026-11-11): supplier invoices are line-driven against the physical container's exact approved active-dataset lines, derive exact-decimal totals server-side, reject cross-supplier attribution, and preserve legacy single-supplier compatibility during cutover; strict typecheck, all 465 tests, and the production build pass.
 - [x] T030 Global Accounts summary/list APIs with project filters
   - Verification note (2026-11-11): finance-authorized operational Accounts summary and typed list APIs expose deterministic exact-decimal, currency-partitioned totals and optional project filtering without general-ledger semantics; strict typecheck, all 481 tests, and the production build pass.
-- [ ] T031 Transaction reference allocator for all core movements with concurrency guarantees
+- [x] T031 Transaction reference allocator for all core movements with concurrency guarantees
+  - Verification note (2026-11-11): immutable year-scoped ORB references cover every closed core transaction type; PostgreSQL `SERIALIZABLE` allocation uses transaction-scoped series and subject advisory locks plus retry handling to prevent collisions, including UTC year rollover; six focused concurrency/repository tests, strict typecheck, the full 481-test suite, and the production build pass.
 - [ ] T032 EvidenceObject/EvidenceLink attachment upload/list/download authorization service
 - [ ] T033 Reports query layer for operational pilot reports
 - [ ] T034 Settings read/update APIs with audit trail
