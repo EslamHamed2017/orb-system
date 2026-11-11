@@ -1504,6 +1504,22 @@ paths:
       - OWNER_ADMIN
       - OPERATIONS
       summary: Revise sales shipment dataset
+  /supplier-shipments/{shipmentId}/datasets/{datasetId}/consolidation:
+    get:
+      tags: [Shipments]
+      operationId: getSupplierContainerConsolidation
+      parameters:
+      - $ref: '#/components/parameters/ShipmentId'
+      - $ref: '#/components/parameters/DatasetId'
+      responses:
+        '200':
+          description: Supplier-attributable consolidation summary for one physical container dataset
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SupplierContainerConsolidation' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS, FINANCE_VIEWER]
+      summary: Read multi-supplier physical-container consolidation
   /supplier-shipments/{shipmentId}/datasets/{datasetId}/lines:
     get:
       tags: [Shipments]
@@ -2560,10 +2576,36 @@ components:
           $ref: '#/components/schemas/Uuid'
         salesContract:
           $ref: '#/components/schemas/ContractInput'
+    SupplierContainerConsolidation:
+      type: object
+      additionalProperties: false
+      required: [containerId, datasetId, supplierCount, lineCount, totalQuantity, suppliers]
+      properties:
+        containerId: { $ref: '#/components/schemas/Uuid' }
+        datasetId: { $ref: '#/components/schemas/Uuid' }
+        supplierCount: { type: integer, minimum: 0 }
+        lineCount: { type: integer, minimum: 0 }
+        totalQuantity: { $ref: '#/components/schemas/Decimal' }
+        suppliers:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [supplierId, purchaseContractIds, lineCount, quantity]
+            properties:
+              supplierId: { $ref: '#/components/schemas/Uuid' }
+              purchaseContractIds:
+                type: array
+                uniqueItems: true
+                items: { $ref: '#/components/schemas/Uuid' }
+              lineCount: { type: integer, minimum: 1 }
+              quantity: { $ref: '#/components/schemas/Decimal' }
     SupplierShipmentLineInput:
       type: object
       additionalProperties: false
       required:
+      - purchaseContractId
+      - supplierId
       - contractLineVersionId
       - supplierLotReference
       - quantity
@@ -2572,6 +2614,8 @@ components:
       - netWeight
       - grossWeight
       properties:
+        purchaseContractId: { $ref: '#/components/schemas/Uuid' }
+        supplierId: { $ref: '#/components/schemas/Uuid' }
         contractLineVersionId: { $ref: '#/components/schemas/Uuid' }
         supplierLotReference: { type: string, minLength: 1, maxLength: 500 }
         quantity: { $ref: '#/components/schemas/Decimal' }

@@ -318,6 +318,11 @@ const OPERATION_ROLES = Object.freeze({
     "OPERATIONS",
     "FINANCE_VIEWER"
   ],
+  "getSupplierContainerConsolidation": [
+    "OWNER_ADMIN",
+    "OPERATIONS",
+    "FINANCE_VIEWER"
+  ],
   "getSalesShipmentWorkspace": [
     "OWNER_ADMIN",
     "OPERATIONS",

@@ -143,7 +143,7 @@ const api = parseYaml(text('contracts/openapi.yaml'));
 const ui = text('contracts/ui-workflows.md'), tasks = text('tasks.md');
 
 test('active structured OpenAPI identifiers expose no deferred feature', () => {
-  const surfaces = openApiSurfaces(api); assert.equal(surfaces.operationIds.length, 92); assert.ok(surfaces.propertyNames.length > 0 && surfaces.schemaKeys.length > surfaces.propertyNames.length);
+  const surfaces = openApiSurfaces(api); assert.equal(surfaces.operationIds.length, 93); assert.ok(surfaces.propertyNames.length > 0 && surfaces.schemaKeys.length > surfaces.propertyNames.length);
   assert.deepEqual(deferredFindings(surfaces), []);
 });
 test('active UI route/action/control cells and executable task identifiers expose no deferred feature', () => {

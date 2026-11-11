@@ -652,7 +652,7 @@ A future correction is the sole exception for editing an already primary-owned p
 
 These tables are validation input, not additional tasks. Every mapped task carries the corresponding trace above.
 
-### OperationId to implementation/verification tasks (79/79)
+### OperationId to implementation/verification tasks (80/80)
 
 | operationId | Tasks |
 |---|---|
@@ -673,6 +673,7 @@ These tables are validation input, not additional tasks. Every mapped task carri
 | `updateContractLine` | `ORB-R1-0304` |
 | `listContractLineVersions` | `ORB-R1-0304` |
 | `createSupplierShipment` | `ORB-R1-0001`, `ORB-R1-0002`, `ORB-R1-0105`, `ORB-R1-0203`, `ORB-R1-0204`, `ORB-R1-0401`, `ORB-R1-0402`, `ORB-R1-0407`, `ORB-R1-1204`, `ORB-R1-1205`, `ORB-R1-1206`, `ORB-R1-1301`, `ORB-R1-1302`, `ORB-R1-1303`, `ORB-R1-1304`, `ORB-R1-1305`, `ORB-R1-1309`, `ORB-R1-1315` |
+| `getSupplierContainerConsolidation` | `ORB-R1-0404` |
 | `listSupplierShipmentLines` | `ORB-R1-0404` |
 | `createSupplierShipmentLine` | `ORB-R1-0404` |
 | `getSupplierShipmentLine` | `ORB-R1-0404` |

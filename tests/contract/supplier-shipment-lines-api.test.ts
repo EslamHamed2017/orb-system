@@ -13,14 +13,14 @@ const id = {
   otherLineVersion: "019a5f9b-7c00-7000-8000-000000000206",
   line: "019a5f9b-7c00-7000-8000-000000000207",
 };
-const facts = { contractLineVersionId: id.lineVersion, supplierLotReference: "LOT-42", quantity: "25.500000", bagCount: 425, bagWeight: "0.060000", netWeight: "25.500000", grossWeight: "25.900000" };
+const facts = { purchaseContractId: id.contract, supplierId: id.supplier, contractLineVersionId: id.lineVersion, supplierLotReference: "LOT-42", quantity: "25.500000", bagCount: 425, bagWeight: "0.060000", netWeight: "25.500000", grossWeight: "25.900000" };
 
 function repository(): SupplierShipmentLineRepository & { rows: any[] } {
   const rows: any[] = [];
   return {
     rows,
-    async getDataset(shipmentId, datasetId) { return shipmentId === id.shipment && datasetId === id.dataset ? { id: id.dataset, shipmentId: id.shipment, purchaseContractId: id.contract, supplierId: id.supplier, state: "DRAFT" } : null; },
-    async getApprovedPurchaseContractLineVersion(versionId, contractId, supplierId) { return versionId === id.lineVersion && contractId === id.contract && supplierId === id.supplier ? { id: id.lineVersion, contractId: id.contract, counterpartyId: id.supplier, contractKind: "PURCHASE", quantity: "100.000000", unitPrice: "5.000000", approvalState: "APPROVED" } : null; },
+    async getDataset(shipmentId, datasetId) { return shipmentId === id.shipment && datasetId === id.dataset ? { id: id.dataset, shipmentId: id.shipment, projectId: id.shipment, purchaseContractId: id.contract, supplierId: id.supplier, state: "DRAFT" } : null; },
+    async getApprovedPurchaseContractLineVersion(versionId, contractId, supplierId) { return versionId === id.lineVersion && contractId === id.contract && supplierId === id.supplier ? { id: id.lineVersion, contractId: id.contract, counterpartyId: id.supplier, projectId: id.shipment, contractKind: "PURCHASE", quantity: "100.000000", unitPrice: "5.000000", approvalState: "APPROVED" } : null; },
     async nextLineNo() { return rows.length + 1; },
     async findByContractLineVersion(datasetId, versionId) { return rows.find((row) => row.supplierShipmentDatasetId === datasetId && row.contractLineVersionId === versionId) ?? null; },
     async insert(input) { rows.push(input); return input; },
@@ -48,7 +48,7 @@ test("supplier shipment lines reject arbitrary, sales, cross-contract, cross-sup
   const repo = repository();
   const service = createSupplierShipmentLineService({ repository: repo, newId: () => id.line });
   await assert.rejects(() => service.create({ shipmentId: id.shipment, datasetId: id.dataset, facts: { ...facts, contractLineVersionId: id.otherLineVersion }, correlationId: "arbitrary" }), (error: any) => error.problem?.code === "APPROVED_PURCHASE_CONTRACT_LINE_REQUIRED");
-  const valid = { id: id.lineVersion, contractId: id.contract, counterpartyId: id.supplier, contractKind: "PURCHASE", quantity: "100", unitPrice: "5", approvalState: "APPROVED" };
+  const valid = { id: id.lineVersion, contractId: id.contract, counterpartyId: id.supplier, projectId: id.shipment, contractKind: "PURCHASE", quantity: "100", unitPrice: "5", approvalState: "APPROVED" };
   for (const override of [{ contractKind: "SALES" }, { contractId: "019a5f9b-7c00-7000-8000-000000000999" }, { counterpartyId: "019a5f9b-7c00-7000-8000-000000000998" }, { approvalState: "PENDING_APPROVAL" }]) {
     repo.getApprovedPurchaseContractLineVersion = async () => ({ ...valid, ...override });
     await assert.rejects(() => service.create({ shipmentId: id.shipment, datasetId: id.dataset, facts, correlationId: "wrong-source" }), (error: any) => error.problem?.code === "APPROVED_PURCHASE_CONTRACT_LINE_REQUIRED");
@@ -56,7 +56,7 @@ test("supplier shipment lines reject arbitrary, sales, cross-contract, cross-sup
   repo.getApprovedPurchaseContractLineVersion = async () => valid;
   await service.create({ shipmentId: id.shipment, datasetId: id.dataset, facts, correlationId: "first" });
   await assert.rejects(() => service.create({ shipmentId: id.shipment, datasetId: id.dataset, facts, correlationId: "duplicate" }), (error: any) => error.problem?.code === "SHIPMENT_CONTRACT_LINE_DUPLICATE");
-  repo.getDataset = async () => ({ id: id.dataset, shipmentId: id.shipment, purchaseContractId: id.contract, supplierId: id.supplier, state: "APPROVED" });
+  repo.getDataset = async () => ({ id: id.dataset, shipmentId: id.shipment, projectId: id.shipment, purchaseContractId: id.contract, supplierId: id.supplier, state: "APPROVED" });
   await assert.rejects(() => service.create({ shipmentId: id.shipment, datasetId: id.dataset, facts: { ...facts, contractLineVersionId: id.otherLineVersion }, correlationId: "immutable" }), (error: any) => error.problem?.code === "IMMUTABLE_VERSION");
 });
 
@@ -89,6 +89,6 @@ test("supplier shipment line OpenAPI contracts list/create/get and exact approve
   assert.equal(collection.post.operationId, "createSupplierShipmentLine");
   assert.equal(item.get.operationId, "getSupplierShipmentLine");
   assert.deepEqual(collection.post.parameters.slice(-3).map((parameter: any) => parameter.$ref), ["#/components/parameters/IfMatch", "#/components/parameters/IdempotencyKey", "#/components/parameters/CsrfToken"]);
-  assert.deepEqual(api.components.schemas.SupplierShipmentLineInput.required, ["contractLineVersionId", "supplierLotReference", "quantity", "bagCount", "bagWeight", "netWeight", "grossWeight"]);
+  assert.deepEqual(api.components.schemas.SupplierShipmentLineInput.required, ["purchaseContractId", "supplierId", "contractLineVersionId", "supplierLotReference", "quantity", "bagCount", "bagWeight", "netWeight", "grossWeight"]);
   assert.equal(api.components.schemas.SupplierShipmentLineInput.additionalProperties, false);
 });
