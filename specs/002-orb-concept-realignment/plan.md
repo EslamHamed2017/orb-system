@@ -1,8 +1,10 @@
 # ORB Fast-Track Execution Plan
 
 ## Delivery commitment
-- **Daily-use pilot target:** 2026-11-19 (8 calendar days from plan start).
-- **Hardening target:** 2026-11-22 (3 additional days).
+- **Internal alpha target:** 2026-11-19.
+- **Owner UAT target:** 2026-11-23.
+- **Controlled canary pilot target:** 2026-11-24.
+- **Soak and broader-pilot decision:** 2026-11-25 through 2026-11-27.
 - Scope is implemented on the existing Next.js/Prisma/PostgreSQL foundation; no rewrite.
 
 ## Execution strategy
@@ -14,24 +16,29 @@ Five lanes run in parallel after the schema contract is frozen:
 - **Lane E — QA/Ops:** contract/unit/integration/E2E, AR/EN/RTL, backup, security, deployment evidence.
 
 ## Critical path
-Schema contract → backward-compatible migration → APIs → 360 screens → full lifecycle E2E → pilot deployment.
+Baseline/CI repair → schema contract → expand/backfill/dual-read migration → APIs → 360 screens → full lifecycle E2E → restore/security rehearsal → immutable candidate → owner UAT → canary pilot.
 
 ## Daily milestones
-| Day | Date | Deliverable |
-|---|---|---|
-| D1 | Nov 11 | Freeze domain model; migration design; preserve current fixes; baseline tests |
-| D2 | Nov 12 | ContractLine + shipment-line schema/APIs; product/party APIs; migration + seed |
-| D3 | Nov 13 | Multi-line contract and shipment UI; partial fulfillment; multi-supplier container model |
-| D4 | Nov 14 | Products movement + customers/suppliers + global Accounts hub |
-| D5 | Nov 15 | 360° project navigation; serial framework; attachments on core transactions |
-| D6 | Nov 16 | Users/permissions + Settings + professional sign-in |
-| D7 | Nov 17 | Printing + reports + bilingual/RTL completion; integration tests |
-| D8 | Nov 18 | Full lifecycle E2E, security, backup/restore, data integrity, release candidate |
-| Pilot | Nov 19 | Controlled daily-use pilot with real data and rollback plan |
-| H1-H3 | Nov 20–22 | Bug fixes, UX polish, performance, cross-browser and final stability |
+| Date | Deliverable |
+|---|---|
+| Nov 11 | Repair two red baseline tests and CI topology; preserve current fixes; freeze terminology/invariants |
+| Nov 12 | Freeze versioned line/container/invoice/permission architecture, backfill mapping and rollout contract |
+| Nov 13 | Expand-only schema and parallel API/UI route shells |
+| Nov 14 | Disposable-PostgreSQL migration, legacy backfill reconciliation, old-app compatibility proof |
+| Nov 15 | Contract/shipment line APIs, partial fulfillment, tolerance and concurrency tests |
+| Nov 16 | Multi-supplier consolidation, supplier invoices, source allocations, serial/attachment services |
+| Nov 17 | Multi-line UI, Accounts, product movement, 360 navigation, server-side permissions |
+| Nov 18 | Feature-complete integration: printing, reports, settings, users, bilingual core workflows |
+| Nov 19 | **Internal alpha gate:** isolated full lifecycle, zero skipped DB migration tests; no real data yet |
+| Nov 20 | Integrated defect correction, RTL/a11y, attachment and permission negative-path tests |
+| Nov 21 | Firefox/WebKit smoke, security, performance, backup and isolated restore |
+| Nov 22 | Clean immutable build, SBOM, signed candidate, app rollback rehearsal |
+| Nov 23 | Owner UAT in English and Arabic; close all Sev-1/Sev-2 defects |
+| Nov 24 | Controlled canary pilot with limited users/data and monitoring |
+| Nov 25–27 | 48–72 hour soak, corrections and broader-pilot go/no-go |
 
 ## Release gates
-1. Migration is reversible and verified on an isolated database.
+1. Expand migration is idempotent and verified on an isolated database; application rollback requires no database down-migration.
 2. No shipment item can bypass contract-line validation.
 3. Quantities cannot exceed approved contract tolerance.
 4. Supplier financial records remain supplier-attributable.

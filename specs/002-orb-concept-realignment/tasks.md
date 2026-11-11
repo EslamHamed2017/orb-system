@@ -2,32 +2,32 @@
 
 ## Phase 0 — Safety and baseline
 - [x] T001 Preserve and verify current uncommitted accessibility/navigation fixes
-- [ ] T002 Run baseline typecheck, unit/contract tests, build, and focused E2E
-- [ ] T003 Record current database schema and seed counts
+- [ ] T002 Repair the two red baseline tests, then rerun typecheck, unit/contract tests, build, audit, and focused E2E
+- [ ] T003 Repair CI topology: separate offline, local-browser, and deployed acceptance gates and record baseline schema/seed counts
 - [ ] T004 Freeze approved domain terminology in Arabic and English
 - [ ] T005 Confirm customer-invoice vs supplier-invoice grouping rule in spec
-- [ ] T006 Create isolated migration/restore test database
+- [ ] T006 Create isolated PostgreSQL/object-storage migration and restore environment; eliminate skipped real-DB migration gate
 
 ## Phase 1 — Schema foundation
-- [ ] T007 Add ContractLine and version relationship without dropping legacy fields
-- [ ] T008 Add SalesShipmentLine linked to ContractLine
-- [ ] T009 Add SupplierShipmentLine linked to purchase ContractLine
-- [ ] T010 Add physical Container/Consolidation entity for multi-supplier loads
-- [ ] T011 Add fulfillment/allocation constraints and tolerance rules
-- [ ] T012 Add customer invoice header/lines for one sales-shipment invoice
-- [ ] T013 Preserve supplier-attributable invoices and add invoice lines
+- [ ] T007 Add stable ContractLine plus immutable ContractLineVersion under ContractVersion without dropping legacy fields
+- [ ] T008 Add SalesShipmentDatasetLine linked to the exact approved ContractLineVersion
+- [ ] T009 Add SupplierShipmentDatasetLine linked to the exact approved purchase ContractLineVersion
+- [ ] T010 Evolve SupplierShipment into the physical container header and move supplier/contract ownership to its dataset lines
+- [ ] T011 Add ShipmentLineSourceAllocation plus fulfillment, exact-decimal concurrency and tolerance constraints
+- [ ] T012 Add SalesInvoice and SalesInvoiceLine with one active sales invoice per sales shipment
+- [ ] T013 Add SupplierInvoiceLine and enforce same-supplier shipment-line attribution
 - [ ] T014 Add generic transaction serial registry and uniqueness rules
-- [ ] T015 Add generic attachment link model with parent authorization metadata
+- [ ] T015 Harden existing EvidenceObject/EvidenceLink with project scope, subject allowlist and parent authorization metadata
 - [ ] T016 Add Permission, Role, RolePermission and user assignment models
-- [ ] T017 Generate expand migration and rollback instructions
-- [ ] T018 Migrate seed/legacy records and verify row-level integrity
+- [ ] T017 Generate expand migration, feature-flag cutover and application-rollback procedure with no database down-migration
+- [ ] T018 Backfill legacy records 1:1, preserve v1 hashes, define v2 line hashes, and reconcile row/quantity/value totals
 
 ## Phase 2 — Domain APIs
 - [ ] T019 Contract line create/read/update/version APIs
 - [ ] T020 Contract line approval and amendment validation
 - [ ] T021 Sales shipment line APIs with contract-line validation
 - [ ] T022 Supplier shipment line APIs with purchase-line validation
-- [ ] T023 Partial fulfillment and remaining-quantity query
+- [ ] T023 Partial fulfillment, source-allocation and remaining-quantity/value query
 - [ ] T024 Multi-supplier container consolidation APIs
 - [ ] T025 Product master CRUD and status controls
 - [ ] T026 Product movement/traceability query across projects
@@ -35,8 +35,8 @@
 - [ ] T028 Customer invoice create/read/print data APIs
 - [ ] T029 Supplier invoice line and supplier-attribution APIs
 - [ ] T030 Global Accounts summary/list APIs with project filters
-- [ ] T031 Transaction serial generation service for all core movements
-- [ ] T032 Generic attachment upload/list/download authorization service
+- [ ] T031 Transaction reference allocator for all core movements with concurrency guarantees
+- [ ] T032 EvidenceObject/EvidenceLink attachment upload/list/download authorization service
 - [ ] T033 Reports query layer for operational pilot reports
 - [ ] T034 Settings read/update APIs with audit trail
 - [ ] T035 User, role and permission administration APIs
@@ -67,8 +67,8 @@
 - [ ] T056 Settings control center and navigation
 - [ ] T057 Serial/numbering settings
 - [ ] T058 Print/template and organization settings
-- [ ] T059 Professional ORB sign-in redesign in EN/LTR
-- [ ] T060 Professional ORB sign-in redesign in AR/RTL
+- [ ] T059 Refine the existing strong ORB sign-in experience in EN/LTR without rebuilding it
+- [ ] T060 Refine the existing strong ORB sign-in experience in AR/RTL without rebuilding it
 - [ ] T061 Sign-in accessibility, performance and security verification
 
 ## Phase 5 — Documents, printing and reports
@@ -93,13 +93,13 @@
 - [ ] T078 Attachment isolation/security tests
 - [ ] T079 Serial concurrency and uniqueness tests
 - [ ] T080 Arabic/English and RTL/LTR acceptance tests
-- [ ] T081 Full pilot lifecycle E2E on Chromium
+- [ ] T081 Full internal-alpha lifecycle E2E on Chromium using isolated PostgreSQL/object storage
 - [ ] T082 Firefox and WebKit smoke/regression runs
 - [ ] T083 Security audit and dependency review
 - [ ] T084 Backup plus isolated restore rehearsal with integrity comparison
-- [ ] T085 Production build, health checks and signed release candidate
-- [ ] T086 Controlled pilot deployment and rollback verification
-- [ ] T087 First real-data transaction walkthrough with owner review
+- [ ] T085 Clean immutable build, SBOM, health checks and signed release candidate
+- [ ] T086 Owner UAT plus application rollback verification against expanded schema
+- [ ] T087 Controlled canary real-data walkthrough with owner review, stop conditions and monitoring
 
 ## Definition of done
 A task is complete only after implementation, relevant automated test, successful verification output, and a focused Git commit. No checkbox may be marked from documentation alone.

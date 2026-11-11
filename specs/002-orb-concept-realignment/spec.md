@@ -2,7 +2,7 @@
 
 **Status:** Approved for implementation
 **Source:** User decisions from Telegram session 20261110_093942_80229520, recorded in `docs/CONCEPT-DECISIONS-2026-11-10.md`.
-**Target:** Daily-use pilot by 2026-11-19; hardening through 2026-11-22.
+**Target:** Internal alpha gate by 2026-11-19; owner UAT by 2026-11-23; controlled canary pilot by 2026-11-24; 48–72 hour soak through 2026-11-27.
 
 ## Scope
 1. Bidirectional 360° navigation between project and all related records.
@@ -31,3 +31,10 @@
 
 ## Pilot acceptance flow
 Create customer and suppliers → create products → create project → create multi-line sales contract → create purchase contracts → consolidate supplier lines into a container → create partial sales shipments → issue customer invoice → register supplier invoices, collection/payment, and expenses → attach evidence → print transactions → view product movement and reports → close project.
+
+## Migration safety model
+- Expand-only schema first; no database down-migration.
+- Deterministic idempotent 1:1 backfill from each legacy single-line version/dataset.
+- Preserve v1 approval/dataset hashes; multi-line data uses versioned v2 canonical hashes and reapproval.
+- Dual write/read behind feature flags, reconcile, then cut over. Legacy columns are removed only after pilot stabilization.
+- Application rollback must work against the expanded schema.
