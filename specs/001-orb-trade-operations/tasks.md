@@ -197,7 +197,7 @@ A future correction is the sole exception for editing an already primary-owned p
   - **Exact files**: `src/modules/projects/project-service.ts`, `src/modules/projects/project-query.ts`, `src/modules/contracts/contract-service.ts`, `src/modules/contracts/schemas.ts`, `src/app/api/projects/route.ts`, `src/app/api/projects/[projectId]/route.ts`, `src/app/api/projects/[projectId]/purchase-contracts/route.ts`, `src/app/api/projects/[projectId]/cancel/route.ts`, `src/app/api/contracts/[contractId]/amendments/route.ts`, `src/app/api/contracts/[contractId]/submit/route.ts`.
   - **Output**: Atomic project/primary contract creation, purchase versions, amendment/supersession, fixed approval activation and guarded pre-execution cancellation.
   - **Tests / acceptance evidence**: A1 integration/contract suite passes exact versions, approval, default zero tolerances, one Project per independent contract and audit.
-  - **Trace**: requirements R1-002, R1-015, R1-016, R1-017, R1-018; operations listProjects, createProjectWithSalesContract, getProject, createPurchaseContract, createContractAmendment, submitContractForApproval, cancelUnexecutedProject; UI /projects, /projects/new, /projects/{id}/overview, /projects/{id}/contracts; evidence E02, E04, E14.
+  - **Trace**: requirements R1-002, R1-015, R1-016, R1-017, R1-018; operations listProjects, createProjectWithSalesContract, getProject, createPurchaseContract, createContractAmendment, submitContractForApproval, cancelUnexecutedProject, listContractLines, createContractLine, getContractLine, updateContractLine, listContractLineVersions; UI /projects, /projects/new, /projects/{id}/overview, /projects/{id}/contracts; evidence E02, E04, E14.
 
 - [ ] **ORB-R1-0305** **[A1] Write and implement master/Project/contract UI acceptance**
   - **Prerequisites**: `ORB-R1-0302`, `ORB-R1-0304`, `ORB-R1-0214`.
@@ -665,6 +665,11 @@ These tables are validation input, not additional tasks. Every mapped task carri
 | `createPurchaseContract` | `ORB-R1-0001`, `ORB-R1-0002`, `ORB-R1-0105`, `ORB-R1-0203`, `ORB-R1-0204`, `ORB-R1-0303`, `ORB-R1-0304`, `ORB-R1-0305`, `ORB-R1-1204`, `ORB-R1-1205`, `ORB-R1-1206`, `ORB-R1-1301`, `ORB-R1-1302`, `ORB-R1-1303`, `ORB-R1-1304`, `ORB-R1-1305`, `ORB-R1-1309`, `ORB-R1-1315` |
 | `createContractAmendment` | `ORB-R1-0001`, `ORB-R1-0002`, `ORB-R1-0105`, `ORB-R1-0203`, `ORB-R1-0204`, `ORB-R1-0303`, `ORB-R1-0304`, `ORB-R1-0305`, `ORB-R1-1204`, `ORB-R1-1205`, `ORB-R1-1206`, `ORB-R1-1301`, `ORB-R1-1302`, `ORB-R1-1303`, `ORB-R1-1304`, `ORB-R1-1305`, `ORB-R1-1309`, `ORB-R1-1315` |
 | `submitContractForApproval` | `ORB-R1-0001`, `ORB-R1-0002`, `ORB-R1-0105`, `ORB-R1-0203`, `ORB-R1-0204`, `ORB-R1-0303`, `ORB-R1-0304`, `ORB-R1-0305`, `ORB-R1-1204`, `ORB-R1-1205`, `ORB-R1-1206`, `ORB-R1-1301`, `ORB-R1-1302`, `ORB-R1-1303`, `ORB-R1-1304`, `ORB-R1-1305`, `ORB-R1-1309`, `ORB-R1-1315` |
+| `listContractLines` | `ORB-R1-0304` |
+| `createContractLine` | `ORB-R1-0304` |
+| `getContractLine` | `ORB-R1-0304` |
+| `updateContractLine` | `ORB-R1-0304` |
+| `listContractLineVersions` | `ORB-R1-0304` |
 | `createSupplierShipment` | `ORB-R1-0001`, `ORB-R1-0002`, `ORB-R1-0105`, `ORB-R1-0203`, `ORB-R1-0204`, `ORB-R1-0401`, `ORB-R1-0402`, `ORB-R1-0407`, `ORB-R1-1204`, `ORB-R1-1205`, `ORB-R1-1206`, `ORB-R1-1301`, `ORB-R1-1302`, `ORB-R1-1303`, `ORB-R1-1304`, `ORB-R1-1305`, `ORB-R1-1309`, `ORB-R1-1315` |
 | `submitSupplierShipmentConfirmation` | `ORB-R1-0001`, `ORB-R1-0002`, `ORB-R1-0105`, `ORB-R1-0203`, `ORB-R1-0204`, `ORB-R1-0403`, `ORB-R1-0404`, `ORB-R1-0407`, `ORB-R1-1204`, `ORB-R1-1205`, `ORB-R1-1206`, `ORB-R1-1301`, `ORB-R1-1302`, `ORB-R1-1303`, `ORB-R1-1304`, `ORB-R1-1305`, `ORB-R1-1309`, `ORB-R1-1315` |
 | `confirmSupplierShipment` | `ORB-R1-0001`, `ORB-R1-0002`, `ORB-R1-0105`, `ORB-R1-0203`, `ORB-R1-0204`, `ORB-R1-0403`, `ORB-R1-0404`, `ORB-R1-0407`, `ORB-R1-1204`, `ORB-R1-1205`, `ORB-R1-1206`, `ORB-R1-1301`, `ORB-R1-1302`, `ORB-R1-1303`, `ORB-R1-1304`, `ORB-R1-1305`, `ORB-R1-1309`, `ORB-R1-1315` |

@@ -23,7 +23,7 @@
 - [x] T018 Backfill legacy records 1:1, preserve v1 hashes, define v2 line hashes, and reconcile row/quantity/value totals
 
 ## Phase 2 — Domain APIs
-- [ ] T019 Contract line create/read/update/version APIs
+- [x] T019 Contract line create/read/update/version APIs
 - [ ] T020 Contract line approval and amendment validation
 - [ ] T021 Sales shipment line APIs with contract-line validation
 - [ ] T022 Supplier shipment line APIs with purchase-line validation

@@ -97,7 +97,7 @@ Each active operation is exercised once with an allowed role and once with a den
 | Audit | `listProjectAuditEvents` | Audit timeline | E02 + E16 |
 | Claims | `openSimpleClaim`, `moveClaimUnderReview`, `submitClaimOutcomeForApproval`, `applyApprovedClaimOutcome` | Claims | E02 + E13 |
 | Closure | `assessProjectClosure`, `requestClosureException`, `finalCloseProject`, `submitFinalCloseForApproval`, `reopenProject`, `submitReopenForApproval` | Closure | E02 + E14 |
-| Contracts | `createPurchaseContract`, `createContractAmendment`, `submitContractForApproval` | Contracts | E02 + E04 |
+| Contracts | `createPurchaseContract`, `createContractAmendment`, `submitContractForApproval`, `listContractLines`, `createContractLine`, `getContractLine`, `updateContractLine`, `listContractLineVersions` | Contracts | E02 + E04 |
 | Documents | `generateShipmentDocument`, `getDocumentGenerationStatus`, `reviseDocument`, `submitDocumentForApproval`, `cancelDocumentRevision`, `createOutboundManifest`, `submitOutboundManifestForApproval`, `sendApprovedOutboundManifest`, `cancelOutboundManifest`, `getOutboundManifestExactPreview`, `reviseOutboundManifest`, `listOutboundSendAttempts` | Document workspace | E02 + E08/E09 |
 | Evidence | `uploadEvidence`, `getEvidenceMetadata`, `viewOrDownloadEvidence` | Evidence viewer | E02 + E07 |
 | Expenses | `createDirectExpense`, `submitDirectExpense`, `submitApprovedExpenseCorrection`, `applyApprovedExpenseCorrection` | Expenses | E02 + E11 |
