@@ -11,7 +11,7 @@
 ## Phase 1 — Schema foundation
 - [x] T007 Add stable ContractLine plus immutable ContractLineVersion under ContractVersion without dropping legacy fields
 - [x] T008 Add SalesShipmentDatasetLine linked to the exact approved ContractLineVersion
-- [ ] T009 Add SupplierShipmentDatasetLine linked to the exact approved purchase ContractLineVersion
+- [x] T009 Add SupplierShipmentDatasetLine linked to the exact approved purchase ContractLineVersion
 - [ ] T010 Evolve SupplierShipment into the physical container header and move supplier/contract ownership to its dataset lines
 - [ ] T011 Add ShipmentLineSourceAllocation plus fulfillment, exact-decimal concurrency and tolerance constraints
 - [ ] T012 Add SalesInvoice and SalesInvoiceLine with one active sales invoice per sales shipment
