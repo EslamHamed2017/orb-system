@@ -47,6 +47,38 @@ tags:
 - name: Audit
   description: Audit operations in the fixed Release 1 pilot.
 paths:
+  /reports/{reportType}:
+    get:
+      tags: [Statements]
+      operationId: runOperationalReport
+      summary: Run a filtered operational pilot report
+      parameters:
+      - name: reportType
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [contract-fulfillment, accounts, project-profitability]
+      - name: projectId
+        in: query
+        required: false
+        schema: { $ref: '#/components/schemas/Uuid' }
+      - name: from
+        in: query
+        required: false
+        schema: { type: string, format: date }
+      - name: to
+        in: query
+        required: false
+        schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Deterministic operational report rows and exact-decimal summary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OperationalReportResult' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, FINANCE_VIEWER]
   /accounts/summary:
     get:
       tags: [Statements]
@@ -2895,6 +2927,28 @@ components:
         items:
           type: array
           items: { $ref: '#/components/schemas/ProductMovement' }
+    OperationalReportType:
+      type: string
+      enum: [CONTRACT_FULFILLMENT, ACCOUNTS, PROJECT_PROFITABILITY]
+    OperationalReportResult:
+      type: object
+      additionalProperties: false
+      required: [reportType, projectId, from, to, items, summary]
+      properties:
+        reportType: { $ref: '#/components/schemas/OperationalReportType' }
+        projectId:
+          oneOf:
+          - { $ref: '#/components/schemas/Uuid' }
+          - { type: 'null' }
+        from: { type: [string, 'null'], format: date }
+        to: { type: [string, 'null'], format: date }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Entity' }
+        summary:
+          type: object
+          description: Exact-decimal operational totals; never a general-ledger or inventory valuation result.
+          additionalProperties: { $ref: '#/components/schemas/Decimal' }
     AccountRecordType:
       type: string
       enum: [SALES_INVOICE, SUPPLIER_INVOICE, COLLECTION, SUPPLIER_PAYMENT, EXPENSE]

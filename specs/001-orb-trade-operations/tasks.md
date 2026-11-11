@@ -652,10 +652,11 @@ A future correction is the sole exception for editing an already primary-owned p
 
 These tables are validation input, not additional tasks. Every mapped task carries the corresponding trace above.
 
-### OperationId to implementation/verification tasks (108/108)
+### OperationId to implementation/verification tasks (109/109)
 
 | operationId | Tasks |
 |---|---|
+| `runOperationalReport` | `ORB-R1-0901`, `ORB-R1-0902`, `ORB-R1-0903` |
 | `getAccountsSummary` | `ORB-R1-0901`, `ORB-R1-0902`, `ORB-R1-0903` |
 | `listAccountRecords` | `ORB-R1-0901`, `ORB-R1-0902`, `ORB-R1-0903` |
 | `listProductMovements` | `ORB-R1-0301`, `ORB-R1-0302` |

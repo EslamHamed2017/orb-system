@@ -50,7 +50,8 @@
   - Verification note (2026-11-11): immutable year-scoped ORB references cover every closed core transaction type; PostgreSQL `SERIALIZABLE` allocation uses transaction-scoped series and subject advisory locks plus retry handling to prevent collisions, including UTC year rollover; six focused concurrency/repository tests, strict typecheck, the full 481-test suite, and the production build pass.
 - [x] T032 EvidenceObject/EvidenceLink attachment upload/list/download authorization service
   - Verification note (2026-11-11): uploads now resolve and persist project-scoped authorization-parent metadata before object storage, list/read/download filter through source authorization, and Prisma writes all hardened EvidenceObject/EvidenceLink fields; strict typecheck, the canonical 485-test suite, and the production build pass.
-- [ ] T033 Reports query layer for operational pilot reports
+- [x] T033 Reports query layer for operational pilot reports
+  - Verification note (2026-11-11): finance-authorized contract-fulfillment, Accounts, and project-profitability report queries support deterministic project/date filtering and exact-decimal summaries without general-ledger, stock, or valuation semantics; strict typecheck, all 501 tests, and the production build pass.
 - [ ] T034 Settings read/update APIs with audit trail
 - [ ] T035 User, role and permission administration APIs
 - [ ] T036 Enforce permissions server-side on all new APIs

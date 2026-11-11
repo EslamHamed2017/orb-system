@@ -5,6 +5,10 @@ export const PILOT_ROLES = ["OWNER_ADMIN", "OPERATIONS", "FINANCE_VIEWER"] as co
 export type PilotRole = typeof PILOT_ROLES[number];
 
 const OPERATION_ROLES = Object.freeze({
+  "runOperationalReport": [
+    "OWNER_ADMIN",
+    "FINANCE_VIEWER"
+  ],
   "getAccountsSummary": [
     "OWNER_ADMIN",
     "FINANCE_VIEWER"
