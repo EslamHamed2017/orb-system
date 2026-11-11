@@ -32,6 +32,15 @@ for (const locale of ["en", "ar"] as const) {
     await lineForm.getByRole("button", { name: locale === "ar" ? "إضافة بند" : "Add line", exact: true }).click();
     await expect(page.getByRole("status")).toContainText(locale === "ar" ? "تمت إضافة البند" : "Line added");
     await expect(page.getByLabel(locale === "ar" ? "بنود العقد" : "Contract lines").nth(1).getByText("Colombia Supremo")).toBeVisible();
+    await expect(page.getByLabel(locale === "ar" ? "بنود عقد الشراء" : "Purchase contract lines").first()).toBeVisible();
+    const purchaseLineForm = page.getByRole("form", { name: locale === "ar" ? "إضافة بند شراء" : "Add purchase line" });
+    await purchaseLineForm.getByLabel(locale === "ar" ? "المنتج" : "Product").selectOption("colombia");
+    await purchaseLineForm.getByLabel(locale === "ar" ? "الكمية" : "Quantity").fill("900");
+    await purchaseLineForm.getByLabel(locale === "ar" ? "السعر لكل وحدة" : "Unit price").fill("4.80");
+    await purchaseLineForm.getByLabel(locale === "ar" ? "المكان المسمى" : "Named place").fill("Dubai");
+    await purchaseLineForm.getByRole("button", { name: locale === "ar" ? "إضافة بند شراء" : "Add purchase line", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: locale === "ar" ? "تمت إضافة بند الشراء" : "Purchase line added" })).toBeVisible();
+    await expect(page.getByLabel(locale === "ar" ? "بنود عقد الشراء" : "Purchase contract lines").nth(1).getByText("Colombia Supremo")).toBeVisible();
   });
 }
 

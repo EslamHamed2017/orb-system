@@ -1,9 +1,16 @@
 import { ContractVersionDiff } from "../../../../ui/features/contracts/ContractVersionDiff";
 import { SalesContractLines } from "../../../../ui/features/contracts/SalesContractLines";
+import { PurchaseContractLines } from "../../../../ui/features/contracts/PurchaseContractLines";
 
 const SALES_CONTRACT_LINES = [
   { id: "scl-1-v2", productId: "ethiopia", productName: "Ethiopia Guji", quantity: "6000", unit: "kg", unitPrice: "5.25", currency: "USD", incoterm: "FOB", namedPlace: "Djibouti", paymentTerms: "Net 30", documentTerms: "Original documents", remainingQuantity: "2500" },
   { id: "scl-2-v2", productId: "kenya", productName: "Kenya AA", quantity: "4500", unit: "kg", unitPrice: "6.10", currency: "USD", incoterm: "CIF", namedPlace: "Dubai", paymentTerms: "Net 30", documentTerms: "Original documents", remainingQuantity: "4500" },
+] as const;
+const APPROVED_PURCHASE_LINES = [
+  { id: "pcl-1-v1", productId: "ethiopia", productName: "Ethiopia Guji", quantity: "6000", unit: "kg", unitPrice: "4.15", currency: "USD", incoterm: "FOB", namedPlace: "Djibouti", paymentTerms: "Net 30", documentTerms: "Original documents", remainingQuantity: "1750" },
+] as const;
+const DRAFT_PURCHASE_LINES = [
+  { id: "pcl-2-v1", productId: "kenya", productName: "Kenya AA", quantity: "4500", unit: "kg", unitPrice: "5.05", currency: "USD", incoterm: "CFR", namedPlace: "Dubai", paymentTerms: "Net 30", documentTerms: "Original documents", remainingQuantity: "4500" },
 ] as const;
 import s from "../../../../ui/features/shipments/operations.module.css";
 export default async function ContractsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ locale?: string; demoState?: string; role?: string }> }) {
@@ -22,6 +29,10 @@ export default async function ContractsPage({ params, searchParams }: { params: 
       <SalesContractLines locale={ar ? "ar" : "en"} initialLines={SALES_CONTRACT_LINES} canMutate />
       <form data-operation-id="createContractAmendment" className={s.formGrid}><label>{ar ? "تاريخ السريان" : "Effective date"}<input type="date" required /></label><label className={s.full}>{ar ? "سبب التعديل" : "Amendment reason"}<textarea required minLength={3} /></label><div className={`${s.actions} ${s.full}`}><button className={s.primary} type="button">{ar ? "إنشاء إصدار التعديل" : "Create amendment version"}</button><button className={s.secondary} type="button" data-operation-id="submitContractForApproval">{ar ? "إرسال للموافقة" : "Submit for approval"}</button></div></form>
     </section>}
-    <section id="purchase" className={s.card}><div className={s.sectionHeader}><div><h2>{ar ? "عقود الشراء" : "Purchase contracts"}</h2><p>{ar ? "عقدا شراء مرتبطان بهذا المشروع." : "Two purchase contracts are linked to this project."}</p></div></div><div className={s.tableScroll}><table><thead><tr><th>{ar ? "المرجع" : "Reference"}</th><th>{ar ? "المورد" : "Supplier"}</th><th>{ar ? "الكمية" : "Quantity"}</th><th>{ar ? "الحالة" : "Status"}</th></tr></thead><tbody><tr><td><bdi>PC-0007</bdi></td><td>Arbor Export</td><td><bdi>6,000 kg</bdi></td><td><span className={`${s.chip} ${s.success}`}>{ar ? "معتمد" : "Approved"}</span></td></tr><tr><td><bdi>PC-0008</bdi></td><td>Blue Nile Trading</td><td><bdi>4,500 kg</bdi></td><td><span className={s.chip}>{ar ? "مسودة" : "Draft"}</span></td></tr></tbody></table></div></section>
+    <section id="purchase" className={s.stack} aria-labelledby="purchase-title">
+      <div className={s.sectionHeader}><div><h2 id="purchase-title">{ar ? "عقود الشراء" : "Purchase contracts"}</h2><p>{ar ? "كل عقد شراء منسوب إلى مورد واحد، ويمكن للحاوية الفعلية تجميع بنود من عدة موردين." : "Each purchase contract belongs to one supplier; the physical container may consolidate approved lines from multiple suppliers."}</p></div></div>
+      <article className={s.card} aria-labelledby="pc-0007-title"><div className={s.sectionHeader}><div><p className={s.eyebrow}>{ar ? "إصدار معتمد" : "Approved version"}</p><h3 id="pc-0007-title"><bdi>PC-0007</bdi> · Arbor Export</h3></div><span className={`${s.chip} ${s.success}`}>{ar ? "معتمد" : "Approved"}</span></div><dl className={s.metaGrid}><div><dt>{ar ? "المورد" : "Supplier"}</dt><dd>Arbor Export</dd></div><div><dt>{ar ? "الإصدار" : "Version"}</dt><dd>1</dd></div><div><dt>{ar ? "تاريخ السريان" : "Effective"}</dt><dd><bdi>2026-11-02</bdi></dd></div><div><dt>{ar ? "آخر اعتماد" : "Last approval"}</dt><dd><bdi>APR-0022</bdi></dd></div></dl><PurchaseContractLines locale={ar ? "ar" : "en"} initialLines={APPROVED_PURCHASE_LINES} canMutate={false} readOnly /></article>
+      <article className={s.card} aria-labelledby="pc-0008-title"><div className={s.sectionHeader}><div><p className={s.eyebrow}>{ar ? "مسودة قابلة للتحرير" : "Editable draft"}</p><h3 id="pc-0008-title"><bdi>PC-0008</bdi> · Blue Nile Trading</h3><p>{ar ? "أضف عدة منتجات ثم أرسل الإصدار الكامل للموافقة." : "Add multiple products, then submit the complete version for approval."}</p></div><span className={`${s.chip} ${s.warning}`}>{ar ? "مسودة" : "Draft"}</span></div><dl className={s.metaGrid}><div><dt>{ar ? "المورد" : "Supplier"}</dt><dd>Blue Nile Trading</dd></div><div><dt>{ar ? "الإصدار" : "Version"}</dt><dd>1</dd></div></dl><PurchaseContractLines locale={ar ? "ar" : "en"} initialLines={DRAFT_PURCHASE_LINES} canMutate={canMutate} /><div className={s.actions}>{canMutate && <button className={s.primary} type="button" data-operation-id="submitContractForApproval">{ar ? "إرسال عقد الشراء للموافقة" : "Submit purchase contract for approval"}</button>}</div></article>
+    </section>
   </section>;
 }
