@@ -325,6 +325,29 @@ const OPERATION_ROLES = Object.freeze({
   ],
   "listPilotUserSessions": [
     "OWNER_ADMIN"
+  ],
+  "listContractLines": [
+    "OWNER_ADMIN",
+    "OPERATIONS",
+    "FINANCE_VIEWER"
+  ],
+  "createContractLine": [
+    "OWNER_ADMIN",
+    "OPERATIONS"
+  ],
+  "getContractLine": [
+    "OWNER_ADMIN",
+    "OPERATIONS",
+    "FINANCE_VIEWER"
+  ],
+  "updateContractLine": [
+    "OWNER_ADMIN",
+    "OPERATIONS"
+  ],
+  "listContractLineVersions": [
+    "OWNER_ADMIN",
+    "OPERATIONS",
+    "FINANCE_VIEWER"
   ]
 }) as Readonly<Record<string, readonly PilotRole[]>>;
 
