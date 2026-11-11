@@ -81,3 +81,26 @@ test("composition rejects placeholders, deferred tabs, duplicate controls and co
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   }
 });
+
+
+for (const locale of ["en", "ar"] as const) {
+  test(`${locale} sales shipment detail exposes contract-bound multiple lines and draft-only creation`, async ({ page }) => {
+    await page.goto(`/sales-shipments/demo?locale=${locale}&state=confirmed`);
+    const area = workspace(page, "sales");
+    const table = area.getByRole("table", { name: locale === "ar" ? "بنود شحنة البيع" : "Sales shipment lines" });
+    await expect(table.locator("tbody tr")).toHaveCount(2);
+    await expect(table).toContainText("SAL-2026-004 · 1");
+    await expect(table).toContainText("Ethiopia Guji");
+    await expect(table).toContainText(locale === "ar" ? "المتبقي بعد الشحنة" : "Remaining after shipment");
+    await expect(area.getByRole("form", { name: locale === "ar" ? "إضافة بند شحنة" : "Add shipment line" })).toHaveCount(0);
+
+    await page.goto(`/sales-shipments/demo?locale=${locale}&state=draft`);
+    const draft = workspace(page, "sales");
+    const form = draft.getByRole("form", { name: locale === "ar" ? "إضافة بند شحنة" : "Add shipment line" });
+    await expect(form).toBeVisible();
+    const selector = form.getByRole("combobox", { name: locale === "ar" ? "بند العقد المعتمد" : "Approved contract line" });
+    await expect(selector.locator("option")).toHaveCount(3);
+    await expect(selector.locator("option").nth(1)).toContainText("SAL-2026-004 · 1");
+    await expect(form).toHaveAttribute("data-operation-id", "createSalesShipmentLine");
+  });
+}

@@ -20,10 +20,11 @@ for (const locale of ["en", "ar"] as const) {
       const area = workspace(page, kind);
       await expect(area.getByRole("heading", { name })).toBeVisible();
       await expect(area.getByText(kind === "supplier" ? "ORB-SUP-0007" : "ORB-SAL-0007", { exact: true })).toBeVisible();
-      await expect(area.getByRole("table", { name: text.history })).toBeVisible();
-      await expect(area.locator("tbody tr")).toHaveCount(2);
-      await expect(area.locator("tbody tr").nth(0)).toContainText("1");
-      await expect(area.locator("tbody tr").nth(1)).toContainText("2");
+      const historyTable = area.getByRole("table", { name: text.history });
+      await expect(historyTable).toBeVisible();
+      await expect(historyTable.locator("tbody tr")).toHaveCount(2);
+      await expect(historyTable.locator("tbody tr").nth(0)).toContainText("1");
+      await expect(historyTable.locator("tbody tr").nth(1)).toContainText("2");
       await expect(area.getByText(/APR-OLD-1/)).toBeVisible();
       await expect(area.getByRole("button", { name: text.revise })).toBeVisible();
       await expect(area.getByRole("button", { name: text.transit })).toBeVisible();
