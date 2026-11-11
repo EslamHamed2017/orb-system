@@ -24,7 +24,8 @@
 
 ## Phase 2 — Domain APIs
 - [x] T019 Contract line create/read/update/version APIs
-- [ ] T020 Contract line approval and amendment validation
+- [x] T020 Contract line approval and amendment validation
+  - Verification note (2026-11-11): T020 focused tests and typecheck pass. The full suite retains a pre-existing unrelated baseline failure in `tests/security/auth-rbac-csrf.test.ts` because it expects 79 OpenAPI operations while the accepted contract exposes 84; T020 does not modify that inventory.
 - [ ] T021 Sales shipment line APIs with contract-line validation
 - [ ] T022 Supplier shipment line APIs with purchase-line validation
 - [ ] T023 Partial fulfillment, source-allocation and remaining-quantity/value query

@@ -38,6 +38,13 @@ export interface ContractLineService {
   list(input: ReadInput): Promise<readonly ContractLineRecord[]>;
   get(input: ReadInput & { lineId: string }): Promise<ContractLineRecord>;
   versions(input: ReadInput & { lineId: string }): Promise<readonly StoredContractLineVersion[]>;
+  validateApproval(input: ReadInput & { contractVersionId: string }): Promise<ContractLineApprovalManifest>;
+  validateAmendment(input: ReadInput & { sourceVersionId: string; draftVersionId: string }): Promise<void>;
+}
+export interface ContractLineApprovalManifest {
+  readonly lineCount: number;
+  readonly lineVersionIds: readonly string[];
+  readonly linesHash: string;
 }
 interface ReadInput { readonly contractId: string; readonly correlationId: string }
 interface LineWrite extends ReadInput { readonly contractVersionId: string; readonly facts: unknown }
@@ -95,5 +102,39 @@ export function createContractLineService(options: { repository: ContractLineRep
     async list(input) { validId(input.contractId, input.correlationId); return options.repository.listLines(input.contractId); },
     async get(input) { return line(input.contractId, input.lineId, input.correlationId); },
     async versions(input) { await line(input.contractId, input.lineId, input.correlationId); return options.repository.listLineVersions(input.contractId, input.lineId); },
+    async validateAmendment(input) {
+      validId(input.contractId, input.correlationId); validId(input.sourceVersionId, input.correlationId); validId(input.draftVersionId, input.correlationId);
+      if (input.sourceVersionId === input.draftVersionId) fail("VALIDATION_FAILED", 400, input.correlationId);
+      const [source, target] = await Promise.all([
+        options.repository.getContractVersion(input.contractId, input.sourceVersionId),
+        options.repository.getContractVersion(input.contractId, input.draftVersionId),
+      ]);
+      if (!source || !target) fail("RESOURCE_NOT_FOUND", 404, input.correlationId);
+      if (source.state !== "APPROVED" || target.state !== "DRAFT") fail("INVALID_STATE_TRANSITION", 409, input.correlationId);
+      const lines = await options.repository.listLines(input.contractId);
+      if (lines.length === 0) fail("CONTRACT_LINES_REQUIRED", 409, input.correlationId);
+      for (const item of lines) {
+        const versions = await options.repository.listLineVersions(input.contractId, item.id);
+        const draftSnapshot = versions.find((candidate) => candidate.contractVersionId === input.draftVersionId);
+        if (!draftSnapshot) fail("CONTRACT_LINE_SNAPSHOT_INCOMPLETE", 409, input.correlationId);
+      }
+    },
+    async validateApproval(input) {
+      await draft(input.contractId, input.contractVersionId, input.correlationId);
+      const lines = [...await options.repository.listLines(input.contractId)].sort((a, b) => a.lineNo - b.lineNo);
+      if (lines.length === 0) fail("CONTRACT_LINES_REQUIRED", 409, input.correlationId);
+      const snapshots: StoredContractLineVersion[] = [];
+      for (const item of lines) {
+        const versions = await options.repository.listLineVersions(input.contractId, item.id);
+        const snapshot = versions.find((candidate) => candidate.contractVersionId === input.contractVersionId);
+        if (!snapshot) fail("CONTRACT_LINE_SNAPSHOT_INCOMPLETE", 409, input.correlationId);
+        snapshots.push(snapshot);
+      }
+      return Object.freeze({
+        lineCount: snapshots.length,
+        lineVersionIds: Object.freeze(snapshots.map((snapshot) => snapshot.id)),
+        linesHash: createHash("sha256").update(canonical({ lines: snapshots.map((snapshot) => ({ id: snapshot.id, hash: snapshot.lineHash })) })).digest("hex"),
+      });
+    },
   };
 }

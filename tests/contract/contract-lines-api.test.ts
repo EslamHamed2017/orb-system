@@ -60,6 +60,65 @@ test("contract-line service rejects invalid facts, cross-contract versions, and 
   await assert.rejects(() => service.update({ contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version1, facts, correlationId: "duplicate" }), (error: any) => error.problem?.code === "CONTRACT_LINE_VERSION_EXISTS");
 });
 
+test("contract-line approval validation returns a deterministic manifest for the exact complete draft", async () => {
+  const repo = repository();
+  const service = createContractLineService({ repository: repo, newId: () => ids.line });
+  await service.update({ contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version1, facts, correlationId: "approval-line" });
+
+  const manifest = await service.validateApproval({ contractId: ids.contract, contractVersionId: ids.version1, correlationId: "approval" });
+
+  assert.equal(manifest.lineCount, 1);
+  assert.deepEqual(manifest.lineVersionIds, [ids.line]);
+  assert.match(manifest.linesHash, /^[a-f0-9]{64}$/);
+});
+
+test("contract-line amendment validation requires an approved source and a complete distinct draft", async () => {
+  const repo = repository();
+  const service = createContractLineService({ repository: repo, newId: () => ids.line });
+  await service.update({ contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version1, facts, correlationId: "source-line" });
+  repo.getContractVersion = async (contractId, versionId) => contractId !== ids.contract ? null
+    : versionId === ids.version1 ? { id: versionId, contractId, state: "APPROVED" }
+    : versionId === ids.version2 ? { id: versionId, contractId, state: "DRAFT" }
+    : null;
+
+  await assert.rejects(
+    () => service.validateAmendment({ contractId: ids.contract, sourceVersionId: ids.version1, draftVersionId: ids.version2, correlationId: "amendment" }),
+    (error: any) => error.problem?.code === "CONTRACT_LINE_SNAPSHOT_INCOMPLETE",
+  );
+});
+
+test("contract-line amendment validation accepts carried-forward snapshots and approved lines stay immutable", async () => {
+  const repo = repository();
+  const service = createContractLineService({ repository: repo, newId: () => ids.line });
+  await service.update({ contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version1, facts, correlationId: "source-line" });
+  await service.update({ contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version2, facts: { ...facts, quantity: "90.000000" }, correlationId: "draft-line" });
+  repo.getContractVersion = async (contractId, versionId) => contractId !== ids.contract ? null
+    : versionId === ids.version1 ? { id: versionId, contractId, state: "APPROVED" }
+    : versionId === ids.version2 ? { id: versionId, contractId, state: "DRAFT" }
+    : null;
+
+  await service.validateAmendment({ contractId: ids.contract, sourceVersionId: ids.version1, draftVersionId: ids.version2, correlationId: "amendment-complete" });
+  await assert.rejects(
+    () => service.update({ contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version1, facts: { ...facts, quantity: "1" }, correlationId: "approved-edit" }),
+    (error: any) => error.problem?.code === "IMMUTABLE_VERSION",
+  );
+});
+
+test("contract-line approval validation rejects contracts without a complete line snapshot", async () => {
+  const empty = repository();
+  empty.listLines = async () => [];
+  await assert.rejects(
+    () => createContractLineService({ repository: empty }).validateApproval({ contractId: ids.contract, contractVersionId: ids.version1, correlationId: "no-lines" }),
+    (error: any) => error.problem?.code === "CONTRACT_LINES_REQUIRED",
+  );
+
+  const incomplete = repository();
+  await assert.rejects(
+    () => createContractLineService({ repository: incomplete }).validateApproval({ contractId: ids.contract, contractVersionId: ids.version1, correlationId: "missing-snapshot" }),
+    (error: any) => error.problem?.code === "CONTRACT_LINE_SNAPSHOT_INCOMPLETE",
+  );
+});
+
 test("contract-line OpenAPI exposes create/read/update/version operations with guarded writes", () => {
   const api = parseYaml(readFileSync("specs/001-orb-trade-operations/contracts/openapi.yaml", "utf8"));
   const expected = [
