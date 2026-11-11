@@ -929,8 +929,32 @@ model SupplierInvoice {
   SupplierShipment     SupplierShipment     @relation(fields: [supplier_shipment_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_33_SupplierInvoice")
   Party                Party                @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_34_SupplierInvoice")
   EvidenceObject       EvidenceObject       @relation(fields: [evidence_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_35_SupplierInvoice")
+  SupplierInvoiceLine  SupplierInvoiceLine[]
 
+  @@unique([id, supplier_id, supplier_shipment_id])
   @@unique([supplier_id, reference])
+}
+
+/// Immutable supplier charge detail. Composite relations keep every line within the invoice supplier and physical container.
+model SupplierInvoiceLine {
+  id                                String                      @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  supplier_invoice_id               String                      @db.Uuid
+  supplier_shipment_id              String                      @db.Uuid
+  supplier_shipment_dataset_id      String                      @db.Uuid
+  supplier_shipment_dataset_line_id String                      @db.Uuid
+  supplier_id                       String                      @db.Uuid
+  line_no                           Int
+  description                       String
+  quantity                          Decimal                     @db.Decimal(20, 6)
+  unit_price                        Decimal                     @db.Decimal(20, 6)
+  line_amount                       Decimal                     @db.Decimal(20, 6)
+  created_at                        DateTime                    @default(now()) @db.Timestamptz(6)
+  SupplierInvoice                   SupplierInvoice             @relation(fields: [supplier_invoice_id, supplier_id, supplier_shipment_id], references: [id, supplier_id, supplier_shipment_id], onDelete: NoAction, onUpdate: NoAction)
+  SupplierShipmentDataset           SupplierShipmentDataset     @relation(fields: [supplier_shipment_dataset_id, supplier_shipment_id], references: [id, shipment_id], onDelete: NoAction, onUpdate: NoAction)
+  SupplierShipmentDatasetLine       SupplierShipmentDatasetLine @relation(fields: [supplier_shipment_dataset_line_id, supplier_shipment_dataset_id, supplier_id], references: [id, supplier_shipment_dataset_id, supplier_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([supplier_invoice_id, line_no])
+  @@unique([supplier_invoice_id, supplier_shipment_dataset_line_id])
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1007,8 +1031,10 @@ model SupplierShipmentDataset {
   Party                                                                        Party                         @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_14_SupplierShipmentDataset")
   CoffeeSpecification                                                          CoffeeSpecification           @relation(fields: [coffee_specification_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_15_SupplierShipmentDataset")
   SupplierShipmentDatasetLine                                                  SupplierShipmentDatasetLine[]
+  SupplierInvoiceLine                                                         SupplierInvoiceLine[]
 
   @@unique([id, purchase_contract_id])
+  @@unique([id, shipment_id])
   @@unique([shipment_id, revision_no])
 }
 
@@ -1032,7 +1058,9 @@ model SupplierShipmentDatasetLine {
   Party                        Party                          @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   ContractLineVersion          ContractLineVersion            @relation(fields: [contract_line_version_id, purchase_contract_id], references: [id, contract_id], onDelete: NoAction, onUpdate: NoAction)
   ShipmentLineSourceAllocation ShipmentLineSourceAllocation[]
+  SupplierInvoiceLine          SupplierInvoiceLine[]
 
+  @@unique([id, supplier_shipment_dataset_id, supplier_id])
   @@unique([supplier_shipment_dataset_id, line_no])
 }
 

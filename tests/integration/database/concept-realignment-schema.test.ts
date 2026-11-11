@@ -197,3 +197,35 @@ test("T012 models one active customer sales invoice per sales shipment with line
   assert.match(shipmentLine, /@@unique\(\[id, sales_shipment_dataset_id\]\)/);
   assert.match(shipmentLine, /^\s*SalesInvoiceLine\s+SalesInvoiceLine\[\]/m);
 });
+
+test("T013 models supplier invoice lines with database-enforced same-supplier container attribution", () => {
+  const invoice = model("SupplierInvoice");
+  const invoiceLine = model("SupplierInvoiceLine");
+  const dataset = model("SupplierShipmentDataset");
+  const shipmentLine = model("SupplierShipmentDatasetLine");
+
+  for (const name of [
+    "supplier_invoice_id", "supplier_shipment_id", "supplier_shipment_dataset_id",
+    "supplier_shipment_dataset_line_id", "supplier_id", "line_no", "description",
+    "quantity", "unit_price", "line_amount", "created_at",
+  ]) field(invoiceLine, name);
+
+  assert.match(field(invoiceLine, "quantity"), /Decimal.+@db\.Decimal\(20, 6\)/);
+  assert.match(field(invoiceLine, "unit_price"), /Decimal.+@db\.Decimal\(20, 6\)/);
+  assert.match(field(invoiceLine, "line_amount"), /Decimal.+@db\.Decimal\(20, 6\)/);
+  assert.match(invoice, /@@unique\(\[id, supplier_id, supplier_shipment_id\]\)/);
+  assert.match(invoiceLine, /fields: \[supplier_invoice_id, supplier_id, supplier_shipment_id\].+references: \[id, supplier_id, supplier_shipment_id\]/,
+    "every invoice line must inherit the invoice supplier and physical container");
+  assert.match(invoiceLine, /fields: \[supplier_shipment_dataset_id, supplier_shipment_id\].+references: \[id, shipment_id\]/,
+    "every invoice line must resolve within a dataset revision of the invoice container");
+  assert.match(invoiceLine, /fields: \[supplier_shipment_dataset_line_id, supplier_shipment_dataset_id, supplier_id\].+references: \[id, supplier_shipment_dataset_id, supplier_id\]/,
+    "the invoiced container line must belong to the invoice supplier");
+  assert.match(invoiceLine, /@@unique\(\[supplier_invoice_id, line_no\]\)/);
+  assert.match(invoiceLine, /@@unique\(\[supplier_invoice_id, supplier_shipment_dataset_line_id\]\)/);
+  assert.match(dataset, /@@unique\(\[id, shipment_id\]\)/);
+  assert.match(shipmentLine, /@@unique\(\[id, supplier_shipment_dataset_id, supplier_id\]\)/);
+  assert.match(invoice, /^\s*SupplierInvoiceLine\s+SupplierInvoiceLine\[\]/m);
+  assert.match(shipmentLine, /^\s*SupplierInvoiceLine\s+SupplierInvoiceLine\[\]/m);
+  assert.doesNotMatch(invoiceLine, /^\s*(?:updated_at|version)\s+/m,
+    "supplier invoice line facts are immutable; corrections replace the invoice");
+});
