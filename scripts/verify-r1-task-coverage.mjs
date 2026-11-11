@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -72,10 +73,13 @@ function verifyGraph(tasks) {
 }
 function primaryMap(tasks) {
   const primary = new Map();
-  for (const task of tasks) for (const path of task.exactFiles) {
+  for (const task of tasks) {
+    if (CORRECTION_ID.test(task.id)) continue;
+    for (const path of task.exactFiles) {
     literalPath(path, `${task.id} Exact files`);
     if (primary.has(path)) fail(`duplicate primary exact-file owner for ${path}: ${primary.get(path)} and ${task.id}`);
-    primary.set(path, task.id);
+      primary.set(path, task.id);
+    }
   }
   return primary;
 }
@@ -109,9 +113,16 @@ function assertPrerequisites(byId) {
 function parseCorrectionTasks(tasks, initialPrimary) {
   const corrections = tasks.filter((task) => CORRECTION_ID.test(task.id)).map((task) => {
     const list = (name) => backticks(task.field(name) || '');
-    const mapping = (name) => Object.fromEntries(list(name).map((entry) => {
-      const match = entry.match(/^(.+?)\s*->\s*(ORB-R1-(?:\d{4}|CORR-\d{4})|none)$/); if (!match) fail(`${task.id}: invalid ${name} mapping ${entry}`); return [match[1], match[2]];
-    }));
+    const mapping = (name) => {
+      const entries = list(name).map((entry) => {
+        const match = entry.match(/^(.+?)\s*->\s*(ORB-R1-(?:\d{4}|CORR-\d{4})|none)$/);
+        if (!match) fail(`${task.id}: invalid ${name} mapping ${entry}`);
+        return [match[1], match[2]];
+      });
+      const paths = entries.map(([path]) => path);
+      exact(paths, [...new Set(paths)], `${task.id} duplicate ${name} mapping`);
+      return Object.fromEntries(entries);
+    };
     return {
       id: task.id, prerequisites: task.prerequisites, exactFiles: task.exactFiles,
       correctsFiles: list('Corrects files'), primaryOwner: mapping('Primary owner'), supersedes: mapping('Supersedes'),
@@ -124,6 +135,48 @@ function parseCorrectionTasks(tasks, initialPrimary) {
   });
   if (!corrections.length) return { primaryFiles: initialPrimary.size, correctionOverlays: 0 };
   return verifyCorrectionModel({ primary: Object.fromEntries(initialPrimary), corrections });
+}
+
+export function parseGitNameStatus(output) {
+  if (typeof output !== 'string') fail('Git name-status output must be text');
+  if (!output) return [];
+  const tokens = output.split('\0');
+  if (tokens.pop() !== '') fail('malformed Git name-status output: missing NUL terminator');
+  const paths = [];
+  for (let index = 0; index < tokens.length;) {
+    const status = tokens[index++];
+    if (!/^[ACDMRTUXB](?:\d{1,3})?$/.test(status)) fail(`unsupported Git change status ${status}`);
+    const count = /^[CR]/.test(status) ? 2 : 1;
+    if (index + count > tokens.length) fail(`malformed Git name-status entry for ${status}`);
+    for (let offset = 0; offset < count; offset++) {
+      const path = tokens[index++];
+      if (!path) fail(`malformed Git name-status entry for ${status}`);
+      paths.push(path);
+    }
+  }
+  return [...new Set(paths)];
+}
+
+export function verifyTaskChangeAuthorization(taskSource, taskId, changedPaths) {
+  if (typeof taskSource !== 'string') fail('missing task source');
+  const tasks = parseTasks(taskSource), byId = new Map(tasks.map((task) => [task.id, task]));
+  const task = byId.get(taskId);
+  if (!task) fail(`unknown selected task ${taskId}`);
+  if (!Array.isArray(changedPaths) || changedPaths.length === 0) fail(`${taskId}: no actual changed paths`);
+  for (const path of changedPaths) literalPath(path, `${taskId} actual changed path`);
+  exact(changedPaths, [...new Set(changedPaths)], `${taskId} duplicate actual changed paths`);
+
+  const primary = primaryMap(tasks);
+  // Validate the complete overlay model before trusting correction authorizations.
+  parseCorrectionTasks(tasks, primary);
+  const authorized = new Set(task.exactFiles);
+  if (CORRECTION_ID.test(task.id)) for (const path of backticks(task.field('Corrects files') || '')) authorized.add(path);
+  for (const path of changedPaths) {
+    if (authorized.has(path)) continue;
+    const owner = primary.get(path);
+    fail(`${taskId}: unauthorized changed path ${path} (${owner ? `primary owner ${owner}` : 'unowned'})`);
+  }
+  return { taskId, changedPaths: changedPaths.length };
 }
 
 export function verifyCorrectionModel(model) {
@@ -212,11 +265,45 @@ export function verifyRepositorySources({ tasks: taskSource, openapi, ui, spec, 
   return { tasks: ordinary.length, edges, primaryFiles: correction.primaryFiles, correctionOverlays: correction.correctionOverlays, operations: operations.length, requirements: expectedRequirements.length, invariants: expectedInvariants.length, uiRoutes: routes.length, pageFiles: pageFiles.length, evidence: evidenceRows.length };
 }
 
+export function changedPathsFromGit(root, arguments_, execute = execFileSync) {
+  let taskId, mode, reference, graphOnly = false;
+  for (let index = 0; index < arguments_.length; index++) {
+    const argument = arguments_[index];
+    if (argument === '--graph-only') {
+      if (graphOnly) fail('duplicate --graph-only');
+      graphOnly = true;
+    } else if (argument === '--task') {
+      if (taskId) fail('duplicate --task');
+      taskId = arguments_[++index];
+      if (!taskId) fail('--task requires an ID');
+    } else if (argument === '--staged') mode = mode ? fail('choose exactly one changed-path source') : 'staged';
+    else if (argument === '--changed-from') {
+      mode = mode ? fail('choose exactly one changed-path source') : 'reference';
+      reference = arguments_[++index];
+      if (!reference) fail('--changed-from requires a Git reference');
+    } else fail(`unknown argument ${argument}`);
+  }
+  if (graphOnly) {
+    if (taskId || mode) fail('--graph-only cannot be combined with task change authorization');
+    return null;
+  }
+  if (!taskId || !mode) fail('CLI requires --graph-only or --task with exactly one of --staged or --changed-from');
+  const common = ['diff', '--name-status', '-z', '--find-renames', '--find-copies-harder', '--diff-filter=ACDMRTUXB'];
+  const gitArguments = mode === 'staged'
+    ? [...common, '--cached', '--']
+    : [...common, `${reference}...HEAD`, '--'];
+  const output = execute('git', gitArguments, { cwd: root, encoding: 'utf8' });
+  return { taskId, paths: parseGitNameStatus(output) };
+}
+
 function main() {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '..'), base = resolve(root, 'specs/001-orb-trade-operations');
   const read = (path) => readFileSync(resolve(base, path), 'utf8');
-  const result = verifyRepositorySources({ tasks: read('tasks.md'), openapi: read('contracts/openapi.yaml'), ui: read('contracts/ui-workflows.md'), spec: read('spec.md'), quickstart: read('quickstart.md') });
-  process.stdout.write(`ORB R1 task coverage PASS ${JSON.stringify(result)}\n`);
+  const taskSource = read('tasks.md');
+  const result = verifyRepositorySources({ tasks: taskSource, openapi: read('contracts/openapi.yaml'), ui: read('contracts/ui-workflows.md'), spec: read('spec.md'), quickstart: read('quickstart.md') });
+  const changeRequest = changedPathsFromGit(root, process.argv.slice(2));
+  const changes = changeRequest ? verifyTaskChangeAuthorization(taskSource, changeRequest.taskId, changeRequest.paths) : undefined;
+  process.stdout.write(`ORB R1 task coverage PASS ${JSON.stringify(changes ? { ...result, changes } : result)}\n`);
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try { main(); } catch (error) { process.stderr.write(`ORB R1 task coverage FAIL: ${error.message}\n`); process.exitCode = 1; }
