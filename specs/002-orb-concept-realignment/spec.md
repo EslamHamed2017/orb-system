@@ -29,6 +29,13 @@
 - Attachments inherit access control from their parent transaction.
 - Arabic RTL and English LTR are release gates, not later enhancements.
 
+## Invoice grouping contract
+- There is at most one active customer sales invoice per sales shipment; cancelled invoices do not prevent an authorized replacement.
+- Sales invoice lines must reference only lines from that same sales shipment and retain shipment-line traceability.
+- Each supplier invoice is attributable to one supplier only, and every supplier invoice line must resolve to that supplier through its approved purchase-contract line.
+- A multi-supplier container requires a separate supplier invoice for each supplier represented when those supplier charges are invoiced.
+- The physical supplier container does not define invoice grouping and must never merge supplier liabilities into a cross-supplier invoice.
+
 ## Pilot acceptance flow
 Create customer and suppliers → create products → create project → create multi-line sales contract → create purchase contracts → consolidate supplier lines into a container → create partial sales shipments → issue customer invoice → register supplier invoices, collection/payment, and expenses → attach evidence → print transactions → view product movement and reports → close project.
 
