@@ -10,6 +10,7 @@ export type RuntimeConfig = Readonly<{
   encryption: Readonly<{ key: Uint8Array }>;
   telemetry: Readonly<{ endpoint: string }>;
   backup: Readonly<{ statusEndpoint: string }>;
+  realignment: Readonly<{ dualWrite: boolean; readPath: "legacy" | "compare" | "v2" }>;
 }>;
 
 function invalid(name: string, detail: string): never {
@@ -49,7 +50,7 @@ function encryptionKey(value: string): Uint8Array {
 
 function freezeConfig(config: Omit<RuntimeConfig, "http"> & { http: { appOrigin: string; allowedOrigins: string[] } }): RuntimeConfig {
   Object.freeze(config.database); Object.freeze(config.objectStorage); Object.freeze(config.auth);
-  Object.freeze(config.encryption); Object.freeze(config.telemetry); Object.freeze(config.backup);
+  Object.freeze(config.encryption); Object.freeze(config.telemetry); Object.freeze(config.backup); Object.freeze(config.realignment);
   Object.freeze(config.http.allowedOrigins); Object.freeze(config.http);
   return Object.freeze(config);
 }
@@ -64,6 +65,10 @@ export function parseRuntimeConfig(input: Record<string, string | undefined>): R
     return url("ORB_ALLOWED_ORIGINS", value, production, true).origin;
   }))];
   if (!allowedOrigins.includes(appOrigin)) invalid("ORB_APP_ORIGIN", "must be included in ORB_ALLOWED_ORIGINS");
+
+  const dualWrite = env.ORB_REALIGNMENT_DUAL_WRITE === "1";
+  if (env.ORB_REALIGNMENT_READ_PATH !== "legacy" && !dualWrite)
+    invalid("ORB_REALIGNMENT_DUAL_WRITE", `must equal 1 before ${env.ORB_REALIGNMENT_READ_PATH} reads`);
 
   const config = {
     environment: env.NODE_ENV,
@@ -83,6 +88,7 @@ export function parseRuntimeConfig(input: Record<string, string | undefined>): R
     encryption: { key: encryptionKey(env.ENCRYPTION_KEY_BASE64) },
     telemetry: { endpoint: url("TELEMETRY_ENDPOINT", env.TELEMETRY_ENDPOINT, production).toString().replace(/\/$/, "") },
     backup: { statusEndpoint: url("BACKUP_STATUS_ENDPOINT", env.BACKUP_STATUS_ENDPOINT, production).toString().replace(/\/$/, "") },
+    realignment: { dualWrite, readPath: env.ORB_REALIGNMENT_READ_PATH },
   };
   return freezeConfig(config);
 }

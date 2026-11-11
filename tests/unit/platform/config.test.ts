@@ -32,6 +32,28 @@ test("validated runtime config parses the fixed R1 security policy", () => {
 });
 
 
+test("concept realignment rollout defaults to legacy reads with dual writes disabled", () => {
+  const config = parseRuntimeConfig(VALID_ENV);
+  assert.deepEqual(config.realignment, { dualWrite: false, readPath: "legacy" });
+  assert.ok(Object.isFrozen(config.realignment));
+});
+
+test("concept realignment cutover requires dual writes and closed flag values", () => {
+  const compare = parseRuntimeConfig({
+    ...VALID_ENV, ORB_REALIGNMENT_DUAL_WRITE: "1", ORB_REALIGNMENT_READ_PATH: "compare",
+  });
+  assert.deepEqual(compare.realignment, { dualWrite: true, readPath: "compare" });
+  assert.throws(() => parseRuntimeConfig({
+    ...VALID_ENV, ORB_REALIGNMENT_READ_PATH: "v2",
+  }), /ORB_REALIGNMENT_DUAL_WRITE/);
+  assert.throws(() => parseRuntimeConfig({
+    ...VALID_ENV, ORB_REALIGNMENT_DUAL_WRITE: "yes",
+  }), /ORB_REALIGNMENT_DUAL_WRITE/);
+  assert.throws(() => parseRuntimeConfig({
+    ...VALID_ENV, ORB_REALIGNMENT_READ_PATH: "new",
+  }), /ORB_REALIGNMENT_READ_PATH/);
+});
+
 test("runtime parsing ignores unrelated host variables", () => {
   const config = parseRuntimeConfig({ ...VALID_ENV, PATH: "/usr/bin", CI: "true" });
   assert.equal(config.environment, "production");

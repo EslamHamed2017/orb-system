@@ -17,6 +17,8 @@ export const RuntimeEnvironmentSchema = z.object({
   ENCRYPTION_KEY_BASE64: required("ENCRYPTION_KEY_BASE64"),
   TELEMETRY_ENDPOINT: required("TELEMETRY_ENDPOINT"),
   BACKUP_STATUS_ENDPOINT: required("BACKUP_STATUS_ENDPOINT"),
+  ORB_REALIGNMENT_DUAL_WRITE: z.enum(["0", "1"]).default("0"),
+  ORB_REALIGNMENT_READ_PATH: z.enum(["legacy", "compare", "v2"]).default("legacy"),
 });
 
 export type RuntimeEnvironment = z.infer<typeof RuntimeEnvironmentSchema>;
