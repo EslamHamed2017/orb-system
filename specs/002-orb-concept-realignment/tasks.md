@@ -67,7 +67,8 @@
   - Verification note (2026-11-11): supplier-attributable approved and editable purchase-contract detail views now support multiple product lines, exact-decimal totals, remaining quantities, bilingual EN/LTR and AR/RTL composition, and permission-aware draft actions. Focused unit tests, strict typecheck, all 535 canonical tests, the production build, and four managed Chromium acceptance journeys pass.
 - [x] T039 Multi-line sales shipment form and detail page
   - Verification note (2026-11-11): bilingual EN/LTR and AR/RTL sales-shipment detail now renders multiple exact approved-contract-line-version rows with remaining-after-shipment quantities and exact-decimal totals; draft mutation is permission-shaped and only permits approved lines with capacity. Focused unit tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and managed Chromium acceptance journeys pass.
-- [ ] T040 Multi-supplier container/supplier shipment workspace
+- [x] T040 Multi-supplier container/supplier shipment workspace
+  - Verification note (2026-11-11): the bilingual EN/LTR and AR/RTL supplier-container workspace consolidates multiple suppliers and approved purchase-contract-line versions in one physical container while preserving per-line supplier/contract attribution, exact-decimal totals, draft-only mutation, and separate-supplier invoice guidance. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and seven managed Chromium workspace journeys pass.
 - [ ] T041 Partial fulfillment and remaining quantities visualization
 - [ ] T042 Project 360° overview with linked record counts and actions
 - [ ] T043 Bidirectional breadcrumbs/related-record navigation
