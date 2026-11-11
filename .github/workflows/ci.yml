@@ -4,12 +4,18 @@ on:
   pull_request:
   push:
     branches: [001-orb-trade-operations]
+  workflow_dispatch:
+    inputs:
+      acceptance_base_url:
+        description: HTTPS URL of the owner-approved deployed acceptance target
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
-  quality:
+  offline:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -21,60 +27,103 @@ jobs:
       - run: corepack prepare pnpm@12.16.1 --activate
       - name: Frozen dependency install
         run: pnpm install --frozen-lockfile --strict-peer-dependencies
-      - name: Generate Prisma client when the owned schema exists
-        if: hashFiles('prisma/schema.prisma') != ''
+      - name: Generate Prisma client
         run: pnpm run prisma:generate
       - name: Reject generated source drift
         run: git diff --exit-code
       - run: pnpm run typecheck
-      - name: Unit and contract coverage
+      - name: Unit, contract, and architecture tests
         run: node --test --experimental-test-coverage tests/unit/**/*.test.ts tests/contract/**/*.test.ts tests/architecture/**/*.test.ts
-      - name: Integration tests when present
-        if: hashFiles('tests/integration/**/*.test.ts') != ''
+      - name: Integration tests
         run: node --test tests/integration/**/*.test.ts
-      - name: Acceptance tests when present
-        if: hashFiles('tests/acceptance/**/*.spec.ts') != ''
-        run: pnpm exec playwright test
+      - name: Verify recorded schema and seed baseline
+        run: node scripts/verify-schema-seed-baseline.mjs --verify
       - name: Dependency security scan
         shell: bash
         run: |
           pnpm audit --json > "$RUNNER_TEMP/pnpm-audit.json" || true
           node scripts/verify-build-manifest.mjs --assert-audit "$RUNNER_TEMP/pnpm-audit.json"
 
+  local-browser:
+    needs: offline
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      ORB_TEST_MANAGED_SERVER: "1"
+      ORB_TEST_AUTH: "1"
+      ORB_TEST_BASE_URL: http://127.0.0.1:3000
+      ORB_APP_ORIGIN: http://127.0.0.1:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - run: corepack enable
+      - run: corepack prepare pnpm@12.16.1 --activate
+      - run: pnpm install --frozen-lockfile --strict-peer-dependencies
+      - run: pnpm run prisma:generate
+      - run: pnpm run build
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Acceptance against CI-owned local application
+        run: pnpm exec playwright test --project=chromium
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: local-browser-playwright-report
+          path: playwright-report
+          if-no-files-found: ignore
+          retention-days: 14
+
+  deployed-acceptance:
+    if: github.event_name == 'workflow_dispatch'
+    needs: offline
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: owner-acceptance
+    env:
+      ORB_TEST_BASE_URL: ${{ inputs.acceptance_base_url }}
+    steps:
+      - name: Require an explicit HTTPS acceptance target
+        shell: bash
+        run: '[[ "$ORB_TEST_BASE_URL" =~ ^https://[^/]+ ]]'
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - run: corepack enable
+      - run: corepack prepare pnpm@12.16.1 --activate
+      - run: pnpm install --frozen-lockfile --strict-peer-dependencies
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Acceptance against owner-approved deployment
+        run: pnpm exec playwright test --project=chromium
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deployed-acceptance-playwright-report
+          path: playwright-report
+          if-no-files-found: ignore
+          retention-days: 14
+
   immutable-build:
-    needs: quality
+    needs: [offline, local-browser]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Detect build target
-        id: build-target
-        shell: bash
-        run: |
-          if [[ -d src/app ]]; then echo "available=true" >> "$GITHUB_OUTPUT"; else echo "available=false" >> "$GITHUB_OUTPUT"; fi
       - uses: actions/setup-node@v4
-        if: steps.build-target.outputs.available == 'true'
         with:
           node-version-file: .node-version
       - run: corepack enable
-        if: steps.build-target.outputs.available == 'true'
       - run: corepack prepare pnpm@12.16.1 --activate
-        if: steps.build-target.outputs.available == 'true'
       - run: pnpm install --frozen-lockfile --strict-peer-dependencies
-        if: steps.build-target.outputs.available == 'true'
       - run: pnpm run prisma:generate
-        if: steps.build-target.outputs.available == 'true' && hashFiles('prisma/schema.prisma') != ''
       - run: pnpm run build
-        if: steps.build-target.outputs.available == 'true'
       - name: Create and verify immutable digest manifest
-        if: steps.build-target.outputs.available == 'true'
         run: |
           node scripts/verify-build-manifest.mjs --write "$RUNNER_TEMP/orb-build-manifest.json"
           node scripts/verify-build-manifest.mjs --verify "$RUNNER_TEMP/orb-build-manifest.json"
       - run: git diff --exit-code
-        if: steps.build-target.outputs.available == 'true'
       - uses: actions/upload-artifact@v4
-        if: steps.build-target.outputs.available == 'true'
         with:
           name: orb-build-manifest
           path: ${{ runner.temp }}/orb-build-manifest.json

@@ -3,7 +3,7 @@
 ## Phase 0 — Safety and baseline
 - [x] T001 Preserve and verify current uncommitted accessibility/navigation fixes
 - [x] T002 Repair the two red baseline tests, then rerun typecheck, unit/contract tests, build, audit, and focused E2E
-- [ ] T003 Repair CI topology: separate offline, local-browser, and deployed acceptance gates and record baseline schema/seed counts
+- [x] T003 Repair CI topology: separate offline, local-browser, and deployed acceptance gates and record baseline schema/seed counts
 - [ ] T004 Freeze approved domain terminology in Arabic and English
 - [ ] T005 Confirm customer-invoice vs supplier-invoice grouping rule in spec
 - [ ] T006 Create isolated PostgreSQL/object-storage migration and restore environment; eliminate skipped real-DB migration gate

@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "schema": {
+    "models": 40,
+    "enums": 34
+  },
+  "seed": {
+    "tables": 27,
+    "rows": 46,
+    "digest": "941b46fd4fb014dae1af3deb6151dc130f714f770ec55f2ead9ae40494ddb8ad",
+    "rowCounts": {
+      "user": 3,
+      "userRole": 3,
+      "pilotSession": 3,
+      "currency": 2,
+      "party": 3,
+      "coffeeSpecification": 1,
+      "expenseCategory": 1,
+      "approval": 8,
+      "project": 2,
+      "contract": 2,
+      "contractVersion": 2,
+      "supplierShipment": 1,
+      "salesShipment": 1,
+      "supplierShipmentDataset": 1,
+      "salesShipmentDataset": 1,
+      "evidenceObject": 1,
+      "routeChecklist": 1,
+      "routeChecklistItem": 1,
+      "commercialDocument": 1,
+      "documentRevision": 1,
+      "outboundManifest": 1,
+      "supplierInvoice": 1,
+      "moneyMovement": 1,
+      "directExpense": 1,
+      "claim": 1,
+      "closureAssessment": 1,
+      "closureBlocker": 1
+    }
+  }
+}
