@@ -44,7 +44,8 @@
   - Verification note (2026-11-11): one active customer invoice is grouped per sales shipment with immutable exact shipment-line traceability, partial quantity bounds, exact-decimal totals, authorized reads, and deterministic EN/LTR or AR/RTL print data; strict typecheck, the full test suite, and the production build pass.
 - [x] T029 Supplier invoice line and supplier-attribution APIs
   - Verification note (2026-11-11): supplier invoices are line-driven against the physical container's exact approved active-dataset lines, derive exact-decimal totals server-side, reject cross-supplier attribution, and preserve legacy single-supplier compatibility during cutover; strict typecheck, all 465 tests, and the production build pass.
-- [ ] T030 Global Accounts summary/list APIs with project filters
+- [x] T030 Global Accounts summary/list APIs with project filters
+  - Verification note (2026-11-11): finance-authorized operational Accounts summary and typed list APIs expose deterministic exact-decimal, currency-partitioned totals and optional project filtering without general-ledger semantics; strict typecheck, all 481 tests, and the production build pass.
 - [ ] T031 Transaction reference allocator for all core movements with concurrency guarantees
 - [ ] T032 EvidenceObject/EvidenceLink attachment upload/list/download authorization service
 - [ ] T033 Reports query layer for operational pilot reports

@@ -47,6 +47,48 @@ tags:
 - name: Audit
   description: Audit operations in the fixed Release 1 pilot.
 paths:
+  /accounts/summary:
+    get:
+      tags: [Statements]
+      operationId: getAccountsSummary
+      summary: Get operational Accounts summary
+      parameters:
+      - name: projectId
+        in: query
+        required: false
+        schema: { $ref: '#/components/schemas/Uuid' }
+      responses:
+        '200':
+          description: Operational Accounts totals partitioned by currency
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountsSummary' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, FINANCE_VIEWER]
+  /accounts/{recordType}:
+    get:
+      tags: [Statements]
+      operationId: listAccountRecords
+      summary: List operational Accounts records
+      parameters:
+      - name: recordType
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [sales-invoices, supplier-invoices, collections, supplier-payments, expenses]
+      - name: projectId
+        in: query
+        required: false
+        schema: { $ref: '#/components/schemas/Uuid' }
+      responses:
+        '200':
+          description: Type-scoped operational Accounts records
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AccountRecordPage' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, FINANCE_VIEWER]
   /customers:
     get:
       tags: [Masters]
@@ -2817,6 +2859,67 @@ components:
         items:
           type: array
           items: { $ref: '#/components/schemas/ProductMovement' }
+    AccountRecordType:
+      type: string
+      enum: [SALES_INVOICE, SUPPLIER_INVOICE, COLLECTION, SUPPLIER_PAYMENT, EXPENSE]
+    AccountRecord:
+      type: object
+      additionalProperties: false
+      required: [id, projectId, type, occurredOn, state, reference, currency, amount, outstandingAmount]
+      properties:
+        id: { type: string, minLength: 1 }
+        projectId: { $ref: '#/components/schemas/Uuid' }
+        type: { $ref: '#/components/schemas/AccountRecordType' }
+        occurredOn: { type: string, format: date }
+        state: { type: string, minLength: 1 }
+        partyId: { type: string, minLength: 1 }
+        reference: { type: string, minLength: 1 }
+        currency: { $ref: '#/components/schemas/Currency' }
+        amount: { $ref: '#/components/schemas/Decimal' }
+        outstandingAmount: { $ref: '#/components/schemas/Decimal' }
+    AccountRecordPage:
+      type: object
+      additionalProperties: false
+      required: [projectId, type, items]
+      properties:
+        projectId:
+          oneOf:
+          - { $ref: '#/components/schemas/Uuid' }
+          - { type: 'null' }
+        type: { $ref: '#/components/schemas/AccountRecordType' }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AccountRecord' }
+    AccountsCurrencySummary:
+      type: object
+      additionalProperties: false
+      required: [currency, salesInvoiced, salesOutstanding, supplierInvoiced, supplierOutstanding, collections, supplierPayments, expenses, netOperationalCash]
+      properties:
+        currency: { $ref: '#/components/schemas/Currency' }
+        salesInvoiced: { $ref: '#/components/schemas/Decimal' }
+        salesOutstanding: { $ref: '#/components/schemas/Decimal' }
+        supplierInvoiced: { $ref: '#/components/schemas/Decimal' }
+        supplierOutstanding: { $ref: '#/components/schemas/Decimal' }
+        collections: { $ref: '#/components/schemas/Decimal' }
+        supplierPayments: { $ref: '#/components/schemas/Decimal' }
+        expenses: { $ref: '#/components/schemas/Decimal' }
+        netOperationalCash:
+          allOf:
+          - { $ref: '#/components/schemas/Decimal' }
+          description: Collections minus supplier payments and approved operational expenses; not a general-ledger balance.
+    AccountsSummary:
+      type: object
+      additionalProperties: false
+      required: [projectId, recordCount, currencySections]
+      properties:
+        projectId:
+          oneOf:
+          - { $ref: '#/components/schemas/Uuid' }
+          - { type: 'null' }
+        recordCount: { type: integer, minimum: 0 }
+        currencySections:
+          type: array
+          items: { $ref: '#/components/schemas/AccountsCurrencySummary' }
     ProductStatus:
       type: string
       enum: [ACTIVE, INACTIVE]

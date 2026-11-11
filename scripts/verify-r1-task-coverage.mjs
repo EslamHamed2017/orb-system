@@ -230,7 +230,7 @@ export function verifyRepositorySources({ tasks: taskSource, openapi, ui, spec, 
   const expectedInvariants = Array.from({ length: 7 }, (_, i) => `INV-${String(i + 1).padStart(2, '0')}`);
   const requirementAuthority = spec + '\n' + quickstart;
   for (const id of [...expectedRequirements, ...expectedInvariants]) if (!new RegExp(`(^|[^A-Za-z0-9_-])${id}([^A-Za-z0-9_-]|$)`, 'm').test(requirementAuthority)) fail(`authoritative artifacts missing ${id}`);
-  const operationTableRows = tableRows(taskSource, '### OperationId to implementation/verification tasks (94/94)', '### Requirement/invariant mapping (20/20 + 7/7)');
+  const operationTableRows = tableRows(taskSource, '### OperationId to implementation/verification tasks (107/107)', '### Requirement/invariant mapping (20/20 + 7/7)');
   assertKnownMappedTasks(operationTableRows, byId, 'operation mapping');
   const operationRows = operationTableRows.map((row) => backticks(cells(row)[0])[0]).filter(Boolean);
   exact(operationRows, operations, 'operation mapping');
