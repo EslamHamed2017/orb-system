@@ -92,6 +92,11 @@ for (const locale of ["en", "ar"] as const) {
     await expect(table).toContainText("SAL-2026-004 · 1");
     await expect(table).toContainText("Ethiopia Guji");
     await expect(table).toContainText(locale === "ar" ? "المتبقي بعد الشحنة" : "Remaining after shipment");
+    const fulfillment = area.getByRole("region", { name: locale === "ar" ? "التنفيذ الجزئي" : "Partial fulfillment" });
+    await expect(fulfillment.getByRole("progressbar")).toHaveCount(2);
+    await expect(fulfillment).toContainText(locale === "ar" ? "الكمية المتبقية" : "Remaining quantity");
+    await expect(fulfillment).toContainText("1000 kg");
+    await expect(fulfillment).toContainText("500 kg");
     await expect(area.getByRole("form", { name: locale === "ar" ? "إضافة بند شحنة" : "Add shipment line" })).toHaveCount(0);
 
     await page.goto(`/sales-shipments/demo?locale=${locale}&state=draft`);

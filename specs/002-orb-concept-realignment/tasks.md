@@ -69,7 +69,8 @@
   - Verification note (2026-11-11): bilingual EN/LTR and AR/RTL sales-shipment detail now renders multiple exact approved-contract-line-version rows with remaining-after-shipment quantities and exact-decimal totals; draft mutation is permission-shaped and only permits approved lines with capacity. Focused unit tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and managed Chromium acceptance journeys pass.
 - [x] T040 Multi-supplier container/supplier shipment workspace
   - Verification note (2026-11-11): the bilingual EN/LTR and AR/RTL supplier-container workspace consolidates multiple suppliers and approved purchase-contract-line versions in one physical container while preserving per-line supplier/contract attribution, exact-decimal totals, draft-only mutation, and separate-supplier invoice guidance. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and seven managed Chromium workspace journeys pass.
-- [ ] T041 Partial fulfillment and remaining quantities visualization
+- [x] T041 Partial fulfillment and remaining quantities visualization
+  - Verification note (2026-11-11): sales-shipment detail now visualizes exact line-level prior fulfillment, current shipment quantity, cumulative progress, and remaining quantity with accessible bilingual EN/LTR and AR/RTL progress indicators. Exact-decimal unit tests, inconsistency/over-fulfillment guards, strict typecheck, all 535 canonical tests with zero skips, the production build, and seven managed Chromium acceptance journeys pass.
 - [ ] T042 Project 360° overview with linked record counts and actions
 - [ ] T043 Bidirectional breadcrumbs/related-record navigation
 - [ ] T044 Products master page
