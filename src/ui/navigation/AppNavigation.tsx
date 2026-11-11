@@ -93,7 +93,7 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
     </header>
     <nav className="orb-rail" data-navigation="rail" data-variant="compact" aria-label={copy.primaryNavigation}>
       <div className="orb-nav-group"><span className="orb-nav-heading">{label("Workspace", "مساحة العمل")}</span>{primaryLinks}
-        <NavLink href={`/masters/coffee${suffix}`} label={label("Products", "المنتجات")} current={pathname === "/masters/coffee"} icon="products" />
+        <NavLink href={`/masters/coffee${suffix}`} label={label("Products", "المنتجات")} current={pathname === "/masters/coffee" || pathname.startsWith("/products/")} icon="products" />
         <NavLink href={`/projects/demo/shipments${suffix}`} label={label("Shipments", "الشحنات")} current={pathname.includes("shipments")} icon="shipments" />
         <NavLink href={`/projects/demo/money${suffix}`} label={label("Finance", "المالية")} current={pathname.includes("money") || pathname.includes("expenses") || pathname.includes("statements")} icon="finance" />
         <NavLink href={`/documents/demo${suffix}`} label={label("Documents", "المستندات")} current={pathname.startsWith("/documents")} icon="documents" />

@@ -77,7 +77,8 @@
   - Verification note (2026-11-11): shared bilingual breadcrumbs and project-context related-record navigation now connect project overview, contracts, supplier containers, sales shipments, operational Accounts, expenses, claims, audit, closure/statements context, and reports; standalone shipment/container pages preserve exact project and record IDs. Focused TDD tests, strict typecheck, all 535 canonical tests, the production build, and three Chromium EN/LTR and AR/RTL journeys pass.
 - [x] T044 Products master page
   - Verification note (2026-11-11): the bilingual EN/LTR and AR/RTL product master exposes searchable/filterable traded-product specifications, explicit ACTIVE/INACTIVE lifecycle controls, registration fields, and primary navigation while explicitly excluding free-stock and inventory-valuation semantics. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and three Chromium acceptance journeys pass.
-- [ ] T045 Product movement/history page
+- [x] T045 Product movement/history page
+  - Verification note (2026-11-11): the bilingual EN/LTR and AR/RTL product movement page exposes cross-project inbound/outbound traceability, exact-decimal filtered summaries, project/direction/search filters, source-allocation context, and bidirectional links to products, projects, supplier containers, and sales shipments without stock-balance or inventory-valuation semantics. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and three managed Chromium journeys pass.
 - [ ] T046 Customers page and customer detail
 - [ ] T047 Suppliers page and supplier detail
 - [ ] T048 Global Accounts hub
