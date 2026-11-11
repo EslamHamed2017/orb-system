@@ -1,6 +1,8 @@
 import { EnterpriseStyles, ErpPageHeader, Kpi } from "../../../ui/features/admin/EnterpriseUx";
 import { ProductsMasterPage } from "../../../ui/features/masters/ProductsMasterPage";
 import type { ProductStatusFilter } from "../../../ui/features/masters/product-directory";
+import { CustomersPage } from "../../../ui/features/masters/CustomersPage";
+import type { CustomerStatusFilter } from "../../../ui/features/masters/customer-directory";
 
 const NAMES = {
   customers: { en: "Customers", ar: "العملاء", singularEn: "customer", singularAr: "عميل" },
@@ -14,6 +16,10 @@ type Query = { locale?: string; q?: string; status?: string };
 export default async function MasterPage({ params, searchParams }: { params: Promise<{ masterType: string }>; searchParams: Promise<Query> }) {
   const [{ masterType }, query] = await Promise.all([params, searchParams]);
   const locale = query.locale === "ar" ? "ar" : "en";
+  if (masterType === "customers") {
+    const status: CustomerStatusFilter = query.status === "ACTIVE" || query.status === "INACTIVE" ? query.status : "ALL";
+    return <CustomersPage locale={locale} query={query.q ?? ""} status={status}/>;
+  }
   if (masterType === "coffee") {
     const status: ProductStatusFilter = query.status === "ACTIVE" || query.status === "INACTIVE" ? query.status : "ALL";
     return <ProductsMasterPage locale={locale} query={query.q ?? ""} status={status}/>;

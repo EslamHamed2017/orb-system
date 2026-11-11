@@ -79,7 +79,8 @@
   - Verification note (2026-11-11): the bilingual EN/LTR and AR/RTL product master exposes searchable/filterable traded-product specifications, explicit ACTIVE/INACTIVE lifecycle controls, registration fields, and primary navigation while explicitly excluding free-stock and inventory-valuation semantics. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and three Chromium acceptance journeys pass.
 - [x] T045 Product movement/history page
   - Verification note (2026-11-11): the bilingual EN/LTR and AR/RTL product movement page exposes cross-project inbound/outbound traceability, exact-decimal filtered summaries, project/direction/search filters, source-allocation context, and bidirectional links to products, projects, supplier containers, and sales shipments without stock-balance or inventory-valuation semantics. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and three managed Chromium journeys pass.
-- [ ] T046 Customers page and customer detail
+- [x] T046 Customers page and customer detail
+  - Verification note (2026-11-11): the bilingual EN/LTR and AR/RTL customer directory now supports lifecycle and contact search/filtering, permission-shaped create/edit actions, and an independent customer 360 detail with project, sales-contract, sales-invoice, and collection links. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and three managed Chromium journeys pass.
 - [ ] T047 Suppliers page and supplier detail
 - [ ] T048 Global Accounts hub
 - [ ] T049 Project-filtered sales invoices view
