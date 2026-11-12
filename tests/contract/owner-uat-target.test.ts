@@ -34,7 +34,7 @@ test("owner UAT target rejects DNS names resolving to non-global infrastructure"
 });
 
 test("owner UAT target rejects malformed, credentialed, local, fragmented, or unresolved targets", () => {
-  for (const target of ["http://uat.orb.example", "https://user:secret@uat.orb.example", "https://localhost", "https://orb.local", "https://uat.orb.example/#token"]) {
+  for (const target of ["http://uat.orb.example", "https://user:secret@uat.orb.example", "https://localhost", "https://orb.local", "https://uat.orb.example/?token=secret", "https://uat.orb.example/#token"]) {
     const result = validateWithAddresses(target, ["93.184.216.34"]);
     assert.notEqual(result.status, 0, `accepted unsafe target ${target}`);
   }
