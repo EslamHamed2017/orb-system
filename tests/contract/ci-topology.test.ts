@@ -31,7 +31,13 @@ test("deployed owner UAT is explicitly authorized and limited to the bilingual p
 
   const gate = readFileSync(resolve(ROOT, "ops/acceptance/run-owner-uat-gate.sh"), "utf8");
   assert.match(gate, /ORB_OWNER_UAT_AUTHORIZATION/);
-  assert.match(gate, /ORB_EXPECTED_RELEASE_COMMIT=.*git rev-parse HEAD/);
+  assert.match(gate, /readonly release_commit=.*git rev-parse HEAD/);
+  assert.match(gate, /export ORB_EXPECTED_RELEASE_COMMIT="\$release_commit"/);
+  assert.match(gate, /git rev-parse HEAD.*release_commit/s);
+  assert.match(gate, /owner-uat-evidence\.mjs[\s\S]*--git-commit "\$release_commit"/);
+  const evidenceGenerator = readFileSync(resolve(ROOT, "scripts/owner-uat-evidence.mjs"), "utf8");
+  assert.match(evidenceGenerator, /gitCommit !== process\.env\.ORB_EXPECTED_RELEASE_COMMIT/);
+  assert.doesNotMatch(evidenceGenerator, /execFileSync|git.*rev-parse/s);
   assert.match(gate, /OWNER_APPROVED/);
   assert.match(gate, /validate_owner_uat_target\.py/);
   const targetValidator = readFileSync(resolve(ROOT, "ops/acceptance/validate_owner_uat_target.py"), "utf8");

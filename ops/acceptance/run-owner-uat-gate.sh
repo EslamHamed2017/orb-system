@@ -21,12 +21,21 @@ mkdir -m 700 -- "$ORB_OWNER_UAT_EVIDENCE_DIR"
 report="$ORB_OWNER_UAT_EVIDENCE_DIR/playwright-report.json"
 manifest="$ORB_OWNER_UAT_EVIDENCE_DIR/manifest.json"
 
-export ORB_EXPECTED_RELEASE_COMMIT="$(git rev-parse HEAD)"
+readonly release_commit="$(git rev-parse HEAD)"
+[[ "$release_commit" =~ ^[a-f0-9]{40}$ ]] || {
+  echo "owner UAT checkout does not resolve to a full commit" >&2
+  exit 2
+}
+export ORB_EXPECTED_RELEASE_COMMIT="$release_commit"
 PLAYWRIGHT_JSON_OUTPUT_FILE="$report" corepack pnpm exec playwright test \
   tests/acceptance/owner-uat.spec.ts --project=chromium --reporter=html,json
 [[ -f "$report" && ! -L "$report" ]] || {
   echo "owner UAT JSON report was not produced safely" >&2
   exit 2
 }
-node scripts/owner-uat-evidence.mjs --report "$report" --output "$manifest"
+[[ "$(git rev-parse HEAD)" == "$release_commit" ]] || {
+  echo "owner UAT checkout changed while the technical journey was running" >&2
+  exit 2
+}
+node scripts/owner-uat-evidence.mjs --report "$report" --output "$manifest" --git-commit "$release_commit"
 printf 'owner UAT technical evidence recorded: %s\n' "$manifest"

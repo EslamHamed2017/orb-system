@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
@@ -80,9 +79,12 @@ async function main(args) {
   const value = (name) => { const index = args.indexOf(name); return index >= 0 ? args[index + 1] : undefined; };
   const reportPath = value("--report");
   const outputPath = value("--output");
-  if (!reportPath || !outputPath || !process.env.ORB_TEST_BASE_URL) throw new Error("Usage: owner-uat-evidence.mjs --report FILE --output FILE with ORB_TEST_BASE_URL");
+  const gitCommit = value("--git-commit");
+  if (!reportPath || !outputPath || !gitCommit || !process.env.ORB_TEST_BASE_URL || !process.env.ORB_EXPECTED_RELEASE_COMMIT)
+    throw new Error("Usage: owner-uat-evidence.mjs --report FILE --output FILE --git-commit SHA with ORB_TEST_BASE_URL and ORB_EXPECTED_RELEASE_COMMIT");
+  if (gitCommit !== process.env.ORB_EXPECTED_RELEASE_COMMIT)
+    throw new Error("owner UAT evidence commit does not match the commit tested by the browser journey");
   const reportBytes = await readFile(reportPath);
-  const gitCommit = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
   await writeOwnerUatEvidence(outputPath, createOwnerUatEvidence({ reportBytes, targetUrl: process.env.ORB_TEST_BASE_URL, gitCommit }));
 }
 
