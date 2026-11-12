@@ -109,3 +109,25 @@ for (const locale of ["en", "ar"] as const) {
     await expect(form).toHaveAttribute("data-operation-id", "createSalesShipmentLine");
   });
 }
+
+
+test("shipment and physical container attachment panels bind exact scoped evidence metadata", async ({ page }) => {
+  for (const item of [
+    { kind: "sales", locale: "en", panel: "sales-evidence", subjectType: "SALES_SHIPMENT", label: "Attachments" },
+    { kind: "supplier", locale: "ar", panel: "supplier-evidence", subjectType: "SUPPLIER_CONTAINER", label: "مرفقات" },
+  ] as const) {
+    await page.goto(`/${item.kind}-shipments/shipment-attach?locale=${item.locale}&projectId=project-attach`);
+    const panel = page.locator(`#${item.panel}`);
+    const attachments = panel.getByRole("region", { name: item.label });
+    await expect(attachments).toHaveAttribute("data-backend-endpoint", `/api/evidence?projectId=project-attach&subjectType=${item.subjectType}&subjectId=shipment-attach`);
+    await expect(attachments.locator(`input[name="projectId"]`)).toHaveValue("project-attach");
+    await expect(attachments.locator(`input[name="subjectType"]`)).toHaveValue(item.subjectType);
+    await expect(attachments.locator(`input[name="subjectId"]`)).toHaveValue("shipment-attach");
+    await expect(attachments.getByRole("button", { name: item.locale === "ar" ? "رفع والتحقق" : "Upload and verify" })).toBeVisible();
+
+    await page.goto(`/${item.kind}-shipments/shipment-attach?locale=${item.locale}&projectId=project-attach&role=finance-viewer`);
+    const readOnly = page.locator(`#${item.panel}`).getByRole("region", { name: item.label });
+    await expect(readOnly.getByText(item.locale === "ar" ? /عرض فقط للمرفقات/ : /Read-only attachments/)).toBeVisible();
+    await expect(readOnly.getByRole("button")).toHaveCount(0);
+  }
+});

@@ -1,4 +1,4 @@
-import { EvidenceUploader } from "../evidence/EvidenceUploader";
+import { ShipmentAttachmentPanel } from "../evidence/ShipmentAttachmentPanel";
 import { SupplierShipmentInvoicePaymentPanel } from "../invoices/SupplierShipmentInvoicePaymentPanel";
 import { SupplierShipmentStatementPanel } from "../statements/SupplierShipmentStatementPanel";
 import { ShipmentWorkspaceCore } from "./ShipmentWorkspaceCore";
@@ -28,7 +28,7 @@ export function SupplierShipmentWorkspace({ locale, role, state = "confirmed", p
     <header className={s.pageHeader}><div><p className={s.eyebrow}>{ar ? "تنفيذ شحنة المورد" : "Supplier execution"}</p><h1>{ar ? "مساحة شحنة المورد" : "Supplier shipment workspace"}</h1><p>{ar ? "مجموعة البيانات والدليل والفاتورة والدفع والبيان في مساحة تشغيل واحدة." : "Dataset, evidence, invoice, payment, and statement in one operational workspace."}</p></div><span className={`${s.chip} ${s.warning}`}>{state.toUpperCase()}</span></header><div className={s.contextBar}><div className={s.contextItem}><span>{ar ? "المرجع" : "Reference"}</span><strong><bdi>ORB-SUP-0007</bdi></strong></div><div className={s.contextItem}><span>{ar ? "المشروع" : "Project"}</span><strong><bdi>ORB-PROJ-DEMO</bdi></strong></div><div className={s.contextItem}><span>{ar ? "الإصدار" : "Version"}</span><strong>7</strong></div></div>
     <TabList locale={locale} role={role} />
     <Panel id="supplier-dataset" endpoint="/api/supplier-shipments/demo">{readOnly ? <ReadOnlyPanel title={ar ? "مجموعة البيانات والإجراءات" : "Dataset & actions"} reference="ORB-SUP-0007 · Version 7" locale={locale} /> : <ShipmentWorkspaceCore kind="supplier" locale={locale} state={state} demoState={null} />}</Panel>
-    <Panel id="supplier-evidence" endpoint="/api/evidence">{readOnly ? <ReadOnlyPanel title={ar ? "الدليل" : "Evidence"} reference="EVIDENCE-SUPPLIER-0007" locale={locale} /> : <EvidenceUploader locale={locale} subjectId="demo" />}</Panel>
+    <Panel id="supplier-evidence" endpoint="/api/evidence"><ShipmentAttachmentPanel locale={locale} projectId={projectId} subjectType="SUPPLIER_CONTAINER" subjectId={shipmentId} canUpload={!readOnly} /></Panel>
     <Panel id="supplier-invoice-payment" endpoint="/api/supplier-shipments/demo/invoices"><SupplierShipmentInvoicePaymentPanel locale={locale} /></Panel>
     <Panel id="supplier-statement" endpoint="/api/statements/supplier-shipment/demo"><SupplierShipmentStatementPanel locale={locale} /></Panel>
   </article>;

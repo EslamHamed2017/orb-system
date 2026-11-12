@@ -117,7 +117,8 @@
 ## Phase 5 — Documents, printing and reports
 - [x] T062 Add attachment panel to contracts
   - Verification note (2026-11-12): every displayed sales and purchase contract now has a project-scoped, immutable-evidence attachment panel with authorized list/detail/download links, exact contract subject binding, purpose/file upload metadata, permission-shaped read-only behavior, unique accessible IDs, and bilingual EN/LTR and AR/RTL presentation. Six focused TDD tests, strict typecheck, all 535 canonical tests, the production build, and a dedicated Chromium permission/locale probe pass.
-- [ ] T063 Add attachment panel to shipments/containers
+- [x] T063 Add attachment panel to shipments/containers
+  - Verification note (2026-11-12): sales-shipment and physical supplier-container workspaces now expose bilingual project-scoped immutable-evidence panels with exact `SALES_SHIPMENT`/`SUPPLIER_CONTAINER` bindings, authorized list/detail/download links, purpose/file upload metadata, and permission-shaped read-only behavior. Six focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and eight Chromium shipment-workspace journeys pass.
 - [ ] T064 Add attachment panel to invoices and money movements
 - [ ] T065 Add attachment panel to expenses and other pilot transactions
 - [ ] T066 Central attachments index linked to source transaction

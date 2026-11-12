@@ -1,7 +1,7 @@
 import { SalesShipmentClaimsPanel } from "../claims/SalesShipmentClaimsPanel";
 import { SalesShipmentClosurePanel } from "../closure/SalesShipmentClosurePanel";
 import { SalesShipmentDocumentsPanel } from "../documents/SalesShipmentDocumentsPanel";
-import { EvidenceUploader } from "../evidence/EvidenceUploader";
+import { ShipmentAttachmentPanel } from "../evidence/ShipmentAttachmentPanel";
 import { SalesShipmentExpensePanel } from "../expenses/SalesShipmentExpensePanel";
 import { SalesShipmentSettlementPanel } from "../money/SalesShipmentSettlementPanel";
 import { RouteChecklist, type RouteChecklistView } from "../routes/RouteChecklist";
@@ -40,7 +40,7 @@ export function SalesShipmentWorkspace({ locale, role, state = "confirmed", proj
     <TabList locale={locale} role={role} />
     <Panel id="sales-dataset" endpoint="/api/sales-shipments/demo">{readOnly ? <ReadOnlyPanel title={ar ? "مجموعة البيانات" : "Dataset"} reference="ORB-SAL-0007 · Version 7" locale={locale} /> : <ShipmentWorkspaceCore kind="sales" locale={locale} state={state} demoState={null} />}</Panel>
     <Panel id="sales-route" endpoint="/api/sales-shipments/demo/route-checklist">{readOnly ? <ReadOnlyPanel title={ar ? "قائمة المسار" : "Route checklist"} reference="Template 1 · Version 3" locale={locale} /> : <RouteChecklist locale={locale} checklist={checklist} />}</Panel>
-    <Panel id="sales-evidence" endpoint="/api/evidence">{readOnly ? <ReadOnlyPanel title={ar ? "الدليل" : "Evidence"} reference="EVIDENCE-ROUTE-0007" locale={locale} /> : <EvidenceUploader locale={locale} subjectId="demo" />}</Panel>
+    <Panel id="sales-evidence" endpoint="/api/evidence"><ShipmentAttachmentPanel locale={locale} projectId={projectId} subjectType="SALES_SHIPMENT" subjectId={shipmentId} canUpload={!readOnly} /></Panel>
     <Panel id="sales-documents" endpoint="/api/sales-shipments/demo/documents">{readOnly ? <ReadOnlyPanel title={ar ? "المستندات" : "Documents"} reference="DOC-0007-R2" locale={locale} /> : <SalesShipmentDocumentsPanel locale={locale} />}</Panel>
     <Panel id="sales-settlement" endpoint="/api/projects/demo/profit">{readOnly ? <ReadOnlyPanel title={ar ? "التسوية" : "Settlement"} reference="USD 6,000.00 balance" locale={locale} /> : <SalesShipmentSettlementPanel locale={locale} />}</Panel>
     <Panel id="sales-expense" endpoint="/api/projects/demo/expenses">{readOnly ? <ReadOnlyPanel title={ar ? "المصروف" : "Expense"} reference="EXP-0007" locale={locale} /> : <SalesShipmentExpensePanel locale={locale} />}</Panel>
