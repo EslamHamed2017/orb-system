@@ -47,7 +47,7 @@ jobs:
   isolated-infrastructure:
     needs: offline
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -58,6 +58,8 @@ jobs:
       - run: pnpm install --frozen-lockfile --strict-peer-dependencies
       - name: Real PostgreSQL migration, encrypted backup and isolated restore gate
         run: ops/acceptance/run-isolated-infrastructure-gate.sh
+      - name: Preceding-app rollback rehearsal against expanded schema
+        run: ops/acceptance/run-application-rollback-gate.sh
 
   local-browser:
     needs: [offline, isolated-infrastructure]
