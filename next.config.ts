@@ -21,6 +21,7 @@ const globalSecurityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
   { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+  { key: "X-DNS-Prefetch-Control", value: "off" },
   { key: "Content-Security-Policy", value: contentSecurityPolicy },
 ] as const;
 

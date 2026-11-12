@@ -26,6 +26,8 @@ async function gotoApprovedTarget(page: Page, path: string) {
     .toBe("same-origin");
   expect(response!.headers()["cross-origin-resource-policy"], `navigation must isolate its resources at ${path}`)
     .toBe("same-origin");
+  expect(response!.headers()["x-dns-prefetch-control"], `navigation must not leak hostnames through DNS prefetch at ${path}`)
+    .toBe("off");
   expect(response!.headers()["content-security-policy"], `navigation must restrict executable content at ${path}`)
     .toBe("default-src 'self'; base-uri 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; upgrade-insecure-requests");
   const finalUrl = new URL(page.url());
