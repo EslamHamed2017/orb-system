@@ -89,7 +89,8 @@
   - Verification note (2026-11-12): the bilingual EN/LTR and AR/RTL sales-invoice register now filters active customer invoices fail-closed by project, preserves project and sales-shipment 360 links, shows exact source-currency totals/outstanding amounts, and is reachable from project Accounts. Focused TDD and adjacent Accounts tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and two managed Chromium journeys pass.
 - [x] T050 Project-filtered purchase invoices view
   - Verification note (2026-11-12): the bilingual EN/LTR and AR/RTL supplier-invoice register filters active supplier-attributable invoices fail-closed by project, preserves project, supplier and physical-container 360 links, shows exact source-currency totals/outstanding amounts, and is reachable from project Accounts. Focused TDD and adjacent Accounts tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and two managed Chromium journeys pass.
-- [ ] T051 Project-filtered payments/collections view
+- [x] T051 Project-filtered payments/collections view
+  - Verification note (2026-11-12): bilingual EN/LTR and AR/RTL collection and supplier-payment registers filter active movements fail-closed by project and movement type, preserve customer/supplier attribution and project 360 links, and retain exact source-currency amounts. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and four managed Chromium journeys pass.
 - [ ] T052 Project-filtered expenses view
 
 ## Phase 4 — Administration and experience
