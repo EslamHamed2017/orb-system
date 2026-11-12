@@ -1,5 +1,10 @@
 import type { NextConfig } from "next";
 
+const globalSecurityHeaders = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "DENY" },
+] as const;
+
 const signInSecurityHeaders = [
   { key: "Cache-Control", value: "no-store, max-age=0" },
   {
@@ -18,8 +23,6 @@ const signInSecurityHeaders = [
   },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "X-Frame-Options", value: "DENY" },
 ] as const;
 
 const nextConfig: NextConfig = {
@@ -27,7 +30,10 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   typedRoutes: true,
   async headers() {
-    return [{ source: "/sign-in", headers: [...signInSecurityHeaders] }];
+    return [
+      { source: "/:path*", headers: [...globalSecurityHeaders] },
+      { source: "/sign-in", headers: [...signInSecurityHeaders] },
+    ];
   },
 };
 
