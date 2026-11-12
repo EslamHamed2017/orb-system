@@ -1,6 +1,7 @@
 "use client";
 
-import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
+import { actionStateForOperation, navigationAccessForRole, permissionAwareQuery, type NavigationDestination } from "./permission-aware-access";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ar } from "../i18n/ar";
 import { en } from "../i18n/en";
@@ -47,15 +48,45 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
   const state = requestedState && allowedStates.has(requestedState) ? requestedState : null;
   const dialogRef = useRef<HTMLDialogElement>(null);
   const moreRef = useRef<HTMLButtonElement>(null);
-  const suffix = `?locale=${locale}`;
+  const role = search.get("role");
+  const suffix = permissionAwareQuery(locale, role);
+  const canOpen = (destination: NavigationDestination) => navigationAccessForRole(role, destination);
   const label = (english: string, arabic: string) => locale === "ar" ? arabic : english;
   const specializedProjectSection = /\/(shipments|money|expenses|statements|profit)(?:\/|$)/.test(pathname);
   const projectsCurrent = pathname.startsWith("/projects") && !specializedProjectSection;
 
-  useLayoutEffect(() => {
-    document.documentElement.lang = locale;
-    document.documentElement.dir = direction;
-  }, [direction, locale]);
+  useEffect(() => {
+    const applyPermissionState = () => {
+      document.documentElement.lang = locale;
+      document.documentElement.dir = direction;
+      const controls = document.querySelectorAll<HTMLElement>("[data-operation-id]");
+      for (const control of controls) {
+        const state = actionStateForOperation(role, control.dataset.operationId ?? "");
+        control.hidden = state.visibility === "hidden";
+        control.dataset.permissionState = state.allowed ? "allowed" : state.visibility;
+        if (state.allowed) {
+          control.removeAttribute("aria-disabled");
+          for (const item of control.querySelectorAll<HTMLElement>("[data-permission-disabled=true]")) {
+            if (item instanceof HTMLButtonElement || item instanceof HTMLInputElement || item instanceof HTMLSelectElement || item instanceof HTMLTextAreaElement) item.disabled = false;
+            item.removeAttribute("data-permission-disabled");
+          }
+        } else if (state.visibility === "disabled") {
+          control.setAttribute("aria-disabled", "true");
+          const items = control.matches("button,input,select,textarea") ? [control] : [...control.querySelectorAll<HTMLElement>("button,input,select,textarea")];
+          for (const item of items) {
+            if ((item instanceof HTMLButtonElement || item instanceof HTMLInputElement || item instanceof HTMLSelectElement || item instanceof HTMLTextAreaElement) && !item.disabled) {
+              item.disabled = true;
+              item.dataset.permissionDisabled = "true";
+            }
+          }
+        }
+      }
+    };
+    applyPermissionState();
+    const observer = new MutationObserver(applyPermissionState);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [direction, locale, pathname, role]);
 
   function openMore(): void { dialogRef.current?.showModal(); }
   function closeMore(): void { dialogRef.current?.close(); }
@@ -65,9 +96,9 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
   }
 
   const primaryLinks = <>
-    <NavLink href={`/${suffix}`} label={copy.today} current={pathname === "/"} icon="today" />
-    <NavLink href={`/projects${suffix}`} label={copy.projects} current={projectsCurrent} icon="projects" />
-    <NavLink href={`/approvals${suffix}`} label={copy.approvals} current={pathname === "/approvals"} icon="approvals" />
+    {canOpen("today") && <NavLink href={`/${suffix}`} label={copy.today} current={pathname === "/"} icon="today" />}
+    {canOpen("projects") && <NavLink href={`/projects${suffix}`} label={copy.projects} current={projectsCurrent} icon="projects" />}
+    {canOpen("approvals") && <NavLink href={`/approvals${suffix}`} label={copy.approvals} current={pathname === "/approvals"} icon="approvals" />}
   </>;
 
   return <div className="orb-shell">
@@ -86,20 +117,20 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
         <kbd>⌘ K</kbd>
       </label>
       <span className="orb-top-spacer" />
-      <a className="orb-top-action orb-language" href={`${pathname}?locale=${locale === "ar" ? "en" : "ar"}`}>{locale === "ar" ? "EN" : "ع"}</a>
+      <a className="orb-top-action orb-language" href={`${pathname}${permissionAwareQuery(locale === "ar" ? "en" : "ar", role)}`}>{locale === "ar" ? "EN" : "ع"}</a>
       <button className="orb-top-action" type="button" aria-label={label("Help", "المساعدة")}><Icon name="help" /></button>
       <button className="orb-top-action" type="button" aria-label={label("Notifications", "الإشعارات")}><Icon name="bell" /></button>
       <button className="orb-avatar" type="button" aria-label={label("Account: Eslam", "الحساب: إسلام")}>EB</button>
     </header>
     <nav className="orb-rail" data-navigation="rail" data-variant="compact" aria-label={copy.primaryNavigation}>
       <div className="orb-nav-group"><span className="orb-nav-heading">{label("Workspace", "مساحة العمل")}</span>{primaryLinks}
-        <NavLink href={`/masters/coffee${suffix}`} label={label("Products", "المنتجات")} current={pathname === "/masters/coffee" || pathname.startsWith("/products/")} icon="products" />
-        <NavLink href={`/projects/demo/shipments${suffix}`} label={label("Shipments", "الشحنات")} current={pathname.includes("shipments")} icon="shipments" />
-        <NavLink href={`/accounts${suffix}`} label={label("Accounts", "الحسابات")} current={pathname.startsWith("/accounts") || pathname.includes("money") || pathname.includes("expenses") || pathname.includes("statements")} icon="finance" />
-        <NavLink href={`/documents/demo${suffix}`} label={label("Documents", "المستندات")} current={pathname.startsWith("/documents")} icon="documents" />
-        <NavLink href={`/projects/demo/profit${suffix}`} label={label("Reports", "التقارير")} current={pathname.includes("profit")} icon="reports" />
+        {canOpen("products") && <NavLink href={`/masters/coffee${suffix}`} label={label("Products", "المنتجات")} current={pathname === "/masters/coffee" || pathname.startsWith("/products/")} icon="products" />}
+        {canOpen("shipments") && <NavLink href={`/projects/demo/shipments${suffix}`} label={label("Shipments", "الشحنات")} current={pathname.includes("shipments")} icon="shipments" />}
+        {canOpen("accounts") && <NavLink href={`/accounts${suffix}`} label={label("Accounts", "الحسابات")} current={pathname.startsWith("/accounts") || pathname.includes("money") || pathname.includes("expenses") || pathname.includes("statements")} icon="finance" />}
+        {canOpen("documents") && <NavLink href={`/documents/demo${suffix}`} label={label("Documents", "المستندات")} current={pathname.startsWith("/documents")} icon="documents" />}
+        {canOpen("reports") && <NavLink href={`/projects/demo/profit${suffix}`} label={label("Reports", "التقارير")} current={pathname.includes("profit")} icon="reports" />}
       </div>
-      <div className="orb-nav-group orb-nav-bottom-group"><NavLink href={`/admin/users${suffix}`} label={label("Admin", "الإدارة")} current={pathname.startsWith("/admin")} icon="admin" /></div>
+      <div className="orb-nav-group orb-nav-bottom-group">{canOpen("admin") && <NavLink href={`/admin/users${suffix}`} label={label("Admin", "الإدارة")} current={pathname.startsWith("/admin")} icon="admin" />}</div>
     </nav>
     <nav className="orb-bottom" data-navigation="bottom" aria-label={copy.primaryNavigation}>
       {primaryLinks}
@@ -108,10 +139,12 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
     <dialog className="orb-dialog" ref={dialogRef} aria-labelledby="orb-more-title" onClose={() => moreRef.current?.focus()}>
       <h2 id="orb-more-title">{copy.menuTitle}</h2><p>{copy.shellTitle}</p>
       <nav className="orb-dialog-links" aria-label={label("More destinations", "وجهات إضافية")}>
-        <a href={`/masters/coffee${suffix}`}><Icon name="products" />{label("Products", "المنتجات")}</a>
-        <a href={`/projects/demo/shipments${suffix}`}><Icon name="shipments" />{label("Shipments", "الشحنات")}</a>
-        <a href={`/accounts${suffix}`}><Icon name="finance" />{label("Accounts", "الحسابات")}</a>
-        <a href={`/documents/demo${suffix}`}><Icon name="documents" />{label("Documents", "المستندات")}</a>
+        {canOpen("products") && <a href={`/masters/coffee${suffix}`}><Icon name="products" />{label("Products", "المنتجات")}</a>}
+        {canOpen("shipments") && <a href={`/projects/demo/shipments${suffix}`}><Icon name="shipments" />{label("Shipments", "الشحنات")}</a>}
+        {canOpen("accounts") && <a href={`/accounts${suffix}`}><Icon name="finance" />{label("Accounts", "الحسابات")}</a>}
+        {canOpen("documents") && <a href={`/documents/demo${suffix}`}><Icon name="documents" />{label("Documents", "المستندات")}</a>}
+        {canOpen("reports") && <a href={`/projects/demo/profit${suffix}`}><Icon name="reports" />{label("Reports", "التقارير")}</a>}
+        {canOpen("admin") && <a href={`/admin/users${suffix}`}><Icon name="admin" />{label("Admin", "الإدارة")}</a>}
       </nav>
       <div className="orb-dialog-actions"><button className="orb-button-text" type="button" data-operation-id="signOutCurrentSession">{label("Sign out", "تسجيل الخروج")}</button><button className="orb-button-filled" type="button" onClick={closeMore}>{copy.close}</button></div>
     </dialog>
