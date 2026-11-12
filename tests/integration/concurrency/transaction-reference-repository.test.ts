@@ -68,3 +68,28 @@ test("Prisma adapter maps an existing immutable allocation and starts an empty s
     sequence_no: record.sequenceNo, allocated_at: new Date(record.allocatedAt), allocated_by: record.allocatedBy,
   } }]);
 });
+
+
+test("Prisma adapter retries transaction-serial uniqueness collisions with a fresh serializable snapshot", async () => {
+  let attempts = 0;
+  const transaction = {
+    $queryRawUnsafe: async () => [],
+    transactionSerial: {
+      findUnique: async () => null,
+      findFirst: async () => ({ sequence_no: 7n }),
+      create: async () => row(record),
+    },
+  };
+  const repository = new PrismaTransactionSerialRepository({
+    $transaction: async <T>(work: (tx: typeof transaction) => Promise<T>) => {
+      attempts++;
+      if (attempts === 1) throw Object.assign(new Error("duplicate serial"), {
+        code: "23505", constraint: "TransactionSerial_serial_key",
+      });
+      return work(transaction);
+    },
+  });
+  const result = await repository.runSerializable(record.seriesKey, async (locked) => locked.insert(record));
+  assert.deepEqual(result, record);
+  assert.equal(attempts, 2);
+});

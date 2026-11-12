@@ -35,6 +35,18 @@ export interface TransactionSerialPrismaClient {
   ): Promise<T>;
 }
 
+function transactionSerialContention(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { code?: unknown; cause?: unknown };
+  if (candidate.code === "23505" || candidate.code === "P2002") return true;
+  return candidate.cause !== error && transactionSerialContention(candidate.cause);
+}
+
+function retryableTransactionSerialError(error: unknown): unknown {
+  if (!transactionSerialContention(error)) return error;
+  return Object.assign(new Error("transaction serial allocation contention", { cause: error }), { code: "40001" });
+}
+
 function toRecord(row: TransactionSerialRow): TransactionSerialRecord {
   return Object.freeze({
     id: row.id,
@@ -55,7 +67,13 @@ export class PrismaTransactionSerialRepository implements TransactionSerialRepos
 
   async runSerializable<T>(seriesKey: string, work: (locked: LockedTransactionSerialRepository) => Promise<T>): Promise<T> {
     return runSerializable<TransactionSerialPrismaTransaction, T>(
-      (transactionWork) => this.client.$transaction(transactionWork, { isolationLevel: "Serializable" }),
+      async (transactionWork) => {
+        try {
+          return await this.client.$transaction(transactionWork, { isolationLevel: "Serializable" });
+        } catch (error) {
+          throw retryableTransactionSerialError(error);
+        }
+      },
       async (transaction) => {
         await transaction.$queryRawUnsafe(
           "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
@@ -99,6 +117,7 @@ export class PrismaTransactionSerialRepository implements TransactionSerialRepos
         };
         return work(locked);
       },
+      { maxAttempts: 64, baseDelayMs: 1, maxDelayMs: 10 },
     );
   }
 }

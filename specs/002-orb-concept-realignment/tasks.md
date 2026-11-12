@@ -151,7 +151,8 @@
   - Verification note (2026-11-12): exhaustive server-side negative-path coverage now proves all 117 operation permission codes are unique, each exact granular grant authorizes only its own operation, every unassigned legacy-role matrix cell is denied, and unknown, stale, duplicate, empty or malformed grants plus blank identities fail closed. Focused RED/GREEN security tests, strict typecheck, all 539 canonical tests with zero skips, and the production build pass.
 - [x] T078 Attachment isolation/security tests
   - Verification note (2026-11-12): attachment reads now reject empty, malformed, or cross-project persisted authorization-parent metadata before authorization, object storage, or audit access; repository subject matching constrains both evidence objects and source links to the requested project. Three RED/GREEN isolation regressions, 14 focused evidence security/integration tests, strict typecheck, all 542 canonical tests with zero skips, and the production build pass.
-- [ ] T079 Serial concurrency and uniqueness tests
+- [x] T079 Serial concurrency and uniqueness tests
+  - Verification note (2026-11-12): the mandatory isolated-infrastructure gate now proves 50 concurrent PostgreSQL `SERIALIZABLE` allocations are unique and gap-free and that exact-subject replay remains immutable across a UTC year boundary. The real contention test exposed stale-snapshot unique collisions; the Prisma repository now narrowly remaps only transaction-serial uniqueness conflicts into bounded fresh-snapshot retries. RED/GREEN repository coverage, strict typecheck, all 542 canonical tests with zero skips, the production build, and the five-migration PostgreSQL/object-store gate pass with zero skipped database checks.
 - [ ] T080 Arabic/English and RTL/LTR acceptance tests
 - [ ] T081 Full internal-alpha lifecycle E2E on Chromium using isolated PostgreSQL/object storage
 - [ ] T082 Firefox and WebKit smoke/regression runs

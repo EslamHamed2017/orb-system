@@ -25,6 +25,8 @@ test("gate makes the real database migration and object restore checks mandatory
   assert.match(gate, /docker run --rm --interactive/, "object client must preserve stdin for non-empty mc pipe uploads");
   assert.match(gate, /ORB_TEST_DATABASE_URL=/);
   assert.match(gate, /tests\/integration\/database\/migrations\.test\.ts/);
+  assert.match(gate, /tests\/integration\/concurrency\/transaction-reference-postgres\.test\.ts/,
+    "real PostgreSQL serial contention must be a mandatory isolated-infrastructure gate");
   assert.match(gate, /migration-object-store/);
   assert.match(gate, /restore-object-store/);
   assert.match(gate, /sha256sum/);

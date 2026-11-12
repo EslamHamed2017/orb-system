@@ -43,6 +43,7 @@ done
 export ORB_TEST_DATABASE_URL="postgresql://orb_migrator:${ORB_ISOLATED_DB_PASSWORD}@127.0.0.1:${ORB_MIGRATION_DB_PORT}/orb_migration?sslmode=disable"
 restore_database_url="postgresql://orb_migrator:${ORB_ISOLATED_DB_PASSWORD}@127.0.0.1:${ORB_RESTORE_DB_PORT}/orb_restore?sslmode=disable"
 node --test tests/integration/database/migrations.test.ts
+node --test tests/integration/concurrency/transaction-reference-postgres.test.ts
 DATABASE_URL="$restore_database_url" node node_modules/prisma/build/index.js migrate deploy
 
 migration_history=$("${compose[@]}" exec -T migration-postgres psql -U orb_migrator -d orb_migration -Atc 'SELECT count(*) FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL')
