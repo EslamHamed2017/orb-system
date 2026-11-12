@@ -10,6 +10,10 @@ on:
         description: HTTPS URL of the owner-approved deployed acceptance target
         required: true
         type: string
+      approved_release_commit:
+        description: Full 40-character commit of the owner-approved release candidate
+        required: true
+        type: string
       owner_uat_authorized:
         description: Owner explicitly authorized this UAT run
         required: true
@@ -104,10 +108,13 @@ jobs:
     environment: owner-acceptance
     env:
       ORB_TEST_BASE_URL: ${{ inputs.acceptance_base_url }}
+      ORB_APPROVED_RELEASE_COMMIT: ${{ inputs.approved_release_commit }}
       ORB_OWNER_UAT_AUTHORIZATION: OWNER_APPROVED
       ORB_OWNER_UAT_EVIDENCE_DIR: ${{ runner.temp }}/owner-uat-evidence
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.approved_release_commit }}
       - uses: actions/setup-node@v4
         with:
           node-version-file: .node-version

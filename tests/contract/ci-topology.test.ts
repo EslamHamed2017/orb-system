@@ -25,13 +25,19 @@ test("CI separates offline, local-browser, and manually dispatched deployed acce
 test("deployed owner UAT is explicitly authorized and limited to the bilingual pilot journey", () => {
   const deployed = workflow.match(/^  deployed-acceptance:\n([\s\S]*?)(?=^  [a-z][a-z-]+:\n)/m)?.[1] ?? "";
   assert.match(workflow, /owner_uat_authorized:[\s\S]*?type: boolean/);
+  assert.match(workflow, /approved_release_commit:[\s\S]*?required: true[\s\S]*?type: string/);
   assert.match(deployed, /inputs\.owner_uat_authorized == true/);
+  assert.match(deployed, /ORB_APPROVED_RELEASE_COMMIT:.*inputs\.approved_release_commit/);
+  assert.match(deployed, /actions\/checkout@v4[\s\S]*?ref:.*inputs\.approved_release_commit/);
   assert.match(deployed, /run-owner-uat-gate\.sh/);
   assert.doesNotMatch(deployed, /playwright test --project=chromium/);
 
   const gate = readFileSync(resolve(ROOT, "ops/acceptance/run-owner-uat-gate.sh"), "utf8");
   assert.match(gate, /ORB_OWNER_UAT_AUTHORIZATION/);
   assert.match(gate, /readonly release_commit=.*git rev-parse HEAD/);
+  assert.match(gate, /ORB_APPROVED_RELEASE_COMMIT/);
+  assert.match(gate, /approved release commit must be a full lowercase SHA-1/);
+  assert.match(gate, /release_commit.*ORB_APPROVED_RELEASE_COMMIT|ORB_APPROVED_RELEASE_COMMIT.*release_commit/s);
   assert.match(gate, /assert_clean_checkout/);
   assert.match(gate, /git status --porcelain=v1 --untracked-files=all/);
   assert.equal((gate.match(/assert_clean_checkout/g) ?? []).length, 3, "clean-checkout guard must be defined and run before and after UAT");

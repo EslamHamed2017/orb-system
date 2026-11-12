@@ -13,6 +13,11 @@ assert_clean_checkout() {
 }
 
 : "${ORB_TEST_BASE_URL:?owner-approved UAT target is required}"
+: "${ORB_APPROVED_RELEASE_COMMIT:?owner-approved release candidate commit is required}"
+[[ "$ORB_APPROVED_RELEASE_COMMIT" =~ ^[a-f0-9]{40}$ ]] || {
+  echo "approved release commit must be a full lowercase SHA-1" >&2
+  exit 2
+}
 : "${ORB_OWNER_UAT_AUTHORIZATION:?explicit owner UAT authorization is required}"
 [[ "$ORB_OWNER_UAT_AUTHORIZATION" == "OWNER_APPROVED" ]] || {
   echo "owner UAT authorization was not explicitly granted" >&2
@@ -32,6 +37,10 @@ manifest="$ORB_OWNER_UAT_EVIDENCE_DIR/manifest.json"
 readonly release_commit="$(git rev-parse HEAD)"
 [[ "$release_commit" =~ ^[a-f0-9]{40}$ ]] || {
   echo "owner UAT checkout does not resolve to a full commit" >&2
+  exit 2
+}
+[[ "$release_commit" == "$ORB_APPROVED_RELEASE_COMMIT" ]] || {
+  echo "owner UAT checkout does not match the approved release candidate commit" >&2
   exit 2
 }
 export ORB_EXPECTED_RELEASE_COMMIT="$release_commit"
