@@ -24,7 +24,7 @@ export const orbTheme = createTheme({
   shape: { borderRadius: 12 },
   spacing: 4,
   typography: {
-    fontFamily: '"Google Sans", "Inter", "Segoe UI", Arial, sans-serif',
+    fontFamily: '"Inter", "Segoe UI", Arial, sans-serif',
     h1: { fontSize: "2rem", lineHeight: 1.2, fontWeight: 650, letterSpacing: "-.02em" },
     h2: { fontSize: "1.25rem", lineHeight: 1.3, fontWeight: 650 },
     button: { fontWeight: 650, textTransform: "none" },
