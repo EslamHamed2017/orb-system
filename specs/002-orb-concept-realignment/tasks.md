@@ -97,7 +97,8 @@
 ## Phase 4 — Administration and experience
 - [x] T053 Full users management screen
   - Verification note (2026-11-12): the bilingual EN/LTR and AR/RTL user administration workspace replaces the fixed-pilot presentation with searchable lifecycle, locale and role filters; user creation, identity/status editing, role assignment and exact-session controls are owner-shaped while read-only viewers receive no protected actions. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and three managed Chromium journeys pass.
-- [ ] T054 Roles and granular permissions matrix screen
+- [x] T054 Roles and granular permissions matrix screen
+  - Verification note (2026-11-12): the bilingual EN/LTR and AR/RTL access workspace exposes protected system and configurable roles, searchable permission categories, granular screen/operation/sensitive-value/approval/administration grants, owner-only create/save actions, and a fail-closed read-only state. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and three managed Chromium journeys pass.
 - [ ] T055 Permission-aware navigation and action states
 - [ ] T056 Settings control center and navigation
 - [ ] T057 Serial/numbering settings
