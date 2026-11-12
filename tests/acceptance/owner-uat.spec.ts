@@ -27,6 +27,8 @@ for (const { locale, direction } of locales) {
     const expectedReadinessUrl = new URL("/api/health/ready", configuredTarget);
     const readiness = await request.get(expectedReadinessUrl.pathname);
     expect(readiness.status()).toBe(200);
+    expect(readiness.headers()["cache-control"], "readiness must not be served from a reusable cache")
+      .toMatch(/(?:^|,)\s*no-store\s*(?:,|$)/i);
     const readinessUrl = new URL(readiness.url());
     expect(readinessUrl.origin, "readiness escaped approved UAT origin").toBe(expectedTargetOrigin);
     expect(readinessUrl.pathname, "readiness escaped approved UAT route").toBe(expectedReadinessUrl.pathname);
