@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const expectedReleaseCommit = process.env.ORB_EXPECTED_RELEASE_COMMIT;
+if (!expectedReleaseCommit) throw new Error("ORB_EXPECTED_RELEASE_COMMIT is required for owner UAT");
 const configuredTarget = process.env.ORB_TEST_BASE_URL;
 if (!configuredTarget) throw new Error("ORB_TEST_BASE_URL is required for owner UAT");
 const expectedTargetOrigin = new URL(configuredTarget).origin;
@@ -22,7 +23,7 @@ for (const { locale, direction } of locales) {
     expect(new URL(readiness.url()).origin, "readiness escaped approved UAT origin").toBe(expectedTargetOrigin);
     const readinessBody = await readiness.json();
     expect(readinessBody).toMatchObject({ status: "ready" });
-    if (expectedReleaseCommit) expect(readinessBody.release?.gitCommit).toBe(expectedReleaseCommit);
+    expect(readinessBody.release?.gitCommit).toBe(expectedReleaseCommit);
 
     const routes = [
       "/masters/customers", "/masters/suppliers", "/masters/products", "/projects/demo/overview",
