@@ -62,6 +62,7 @@ test("deployed owner UAT is explicitly authorized and limited to the bilingual p
   assert.match(journey, /finalUrl\.origin.*expectedTargetOrigin/s);
   assert.match(journey, /finalUrl\.pathname.*requestedUrl\.pathname/s);
   assert.match(journey, /requestedUrl\.searchParams/s);
+  assert.match(journey, /finalUrl\.hash.*requestedUrl\.hash/s);
   assert.match(journey, /locale: ["']en["'], direction: ["']ltr["']/);
   assert.match(journey, /locale: ["']ar["'], direction: ["']rtl["']/);
   assert.match(journey, /supplier-shipments/);

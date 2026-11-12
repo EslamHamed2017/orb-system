@@ -14,6 +14,7 @@ async function gotoApprovedTarget(page: Page, path: string) {
   expect(finalUrl.pathname, `navigation escaped approved UAT route at ${path}`).toBe(requestedUrl.pathname);
   expect([...finalUrl.searchParams.entries()].sort(), `navigation changed approved UAT query at ${path}`)
     .toEqual([...requestedUrl.searchParams.entries()].sort());
+  expect(finalUrl.hash, `navigation changed approved UAT fragment at ${path}`).toBe(requestedUrl.hash);
 }
 
 const locales = [
