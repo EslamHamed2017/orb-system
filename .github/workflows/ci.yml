@@ -112,9 +112,27 @@ jobs:
       ORB_OWNER_UAT_AUTHORIZATION: OWNER_APPROVED
       ORB_OWNER_UAT_EVIDENCE_DIR: ${{ runner.temp }}/owner-uat-evidence
     steps:
+      - name: Validate approved release commit input
+        shell: bash
+        run: |
+          [[ "$ORB_APPROVED_RELEASE_COMMIT" =~ ^[a-f0-9]{40}$ ]] || {
+            echo "approved release commit must be a full lowercase SHA-1" >&2
+            exit 2
+          }
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.approved_release_commit }}
+      - name: Verify exact approved release checkout
+        shell: bash
+        run: |
+          [[ "$(git rev-parse HEAD)" == "$ORB_APPROVED_RELEASE_COMMIT" ]] || {
+            echo "owner UAT checkout does not match the approved release candidate commit" >&2
+            exit 2
+          }
+          [[ -z "$(git status --porcelain=v1 --untracked-files=all)" ]] || {
+            echo "owner UAT checkout must be clean before dependency installation" >&2
+            exit 2
+          }
       - uses: actions/setup-node@v4
         with:
           node-version-file: .node-version

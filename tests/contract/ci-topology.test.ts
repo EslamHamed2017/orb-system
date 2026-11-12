@@ -29,6 +29,13 @@ test("deployed owner UAT is explicitly authorized and limited to the bilingual p
   assert.match(deployed, /inputs\.owner_uat_authorized == true/);
   assert.match(deployed, /ORB_APPROVED_RELEASE_COMMIT:.*inputs\.approved_release_commit/);
   assert.match(deployed, /actions\/checkout@v4[\s\S]*?ref:.*inputs\.approved_release_commit/);
+  assert.match(deployed, /Validate approved release commit input[\s\S]*?\^\[a-f0-9\]\{40\}\$/);
+  assert.match(deployed, /Verify exact approved release checkout[\s\S]*?git rev-parse HEAD[\s\S]*?git status --porcelain=v1 --untracked-files=all/);
+  const checkoutIndex = deployed.indexOf("uses: actions/checkout@v4");
+  const identityIndex = deployed.indexOf("name: Verify exact approved release checkout");
+  const installIndex = deployed.indexOf("pnpm install --frozen-lockfile");
+  assert.ok(checkoutIndex >= 0 && identityIndex > checkoutIndex && installIndex > identityIndex,
+    "approved checkout identity and cleanliness must be verified before dependency installation");
   assert.match(deployed, /run-owner-uat-gate\.sh/);
   assert.doesNotMatch(deployed, /playwright test --project=chromium/);
 
