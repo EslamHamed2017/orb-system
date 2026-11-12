@@ -95,7 +95,8 @@
   - Verification note (2026-11-12): the bilingual EN/LTR and AR/RTL operational expense register filters active expenses fail-closed by project, preserves exact source-currency amounts and project/transaction-scope 360 links, and connects the project Accounts workspace to expense management. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and two managed Chromium journeys pass.
 
 ## Phase 4 — Administration and experience
-- [ ] T053 Full users management screen
+- [x] T053 Full users management screen
+  - Verification note (2026-11-12): the bilingual EN/LTR and AR/RTL user administration workspace replaces the fixed-pilot presentation with searchable lifecycle, locale and role filters; user creation, identity/status editing, role assignment and exact-session controls are owner-shaped while read-only viewers receive no protected actions. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and three managed Chromium journeys pass.
 - [ ] T054 Roles and granular permissions matrix screen
 - [ ] T055 Permission-aware navigation and action states
 - [ ] T056 Settings control center and navigation
