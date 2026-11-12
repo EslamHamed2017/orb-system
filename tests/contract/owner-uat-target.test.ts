@@ -21,7 +21,7 @@ module.validate_target(sys.argv[2], resolver=resolver)
 }
 
 test("owner UAT target accepts credential-free HTTPS only when every resolved address is global", () => {
-  const result = validateWithAddresses("https://uat.orb.example/review", ["93.184.216.34", "2606:2800:220:1:248:1893:25c8:1946"]);
+  const result = validateWithAddresses("https://uat.orb.example/", ["93.184.216.34", "2606:2800:220:1:248:1893:25c8:1946"]);
   assert.equal(result.status, 0, result.stderr || result.stdout);
 });
 
@@ -33,8 +33,8 @@ test("owner UAT target rejects DNS names resolving to non-global infrastructure"
   }
 });
 
-test("owner UAT target rejects malformed, credentialed, local, fragmented, or unresolved targets", () => {
-  for (const target of ["http://uat.orb.example", "https://user:secret@uat.orb.example", "https://localhost", "https://orb.local", "https://uat.orb.example/?token=secret", "https://uat.orb.example/#token"]) {
+test("owner UAT target rejects malformed, credentialed, local, path-bearing, fragmented, or unresolved targets", () => {
+  for (const target of ["http://uat.orb.example", "https://user:secret@uat.orb.example", "https://localhost", "https://orb.local", "https://uat.orb.example/review", "https://uat.orb.example/?token=secret", "https://uat.orb.example/#token"]) {
     const result = validateWithAddresses(target, ["93.184.216.34"]);
     assert.notEqual(result.status, 0, `accepted unsafe target ${target}`);
   }

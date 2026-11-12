@@ -16,8 +16,8 @@ def validate_target(target: str, resolver: Resolver = socket.getaddrinfo) -> Non
     parsed = urlparse(target)
     if parsed.scheme != "https" or not parsed.netloc or not parsed.hostname:
         raise ValueError("owner UAT target must be an absolute HTTPS URL")
-    if parsed.username or parsed.password or parsed.query or parsed.fragment:
-        raise ValueError("owner UAT target must not contain credentials, a query, or a fragment")
+    if parsed.username or parsed.password or parsed.path not in ("", "/") or parsed.query or parsed.fragment:
+        raise ValueError("owner UAT target must contain only a credential-free origin without a path, query, or fragment")
 
     host = parsed.hostname.rstrip(".").lower()
     if host == "localhost" or host.endswith(".localhost") or host.endswith(".local"):
