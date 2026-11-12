@@ -3,8 +3,8 @@ import { FormEvent, useState } from "react";
 
 type Locale = "ar" | "en";
 const COPY = {
-  en: { login: "Login or email", password: "Password", submit: "Sign in", pending: "Signing in…", error: "Unable to sign in. Authentication failed.", mfa: "MFA verification code" },
-  ar: { login: "اسم المستخدم أو البريد الإلكتروني", password: "كلمة المرور", submit: "دخول", pending: "جارٍ تسجيل الدخول…", error: "تعذر تسجيل الدخول. فشلت المصادقة.", mfa: "رمز التحقق MFA" },
+  en: { login: "Login or email", password: "Password", submit: "Sign in", pending: "Signing in…", error: "Unable to sign in. Authentication failed.", mfa: "MFA verification code", security: "Secure access to your ORB workspace" },
+  ar: { login: "اسم المستخدم أو البريد الإلكتروني", password: "كلمة المرور", submit: "دخول", pending: "جارٍ تسجيل الدخول…", error: "تعذر تسجيل الدخول. فشلت المصادقة.", mfa: "رمز التحقق MFA", security: "وصول آمن إلى مساحة عمل ORB" },
 } as const;
 
 export function SignInForm({ locale }: { locale: Locale }) {
@@ -21,11 +21,12 @@ export function SignInForm({ locale }: { locale: Locale }) {
       window.location.assign("/");
     } catch { setError(true); } finally { setPending(false); }
   }
-  return <form onSubmit={submit} noValidate style={{ display: "grid", gap: 16, width: "min(100%, 28rem)" }}>
-    <label>{copy.login}<input name="login" autoComplete="username" required style={{ display: "block", width: "100%", minHeight: 48 }} /></label>
-    <label>{copy.password}<input name="credential" type="password" autoComplete="current-password" required style={{ display: "block", width: "100%", minHeight: 48 }} /></label>
-    {mfa && <label>{copy.mfa}<input name="mfa" inputMode="numeric" autoComplete="one-time-code" style={{ display: "block", width: "100%", minHeight: 48 }} /></label>}
-    {error && <p role="alert">{copy.error}</p>}
-    <button type="submit" data-operation-id="signIn" disabled={pending} style={{ minHeight: 48 }}>{pending ? copy.pending : copy.submit}</button>
+  return <form className="orb-signin-form" onSubmit={submit} noValidate aria-describedby="signin-security-note">
+    <p id="signin-security-note" className="orb-signin-form-note"><span aria-hidden="true">●</span>{copy.security}</p>
+    <label className="orb-signin-field"><span>{copy.login}</span><input name="login" autoComplete="username" autoCapitalize="none" spellCheck={false} required /></label>
+    <label className="orb-signin-field"><span>{copy.password}</span><input name="credential" type="password" autoComplete="current-password" required /></label>
+    {mfa && <label className="orb-signin-field"><span>{copy.mfa}</span><input name="mfa" inputMode="numeric" autoComplete="one-time-code" /></label>}
+    {error && <p className="orb-signin-error" role="alert">{copy.error}</p>}
+    <button className="orb-signin-submit" type="submit" data-operation-id="signIn" disabled={pending} aria-busy={pending}>{pending ? copy.pending : copy.submit}</button>
   </form>;
 }
