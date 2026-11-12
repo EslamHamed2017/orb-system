@@ -22,6 +22,8 @@ async function gotoApprovedTarget(page: Page, path: string) {
     .toBe("camera=(), microphone=(), geolocation=()");
   expect(response!.headers()["referrer-policy"], `navigation must constrain referrer disclosure at ${path}`)
     .toBe("strict-origin-when-cross-origin");
+  expect(response!.headers()["cross-origin-opener-policy"], `navigation must isolate its browsing context at ${path}`)
+    .toBe("same-origin");
   const finalUrl = new URL(page.url());
   expect(finalUrl.origin, `navigation escaped approved UAT origin at ${path}`).toBe(expectedTargetOrigin);
   expect(finalUrl.pathname, `navigation escaped approved UAT route at ${path}`).toBe(requestedUrl.pathname);
