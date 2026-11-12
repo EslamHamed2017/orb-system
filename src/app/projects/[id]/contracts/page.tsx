@@ -2,6 +2,11 @@ import { ContractVersionDiff } from "../../../../ui/features/contracts/ContractV
 import { SalesContractLines } from "../../../../ui/features/contracts/SalesContractLines";
 import { PurchaseContractLines } from "../../../../ui/features/contracts/PurchaseContractLines";
 import { ProjectContextNavigation } from "../../../../ui/navigation/ProjectContextNavigation";
+import { ContractAttachmentPanel } from "../../../../ui/features/evidence/ContractAttachmentPanel";
+
+const SALES_CONTRACT_ID = "019a5f9b-7c00-7000-8000-000000000901";
+const APPROVED_PURCHASE_CONTRACT_ID = "019a5f9b-7c00-7000-8000-000000000902";
+const DRAFT_PURCHASE_CONTRACT_ID = "019a5f9b-7c00-7000-8000-000000000903";
 
 const SALES_CONTRACT_LINES = [
   { id: "scl-1-v2", productId: "ethiopia", productName: "Ethiopia Guji", quantity: "6000", unit: "kg", unitPrice: "5.25", currency: "USD", incoterm: "FOB", namedPlace: "Djibouti", paymentTerms: "Net 30", documentTerms: "Original documents", remainingQuantity: "2500" },
@@ -26,6 +31,7 @@ export default async function ContractsPage({ params, searchParams }: { params: 
       <dl className={s.metaGrid}><div><dt>{ar ? "العميل" : "Customer"}</dt><dd>Northstar Roasters</dd></div><div><dt>{ar ? "الكمية" : "Quantity"}</dt><dd><bdi>10,500 kg</bdi></dd></div><div><dt>{ar ? "تاريخ السريان" : "Effective"}</dt><dd><bdi>2026-11-01</bdi></dd></div><div><dt>{ar ? "آخر اعتماد" : "Last approval"}</dt><dd><bdi>APR-0021</bdi></dd></div></dl>
       <SalesContractLines locale={ar ? "ar" : "en"} initialLines={SALES_CONTRACT_LINES} canMutate={false} readOnly />
     </section>
+    <ContractAttachmentPanel locale={ar ? "ar" : "en"} projectId={id} subjectType="CONTRACT" subjectId={SALES_CONTRACT_ID} attachments={[]} canUpload={canMutate} />
     {canMutate && <section className={s.card} aria-labelledby="diff-title"><div className={s.sectionHeader}><div><p className={s.eyebrow}>{ar ? "مسودة تعديل" : "Amendment draft"}</p><h2 id="diff-title">{ar ? "مراجعة التغييرات" : "Review changes"}</h2><p>{ar ? "راجع الفرق وأضف سبباً قابلاً للتدقيق قبل إنشاء الإصدار." : "Review the exact diff and provide an auditable reason before creating a version."}</p></div><span className={`${s.chip} ${s.warning}`}>{ar ? "غير محفوظ" : "Unsaved"}</span></div><ContractVersionDiff locale={ar ? "ar" : "en"} changes={[{ field: ar ? "الكمية" : "Quantity", before: "10,000 kg", after: "10,500 kg" }, { field: ar ? "تحمل الكمية" : "Quantity tolerance", before: "0", after: "0" }]} />
       <SalesContractLines locale={ar ? "ar" : "en"} initialLines={SALES_CONTRACT_LINES} canMutate />
       <form data-operation-id="createContractAmendment" className={s.formGrid}><label>{ar ? "تاريخ السريان" : "Effective date"}<input type="date" required /></label><label className={s.full}>{ar ? "سبب التعديل" : "Amendment reason"}<textarea required minLength={3} /></label><div className={`${s.actions} ${s.full}`}><button className={s.primary} type="button">{ar ? "إنشاء إصدار التعديل" : "Create amendment version"}</button><button className={s.secondary} type="button" data-operation-id="submitContractForApproval">{ar ? "إرسال للموافقة" : "Submit for approval"}</button></div></form>
@@ -33,7 +39,9 @@ export default async function ContractsPage({ params, searchParams }: { params: 
     <section id="purchase" className={s.stack} aria-labelledby="purchase-title">
       <div className={s.sectionHeader}><div><h2 id="purchase-title">{ar ? "عقود الشراء" : "Purchase contracts"}</h2><p>{ar ? "كل عقد شراء منسوب إلى مورد واحد، ويمكن للحاوية الفعلية تجميع بنود من عدة موردين." : "Each purchase contract belongs to one supplier; the physical container may consolidate approved lines from multiple suppliers."}</p></div></div>
       <article className={s.card} aria-labelledby="pc-0007-title"><div className={s.sectionHeader}><div><p className={s.eyebrow}>{ar ? "إصدار معتمد" : "Approved version"}</p><h3 id="pc-0007-title"><bdi>PC-0007</bdi> · Arbor Export</h3></div><span className={`${s.chip} ${s.success}`}>{ar ? "معتمد" : "Approved"}</span></div><dl className={s.metaGrid}><div><dt>{ar ? "المورد" : "Supplier"}</dt><dd>Arbor Export</dd></div><div><dt>{ar ? "الإصدار" : "Version"}</dt><dd>1</dd></div><div><dt>{ar ? "تاريخ السريان" : "Effective"}</dt><dd><bdi>2026-11-02</bdi></dd></div><div><dt>{ar ? "آخر اعتماد" : "Last approval"}</dt><dd><bdi>APR-0022</bdi></dd></div></dl><PurchaseContractLines locale={ar ? "ar" : "en"} initialLines={APPROVED_PURCHASE_LINES} canMutate={false} readOnly /></article>
+      <ContractAttachmentPanel locale={ar ? "ar" : "en"} projectId={id} subjectType="CONTRACT" subjectId={APPROVED_PURCHASE_CONTRACT_ID} attachments={[]} canUpload={canMutate} />
       <article className={s.card} aria-labelledby="pc-0008-title"><div className={s.sectionHeader}><div><p className={s.eyebrow}>{ar ? "مسودة قابلة للتحرير" : "Editable draft"}</p><h3 id="pc-0008-title"><bdi>PC-0008</bdi> · Blue Nile Trading</h3><p>{ar ? "أضف عدة منتجات ثم أرسل الإصدار الكامل للموافقة." : "Add multiple products, then submit the complete version for approval."}</p></div><span className={`${s.chip} ${s.warning}`}>{ar ? "مسودة" : "Draft"}</span></div><dl className={s.metaGrid}><div><dt>{ar ? "المورد" : "Supplier"}</dt><dd>Blue Nile Trading</dd></div><div><dt>{ar ? "الإصدار" : "Version"}</dt><dd>1</dd></div></dl><PurchaseContractLines locale={ar ? "ar" : "en"} initialLines={DRAFT_PURCHASE_LINES} canMutate={canMutate} /><div className={s.actions}>{canMutate && <button className={s.primary} type="button" data-operation-id="submitContractForApproval">{ar ? "إرسال عقد الشراء للموافقة" : "Submit purchase contract for approval"}</button>}</div></article>
+      <ContractAttachmentPanel locale={ar ? "ar" : "en"} projectId={id} subjectType="CONTRACT" subjectId={DRAFT_PURCHASE_CONTRACT_ID} attachments={[]} canUpload={canMutate} />
     </section>
   </section>;
 }

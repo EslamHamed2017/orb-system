@@ -115,7 +115,8 @@
   - Verification note (2026-11-12): the production sign-in response now emits route-scoped no-store, CSP anti-framing/form/object restrictions, referrer, MIME-sniffing, frame-denial and browser-permission headers; the page has one semantic H1, standards-based credential autocomplete, reduced-motion compliance, no horizontal overflow, and bounded resource/payload budgets. Strict typecheck, all 535 canonical tests, the production build, and five Chromium EN/LTR, AR/RTL, MFA, denial, accessibility, security and performance journeys pass.
 
 ## Phase 5 — Documents, printing and reports
-- [ ] T062 Add attachment panel to contracts
+- [x] T062 Add attachment panel to contracts
+  - Verification note (2026-11-12): every displayed sales and purchase contract now has a project-scoped, immutable-evidence attachment panel with authorized list/detail/download links, exact contract subject binding, purpose/file upload metadata, permission-shaped read-only behavior, unique accessible IDs, and bilingual EN/LTR and AR/RTL presentation. Six focused TDD tests, strict typecheck, all 535 canonical tests, the production build, and a dedicated Chromium permission/locale probe pass.
 - [ ] T063 Add attachment panel to shipments/containers
 - [ ] T064 Add attachment panel to invoices and money movements
 - [ ] T065 Add attachment panel to expenses and other pilot transactions
