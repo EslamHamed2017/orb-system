@@ -18,7 +18,7 @@ test("owner UAT evidence binds a successful bilingual report without retaining s
   const bytes = Buffer.from(JSON.stringify(report()));
   const evidence = createOwnerUatEvidence({
     reportBytes: bytes,
-    targetUrl: "https://uat.example.test/review?token=do-not-retain",
+    targetUrl: "https://uat.example.test/",
     gitCommit: commit,
     generatedAtUtc: "2026-11-12T10:00:00.000Z",
   });
@@ -38,6 +38,23 @@ test("owner UAT evidence binds a successful bilingual report without retaining s
   });
   assert.match(reportSha256, /^[a-f0-9]{64}$/);
   assert.doesNotMatch(JSON.stringify(evidence), /token|do-not-retain|\/review/);
+});
+
+test("owner UAT evidence rejects any target that is not a credential-free HTTPS origin", () => {
+  const reportBytes = Buffer.from(JSON.stringify(report()));
+  for (const targetUrl of [
+    "http://uat.example.test",
+    "https://user:secret@uat.example.test",
+    "https://uat.example.test/review",
+    "https://uat.example.test/?token=secret",
+    "https://uat.example.test/#review",
+  ]) {
+    assert.throws(
+      () => createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit: commit }),
+      /credential-free HTTPS(?: origin)?/,
+      `accepted unsafe evidence target ${targetUrl}`,
+    );
+  }
 });
 
 test("owner UAT evidence fails closed on failed, missing, duplicated, or unexpected journeys", () => {

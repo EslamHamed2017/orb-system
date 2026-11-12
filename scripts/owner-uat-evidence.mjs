@@ -24,7 +24,8 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
   const generated = new Date(generatedAtUtc);
   if (!Number.isFinite(generated.valueOf()) || generated.toISOString() !== generatedAtUtc) throw new Error("generatedAtUtc must be canonical UTC ISO-8601");
   const target = new URL(targetUrl);
-  if (target.protocol !== "https:" || target.username || target.password) throw new Error("owner UAT target must be credential-free HTTPS");
+  if (target.protocol !== "https:" || target.username || target.password || target.pathname !== "/" || target.search || target.hash)
+    throw new Error("owner UAT target must be a credential-free HTTPS origin");
   let report;
   try { report = JSON.parse(reportBytes.toString("utf8")); } catch { throw new Error("Playwright report must be valid JSON"); }
   const specs = allSpecs(report.suites);
