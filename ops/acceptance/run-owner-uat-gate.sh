@@ -45,7 +45,7 @@ readonly release_commit="$(git rev-parse HEAD)"
 }
 export ORB_EXPECTED_RELEASE_COMMIT="$release_commit"
 PLAYWRIGHT_JSON_OUTPUT_FILE="$report" corepack pnpm exec playwright test \
-  tests/acceptance/owner-uat.spec.ts --project=chromium --reporter=html,json
+  tests/acceptance/owner-uat.spec.ts --project=chromium --reporter=json
 assert_clean_checkout
 [[ -f "$report" && ! -L "$report" ]] || {
   echo "owner UAT JSON report was not produced safely" >&2

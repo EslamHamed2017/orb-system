@@ -149,13 +149,6 @@ jobs:
           path: ${{ runner.temp }}/owner-uat-evidence
           if-no-files-found: error
           retention-days: 14
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: deployed-acceptance-playwright-report
-          path: playwright-report
-          if-no-files-found: ignore
-          retention-days: 14
 
   immutable-build:
     needs: [offline, local-browser]
