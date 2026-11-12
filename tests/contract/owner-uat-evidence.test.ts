@@ -50,6 +50,20 @@ test("owner UAT evidence fails closed on failed, missing, duplicated, or unexpec
   ]) assert.throws(() => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }));
 });
 
+test("owner UAT evidence rejects a journey that passed only after a failed retry", () => {
+  const value = report();
+  value.suites[0].specs[0].tests[0].results = [{ status: "failed" }, { status: "passed" }];
+  assert.throws(
+    () => createOwnerUatEvidence({
+      reportBytes: Buffer.from(JSON.stringify(value)),
+      targetUrl: "https://uat.example.test",
+      gitCommit: commit,
+      generatedAtUtc: "2026-11-12T10:00:00.000Z",
+    }),
+    /did not pass/,
+  );
+});
+
 test("owner UAT evidence is written once with owner-only permissions", async () => {
   const directory = await mkdtemp(join(tmpdir(), "orb-owner-uat-"));
   const path = join(directory, "manifest.json");

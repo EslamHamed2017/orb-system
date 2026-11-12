@@ -35,7 +35,7 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
     seen.add(spec.title);
     if (spec.ok !== true || !Array.isArray(spec.tests) || spec.tests.length !== 1) throw new Error(`owner UAT journey did not pass: ${spec.title}`);
     const [test] = spec.tests;
-    if (test.expectedStatus !== "passed" || !Array.isArray(test.results) || test.results.length === 0 || test.results.at(-1)?.status !== "passed")
+    if (test.expectedStatus !== "passed" || !Array.isArray(test.results) || test.results.length !== 1 || test.results[0]?.status !== "passed")
       throw new Error(`owner UAT journey did not pass: ${spec.title}`);
   }
   for (const title of JOURNEYS.keys()) if (!seen.has(title)) throw new Error(`owner UAT journey is missing: ${title}`);
