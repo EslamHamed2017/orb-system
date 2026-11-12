@@ -56,6 +56,11 @@ test("contract-line service rejects invalid facts, cross-contract versions, and 
   const repo = repository();
   const service = createContractLineService({ repository: repo, newId: () => ids.line });
   await assert.rejects(() => service.create({ principal: OWNER, contractId: ids.contract, contractVersionId: ids.version1, facts: { ...facts, quantity: "0" }, correlationId: "bad" }), (error: any) => error.problem?.code === "VALIDATION_FAILED");
+  await assert.rejects(
+    () => service.create({ principal: OWNER, contractId: ids.contract, contractVersionId: ids.version1, facts: { ...facts, quantity: "100000000000000.000000" }, correlationId: "decimal-overflow" }),
+    (error: any) => error.problem?.code === "VALIDATION_FAILED",
+    "DECIMAL(20,6) overflow must fail before repository persistence",
+  );
   await assert.rejects(() => service.create({ principal: OWNER, contractId: ids.otherContract, contractVersionId: ids.version1, facts, correlationId: "cross" }), (error: any) => error.problem?.code === "RESOURCE_NOT_FOUND");
   await service.update({ principal: OWNER, contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version1, facts, correlationId: "first" });
   await assert.rejects(() => service.update({ principal: OWNER, contractId: ids.contract, lineId: ids.line, contractVersionId: ids.version1, facts, correlationId: "duplicate" }), (error: any) => error.problem?.code === "CONTRACT_LINE_VERSION_EXISTS");

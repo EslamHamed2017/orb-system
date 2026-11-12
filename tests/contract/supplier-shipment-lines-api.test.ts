@@ -63,7 +63,7 @@ test("supplier shipment lines reject arbitrary, sales, cross-contract, cross-sup
 
 test("supplier shipment line facts fail closed", async () => {
   const service = createSupplierShipmentLineService({ repository: repository() });
-  for (const invalid of [{ ...facts, quantity: "0" }, { ...facts, bagCount: 0 }, { ...facts, supplierLotReference: "" }, { ...facts, surprise: true }]) {
+  for (const invalid of [{ ...facts, quantity: "0" }, { ...facts, quantity: "100000000000000.000000" }, { ...facts, netWeight: "100000000000000.000000" }, { ...facts, bagCount: 0 }, { ...facts, supplierLotReference: "" }, { ...facts, surprise: true }]) {
     await assert.rejects(() => service.create({ shipmentId: id.shipment, datasetId: id.dataset, facts: invalid, correlationId: "invalid", principal }), (error: any) => error.problem?.code === "VALIDATION_FAILED");
   }
 });

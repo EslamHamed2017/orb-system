@@ -53,7 +53,7 @@ interface ReadInput extends InternalReadInput { readonly principal: OperationPri
 interface LineWrite extends ReadInput { readonly contractVersionId: string; readonly facts: unknown }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const DECIMAL = /^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,6})?$/;
+const DECIMAL_20_6 = /^(?:0|[1-9][0-9]{0,13})(?:\.[0-9]{1,6})?$/;
 const KEYS = ["coffeeSpecificationId", "quantity", "unitPrice", "currency", "incoterm", "namedPlace", "quantityToleranceUnder", "quantityToleranceOver", "paymentTerms", "documentTerms"] as const;
 function fail(code: string, status: number, correlationId: string): never { throw problemError({ code, status, correlationId }); }
 function validId(value: string, correlationId: string): void { if (!UUID.test(value)) fail("VALIDATION_FAILED", 400, correlationId); }
@@ -65,9 +65,9 @@ function validateFacts(value: unknown, correlationId: string): ContractLineFacts
   const row = value as Record<string, unknown>;
   if (Object.keys(row).length !== KEYS.length || Object.keys(row).some((key) => !(KEYS as readonly string[]).includes(key))
       || KEYS.some((key) => typeof row[key] !== "string" || String(row[key]).trim() === "")) fail("VALIDATION_FAILED", 400, correlationId);
-  if (!UUID.test(String(row.coffeeSpecificationId)) || !DECIMAL.test(String(row.quantity)) || Number(row.quantity) <= 0
-      || !DECIMAL.test(String(row.unitPrice)) || Number(row.unitPrice) < 0
-      || !DECIMAL.test(String(row.quantityToleranceUnder)) || !DECIMAL.test(String(row.quantityToleranceOver))
+  if (!UUID.test(String(row.coffeeSpecificationId)) || !DECIMAL_20_6.test(String(row.quantity)) || Number(row.quantity) <= 0
+      || !DECIMAL_20_6.test(String(row.unitPrice)) || Number(row.unitPrice) < 0
+      || !DECIMAL_20_6.test(String(row.quantityToleranceUnder)) || !DECIMAL_20_6.test(String(row.quantityToleranceOver))
       || !/^[A-Z]{3}$/.test(String(row.currency))) fail("VALIDATION_FAILED", 400, correlationId);
   return Object.freeze(Object.fromEntries(KEYS.map((key) => [key, String(row[key]).trim()])) as unknown as ContractLineFacts);
 }

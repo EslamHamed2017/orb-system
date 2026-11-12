@@ -19,10 +19,10 @@ export interface ShipmentLineFulfillmentService {
   remaining(input: { contractLineVersionId: string; correlationId: string }): Promise<Readonly<Record<string, string>>>;
 }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const DECIMAL = /^(?:0|[1-9][0-9]*)(?:\.([0-9]{1,6}))?$/;
+const DECIMAL_20_6 = /^(?:0|[1-9][0-9]{0,13})(?:\.([0-9]{1,6}))?$/;
 function fail(code: string, status: number, correlationId: string): never { throw problemError({ code, status, correlationId }); }
 function parse(value: string, correlationId: string): { units: bigint; scale: number } {
-  const match = DECIMAL.exec(value);
+  const match = DECIMAL_20_6.exec(value);
   if (!match) fail("VALIDATION_FAILED", 400, correlationId);
   const fraction = match[1] ?? "";
   return { units: BigInt(value.replace(".", "")), scale: fraction.length };

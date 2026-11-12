@@ -60,7 +60,7 @@ test("sales shipment lines reject arbitrary, cross-contract, unapproved, duplica
 
 test("sales shipment line facts fail closed on invalid quantities and unknown fields", async () => {
   const service = createSalesShipmentLineService({ repository: repository() });
-  for (const invalid of [{ ...facts, quantity: "0" }, { ...facts, bagCount: 0 }, { ...facts, surprise: true }]) {
+  for (const invalid of [{ ...facts, quantity: "0" }, { ...facts, quantity: "100000000000000.000000" }, { ...facts, grossWeight: "100000000000000.000000" }, { ...facts, bagCount: 0 }, { ...facts, surprise: true }]) {
     await assert.rejects(() => service.create({ shipmentId: id.shipment, datasetId: id.dataset, facts: invalid, correlationId: "invalid", principal }), (error: any) => error.problem?.code === "VALIDATION_FAILED");
   }
 });

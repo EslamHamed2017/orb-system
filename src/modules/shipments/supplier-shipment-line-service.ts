@@ -25,14 +25,14 @@ export interface SupplierShipmentLineService {
 }
 export interface SupplierContainerConsolidation { readonly containerId: string; readonly datasetId: string; readonly supplierCount: number; readonly lineCount: number; readonly totalQuantity: string; readonly suppliers: readonly { readonly supplierId: string; readonly purchaseContractIds: readonly string[]; readonly lineCount: number; readonly quantity: string }[] }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const DECIMAL = /^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,6})?$/;
+const DECIMAL_20_6 = /^(?:0|[1-9][0-9]{0,13})(?:\.[0-9]{1,6})?$/;
 const KEYS = ["purchaseContractId", "supplierId", "contractLineVersionId", "supplierLotReference", "quantity", "bagCount", "bagWeight", "netWeight", "grossWeight"] as const;
 function fail(code: string, status: number, correlationId: string): never { throw problemError({ code, status, correlationId }); }
 function authorize(principal: OperationPrincipal, operationId: string, correlationId: string): void {
   try { assertServerPermission(principal, operationId); } catch { fail("PERMISSION_DENIED", 403, correlationId); }
 }
 function validId(value: string, correlationId: string): void { if (!UUID.test(value)) fail("VALIDATION_FAILED", 400, correlationId); }
-function positiveDecimal(value: unknown): value is string { return typeof value === "string" && DECIMAL.test(value) && Number(value) > 0; }
+function positiveDecimal(value: unknown): value is string { return typeof value === "string" && DECIMAL_20_6.test(value) && Number(value) > 0; }
 function validateFacts(value: unknown, correlationId: string): SupplierShipmentLineFacts {
   if (!value || typeof value !== "object" || Array.isArray(value)) fail("VALIDATION_FAILED", 400, correlationId);
   const row = value as Record<string, unknown>;
