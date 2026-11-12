@@ -24,6 +24,8 @@ async function gotoApprovedTarget(page: Page, path: string) {
     .toBe("strict-origin-when-cross-origin");
   expect(response!.headers()["cross-origin-opener-policy"], `navigation must isolate its browsing context at ${path}`)
     .toBe("same-origin");
+  expect(response!.headers()["content-security-policy"], `navigation must restrict executable content at ${path}`)
+    .toBe("default-src 'self'; base-uri 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'");
   const finalUrl = new URL(page.url());
   expect(finalUrl.origin, `navigation escaped approved UAT origin at ${path}`).toBe(expectedTargetOrigin);
   expect(finalUrl.pathname, `navigation escaped approved UAT route at ${path}`).toBe(requestedUrl.pathname);
