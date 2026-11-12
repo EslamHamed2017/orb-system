@@ -1,4 +1,5 @@
 import { ProjectContextNavigation } from "../../navigation/ProjectContextNavigation";
+import { PilotTransactionAttachmentPanel } from "../evidence/PilotTransactionAttachmentPanel";
 import styles from "./AccountsHubPage.module.css";
 import type { AccountsLocale } from "./accounts-hub";
 import { filterProjectExpenses, type ExpenseListItem } from "./project-expenses";
@@ -15,7 +16,7 @@ function scopeHref(item: ExpenseListItem, locale: AccountsLocale): string {
   return `/projects/${item.projectId}/overview?locale=${locale}`;
 }
 
-export function ProjectExpensesPage({ locale, projectId }: { readonly locale: AccountsLocale; readonly projectId?: string }) {
+export function ProjectExpensesPage({ locale, projectId, canUpload = true }: { readonly locale: AccountsLocale; readonly projectId?: string; readonly canUpload?: boolean }) {
   const ar = locale === "ar";
   const items = projectId ? filterProjectExpenses(expenses, projectId) : expenses.filter((expense) => expense.state !== "CANCELLED" && expense.state !== "REVERSED");
   return <section className={styles.page} dir={ar ? "rtl" : "ltr"} aria-labelledby="expenses-register-title">
@@ -24,5 +25,6 @@ export function ProjectExpensesPage({ locale, projectId }: { readonly locale: Ac
     <section className={styles.card} aria-labelledby="expense-register-heading"><header className={styles.cardHeader}><div><h2 id="expense-register-heading">{ar ? "سجل المصروفات" : "Expense register"}</h2><p className={styles.muted}>{ar ? `${items.length} مصروف نشط` : `${items.length} active expense${items.length === 1 ? "" : "s"}`}</p></div>{projectId ? <a href={`/projects/${projectId}/expenses?locale=${locale}`}>{ar ? "إدارة مصروفات المشروع" : "Manage project expenses"}</a> : null}</header>
       <div className={styles.tableWrap}><table className={styles.table}><thead><tr><th>{ar ? "المرجع" : "Reference"}</th><th>{ar ? "الفئة" : "Category"}</th><th>{ar ? "النطاق" : "Scope"}</th><th>{ar ? "التاريخ" : "Date"}</th><th>{ar ? "الحالة" : "Status"}</th><th className={styles.amount}>{ar ? "المبلغ" : "Amount"}</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td><div className={styles.reference}><strong><bdi>{item.reference}</bdi></strong><span><a href={`/projects/${item.projectId}/expenses?locale=${locale}`}><bdi>{item.projectId}</bdi></a></span></div></td><td><bdi>{item.category}</bdi></td><td><a href={scopeHref(item, locale)}><bdi>{item.scopeId ?? item.projectId}</bdi></a></td><td><bdi>{item.occurredOn}</bdi></td><td><span className={styles.state}>{item.state}</span></td><td className={styles.amount}><bdi>{item.currency} {item.amount}</bdi></td></tr>)}</tbody></table>{items.length === 0 ? <p className={styles.empty}>{ar ? "لا توجد مصروفات نشطة لهذا المشروع." : "No active expenses exist for this project."}</p> : null}</div>
     </section>
+    {items.map((item) => <PilotTransactionAttachmentPanel key={`expense-attachments-${item.id}`} locale={locale} projectId={item.projectId} subjectType="EXPENSE" subjectId={item.id} canUpload={canUpload} />)}
   </section>;
 }

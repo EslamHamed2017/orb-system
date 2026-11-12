@@ -13,5 +13,17 @@ for (const locale of ["en", "ar"] as const) {
     await expect(table.getByRole("link", { name: "sales-shipment-1" })).toHaveAttribute("href", `/sales-shipments/sales-shipment-1?locale=${locale}`);
     await expect(table.getByText("USD 1250.000000")).toBeVisible();
     await expect(page.getByText(ar ? "1 مصروف نشط" : "1 active expense")).toBeVisible();
+    const attachments = page.getByRole("region", { name: ar ? "مرفقات" : "Attachments" });
+    await expect(attachments).toHaveAttribute("data-backend-endpoint", "/api/evidence?projectId=project-1&subjectType=EXPENSE&subjectId=expense-1");
+    await expect(attachments.locator('input[name="subjectType"]')).toHaveValue("EXPENSE");
+    await expect(attachments.getByRole("button", { name: ar ? "رفع والتحقق" : "Upload and verify" })).toBeVisible();
   });
 }
+
+
+test("expense attachment upload is removed for a read-only finance viewer", async ({ page }) => {
+  await page.goto("/accounts/expenses?projectId=project-1&locale=en&role=finance-viewer");
+  const attachments = page.getByRole("region", { name: "Attachments" });
+  await expect(attachments.getByRole("button", { name: "Upload and verify" })).toHaveCount(0);
+  await expect(attachments.getByText(/Read-only attachments/)).toBeVisible();
+});

@@ -121,7 +121,8 @@
   - Verification note (2026-11-12): sales-shipment and physical supplier-container workspaces now expose bilingual project-scoped immutable-evidence panels with exact `SALES_SHIPMENT`/`SUPPLIER_CONTAINER` bindings, authorized list/detail/download links, purpose/file upload metadata, and permission-shaped read-only behavior. Six focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and eight Chromium shipment-workspace journeys pass.
 - [x] T064 Add attachment panel to invoices and money movements
   - Verification note (2026-11-12): every displayed sales invoice, supplier invoice, collection and supplier payment now exposes a directly transaction-bound immutable-evidence panel with exact subject metadata, authorized list/detail/download links, bilingual EN/LTR and AR/RTL upload controls, and finance-viewer read-only shaping. Six focused TDD tests, adjacent Accounts tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and five managed Chromium journeys pass.
-- [ ] T065 Add attachment panel to expenses and other pilot transactions
+- [x] T065 Add attachment panel to expenses and other pilot transactions
+  - Verification note (2026-11-12): every displayed expense and claim now exposes a directly transaction-bound immutable-evidence panel with exact `EXPENSE`/`CLAIM` subject metadata, authorized list/detail/download links, bilingual EN/LTR and AR/RTL upload controls, and finance-viewer read-only shaping. Four focused TDD tests, strict typecheck, all 539 canonical tests with zero skips, the production build, and 11 managed Chromium expense/claim journeys pass.
 - [ ] T066 Central attachments index linked to source transaction
 - [ ] T067 Printable contract output
 - [ ] T068 Printable shipment/container output

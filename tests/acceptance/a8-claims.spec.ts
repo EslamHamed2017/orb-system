@@ -89,3 +89,17 @@ test("stable sales-shipment Claims panel is composable and omits advanced settle
   await expect(panel.getByText(/quality.*open/i)).toBeVisible();
   await expect(panel).not.toContainText(/resolve claim|reject claim|discount|replacement logistics|compensation|netting|settlement/i);
 });
+
+
+test("claim workspace binds immutable attachments and honors read-only access", async ({ page }) => {
+  await page.goto("/projects/demo/claims?locale=en");
+  const attachments = page.getByRole("region", { name: "Attachments" });
+  await expect(attachments).toHaveAttribute("data-backend-endpoint", "/api/evidence?projectId=demo&subjectType=CLAIM&subjectId=claim-0007");
+  await expect(attachments.locator('input[name="subjectType"]')).toHaveValue("CLAIM");
+  await expect(attachments.getByRole("button", { name: "Upload and verify" })).toBeVisible();
+
+  await page.goto("/projects/demo/claims?locale=ar&role=finance-viewer");
+  const readOnly = page.getByRole("region", { name: "مرفقات" });
+  await expect(readOnly.getByRole("button", { name: "رفع والتحقق" })).toHaveCount(0);
+  await expect(readOnly.getByText(/عرض فقط للمرفقات/)).toBeVisible();
+});

@@ -1,10 +1,11 @@
 "use client";
 import { useEffect } from "react";
 import { OutcomeProposalDialog } from "./OutcomeProposalDialog";
+import { PilotTransactionAttachmentPanel } from "../evidence/PilotTransactionAttachmentPanel";
 
 type DemoState = "open" | "pending" | "rejected" | "approved" | "resolved";
 
-export function ClaimWorkspace({ locale, demoState }: Readonly<{ locale: "ar" | "en"; demoState: DemoState }>) {
+export function ClaimWorkspace({ locale, demoState, projectId, canUpload }: Readonly<{ locale: "ar" | "en"; demoState: DemoState; projectId: string; canUpload: boolean }>) {
   const ar = locale === "ar";
   useEffect(() => { document.documentElement.dir = ar ? "rtl" : "ltr"; document.documentElement.lang = locale; }, [ar, locale]);
   const claimState = demoState === "resolved" ? (ar ? "تمت التسوية" : "RESOLVED")
@@ -30,6 +31,7 @@ export function ClaimWorkspace({ locale, demoState }: Readonly<{ locale: "ar" | 
       {demoState !== "resolved" && <>{(demoState === "pending" || demoState === "rejected" || demoState === "approved") ? <button type="button" data-operation-id="submitClaimOutcomeForApproval">{ar ? "اقتراح النتيجة" : "Propose outcome"}</button> : <button type="button" data-operation-id="submitClaimOutcomeForApproval" disabled>{ar ? "اقتراح النتيجة" : "Propose outcome"}</button>}
       <button type="button" data-operation-id="applyApprovedClaimOutcome" disabled={demoState !== "approved"}>{ar ? "تطبيق النتيجة المعتمدة" : "Apply approved outcome"}</button></>}
     </section>
+    <PilotTransactionAttachmentPanel locale={locale} projectId={projectId} subjectType="CLAIM" subjectId="claim-0007" canUpload={canUpload} />
     {(demoState === "pending" || demoState === "rejected" || demoState === "approved") && <OutcomeProposalDialog locale={locale} state={proposalState} />}
     {blocked && <section role="region" aria-labelledby="claim-blocker-title" style={{ border: "1px solid var(--orb-color-outline)", borderRadius: 16, padding: 16 }}><h2 id="claim-blocker-title">{ar ? "مانع الإغلاق النهائي" : "Final close blocker"}</h2><p><bdi>CLAIM-0007</bdi> · {ar ? "يجب أن تصل المطالبة المفتوحة أو قيد المراجعة إلى نتيجة نهائية معتمدة." : `${demoState === "open" ? "OPEN" : "UNDER REVIEW"} claim must reach an approved terminal outcome.`}</p></section>}
   </>;
