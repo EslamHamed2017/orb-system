@@ -138,6 +138,11 @@ test("all entity identifiers are PostgreSQL UUIDs generated and constrained as U
     if (!id) continue;
     assert.match(id[1], /String/);
     assert.match(id[1], /@id/);
+    if (model === "SystemSettings") {
+      assert.match(id[1], /@default\("default"\)/, "SystemSettings must retain its explicit singleton key");
+      assert.doesNotMatch(id[1], /@db\.Uuid/, "the SystemSettings singleton key is intentionally not an entity UUID");
+      continue;
+    }
     assert.match(id[1], /@db\.Uuid/);
     assert.match(id[1], /(?:uuidv7|dbgenerated)/i, `${model}.id must be database-generated UUIDv7`);
   }
