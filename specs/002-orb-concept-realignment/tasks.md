@@ -87,7 +87,8 @@
   - Verification note (2026-11-12): the independent bilingual EN/LTR and AR/RTL operational Accounts hub provides currency-partitioned summaries, recent project-linked activity, canonical typed destinations for sales invoices, supplier invoices, collections, supplier payments and expenses, and primary navigation without general-ledger or inventory-valuation semantics. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and two managed Chromium journeys pass.
 - [x] T049 Project-filtered sales invoices view
   - Verification note (2026-11-12): the bilingual EN/LTR and AR/RTL sales-invoice register now filters active customer invoices fail-closed by project, preserves project and sales-shipment 360 links, shows exact source-currency totals/outstanding amounts, and is reachable from project Accounts. Focused TDD and adjacent Accounts tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and two managed Chromium journeys pass.
-- [ ] T050 Project-filtered purchase invoices view
+- [x] T050 Project-filtered purchase invoices view
+  - Verification note (2026-11-12): the bilingual EN/LTR and AR/RTL supplier-invoice register filters active supplier-attributable invoices fail-closed by project, preserves project, supplier and physical-container 360 links, shows exact source-currency totals/outstanding amounts, and is reachable from project Accounts. Focused TDD and adjacent Accounts tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and two managed Chromium journeys pass.
 - [ ] T051 Project-filtered payments/collections view
 - [ ] T052 Project-filtered expenses view
 

@@ -1,0 +1,22 @@
+import { ProjectContextNavigation } from "../../navigation/ProjectContextNavigation";
+import styles from "./AccountsHubPage.module.css";
+import type { AccountsLocale } from "./accounts-hub";
+import { filterProjectSupplierInvoices, type SupplierInvoiceListItem } from "./project-supplier-invoices";
+
+const invoices: readonly SupplierInvoiceListItem[] = Object.freeze([
+  { id: "supplier-invoice-1", projectId: "project-1", supplierId: "supplier-1", containerId: "supplier-container-1", occurredOn: "2026-11-10", state: "CONFIRMED", reference: "PINV-2026-031", currency: "USD", amount: "17700.000000", outstandingAmount: "5200.000000" },
+  { id: "supplier-invoice-2", projectId: "project-2", supplierId: "supplier-2", containerId: "supplier-container-2", occurredOn: "2026-11-12", state: "CONFIRMED", reference: "PINV-2026-044", currency: "AED", amount: "39000.000000", outstandingAmount: "9000.000000" },
+  { id: "supplier-invoice-void", projectId: "project-1", supplierId: "supplier-2", containerId: "supplier-container-1", occurredOn: "2026-11-13", state: "CANCELLED", reference: "PINV-2026-VOID", currency: "USD", amount: "500.000000", outstandingAmount: "0.000000" },
+]);
+
+export function ProjectSupplierInvoicesPage({ locale, projectId }: { readonly locale: AccountsLocale; readonly projectId?: string }) {
+  const ar = locale === "ar";
+  const items = projectId ? filterProjectSupplierInvoices(invoices, projectId) : invoices.filter((invoice) => invoice.state !== "CANCELLED" && invoice.state !== "REVERSED");
+  return <section className={styles.page} dir={ar ? "rtl" : "ltr"} aria-labelledby="supplier-invoices-title">
+    {projectId ? <ProjectContextNavigation locale={locale} projectId={projectId} current="accounts" /> : null}
+    <header className={styles.header}><div><p className={styles.eyebrow}>{ar ? "الحسابات التشغيلية" : "Operational accounts"}</p><h1 id="supplier-invoices-title">{ar ? "فواتير الموردين" : "Supplier invoices"}</h1><p className={styles.subtitle}>{projectId ? (ar ? <>فواتير الموردين للمشروع <bdi>{projectId}</bdi>، مع بقاء كل فاتورة منسوبة إلى مورد واحد.</> : <>Supplier invoices for project <bdi>{projectId}</bdi>, with every invoice attributable to one supplier.</>) : (ar ? "فواتير الموردين عبر جميع المشاريع، منسوبة إلى كل مورد بشكل مستقل." : "Supplier invoices across every project, independently attributable to each supplier.")}</p></div><a className={styles.backLink} href={`/accounts?locale=${locale}`}>{ar ? "مركز الحسابات" : "Accounts hub"}</a></header>
+    <section className={styles.card} aria-labelledby="supplier-invoice-register-title"><header className={styles.cardHeader}><div><h2 id="supplier-invoice-register-title">{ar ? "سجل الفواتير" : "Invoice register"}</h2><p className={styles.muted}>{ar ? `${items.length} فاتورة نشطة` : `${items.length} active invoice${items.length === 1 ? "" : "s"}`}</p></div></header>
+      <div className={styles.tableWrap}><table className={styles.table}><thead><tr><th>{ar ? "المرجع" : "Reference"}</th><th>{ar ? "المورد" : "Supplier"}</th><th>{ar ? "حاوية الموردين" : "Supplier container"}</th><th>{ar ? "التاريخ" : "Date"}</th><th>{ar ? "الحالة" : "Status"}</th><th className={styles.amount}>{ar ? "الإجمالي" : "Total"}</th><th className={styles.amount}>{ar ? "المتبقي" : "Outstanding"}</th></tr></thead><tbody>{items.map((invoice) => <tr key={invoice.id}><td><div className={styles.reference}><strong><bdi>{invoice.reference}</bdi></strong><span><a href={`/projects/${invoice.projectId}/overview?locale=${locale}`}><bdi>{invoice.projectId}</bdi></a></span></div></td><td><a href={`/suppliers/${invoice.supplierId}?locale=${locale}`}><bdi>{invoice.supplierId}</bdi></a></td><td><a href={`/supplier-shipments/${invoice.containerId}?locale=${locale}`}><bdi>{invoice.containerId}</bdi></a></td><td><bdi>{invoice.occurredOn}</bdi></td><td><span className={styles.state}>{invoice.state}</span></td><td className={styles.amount}><bdi>{invoice.currency} {invoice.amount}</bdi></td><td className={styles.amount}><bdi>{invoice.currency} {invoice.outstandingAmount}</bdi></td></tr>)}</tbody></table>{items.length === 0 ? <p className={styles.empty}>{ar ? "لا توجد فواتير موردين نشطة لهذا المشروع." : "No active supplier invoices exist for this project."}</p> : null}</div>
+    </section>
+  </section>;
+}
