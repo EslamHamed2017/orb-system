@@ -56,4 +56,5 @@ assert_clean_checkout
   exit 2
 }
 node scripts/owner-uat-evidence.mjs --report "$report" --output "$manifest" --git-commit "$release_commit"
+rm -f -- "$report"
 printf 'owner UAT technical evidence recorded: %s\n' "$manifest"

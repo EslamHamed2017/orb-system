@@ -146,7 +146,7 @@ jobs:
         if: success()
         with:
           name: owner-uat-evidence
-          path: ${{ runner.temp }}/owner-uat-evidence
+          path: ${{ runner.temp }}/owner-uat-evidence/manifest.json
           if-no-files-found: error
           retention-days: 14
 
