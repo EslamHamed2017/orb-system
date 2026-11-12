@@ -41,6 +41,8 @@ test("freezer is RC bound, derives contract counts and binds health evidence", (
   const script = readFileSync(join(root, "ops/release/freeze-candidate.sh"), "utf8");
   assert.match(script, /internal-alpha-rc/);
   assert.match(script, /ORB_HEALTH_EVIDENCE_FILE/);
+  assert.match(script, /ORB_BUILD_MANIFEST_FILE/);
+  assert.match(script, /verify-build-manifest\.mjs --verify/);
   assert.match(script, /openapi_operation_count=/);
   assert.doesNotMatch(script, /openapiOperationCount\"]:79/);
   assert.match(script, /deploymentPerformed/);

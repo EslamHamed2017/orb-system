@@ -57,9 +57,12 @@ esac
 : "${ORB_SBOM_FILE:?ORB_SBOM_FILE is required}"
 : "${ORB_RELEASE_SIGNING_KEY_PATH:?ORB_RELEASE_SIGNING_KEY_PATH is required}"
 : "${ORB_HEALTH_EVIDENCE_FILE:?ORB_HEALTH_EVIDENCE_FILE is required}"
+: "${ORB_BUILD_MANIFEST_FILE:?ORB_BUILD_MANIFEST_FILE is required}"
 [ -f "$ORB_SBOM_FILE" ] && [ ! -L "$ORB_SBOM_FILE" ] || fail "SBOM must be a regular non-symlink file"
 [ -f "$ORB_RELEASE_SIGNING_KEY_PATH" ] && [ ! -L "$ORB_RELEASE_SIGNING_KEY_PATH" ] || fail "signing key must be a regular non-symlink file"
 [ -f "$ORB_HEALTH_EVIDENCE_FILE" ] && [ ! -L "$ORB_HEALTH_EVIDENCE_FILE" ] || fail "health evidence must be a regular non-symlink file"
+[ -f "$ORB_BUILD_MANIFEST_FILE" ] && [ ! -L "$ORB_BUILD_MANIFEST_FILE" ] || fail "build manifest must be a regular non-symlink file"
+node scripts/verify-build-manifest.mjs --verify "$ORB_BUILD_MANIFEST_FILE"
 [ -f .next/build-manifest.json ] || fail "missing .next/build-manifest.json; run the accepted production build first"
 case "$ORB_CANDIDATE_IMAGE" in *@sha256:*) container_sha=${ORB_CANDIDATE_IMAGE##*@sha256:} ;; *) fail "candidate image must be digest pinned";; esac
 require_hex "container digest" "$container_sha"
@@ -68,7 +71,7 @@ git_commit=$(git rev-parse HEAD)
 source_sha=$(git archive --format=tar "$git_commit" | sha256sum | cut -d ' ' -f 1)
 lock_sha=$(sha_file pnpm-lock.yaml)
 openapi_sha=$(sha_file specs/001-orb-trade-operations/contracts/openapi.yaml)
-build_sha=$(sha_file .next/build-manifest.json)
+build_sha=$(sha_file "$ORB_BUILD_MANIFEST_FILE")
 sbom_sha=$(sha_file "$ORB_SBOM_FILE")
 health_sha=$(sha_file "$ORB_HEALTH_EVIDENCE_FILE")
 openapi_operation_count=$(python3 -c 'import re; print(len(re.findall(r"^\s*operationId:", open("specs/001-orb-trade-operations/contracts/openapi.yaml", encoding="utf-8").read(), re.M)))')
