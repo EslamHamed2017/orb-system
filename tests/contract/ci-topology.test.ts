@@ -33,7 +33,11 @@ test("deployed owner UAT is explicitly authorized and limited to the bilingual p
   assert.match(gate, /ORB_OWNER_UAT_AUTHORIZATION/);
   assert.match(gate, /ORB_EXPECTED_RELEASE_COMMIT=.*git rev-parse HEAD/);
   assert.match(gate, /OWNER_APPROVED/);
-  assert.match(gate, /https:\/\//);
+  assert.match(gate, /validate_owner_uat_target\.py/);
+  const targetValidator = readFileSync(resolve(ROOT, "ops/acceptance/validate_owner_uat_target.py"), "utf8");
+  assert.match(targetValidator, /scheme != "https"/);
+  assert.match(targetValidator, /is_global/);
+  assert.match(targetValidator, /getaddrinfo/);
   assert.match(gate, /owner-uat\.spec\.ts/);
   assert.match(gate, /--project=chromium/);
   assert.match(gate, /ORB_OWNER_UAT_EVIDENCE_DIR/);
