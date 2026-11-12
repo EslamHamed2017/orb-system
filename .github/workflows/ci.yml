@@ -10,6 +10,11 @@ on:
         description: HTTPS URL of the owner-approved deployed acceptance target
         required: true
         type: string
+      owner_uat_authorized:
+        description: Owner explicitly authorized this UAT run
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -92,17 +97,15 @@ jobs:
           retention-days: 14
 
   deployed-acceptance:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.owner_uat_authorized == true
     needs: offline
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: owner-acceptance
     env:
       ORB_TEST_BASE_URL: ${{ inputs.acceptance_base_url }}
+      ORB_OWNER_UAT_AUTHORIZATION: OWNER_APPROVED
     steps:
-      - name: Require an explicit HTTPS acceptance target
-        shell: bash
-        run: '[[ "$ORB_TEST_BASE_URL" =~ ^https://[^/]+ ]]'
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -111,8 +114,8 @@ jobs:
       - run: corepack prepare pnpm@12.16.1 --activate
       - run: pnpm install --frozen-lockfile --strict-peer-dependencies
       - run: pnpm exec playwright install --with-deps chromium
-      - name: Acceptance against owner-approved deployment
-        run: pnpm exec playwright test --project=chromium
+      - name: Bilingual owner-UAT technical gate
+        run: ops/acceptance/run-owner-uat-gate.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:

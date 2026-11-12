@@ -54,7 +54,10 @@ export TELEMETRY_ENDPOINT=http://127.0.0.1/telemetry
 export BACKUP_STATUS_ENDPOINT=http://127.0.0.1/backup
 export ORB_AUDIT_CHAIN_HEALTHY=1
 corepack pnpm build
-ORB_TEST_MANAGED_SERVER=1 corepack pnpm exec playwright test tests/acceptance/internal-alpha-lifecycle.spec.ts --project=chromium
+ORB_TEST_MANAGED_SERVER=1 corepack pnpm exec playwright test \
+  tests/acceptance/internal-alpha-lifecycle.spec.ts \
+  tests/acceptance/owner-uat.spec.ts \
+  --project=chromium
 final_project_count=$("${compose[@]}" exec -T migration-postgres psql -U orb_migrator -d orb_migration -Atc 'SELECT count(*) FROM "Project"')
 [[ "$final_project_count" == "$project_count" ]]
 mc stat alpha/orb-evidence/internal-alpha/lifecycle.txt >/dev/null

@@ -13,6 +13,7 @@ test("internal-alpha gate binds Chromium to isolated PostgreSQL and object stora
     "ORB_TEST_MANAGED_SERVER=1",
     "--project=chromium",
     "internal-alpha-lifecycle.spec.ts",
+    "owner-uat.spec.ts",
     "mc stat",
     "SELECT count(*) FROM \"Project\"",
   ]) assert.match(script, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));

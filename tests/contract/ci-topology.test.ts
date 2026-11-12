@@ -22,6 +22,31 @@ test("CI separates offline, local-browser, and manually dispatched deployed acce
   assert.doesNotMatch(deployed, /ORB_TEST_AUTH|ORB_APP_ORIGIN/);
 });
 
+test("deployed owner UAT is explicitly authorized and limited to the bilingual pilot journey", () => {
+  const deployed = workflow.match(/^  deployed-acceptance:\n([\s\S]*?)(?=^  [a-z][a-z-]+:\n)/m)?.[1] ?? "";
+  assert.match(workflow, /owner_uat_authorized:[\s\S]*?type: boolean/);
+  assert.match(deployed, /inputs\.owner_uat_authorized == true/);
+  assert.match(deployed, /run-owner-uat-gate\.sh/);
+  assert.doesNotMatch(deployed, /playwright test --project=chromium/);
+
+  const gate = readFileSync(resolve(ROOT, "ops/acceptance/run-owner-uat-gate.sh"), "utf8");
+  assert.match(gate, /ORB_OWNER_UAT_AUTHORIZATION/);
+  assert.match(gate, /OWNER_APPROVED/);
+  assert.match(gate, /https:\/\//);
+  assert.match(gate, /owner-uat\.spec\.ts/);
+  assert.match(gate, /--project=chromium/);
+  assert.doesNotMatch(gate, /ORB_TEST_AUTH|ORB_TEST_MANAGED_SERVER|\|\| true|test\.skip/);
+
+  const journey = readFileSync(resolve(ROOT, "tests/acceptance/owner-uat.spec.ts"), "utf8");
+  assert.match(journey, /locale: ["']en["'], direction: ["']ltr["']/);
+  assert.match(journey, /locale: ["']ar["'], direction: ["']rtl["']/);
+  assert.match(journey, /supplier-shipments/);
+  assert.match(journey, /sales-shipments/);
+  assert.match(journey, /accounts\/sales-invoices/);
+  assert.match(journey, /accounts\/supplier-invoices/);
+  assert.match(journey, /reports\/product-movement/);
+});
+
 test("offline gate cannot accidentally launch browser or target a deployment", () => {
   const offline = workflow.match(/^  offline:\n([\s\S]*?)(?=^  [a-z][a-z-]+:\n)/m)?.[1] ?? "";
   assert.ok(offline, "offline job body is missing");
