@@ -23,9 +23,13 @@ const locales = [
 
 for (const { locale, direction } of locales) {
   test(`owner UAT technical journey exposes the P0 lifecycle in ${locale}`, async ({ page, request }) => {
-    const readiness = await request.get("/api/health/ready");
+    const expectedReadinessUrl = new URL("/api/health/ready", configuredTarget);
+    const readiness = await request.get(expectedReadinessUrl.pathname);
     expect(readiness.status()).toBe(200);
-    expect(new URL(readiness.url()).origin, "readiness escaped approved UAT origin").toBe(expectedTargetOrigin);
+    const readinessUrl = new URL(readiness.url());
+    expect(readinessUrl.origin, "readiness escaped approved UAT origin").toBe(expectedTargetOrigin);
+    expect(readinessUrl.pathname, "readiness escaped approved UAT route").toBe(expectedReadinessUrl.pathname);
+    expect(readinessUrl.search, "readiness added unexpected UAT query parameters").toBe(expectedReadinessUrl.search);
     const readinessBody = await readiness.json();
     expect(readinessBody).toMatchObject({ status: "ready" });
     expect(readinessBody.release?.gitCommit).toBe(expectedReleaseCommit);
