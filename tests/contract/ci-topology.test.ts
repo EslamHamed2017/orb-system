@@ -57,7 +57,9 @@ test("deployed owner UAT is explicitly authorized and limited to the bilingual p
   assert.match(journey, /expectedTargetOrigin/);
   assert.match(journey, /await page\.goto\(path\)/);
   assert.doesNotMatch(journey, /function gotoApprovedTarget[\s\S]*?await gotoApprovedTarget\(page, path\)/);
-  assert.match(journey, /new URL\(page\.url\(\)\)\.origin.*expectedTargetOrigin/s);
+  assert.match(journey, /finalUrl\.origin.*expectedTargetOrigin/s);
+  assert.match(journey, /finalUrl\.pathname.*requestedUrl\.pathname/s);
+  assert.match(journey, /requestedUrl\.searchParams/s);
   assert.match(journey, /locale: ["']en["'], direction: ["']ltr["']/);
   assert.match(journey, /locale: ["']ar["'], direction: ["']rtl["']/);
   assert.match(journey, /supplier-shipments/);

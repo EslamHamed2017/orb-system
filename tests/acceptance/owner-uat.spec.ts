@@ -7,8 +7,13 @@ if (!configuredTarget) throw new Error("ORB_TEST_BASE_URL is required for owner 
 const expectedTargetOrigin = new URL(configuredTarget).origin;
 
 async function gotoApprovedTarget(page: Page, path: string) {
+  const requestedUrl = new URL(path, configuredTarget);
   await page.goto(path);
-  expect(new URL(page.url()).origin, `navigation escaped approved UAT origin at ${path}`).toBe(expectedTargetOrigin);
+  const finalUrl = new URL(page.url());
+  expect(finalUrl.origin, `navigation escaped approved UAT origin at ${path}`).toBe(expectedTargetOrigin);
+  expect(finalUrl.pathname, `navigation escaped approved UAT route at ${path}`).toBe(requestedUrl.pathname);
+  expect([...finalUrl.searchParams.entries()].sort(), `navigation changed approved UAT query at ${path}`)
+    .toEqual([...requestedUrl.searchParams.entries()].sort());
 }
 
 const locales = [
