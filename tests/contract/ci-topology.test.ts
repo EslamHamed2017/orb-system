@@ -31,6 +31,7 @@ test("deployed owner UAT is explicitly authorized and limited to the bilingual p
 
   const gate = readFileSync(resolve(ROOT, "ops/acceptance/run-owner-uat-gate.sh"), "utf8");
   assert.match(gate, /ORB_OWNER_UAT_AUTHORIZATION/);
+  assert.match(gate, /ORB_EXPECTED_RELEASE_COMMIT=.*git rev-parse HEAD/);
   assert.match(gate, /OWNER_APPROVED/);
   assert.match(gate, /https:\/\//);
   assert.match(gate, /owner-uat\.spec\.ts/);
@@ -45,6 +46,8 @@ test("deployed owner UAT is explicitly authorized and limited to the bilingual p
   assert.doesNotMatch(gate, /ORB_TEST_AUTH|ORB_TEST_MANAGED_SERVER|\|\| true|test\.skip/);
 
   const journey = readFileSync(resolve(ROOT, "tests/acceptance/owner-uat.spec.ts"), "utf8");
+  assert.match(journey, /ORB_EXPECTED_RELEASE_COMMIT/);
+  assert.match(journey, /release.*gitCommit/s);
   assert.match(journey, /locale: ["']en["'], direction: ["']ltr["']/);
   assert.match(journey, /locale: ["']ar["'], direction: ["']rtl["']/);
   assert.match(journey, /supplier-shipments/);

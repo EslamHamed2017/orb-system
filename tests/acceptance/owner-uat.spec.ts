@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+const expectedReleaseCommit = process.env.ORB_EXPECTED_RELEASE_COMMIT;
+
 const locales = [
   { locale: "en", direction: "ltr" },
   { locale: "ar", direction: "rtl" },
@@ -9,7 +11,9 @@ for (const { locale, direction } of locales) {
   test(`owner UAT technical journey exposes the P0 lifecycle in ${locale}`, async ({ page, request }) => {
     const readiness = await request.get("/api/health/ready");
     expect(readiness.status()).toBe(200);
-    expect(await readiness.json()).toMatchObject({ status: "ready" });
+    const readinessBody = await readiness.json();
+    expect(readinessBody).toMatchObject({ status: "ready" });
+    if (expectedReleaseCommit) expect(readinessBody.release?.gitCommit).toBe(expectedReleaseCommit);
 
     const routes = [
       "/masters/customers", "/masters/suppliers", "/masters/products", "/projects/demo/overview",

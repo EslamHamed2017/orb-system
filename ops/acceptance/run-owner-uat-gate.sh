@@ -43,6 +43,7 @@ mkdir -m 700 -- "$ORB_OWNER_UAT_EVIDENCE_DIR"
 report="$ORB_OWNER_UAT_EVIDENCE_DIR/playwright-report.json"
 manifest="$ORB_OWNER_UAT_EVIDENCE_DIR/manifest.json"
 
+export ORB_EXPECTED_RELEASE_COMMIT="$(git rev-parse HEAD)"
 PLAYWRIGHT_JSON_OUTPUT_FILE="$report" corepack pnpm exec playwright test \
   tests/acceptance/owner-uat.spec.ts --project=chromium --reporter=html,json
 [[ -f "$report" && ! -L "$report" ]] || {

@@ -29,6 +29,7 @@ LABEL org.opencontainers.image.title="ORB Trade Operations" \
       org.opencontainers.image.revision="${ORB_BUILD_DIGEST}" \
       com.orb.lock.digest="${ORB_LOCK_DIGEST}"
 ENV NODE_ENV=production
+ENV ORB_RELEASE_COMMIT=${ORB_BUILD_DIGEST}
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 RUN groupadd --system --gid 10001 orb && useradd --system --uid 10001 --gid orb orb

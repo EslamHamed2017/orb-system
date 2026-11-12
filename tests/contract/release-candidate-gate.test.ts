@@ -54,4 +54,5 @@ test("container generation uses a non-secret build-only database URL", () => {
   const runtimeStage = dockerfile.slice(dockerfile.indexOf("FROM base AS runtime"));
   assert.match(buildStage, /ENV DATABASE_URL=postgresql:\/\/orb_build:orb_build@127\.0\.0\.1:5432\/orb_build/);
   assert.doesNotMatch(runtimeStage, /DATABASE_URL/);
+  assert.match(runtimeStage, /ENV ORB_RELEASE_COMMIT=\$\{ORB_BUILD_DIGEST\}/);
 });

@@ -65,10 +65,10 @@ test("health handlers distinguish process liveness from dependency and audit rea
   const live = await createLivenessHandler(() => "2026-11-07T12:00:00.000Z")();
   assert.equal(live.status, 200);
   assert.deepEqual(await live.json(), { status: "live", checkedAt: "2026-11-07T12:00:00.000Z" });
-  const ready = createReadinessHandler({ database: async () => true, objectStorage: async () => false, auditChain: async () => true }, () => "2026-11-07T12:00:00.000Z");
+  const ready = createReadinessHandler({ database: async () => true, objectStorage: async () => false, auditChain: async () => true }, () => "2026-11-07T12:00:00.000Z", "0123456789abcdef0123456789abcdef01234567");
   const response = await ready();
   assert.equal(response.status, 503);
-  assert.deepEqual(await response.json(), { status: "not-ready", checkedAt: "2026-11-07T12:00:00.000Z", checks: { auditChain: "up", database: "up", objectStorage: "down" } });
+  assert.deepEqual(await response.json(), { status: "not-ready", checkedAt: "2026-11-07T12:00:00.000Z", checks: { auditChain: "up", database: "up", objectStorage: "down" }, release: { gitCommit: "0123456789abcdef0123456789abcdef01234567" } });
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
