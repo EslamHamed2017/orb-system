@@ -17,6 +17,8 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --strict-peer-dependencies
 
 FROM dependencies AS build
+# Prisma loads DATABASE_URL while generating the client; this loopback value is build-only and non-secret.
+ENV DATABASE_URL=postgresql://orb_build:orb_build@127.0.0.1:5432/orb_build
 COPY --exclude=node_modules --exclude=.next --exclude=.git --exclude=test-results . .
 RUN pnpm run prisma:generate && pnpm run build && pnpm prune --prod
 

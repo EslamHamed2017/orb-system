@@ -45,3 +45,11 @@ test("freezer is RC bound, derives contract counts and binds health evidence", (
   assert.doesNotMatch(script, /openapiOperationCount\"]:79/);
   assert.match(script, /deploymentPerformed/);
 });
+
+test("container generation uses a non-secret build-only database URL", () => {
+  const dockerfile = readFileSync(join(root, "Dockerfile"), "utf8");
+  const buildStage = dockerfile.slice(dockerfile.indexOf("FROM dependencies AS build"), dockerfile.indexOf("FROM base AS runtime"));
+  const runtimeStage = dockerfile.slice(dockerfile.indexOf("FROM base AS runtime"));
+  assert.match(buildStage, /ENV DATABASE_URL=postgresql:\/\/orb_build:orb_build@127\.0\.0\.1:5432\/orb_build/);
+  assert.doesNotMatch(runtimeStage, /DATABASE_URL/);
+});
