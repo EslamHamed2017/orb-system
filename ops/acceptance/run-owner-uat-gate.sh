@@ -33,6 +33,10 @@ assert_clean_checkout
 mkdir -m 700 -- "$ORB_OWNER_UAT_EVIDENCE_DIR"
 report="$ORB_OWNER_UAT_EVIDENCE_DIR/playwright-report.json"
 manifest="$ORB_OWNER_UAT_EVIDENCE_DIR/manifest.json"
+cleanup_sensitive_report() {
+  rm -f -- "$report"
+}
+trap cleanup_sensitive_report EXIT
 
 readonly release_commit="$(git rev-parse HEAD)"
 [[ "$release_commit" =~ ^[a-f0-9]{40}$ ]] || {
@@ -56,5 +60,4 @@ assert_clean_checkout
   exit 2
 }
 node scripts/owner-uat-evidence.mjs --report "$report" --output "$manifest" --git-commit "$release_commit"
-rm -f -- "$report"
 printf 'owner UAT technical evidence recorded: %s\n' "$manifest"

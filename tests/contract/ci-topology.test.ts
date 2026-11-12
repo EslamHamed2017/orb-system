@@ -71,8 +71,8 @@ test("deployed owner UAT is explicitly authorized and limited to the bilingual p
   assert.match(deployed, /name: owner-uat-evidence/);
   assert.match(deployed, /if: success\(\)[\s\S]*path:.*owner-uat-evidence\/manifest\.json/);
   assert.doesNotMatch(deployed, /path:.*owner-uat-evidence\s*$/m, "raw owner-UAT report directory must not be uploaded");
-  assert.match(gate, /rm -f -- "\$report"[\s\S]*owner UAT technical evidence recorded/,
-    "raw owner-UAT report must be deleted after its digest-bound manifest is written");
+  assert.match(gate, /cleanup_sensitive_report[\s\S]*rm -f -- "\$report"[\s\S]*trap cleanup_sensitive_report EXIT/,
+    "raw owner-UAT report must be deleted on every success or failure exit");
   assert.doesNotMatch(deployed, /deployed-acceptance-playwright-report|path: playwright-report/);
   assert.doesNotMatch(gate, /ORB_TEST_AUTH|ORB_TEST_MANAGED_SERVER|\|\| true|test\.skip/);
 
