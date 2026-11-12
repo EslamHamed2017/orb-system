@@ -4,11 +4,18 @@ import { EnterpriseStyles } from "../../ui/features/admin/EnterpriseUx";
 
 type Locale = "ar" | "en";
 
-const ENGLISH_TRUST_SIGNALS = [
-  "Complete transaction traceability",
-  "Granular access controls",
-  "Bilingual by design",
-] as const;
+const TRUST_SIGNALS = {
+  en: [
+    "Complete transaction traceability",
+    "Granular access controls",
+    "Bilingual by design",
+  ],
+  ar: [
+    "تتبّع كامل للمعاملات",
+    "صلاحيات وصول دقيقة",
+    "مصمم للعربية والإنجليزية",
+  ],
+} as const;
 
 export default async function SignInPage({ searchParams }: { searchParams: Promise<{ locale?: string }> }) {
   const requested = (await searchParams).locale;
@@ -21,17 +28,17 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
     <script dangerouslySetInnerHTML={{ __html: `document.documentElement.lang=${JSON.stringify(locale)};document.documentElement.dir=${JSON.stringify(dir)}` }} />
     <section className="orb-signin-brand" aria-label="ORB">
       <div className="orb-signin-brand-mark" aria-hidden="true">O</div>
-      <p className="orb-signin-product">ORB TRADE OPERATIONS</p>
+      <p className="orb-signin-product">{ar ? "ORB لإدارة العمليات التجارية" : "ORB TRADE OPERATIONS"}</p>
       <h1>{ar ? "العمل التشغيلي، تحت السيطرة." : "Operations, under control."}</h1>
       <p>{ar ? "منصة موحدة للمشاريع والشحنات والمالية والموافقات مع سجل تدقيق كامل." : "One workspace for projects, shipments, finance and approvals—with complete traceability."}</p>
-      {!ar && <ul className="orb-signin-trust-list" aria-label="Workspace capabilities">
-        {ENGLISH_TRUST_SIGNALS.map((signal) => <li key={signal}><span aria-hidden="true">✓</span>{signal}</li>)}
-      </ul>}
+      <ul className="orb-signin-trust-list" aria-label={ar ? "إمكانات مساحة العمل" : "Workspace capabilities"}>
+        {TRUST_SIGNALS[locale].map((signal) => <li key={signal}><span aria-hidden="true">✓</span>{signal}</li>)}
+      </ul>
     </section>
     <section className="orb-signin-panel" aria-labelledby="sign-in-heading">
       <div className="orb-signin-panel-header">
         {ar
-          ? <Link className="orb-signin-language" href="/sign-in?locale=en" hrefLang="en">English</Link>
+          ? <Link className="orb-signin-language" href="/sign-in?locale=en" hrefLang="en" lang="en">English</Link>
           : <Link className="orb-signin-language" href={`/sign-in?locale=ar`} hrefLang="ar">العربية</Link>}
       </div>
       <div className="orb-signin-card">

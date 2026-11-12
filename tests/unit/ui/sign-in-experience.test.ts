@@ -20,6 +20,17 @@ test("English sign-in communicates operational trust without changing the secure
   assert.match(form, /spellCheck=\{false\}/);
 });
 
+test("Arabic sign-in communicates the same operational trust in a native RTL presentation", () => {
+  assert.match(page, /تتبّع كامل للمعاملات/);
+  assert.match(page, /صلاحيات وصول دقيقة/);
+  assert.match(page, /مصمم للعربية والإنجليزية/);
+  assert.match(page, /ORB لإدارة العمليات التجارية/);
+  assert.match(page, /hrefLang="en"/);
+  assert.match(page, /lang="en">English/);
+  assert.match(styles, /\.orb-signin\[dir=rtl\] \.orb-signin-product/);
+  assert.match(styles, /\.orb-signin\[dir=rtl\] \.orb-signin-trust-list/);
+});
+
 test("refined sign-in has durable responsive, focus, error and reduced-motion styling", () => {
   assert.match(styles, /\.orb-signin-trust-list/);
   assert.match(styles, /\.orb-signin-language:focus-visible/);
