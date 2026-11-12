@@ -1,6 +1,6 @@
 "use client";
 
-type PrintDocumentKind = "contract" | "shipment" | "container";
+type PrintDocumentKind = "contract" | "shipment" | "container" | "salesInvoice" | "supplierInvoice";
 
 type Props = {
   readonly locale: "ar" | "en";
@@ -13,6 +13,8 @@ const labels: Record<PrintDocumentKind, Readonly<{ en: string; ar: string }>> = 
   contract: { en: "Print contract", ar: "طباعة العقد" },
   shipment: { en: "Print shipment", ar: "طباعة الشحنة" },
   container: { en: "Print container", ar: "طباعة الحاوية" },
+  salesInvoice: { en: "Print customer invoice", ar: "طباعة فاتورة العميل" },
+  supplierInvoice: { en: "Print supplier invoice", ar: "طباعة فاتورة المورد" },
 };
 
 export function PrintAction({ locale, targetId, className, documentKind = "contract" }: Props) {

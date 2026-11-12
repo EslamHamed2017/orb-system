@@ -11,6 +11,9 @@ export interface SupplierInvoiceListItem {
   readonly currency: string;
   readonly amount: string;
   readonly outstandingAmount: string;
+  readonly partyName?: string;
+  readonly sourceReference?: string;
+  readonly lines?: readonly import("./InvoicePrintDocument").InvoicePrintLine[];
 }
 
 const inactiveStates = new Set(["CANCELLED", "REVERSED"]);
