@@ -10,6 +10,7 @@ const contentSecurityPolicy = [
   "object-src 'none'",
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
+  "upgrade-insecure-requests",
 ].join("; ");
 
 const globalSecurityHeaders = [

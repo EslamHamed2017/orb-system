@@ -90,7 +90,7 @@ test("deployed owner UAT is explicitly authorized and limited to the bilingual p
   assert.match(journey, /response!\.headers\(\)\["permissions-policy"\].*camera=\(\), microphone=\(\), geolocation=\(\)/is);
   assert.match(journey, /response!\.headers\(\)\["referrer-policy"\].*strict-origin-when-cross-origin/is);
   assert.match(journey, /response!\.headers\(\)\["cross-origin-opener-policy"\].*same-origin/is);
-  assert.match(journey, /response!\.headers\(\)\["content-security-policy"\].*default-src/is);
+  assert.match(journey, /response!\.headers\(\)\["content-security-policy"\].*upgrade-insecure-requests/is);
   assert.doesNotMatch(journey, /function gotoApprovedTarget[\s\S]*?await gotoApprovedTarget\(page, path\)/);
   assert.match(journey, /finalUrl\.origin.*expectedTargetOrigin/s);
   assert.match(journey, /finalUrl\.pathname.*requestedUrl\.pathname/s);
@@ -118,7 +118,7 @@ test("production responses expose global browser security and privacy headers on
   assert.equal(headers["cross-origin-opener-policy"], "same-origin");
   assert.equal(
     headers["content-security-policy"],
-    "default-src 'self'; base-uri 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
+    "default-src 'self'; base-uri 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; upgrade-insecure-requests",
   );
 });
 
