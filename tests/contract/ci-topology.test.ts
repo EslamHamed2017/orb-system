@@ -52,6 +52,10 @@ test("deployed owner UAT is explicitly authorized and limited to the bilingual p
   const journey = readFileSync(resolve(ROOT, "tests/acceptance/owner-uat.spec.ts"), "utf8");
   assert.match(journey, /ORB_EXPECTED_RELEASE_COMMIT/);
   assert.match(journey, /release.*gitCommit/s);
+  assert.match(journey, /expectedTargetOrigin/);
+  assert.match(journey, /await page\.goto\(path\)/);
+  assert.doesNotMatch(journey, /function gotoApprovedTarget[\s\S]*?await gotoApprovedTarget\(page, path\)/);
+  assert.match(journey, /new URL\(page\.url\(\)\)\.origin.*expectedTargetOrigin/s);
   assert.match(journey, /locale: ["']en["'], direction: ["']ltr["']/);
   assert.match(journey, /locale: ["']ar["'], direction: ["']rtl["']/);
   assert.match(journey, /supplier-shipments/);
