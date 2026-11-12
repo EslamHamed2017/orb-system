@@ -3,6 +3,7 @@ import styles from "./AccountsHubPage.module.css";
 import type { AccountsLocale } from "./accounts-hub";
 import { FinancialAttachmentPanel } from "../evidence/FinancialAttachmentPanel";
 import { filterProjectMoneyMovements, type MoneyMovementListItem, type MoneyMovementType } from "./project-money-movements";
+import { OperationalTransactionPrintDocument } from "./OperationalTransactionPrintDocument";
 
 const movements: readonly MoneyMovementListItem[] = Object.freeze([
   { id: "019a5f9b-7c00-7000-8000-000000001201", projectId: "project-1", partyId: "customer-1", type: "COLLECTION", occurredOn: "2026-11-11", state: "POSTED", reference: "COL-2026-014", currency: "USD", amount: "20000.000000" },
@@ -33,6 +34,7 @@ export function ProjectMoneyMovementsPage({ locale, projectId, type, canUpload }
     <section className={styles.card} aria-labelledby="money-movement-register-title"><header className={styles.cardHeader}><div><h2 id="money-movement-register-title">{text.register}</h2><p className={styles.muted}>{ar ? `${items.length} حركة نشطة` : `${items.length} active movement${items.length === 1 ? "" : "s"}`}</p></div></header>
       <div className={styles.tableWrap}><table className={styles.table}><thead><tr><th>{ar ? "المرجع" : "Reference"}</th><th>{text.party}</th><th>{ar ? "التاريخ" : "Date"}</th><th>{ar ? "الحالة" : "Status"}</th><th className={styles.amount}>{ar ? "المبلغ" : "Amount"}</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td><div className={styles.reference}><strong><bdi>{item.reference}</bdi></strong><span><a href={`/projects/${item.projectId}/money?locale=${locale}`}><bdi>{item.projectId}</bdi></a></span></div></td><td><a href={`/${partyPath}/${item.partyId}?locale=${locale}`}><bdi>{item.partyId}</bdi></a></td><td><bdi>{item.occurredOn}</bdi></td><td><span className={styles.state}>{item.state}</span></td><td className={styles.amount}><bdi>{item.currency} {item.amount}</bdi></td></tr>)}</tbody></table>{items.length === 0 ? <p className={styles.empty}>{text.empty}</p> : null}</div>
     </section>
+    {items.map((item) => <OperationalTransactionPrintDocument key={`print-${item.id}`} locale={locale} kind={item.type === "COLLECTION" ? "collection" : "supplierPayment"} reference={item.reference} projectId={item.projectId} partyId={item.partyId} occurredOn={item.occurredOn} state={item.state} currency={item.currency} amount={item.amount} />)}
     {items.map((item) => <FinancialAttachmentPanel key={item.id} locale={locale} projectId={item.projectId} subjectType="MONEY_MOVEMENT" subjectId={item.id} canUpload={canUpload} />)}
   </section>;
 }

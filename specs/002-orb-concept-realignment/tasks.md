@@ -131,7 +131,8 @@
   - Verification note (2026-11-12): bilingual EN/LTR and AR/RTL sales shipments and physical multi-supplier containers now provide targeted A4 print actions with immutable shipment/project/version references, complete line quantities and weights, approved contract-line traceability, and preserved supplier/purchase-contract attribution. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and four adjacent Chromium contract/shipment print journeys pass.
 - [x] T069 Printable customer and supplier invoice outputs
   - Verification note (2026-11-12): bilingual EN/LTR and AR/RTL customer and supplier invoices now provide targeted A4 print actions with immutable invoice/project references, exact line quantities/prices/totals, sales-shipment traceability for customer invoices, and preserved supplier/container/purchase-line attribution for supplier invoices. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and two managed Chromium journeys pass.
-- [ ] T070 Printable payment/collection/expense outputs
+- [x] T070 Printable payment/collection/expense outputs
+  - Verification note (2026-11-12): bilingual EN/LTR and AR/RTL collections, supplier payments, and expenses now provide targeted A4 print actions with immutable transaction/project references, exact source-currency amounts, customer/supplier attribution, and expense category/scope context. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and two managed Chromium journeys pass.
 - [ ] T071 Reports hub and filter framework
 - [ ] T072 Product movement report
 - [ ] T073 Contract fulfillment report
