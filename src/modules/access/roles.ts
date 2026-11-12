@@ -482,6 +482,10 @@ function deny(code: string, status: number, correlationId?: string): never {
   throw problemError({ code, status, detail, correlationId: correlationId?.trim() || crypto.randomUUID() });
 }
 
+export function operationIds(): readonly string[] {
+  return Object.freeze(Object.keys(OPERATION_ROLES));
+}
+
 export function requiredRolesForOperation(operationId: string): readonly PilotRole[] {
   const roles = OPERATION_ROLES[operationId];
   if (!roles) throw new Error(`Unknown operation: ${operationId}`);

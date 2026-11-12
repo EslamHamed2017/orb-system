@@ -147,7 +147,8 @@
   - Verification note (2026-11-12): schema and P0 domain contracts now fail closed when contract-line, sales-shipment-line, supplier-container-line, weight, or source-allocation decimal inputs exceed PostgreSQL `DECIMAL(20,6)` precision, instead of deferring overflow to persistence. RED/GREEN regression tests, 59 focused contract tests, strict typecheck, all 535 canonical tests with zero skips, and the production build pass.
 - [x] T076 Integration tests for multi-line and multi-supplier flows
   - Verification note (2026-11-12): a composed service-level pilot flow now creates two approved sales-shipment lines, consolidates purchase lines from two suppliers in one physical container, allocates exact partial fulfillment, verifies remaining contract quantity/value and over-allocation denial, groups both sales lines into one customer invoice, and creates separate supplier-attributable invoices while rejecting cross-supplier lines. The focused flow and schema-invariant regression pass; strict typecheck, all 535 canonical tests, the full integration tree (198 pass, 0 fail, with only two isolated-PostgreSQL migration checks skipped because no database URL was supplied), and the production build pass.
-- [ ] T077 Permission matrix negative-path tests
+- [x] T077 Permission matrix negative-path tests
+  - Verification note (2026-11-12): exhaustive server-side negative-path coverage now proves all 117 operation permission codes are unique, each exact granular grant authorizes only its own operation, every unassigned legacy-role matrix cell is denied, and unknown, stale, duplicate, empty or malformed grants plus blank identities fail closed. Focused RED/GREEN security tests, strict typecheck, all 539 canonical tests with zero skips, and the production build pass.
 - [ ] T078 Attachment isolation/security tests
 - [ ] T079 Serial concurrency and uniqueness tests
 - [ ] T080 Arabic/English and RTL/LTR acceptance tests

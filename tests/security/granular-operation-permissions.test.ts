@@ -330,3 +330,70 @@ test("evidence APIs require exact resolved grants before storage, repository, or
   assert.equal((await allowedContent(new NextRequest(`https://orb.example/api/evidence/${evidenceId}/content`), { params: Promise.resolve({ evidenceId }) })).status, 200);
   assert.equal(calls, 5);
 });
+
+
+test("permission catalog is collision-free and every wrong operation grant is denied", async () => {
+  const { assertServerPermission, operationPermissionCode } = await import("../../src/modules/access/permissions.ts");
+  const { operationIds } = await import("../../src/modules/access/roles.ts");
+  const operations = operationIds();
+  const codes = operations.map(operationPermissionCode);
+
+  assert.equal(operations.length, 117);
+  assert.equal(new Set(codes).size, codes.length, "operation permission codes must not collide");
+
+  for (let index = 0; index < operations.length; index += 1) {
+    const operationId = operations[index];
+    const exactCode = codes[index];
+    const wrongCode = codes[(index + 1) % codes.length];
+    const exact = { userId: "matrix-user", roles: ["OWNER_ADMIN"], permissionCodes: [exactCode] };
+    const wrong = { userId: "matrix-user", roles: ["OWNER_ADMIN"], permissionCodes: [wrongCode] };
+    assert.doesNotThrow(() => assertServerPermission(exact, operationId), operationId);
+    assert.throws(() => assertServerPermission(wrong, operationId), /permission/i, operationId);
+  }
+});
+
+test("explicit permission sets reject unknown stale and duplicate grants", async () => {
+  const { assertServerPermission, operationPermissionCode } = await import("../../src/modules/access/permissions.ts");
+  const exact = operationPermissionCode("getAccountsSummary");
+  const principal = (permissionCodes: readonly string[]) => ({ userId: "matrix-user", roles: ["OWNER_ADMIN"], permissionCodes });
+
+  assert.throws(() => assertServerPermission(principal([exact, "operation.retired-admin-bypass"]), "getAccountsSummary"), /malformed grants/i);
+  assert.throws(() => assertServerPermission(principal([exact, exact]), "getAccountsSummary"), /malformed grants/i);
+  assert.throws(() => assertServerPermission(principal([]), "getAccountsSummary"), /permission denied/i);
+});
+
+
+test("legacy role bridge denies every unassigned permission matrix cell", async () => {
+  const { assertServerPermission } = await import("../../src/modules/access/permissions.ts");
+  const { operationIds, requiredRolesForOperation } = await import("../../src/modules/access/roles.ts");
+  const roles = ["OWNER_ADMIN", "OPERATIONS", "FINANCE_VIEWER"] as const;
+
+  for (const operationId of operationIds()) {
+    const allowedRoles = requiredRolesForOperation(operationId);
+    for (const role of roles) {
+      const principal = { userId: `${role.toLowerCase()}-user`, roles: [role] };
+      if (allowedRoles.length === 0 || allowedRoles.includes(role)) {
+        assert.doesNotThrow(() => assertServerPermission(principal, operationId), `${operationId}:${role}`);
+      } else {
+        assert.throws(() => assertServerPermission(principal, operationId), /permission denied/i, `${operationId}:${role}`);
+      }
+    }
+  }
+});
+
+test("authorization rejects blank identities before evaluating roles or grants", async () => {
+  const { assertServerPermission, operationPermissionCode } = await import("../../src/modules/access/permissions.ts");
+  const grant = operationPermissionCode("getAccountsSummary");
+  for (const userId of ["", " ", "\t", "\n"]) {
+    assert.throws(
+      () => assertServerPermission({ userId, roles: ["OWNER_ADMIN"], permissionCodes: [grant] }, "getAccountsSummary"),
+      /permission denied/i,
+    );
+  }
+  for (const roles of [[""], [" "], [null], [42]]) {
+    assert.throws(
+      () => assertServerPermission({ userId: "matrix-user", roles: roles as any, permissionCodes: [grant] }, "getAccountsSummary"),
+      /permission denied/i,
+    );
+  }
+});

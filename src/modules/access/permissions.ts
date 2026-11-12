@@ -1,5 +1,5 @@
 // @ts-expect-error Native Node TypeScript tests require source extensions.
-import { requiredRolesForOperation } from "./roles.ts";
+import { operationIds, requiredRolesForOperation } from "./roles.ts";
 
 export interface OperationPrincipal {
   readonly userId: string;
@@ -21,11 +21,22 @@ export function operationPermissionCode(operationId: string): string {
   return code;
 }
 
+const KNOWN_OPERATION_PERMISSION_CODES = new Set(operationIds().map(operationPermissionCode));
+
 export function assertServerPermission(principal: OperationPrincipal, operationId: string): void {
   const requiredRoles = requiredRolesForOperation(operationId);
-  if (!principal?.userId || !Array.isArray(principal.roles)) throw new TypeError("Operation permission denied");
+  if (
+    typeof principal?.userId !== "string"
+    || !principal.userId.trim()
+    || !Array.isArray(principal.roles)
+    || principal.roles.some((role) => typeof role !== "string" || !role.trim())
+  ) throw new TypeError("Operation permission denied");
   if (principal.permissionCodes !== undefined) {
-    if (!Array.isArray(principal.permissionCodes) || principal.permissionCodes.some((code) => typeof code !== "string" || !PERMISSION_CODE.test(code))) {
+    if (
+      !Array.isArray(principal.permissionCodes)
+      || new Set(principal.permissionCodes).size !== principal.permissionCodes.length
+      || principal.permissionCodes.some((code) => typeof code !== "string" || !PERMISSION_CODE.test(code) || !KNOWN_OPERATION_PERMISSION_CODES.has(code))
+    ) {
       throw new TypeError("Operation permission denied: malformed grants");
     }
     if (!principal.permissionCodes.includes(operationPermissionCode(operationId))) throw new TypeError("Operation permission denied");
