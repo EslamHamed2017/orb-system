@@ -27,6 +27,11 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
     throw new Error("owner UAT target must be a credential-free HTTPS origin");
   let report;
   try { report = JSON.parse(reportBytes.toString("utf8")); } catch { throw new Error("Playwright report must be valid JSON"); }
+  if (!Array.isArray(report?.errors) || report.errors.length !== 0)
+    throw new Error("owner UAT report contains report-level errors");
+  const stats = report?.stats;
+  if (stats?.expected !== JOURNEYS.size || stats?.unexpected !== 0 || stats?.flaky !== 0 || stats?.skipped !== 0)
+    throw new Error("owner UAT report aggregate outcomes are not exactly two expected passes");
   const filteredProjects = report?.config?.filteredProjects;
   if (!Array.isArray(filteredProjects) || filteredProjects.length !== 1 || filteredProjects[0]?.name !== "chromium")
     throw new Error("owner UAT report must contain exactly the approved Chromium project");

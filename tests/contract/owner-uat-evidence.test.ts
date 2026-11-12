@@ -15,7 +15,8 @@ function report(
 ) {
   return {
     config: { filteredProjects: [{ name: "chromium", use: { baseURL } }] },
-    stats: { startTime, duration },
+    stats: { startTime, duration, expected: 2, skipped: 0, unexpected: 0, flaky: 0 },
+    errors: [],
     suites: [{ title: "owner-uat.spec.ts", specs: titles.map((title) => ({
       title, ok: status === "passed", tests: [{ expectedStatus: "passed", results: [{ status }] }],
     })) }],
@@ -101,6 +102,27 @@ test("owner UAT evidence fails closed on failed, missing, duplicated, or unexpec
     report("passed", ["owner UAT technical journey exposes the P0 lifecycle in en", "owner UAT technical journey exposes the P0 lifecycle in en"]),
     report("passed", ["owner UAT technical journey exposes the P0 lifecycle in en", "owner UAT technical journey exposes the P0 lifecycle in ar", "unapproved extra test"]),
   ]) assert.throws(() => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }));
+});
+
+test("owner UAT evidence rejects report-level errors or non-passing aggregate outcomes", () => {
+  const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
+  const withGlobalError = report();
+  withGlobalError.errors = [{ message: "global teardown failed" }];
+  const withUnexpectedOutcome = report();
+  withUnexpectedOutcome.stats.unexpected = 1;
+  const withFlakyOutcome = report();
+  withFlakyOutcome.stats.flaky = 1;
+  const withSkippedOutcome = report();
+  withSkippedOutcome.stats.skipped = 1;
+  const withWrongExpectedCount = report();
+  withWrongExpectedCount.stats.expected = 1;
+
+  for (const value of [withGlobalError, withUnexpectedOutcome, withFlakyOutcome, withSkippedOutcome, withWrongExpectedCount]) {
+    assert.throws(
+      () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
+      /report-level errors|aggregate outcomes/i,
+    );
+  }
 });
 
 test("owner UAT evidence rejects a journey that passed only after a failed retry", () => {
