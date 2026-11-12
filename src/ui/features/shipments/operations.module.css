@@ -72,3 +72,29 @@
 .fulfillmentStats dd { font-size:.84rem; font-weight:750; margin:4px 0 0; overflow-wrap:anywhere; }
 @media(max-width:700px){ .fulfillmentGrid{grid-template-columns:1fr}.fulfillmentStats{grid-template-columns:1fr 1fr 1fr} }
 @media(max-width:420px){ .fulfillmentStats{grid-template-columns:1fr} }
+
+.printHeading, .printTerms { display:none; }
+@page { margin:14mm; size:A4 portrait; }
+@media print {
+  :global(body.orb-printing) * { visibility:hidden !important; }
+  :global(body.orb-printing) .printDocument:global(.orb-print-selected),
+  :global(body.orb-printing) .printDocument:global(.orb-print-selected) * { visibility:visible !important; }
+  :global(body.orb-printing) .printDocument:global(.orb-print-selected) {
+    background:#fff; border:0; border-radius:0; box-shadow:none; color:#111; inline-size:100%; inset:0; overflow:visible; padding:0; position:absolute;
+  }
+  .noPrint, .printDocument button, .printDocument form, .printDocument .helper { display:none !important; }
+  .printHeading { align-items:flex-start; border-block-end:2px solid #111; display:grid; gap:3px; margin-block-end:18px; padding-block-end:12px; }
+  .printHeading strong { font-size:1.45rem; letter-spacing:.12em; }
+  .printHeading span { font-size:1.05rem; font-weight:750; }
+  .printHeading small { color:#444; }
+  .printTerms { display:grid; font-size:.72rem; gap:3px; margin-block-start:7px; }
+  .printTerms div { display:flex; gap:5px; }
+  .printTerms dt { color:#444; font-weight:700; }
+  .printTerms dd { margin:0; }
+  .printDocument .sectionHeader, .printDocument .metaGrid > div, .printDocument .stats > div, .printDocument tr { break-inside:avoid; }
+  .printDocument .tableScroll { border-color:#777; overflow:visible; }
+  .printDocument .tableScroll table { font-size:.78rem; min-inline-size:0; }
+  .printDocument .metaGrid, .printDocument .stats { grid-template-columns:repeat(4,minmax(0,1fr)); }
+  .printDocument .metaGrid > div, .printDocument .stats > div { background:#fff; border:1px solid #bbb; }
+  .printDocument .chip { background:#fff; border:1px solid #777; color:#111; }
+}
