@@ -129,7 +129,7 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
         {canOpen("shipments") && <NavLink href={`/projects/demo/shipments${suffix}`} label={label("Shipments", "الشحنات")} current={pathname.includes("shipments")} icon="shipments" />}
         {canOpen("accounts") && <NavLink href={`/accounts${suffix}`} label={label("Accounts", "الحسابات")} current={pathname.startsWith("/accounts") || pathname.includes("money") || pathname.includes("expenses") || pathname.includes("statements")} icon="finance" />}
         {canOpen("documents") && <NavLink href={`/attachments${suffix}`} label={label("Attachments", "المرفقات")} current={pathname.startsWith("/attachments") || pathname.startsWith("/evidence")} icon="documents" />}
-        {canOpen("reports") && <NavLink href={`/projects/demo/profit${suffix}`} label={label("Reports", "التقارير")} current={pathname.includes("profit")} icon="reports" />}
+        {canOpen("reports") && <NavLink href={`/reports${suffix}`} label={label("Reports", "التقارير")} current={pathname.startsWith("/reports") || pathname.includes("profit")} icon="reports" />}
       </div>
       <div className="orb-nav-group orb-nav-bottom-group">{canOpen("settings") && <NavLink href={`/settings${suffix}`} label={label("Settings", "الإعدادات")} current={pathname.startsWith("/settings")} icon="settings" />}{canOpen("admin") && <NavLink href={`/admin/users${suffix}`} label={label("Admin", "الإدارة")} current={pathname.startsWith("/admin")} icon="admin" />}</div>
     </nav>
@@ -144,7 +144,7 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
         {canOpen("shipments") && <a href={`/projects/demo/shipments${suffix}`}><Icon name="shipments" />{label("Shipments", "الشحنات")}</a>}
         {canOpen("accounts") && <a href={`/accounts${suffix}`}><Icon name="finance" />{label("Accounts", "الحسابات")}</a>}
         {canOpen("documents") && <a href={`/attachments${suffix}`}><Icon name="documents" />{label("Attachments", "المرفقات")}</a>}
-        {canOpen("reports") && <a href={`/projects/demo/profit${suffix}`}><Icon name="reports" />{label("Reports", "التقارير")}</a>}
+        {canOpen("reports") && <a href={`/reports${suffix}`}><Icon name="reports" />{label("Reports", "التقارير")}</a>}
         {canOpen("settings") && <a href={`/settings${suffix}`}><Icon name="settings" />{label("Settings", "الإعدادات")}</a>}
         {canOpen("admin") && <a href={`/admin/users${suffix}`}><Icon name="admin" />{label("Admin", "الإدارة")}</a>}
       </nav>

@@ -133,7 +133,8 @@
   - Verification note (2026-11-12): bilingual EN/LTR and AR/RTL customer and supplier invoices now provide targeted A4 print actions with immutable invoice/project references, exact line quantities/prices/totals, sales-shipment traceability for customer invoices, and preserved supplier/container/purchase-line attribution for supplier invoices. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and two managed Chromium journeys pass.
 - [x] T070 Printable payment/collection/expense outputs
   - Verification note (2026-11-12): bilingual EN/LTR and AR/RTL collections, supplier payments, and expenses now provide targeted A4 print actions with immutable transaction/project references, exact source-currency amounts, customer/supplier attribution, and expense category/scope context. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and two managed Chromium journeys pass.
-- [ ] T071 Reports hub and filter framework
+- [x] T071 Reports hub and filter framework
+  - Verification note (2026-11-12): the standalone bilingual EN/LTR and AR/RTL Reports hub exposes project/date filters and context-preserving destinations for product movement, contract fulfillment, operational Accounts, and project profitability, while explicitly excluding general-ledger, stock-balance, and inventory-valuation semantics. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and two managed Chromium journeys pass.
 - [ ] T072 Product movement report
 - [ ] T073 Contract fulfillment report
 - [ ] T074 Accounts and project profitability operational reports
