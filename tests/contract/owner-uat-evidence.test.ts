@@ -6,9 +6,16 @@ import test from "node:test";
 import { createOwnerUatEvidence, writeOwnerUatEvidence } from "../../scripts/owner-uat-evidence.mjs";
 
 const commit = "8".repeat(40);
-function report(status = "passed", titles = ["owner UAT technical journey exposes the P0 lifecycle in en", "owner UAT technical journey exposes the P0 lifecycle in ar"], baseURL = "https://uat.example.test") {
+function report(
+  status = "passed",
+  titles = ["owner UAT technical journey exposes the P0 lifecycle in en", "owner UAT technical journey exposes the P0 lifecycle in ar"],
+  baseURL = "https://uat.example.test",
+  startTime = "2026-11-12T09:59:00.000Z",
+  duration = 30_000,
+) {
   return {
     config: { filteredProjects: [{ name: "chromium", use: { baseURL } }] },
+    stats: { startTime, duration },
     suites: [{ title: "owner-uat.spec.ts", specs: titles.map((title) => ({
       title, ok: status === "passed", tests: [{ expectedStatus: "passed", results: [{ status }] }],
     })) }],
@@ -28,6 +35,8 @@ test("owner UAT evidence binds a successful bilingual report without retaining s
     schemaVersion: 1,
     gate: "owner-uat-technical-journey",
     generatedAtUtc: "2026-11-12T10:00:00.000Z",
+    reportStartedAtUtc: "2026-11-12T09:59:00.000Z",
+    reportCompletedAtUtc: "2026-11-12T09:59:30.000Z",
     gitCommit: commit,
     targetOrigin: "https://uat.example.test",
     locales: [
@@ -71,6 +80,19 @@ test("owner UAT evidence rejects a report recorded against a different target or
   );
 });
 
+test("owner UAT evidence rejects stale or future-dated browser reports", () => {
+  const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
+  for (const value of [
+    report("passed", undefined, undefined, "2026-11-12T09:40:00.000Z", 30_000),
+    report("passed", undefined, undefined, "2026-11-12T10:00:01.000Z", 0),
+  ]) {
+    assert.throws(
+      () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
+      /fresh|future/i,
+    );
+  }
+});
+
 test("owner UAT evidence fails closed on failed, missing, duplicated, or unexpected journeys", () => {
   const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
   for (const value of [
@@ -98,7 +120,12 @@ test("owner UAT evidence rejects a journey that passed only after a failed retry
 test("owner UAT evidence is written once with owner-only permissions", async () => {
   const directory = await mkdtemp(join(tmpdir(), "orb-owner-uat-"));
   const path = join(directory, "manifest.json");
-  const evidence = createOwnerUatEvidence({ reportBytes: Buffer.from(JSON.stringify(report())), targetUrl: "https://uat.example.test", gitCommit: commit });
+  const evidence = createOwnerUatEvidence({
+    reportBytes: Buffer.from(JSON.stringify(report())),
+    targetUrl: "https://uat.example.test",
+    gitCommit: commit,
+    generatedAtUtc: "2026-11-12T10:00:00.000Z",
+  });
   await writeOwnerUatEvidence(path, evidence);
   assert.deepEqual(JSON.parse(await readFile(path, "utf8")), evidence);
   assert.equal((await stat(path)).mode & 0o777, 0o600);

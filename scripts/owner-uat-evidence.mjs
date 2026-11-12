@@ -36,6 +36,15 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
   if (reportTarget.protocol !== "https:" || reportTarget.username || reportTarget.password || reportTarget.pathname !== "/" || reportTarget.search || reportTarget.hash)
     throw new Error("owner UAT report target must be a credential-free HTTPS origin");
   if (reportTarget.origin !== target.origin) throw new Error("owner UAT report target origin does not match the certified target origin");
+  const reportStarted = new Date(report?.stats?.startTime);
+  const reportDuration = report?.stats?.duration;
+  if (!Number.isFinite(reportStarted.valueOf()) || reportStarted.toISOString() !== report?.stats?.startTime ||
+      !Number.isFinite(reportDuration) || reportDuration < 0)
+    throw new Error("owner UAT report timing must be valid");
+  const reportCompleted = new Date(reportStarted.valueOf() + reportDuration);
+  if (reportCompleted > generated) throw new Error("owner UAT report cannot be future-dated");
+  if (generated.valueOf() - reportCompleted.valueOf() > 15 * 60 * 1000)
+    throw new Error("owner UAT report must be fresh when evidence is generated");
   const specs = allSpecs(report.suites);
   if (specs.length !== JOURNEYS.size) throw new Error("owner UAT report must contain exactly the approved bilingual journeys");
   const seen = new Set();
@@ -52,6 +61,8 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
     schemaVersion: 1,
     gate: "owner-uat-technical-journey",
     generatedAtUtc,
+    reportStartedAtUtc: reportStarted.toISOString(),
+    reportCompletedAtUtc: reportCompleted.toISOString(),
     gitCommit,
     targetOrigin: target.origin,
     reportSha256: createHash("sha256").update(reportBytes).digest("hex"),
