@@ -101,7 +101,8 @@
   - Verification note (2026-11-12): the bilingual EN/LTR and AR/RTL access workspace exposes protected system and configurable roles, searchable permission categories, granular screen/operation/sensitive-value/approval/administration grants, owner-only create/save actions, and a fail-closed read-only state. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and three managed Chromium journeys pass.
 - [x] T055 Permission-aware navigation and action states
   - Verification note (2026-11-12): authenticated-shell destinations now follow a fail-closed bilingual role policy, preserve role context across locale/navigation links, hide protected administration destinations/actions, and disable denied daily-workflow actions while T036 remains authoritative server-side enforcement. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and seven Chromium navigation journeys pass.
-- [ ] T056 Settings control center and navigation
+- [x] T056 Settings control center and navigation
+  - Verification note (2026-11-12): the bilingual EN/LTR and AR/RTL owner-only Settings control center organizes non-secret organization/language, numbering, print/template, access-administration, and backup/restore destinations with fail-closed primary navigation. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and three managed Chromium permission-aware navigation journeys pass.
 - [ ] T057 Serial/numbering settings
 - [ ] T058 Print/template and organization settings
 - [ ] T059 Refine the existing strong ORB sign-in experience in EN/LTR without rebuilding it

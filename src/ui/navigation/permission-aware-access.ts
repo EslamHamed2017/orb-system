@@ -1,10 +1,10 @@
-export type NavigationDestination = "today" | "projects" | "approvals" | "products" | "shipments" | "accounts" | "documents" | "reports" | "admin";
+export type NavigationDestination = "today" | "projects" | "approvals" | "products" | "shipments" | "accounts" | "documents" | "reports" | "admin" | "settings";
 export type ActionVisibility = "visible" | "disabled" | "hidden";
 
 type UiRole = "owner-admin" | "operations" | "finance" | "contract-reviewer" | "unknown";
 
 const NAVIGATION_ACCESS: Readonly<Record<UiRole, readonly NavigationDestination[]>> = Object.freeze({
-  "owner-admin": ["today", "projects", "approvals", "products", "shipments", "accounts", "documents", "reports", "admin"],
+  "owner-admin": ["today", "projects", "approvals", "products", "shipments", "accounts", "documents", "reports", "admin", "settings"],
   operations: ["today", "projects", "products", "shipments", "documents"],
   finance: ["today", "projects", "accounts", "documents", "reports"],
   "contract-reviewer": ["today", "projects", "approvals", "documents"],

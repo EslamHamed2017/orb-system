@@ -8,7 +8,7 @@ import { en } from "../i18n/en";
 import { AsyncState, type AsyncStateName } from "../components/AsyncState";
 
 type Locale = "ar" | "en";
-type IconName = "today" | "projects" | "approvals" | "products" | "shipments" | "finance" | "documents" | "reports" | "admin" | "search" | "help" | "bell" | "menu" | "plus";
+type IconName = "today" | "projects" | "approvals" | "products" | "shipments" | "finance" | "documents" | "reports" | "admin" | "settings" | "search" | "help" | "bell" | "menu" | "plus";
 const allowedStates = new Set<AsyncStateName>(["loading", "empty", "error", "permission-denied", "offline", "stale-version"]);
 
 function Icon({ name, size = 22 }: { readonly name: IconName; readonly size?: number }) {
@@ -22,6 +22,7 @@ function Icon({ name, size = 22 }: { readonly name: IconName; readonly size?: nu
     documents: <><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6"/></>,
     reports: <><path d="M4 20V10M10 20V5M16 20v-8M22 20V3"/></>,
     admin: <><circle cx="12" cy="8" r="4"/><path d="M4 21c1-5 4-7 8-7s7 2 8 7"/></>,
+    settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1z"/></>,
     search: <><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></>,
     help: <><circle cx="12" cy="12" r="9"/><path d="M9.6 9a2.6 2.6 0 1 1 4.1 2.1c-1 .7-1.7 1.2-1.7 2.4M12 17h.01"/></>,
     bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></>,
@@ -130,7 +131,7 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
         {canOpen("documents") && <NavLink href={`/documents/demo${suffix}`} label={label("Documents", "المستندات")} current={pathname.startsWith("/documents")} icon="documents" />}
         {canOpen("reports") && <NavLink href={`/projects/demo/profit${suffix}`} label={label("Reports", "التقارير")} current={pathname.includes("profit")} icon="reports" />}
       </div>
-      <div className="orb-nav-group orb-nav-bottom-group">{canOpen("admin") && <NavLink href={`/admin/users${suffix}`} label={label("Admin", "الإدارة")} current={pathname.startsWith("/admin")} icon="admin" />}</div>
+      <div className="orb-nav-group orb-nav-bottom-group">{canOpen("settings") && <NavLink href={`/settings${suffix}`} label={label("Settings", "الإعدادات")} current={pathname.startsWith("/settings")} icon="settings" />}{canOpen("admin") && <NavLink href={`/admin/users${suffix}`} label={label("Admin", "الإدارة")} current={pathname.startsWith("/admin")} icon="admin" />}</div>
     </nav>
     <nav className="orb-bottom" data-navigation="bottom" aria-label={copy.primaryNavigation}>
       {primaryLinks}
@@ -144,6 +145,7 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
         {canOpen("accounts") && <a href={`/accounts${suffix}`}><Icon name="finance" />{label("Accounts", "الحسابات")}</a>}
         {canOpen("documents") && <a href={`/documents/demo${suffix}`}><Icon name="documents" />{label("Documents", "المستندات")}</a>}
         {canOpen("reports") && <a href={`/projects/demo/profit${suffix}`}><Icon name="reports" />{label("Reports", "التقارير")}</a>}
+        {canOpen("settings") && <a href={`/settings${suffix}`}><Icon name="settings" />{label("Settings", "الإعدادات")}</a>}
         {canOpen("admin") && <a href={`/admin/users${suffix}`}><Icon name="admin" />{label("Admin", "الإدارة")}</a>}
       </nav>
       <div className="orb-dialog-actions"><button className="orb-button-text" type="button" data-operation-id="signOutCurrentSession">{label("Sign out", "تسجيل الخروج")}</button><button className="orb-button-filled" type="button" onClick={closeMore}>{copy.close}</button></div>
