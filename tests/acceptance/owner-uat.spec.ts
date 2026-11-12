@@ -16,6 +16,8 @@ async function gotoApprovedTarget(page: Page, path: string) {
     .toMatch(/(?:^|,)\s*no-store\s*(?:,|$)/i);
   expect(response!.headers()["x-content-type-options"], `navigation must prevent MIME sniffing at ${path}`).toBe("nosniff");
   expect(response!.headers()["x-frame-options"], `navigation must prevent framing at ${path}`).toBe("DENY");
+  expect(response!.headers()["strict-transport-security"], `navigation must prevent transport downgrade at ${path}`)
+    .toBe("max-age=31536000; includeSubDomains");
   const finalUrl = new URL(page.url());
   expect(finalUrl.origin, `navigation escaped approved UAT origin at ${path}`).toBe(expectedTargetOrigin);
   expect(finalUrl.pathname, `navigation escaped approved UAT route at ${path}`).toBe(requestedUrl.pathname);
