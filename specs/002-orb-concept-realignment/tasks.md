@@ -83,7 +83,8 @@
   - Verification note (2026-11-11): the bilingual EN/LTR and AR/RTL customer directory now supports lifecycle and contact search/filtering, permission-shaped create/edit actions, and an independent customer 360 detail with project, sales-contract, sales-invoice, and collection links. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and three managed Chromium journeys pass.
 - [x] T047 Suppliers page and supplier detail
   - Verification note (2026-11-11): the bilingual EN/LTR and AR/RTL supplier directory supports lifecycle and contact search/filtering, permission-shaped create/edit actions, and an independent supplier 360 detail with project, purchase-contract, supplier-invoice, and supplier-payment links. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and three managed Chromium journeys pass.
-- [ ] T048 Global Accounts hub
+- [x] T048 Global Accounts hub
+  - Verification note (2026-11-12): the independent bilingual EN/LTR and AR/RTL operational Accounts hub provides currency-partitioned summaries, recent project-linked activity, canonical typed destinations for sales invoices, supplier invoices, collections, supplier payments and expenses, and primary navigation without general-ledger or inventory-valuation semantics. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and two managed Chromium journeys pass.
 - [ ] T049 Project-filtered sales invoices view
 - [ ] T050 Project-filtered purchase invoices view
 - [ ] T051 Project-filtered payments/collections view

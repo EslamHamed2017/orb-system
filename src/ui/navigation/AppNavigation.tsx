@@ -95,7 +95,7 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
       <div className="orb-nav-group"><span className="orb-nav-heading">{label("Workspace", "مساحة العمل")}</span>{primaryLinks}
         <NavLink href={`/masters/coffee${suffix}`} label={label("Products", "المنتجات")} current={pathname === "/masters/coffee" || pathname.startsWith("/products/")} icon="products" />
         <NavLink href={`/projects/demo/shipments${suffix}`} label={label("Shipments", "الشحنات")} current={pathname.includes("shipments")} icon="shipments" />
-        <NavLink href={`/projects/demo/money${suffix}`} label={label("Finance", "المالية")} current={pathname.includes("money") || pathname.includes("expenses") || pathname.includes("statements")} icon="finance" />
+        <NavLink href={`/accounts${suffix}`} label={label("Accounts", "الحسابات")} current={pathname.startsWith("/accounts") || pathname.includes("money") || pathname.includes("expenses") || pathname.includes("statements")} icon="finance" />
         <NavLink href={`/documents/demo${suffix}`} label={label("Documents", "المستندات")} current={pathname.startsWith("/documents")} icon="documents" />
         <NavLink href={`/projects/demo/profit${suffix}`} label={label("Reports", "التقارير")} current={pathname.includes("profit")} icon="reports" />
       </div>
@@ -110,7 +110,7 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
       <nav className="orb-dialog-links" aria-label={label("More destinations", "وجهات إضافية")}>
         <a href={`/masters/coffee${suffix}`}><Icon name="products" />{label("Products", "المنتجات")}</a>
         <a href={`/projects/demo/shipments${suffix}`}><Icon name="shipments" />{label("Shipments", "الشحنات")}</a>
-        <a href={`/projects/demo/money${suffix}`}><Icon name="finance" />{label("Finance", "المالية")}</a>
+        <a href={`/accounts${suffix}`}><Icon name="finance" />{label("Accounts", "الحسابات")}</a>
         <a href={`/documents/demo${suffix}`}><Icon name="documents" />{label("Documents", "المستندات")}</a>
       </nav>
       <div className="orb-dialog-actions"><button className="orb-button-text" type="button" data-operation-id="signOutCurrentSession">{label("Sign out", "تسجيل الخروج")}</button><button className="orb-button-filled" type="button" onClick={closeMore}>{copy.close}</button></div>
