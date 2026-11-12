@@ -53,7 +53,7 @@ export function buildReportDestinations(filter: ReportFilter): readonly ReportDe
   const copy = COPY[filter.locale];
   return Object.freeze([
     { key: "productMovement", label: copy.productMovement[0], description: copy.productMovement[1], apiHref: href("/reports/product-movement", movementQuery) },
-    { key: "contractFulfillment", label: copy.contractFulfillment[0], description: copy.contractFulfillment[1], apiHref: href("/api/reports/contract-fulfillment", query) },
+    { key: "contractFulfillment", label: copy.contractFulfillment[0], description: copy.contractFulfillment[1], apiHref: href("/reports/contract-fulfillment", movementQuery) },
     { key: "accounts", label: copy.accounts[0], description: copy.accounts[1], apiHref: href("/api/reports/accounts", query) },
     { key: "projectProfitability", label: copy.projectProfitability[0], description: copy.projectProfitability[1], apiHref: href("/api/reports/project-profitability", query) },
   ]);

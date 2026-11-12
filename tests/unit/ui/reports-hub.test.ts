@@ -19,7 +19,7 @@ const filter: ReportFilter = {
 test("Reports hub exposes the approved operational reports with typed API filters", () => {
   assert.deepEqual(buildReportDestinations(filter).map(({ key, apiHref }) => [key, apiHref]), [
     ["productMovement", "/reports/product-movement?locale=en&role=finance&projectId=pilot%2Fproject&from=2026-11-01&to=2026-11-30"],
-    ["contractFulfillment", "/api/reports/contract-fulfillment?projectId=pilot%2Fproject&from=2026-11-01&to=2026-11-30"],
+    ["contractFulfillment", "/reports/contract-fulfillment?locale=en&role=finance&projectId=pilot%2Fproject&from=2026-11-01&to=2026-11-30"],
     ["accounts", "/api/reports/accounts?projectId=pilot%2Fproject&from=2026-11-01&to=2026-11-30"],
     ["projectProfitability", "/api/reports/project-profitability?projectId=pilot%2Fproject&from=2026-11-01&to=2026-11-30"],
   ]);
