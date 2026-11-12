@@ -8,7 +8,10 @@ const expectedTargetOrigin = new URL(configuredTarget).origin;
 
 async function gotoApprovedTarget(page: Page, path: string) {
   const requestedUrl = new URL(path, configuredTarget);
-  await page.goto(path);
+  const response = await page.goto(path);
+  expect(response, `navigation response is missing at ${path}`).not.toBeNull();
+  expect(response!.status(), `navigation response status is not successful at ${path}`).toBeGreaterThanOrEqual(200);
+  expect(response!.status(), `navigation response status is not successful at ${path}`).toBeLessThan(300);
   const finalUrl = new URL(page.url());
   expect(finalUrl.origin, `navigation escaped approved UAT origin at ${path}`).toBe(expectedTargetOrigin);
   expect(finalUrl.pathname, `navigation escaped approved UAT route at ${path}`).toBe(requestedUrl.pathname);

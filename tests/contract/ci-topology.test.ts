@@ -60,6 +60,7 @@ test("deployed owner UAT is explicitly authorized and limited to the bilingual p
   assert.match(journey, /content-type[\s\S]{0,200}toMatch\(\/\^application\\\/json/);
   assert.match(journey, /expectedTargetOrigin/);
   assert.match(journey, /await page\.goto\(path\)/);
+  assert.match(journey, /navigation response.*status.*(?:200|299)/is);
   assert.doesNotMatch(journey, /function gotoApprovedTarget[\s\S]*?await gotoApprovedTarget\(page, path\)/);
   assert.match(journey, /finalUrl\.origin.*expectedTargetOrigin/s);
   assert.match(journey, /finalUrl\.pathname.*requestedUrl\.pathname/s);
