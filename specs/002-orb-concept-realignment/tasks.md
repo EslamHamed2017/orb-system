@@ -105,7 +105,8 @@
   - Verification note (2026-11-12): the bilingual EN/LTR and AR/RTL owner-only Settings control center organizes non-secret organization/language, numbering, print/template, access-administration, and backup/restore destinations with fail-closed primary navigation. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and three managed Chromium permission-aware navigation journeys pass.
 - [x] T057 Serial/numbering settings
   - Verification note (2026-11-12): the owner-shaped bilingual EN/LTR and AR/RTL numbering editor configures unique validated prefixes for sales contracts, purchase contracts, sales shipments, and supplier containers with immutable-reference guidance, live previews, optimistic version binding, mandatory audit reasons, and denied-action states. Focused TDD and adjacent Settings tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and three managed Chromium journeys pass.
-- [ ] T058 Print/template and organization settings
+- [x] T058 Print/template and organization settings
+  - Verification note (2026-11-12): the owner-shaped bilingual EN/LTR and AR/RTL organization/print editor validates legal identity, default language, pilot-safe time zone, bilingual document footers and logo visibility; updates bind optimistic versioning and mandatory audit reasons, while denied users receive no enabled mutation controls. Focused TDD and adjacent Settings tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and three managed Chromium journeys pass.
 - [ ] T059 Refine the existing strong ORB sign-in experience in EN/LTR without rebuilding it
 - [ ] T060 Refine the existing strong ORB sign-in experience in AR/RTL without rebuilding it
 - [ ] T061 Sign-in accessibility, performance and security verification
