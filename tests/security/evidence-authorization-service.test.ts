@@ -87,6 +87,6 @@ test("Prisma repository persists and queries project plus authorization-parent s
   assert.equal(creates[0].data.project_id, PROJECT_ID);
   assert.deepEqual(creates[0].data.EvidenceLink.create[0], { project_id: PROJECT_ID, subject_type: "SALES_SHIPMENT", subject_id: SUBJECT_ID, authorization_parent_type: "SALES_SHIPMENT", authorization_parent_id: SUBJECT_ID, purpose: "DELIVERY_PROOF" });
   const listed = await repository.listEvidence({ projectId: PROJECT_ID, subjectType: "SALES_SHIPMENT", subjectId: SUBJECT_ID });
-  assert.deepEqual(queries[0].where, { project_id: PROJECT_ID, EvidenceLink: { some: { subject_type: "SALES_SHIPMENT", subject_id: SUBJECT_ID } } });
+  assert.deepEqual(queries[0].where, { project_id: PROJECT_ID, EvidenceLink: { some: { project_id: PROJECT_ID, subject_type: "SALES_SHIPMENT", subject_id: SUBJECT_ID } } });
   assert.equal(listed[0].sourceLinks[0].authorizationParentId, SUBJECT_ID);
 });

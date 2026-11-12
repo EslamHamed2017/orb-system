@@ -28,12 +28,25 @@ function assertEvidenceId(value: string): void {
   if (!UUID.test(value)) throw new TypeError("invalid evidence identifier");
 }
 
+function hasValidEvidenceScope(evidence: StoredEvidence): boolean {
+  return UUID.test(evidence.projectId)
+    && evidence.sourceLinks.length > 0
+    && evidence.sourceLinks.every((link) =>
+      link.projectId === evidence.projectId
+      && SUBJECT_TYPES.has(link.subjectType)
+      && UUID.test(link.subjectId)
+      && SUBJECT_TYPES.has(link.authorizationParentType)
+      && UUID.test(link.authorizationParentId)
+      && link.purpose.trim().length > 0);
+}
+
 async function loadAuthorized(input: {
   evidenceId: string; actor: Actor; repository: Pick<EvidenceRepository, "findEvidenceById">; authorize: Authorize;
 }): Promise<StoredEvidence> {
   assertEvidenceId(input.evidenceId);
   const evidence = await input.repository.findEvidenceById(input.evidenceId);
   if (evidence === null) throw new Error("evidence not found");
+  if (!hasValidEvidenceScope(evidence)) throw new Error("invalid evidence authorization scope");
   if (!await input.authorize({ evidence, actor: input.actor, sourceLinks: evidence.sourceLinks })) throw new Error("forbidden evidence access");
   return evidence;
 }
@@ -124,7 +137,7 @@ export async function listEvidence(input: {
   });
   const authorized: ReturnType<typeof publicMetadata>[] = [];
   for (const evidence of records) {
-    if (evidence.projectId !== input.projectId) continue;
+    if (evidence.projectId !== input.projectId || !hasValidEvidenceScope(evidence)) continue;
     if (await input.authorize({ evidence, actor: input.actor, sourceLinks: evidence.sourceLinks })) authorized.push(publicMetadata(evidence));
   }
   return authorized;

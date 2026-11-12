@@ -83,6 +83,7 @@ export class PrismaEvidenceRepository implements EvidenceRepository<EvidencePris
 
   async listEvidence(filter: EvidenceListFilter): Promise<readonly StoredEvidence[]> {
     const links = filter.subjectType || filter.subjectId ? { some: {
+      project_id: filter.projectId,
       ...(filter.subjectType ? { subject_type: filter.subjectType } : {}),
       ...(filter.subjectId ? { subject_id: filter.subjectId } : {}),
     } } : undefined;

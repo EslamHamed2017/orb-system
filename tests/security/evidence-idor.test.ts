@@ -22,7 +22,7 @@ function fixture(authorized: boolean) {
     objectKey: "tenant-private/evidence/object-201",
     objectVersionId: "immutable-version-7",
     projectId: PROJECT_ID,
-    sourceLinks: [{ subjectType: "Project", subjectId: PROJECT_ID, purpose: "ROUTE_PROOF" }],
+    sourceLinks: [{ projectId: PROJECT_ID, subjectType: "PROJECT", subjectId: PROJECT_ID, authorizationParentType: "PROJECT", authorizationParentId: PROJECT_ID, purpose: "ROUTE_PROOF" }],
     verificationState: "VERIFIED",
   };
   return {
