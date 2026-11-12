@@ -6,8 +6,9 @@ import test from "node:test";
 import { createOwnerUatEvidence, writeOwnerUatEvidence } from "../../scripts/owner-uat-evidence.mjs";
 
 const commit = "8".repeat(40);
-function report(status = "passed", titles = ["owner UAT technical journey exposes the P0 lifecycle in en", "owner UAT technical journey exposes the P0 lifecycle in ar"]) {
+function report(status = "passed", titles = ["owner UAT technical journey exposes the P0 lifecycle in en", "owner UAT technical journey exposes the P0 lifecycle in ar"], baseURL = "https://uat.example.test") {
   return {
+    config: { filteredProjects: [{ name: "chromium", use: { baseURL } }] },
     suites: [{ title: "owner-uat.spec.ts", specs: titles.map((title) => ({
       title, ok: status === "passed", tests: [{ expectedStatus: "passed", results: [{ status }] }],
     })) }],
@@ -55,6 +56,19 @@ test("owner UAT evidence rejects any target that is not a credential-free HTTPS 
       `accepted unsafe evidence target ${targetUrl}`,
     );
   }
+});
+
+test("owner UAT evidence rejects a report recorded against a different target origin", () => {
+  const reportBytes = Buffer.from(JSON.stringify(report("passed", undefined, "https://other.example.test")));
+  assert.throws(
+    () => createOwnerUatEvidence({
+      reportBytes,
+      targetUrl: "https://uat.example.test",
+      gitCommit: commit,
+      generatedAtUtc: "2026-11-12T10:00:00.000Z",
+    }),
+    /report target origin does not match/i,
+  );
 });
 
 test("owner UAT evidence fails closed on failed, missing, duplicated, or unexpected journeys", () => {
