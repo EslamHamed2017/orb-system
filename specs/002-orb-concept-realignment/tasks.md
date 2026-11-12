@@ -127,7 +127,8 @@
   - Verification note (2026-11-12): the bilingual EN/LTR and AR/RTL central attachment register applies project, source-type, verification-state and search filters over the authorized evidence-list surface; every row links to exact evidence detail/download and its project-scoped source transaction, while primary and Project 360 navigation preserve context. Three focused TDD tests, strict typecheck, the canonical 535-test suite with zero skips, the production build, and two Chromium journeys pass.
 - [x] T067 Printable contract output
   - Verification note (2026-11-12): bilingual EN/LTR and AR/RTL sales and purchase contracts now provide per-transaction print actions, targeted A4 output isolation, immutable reference/project headers, complete line commercial terms, and print-safe table/page-break styling. Focused TDD and adjacent contract tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and two Chromium print-media journeys pass.
-- [ ] T068 Printable shipment/container output
+- [x] T068 Printable shipment/container output
+  - Verification note (2026-11-12): bilingual EN/LTR and AR/RTL sales shipments and physical multi-supplier containers now provide targeted A4 print actions with immutable shipment/project/version references, complete line quantities and weights, approved contract-line traceability, and preserved supplier/purchase-contract attribution. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and four adjacent Chromium contract/shipment print journeys pass.
 - [ ] T069 Printable customer and supplier invoice outputs
 - [ ] T070 Printable payment/collection/expense outputs
 - [ ] T071 Reports hub and filter framework

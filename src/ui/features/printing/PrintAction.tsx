@@ -1,12 +1,21 @@
 "use client";
 
+type PrintDocumentKind = "contract" | "shipment" | "container";
+
 type Props = {
   readonly locale: "ar" | "en";
   readonly targetId: string;
   readonly className?: string;
+  readonly documentKind?: PrintDocumentKind;
 };
 
-export function PrintAction({ locale, targetId, className }: Props) {
+const labels: Record<PrintDocumentKind, Readonly<{ en: string; ar: string }>> = {
+  contract: { en: "Print contract", ar: "طباعة العقد" },
+  shipment: { en: "Print shipment", ar: "طباعة الشحنة" },
+  container: { en: "Print container", ar: "طباعة الحاوية" },
+};
+
+export function PrintAction({ locale, targetId, className, documentKind = "contract" }: Props) {
   const ar = locale === "ar";
 
   function printTarget() {
@@ -25,6 +34,6 @@ export function PrintAction({ locale, targetId, className }: Props) {
   }
 
   return <button type="button" className={className} onClick={printTarget} aria-controls={targetId} data-print-action>
-    {ar ? "طباعة العقد" : "Print contract"}
+    {labels[documentKind][ar ? "ar" : "en"]}
   </button>;
 }
