@@ -103,7 +103,8 @@
   - Verification note (2026-11-12): authenticated-shell destinations now follow a fail-closed bilingual role policy, preserve role context across locale/navigation links, hide protected administration destinations/actions, and disable denied daily-workflow actions while T036 remains authoritative server-side enforcement. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and seven Chromium navigation journeys pass.
 - [x] T056 Settings control center and navigation
   - Verification note (2026-11-12): the bilingual EN/LTR and AR/RTL owner-only Settings control center organizes non-secret organization/language, numbering, print/template, access-administration, and backup/restore destinations with fail-closed primary navigation. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and three managed Chromium permission-aware navigation journeys pass.
-- [ ] T057 Serial/numbering settings
+- [x] T057 Serial/numbering settings
+  - Verification note (2026-11-12): the owner-shaped bilingual EN/LTR and AR/RTL numbering editor configures unique validated prefixes for sales contracts, purchase contracts, sales shipments, and supplier containers with immutable-reference guidance, live previews, optimistic version binding, mandatory audit reasons, and denied-action states. Focused TDD and adjacent Settings tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and three managed Chromium journeys pass.
 - [ ] T058 Print/template and organization settings
 - [ ] T059 Refine the existing strong ORB sign-in experience in EN/LTR without rebuilding it
 - [ ] T060 Refine the existing strong ORB sign-in experience in AR/RTL without rebuilding it
