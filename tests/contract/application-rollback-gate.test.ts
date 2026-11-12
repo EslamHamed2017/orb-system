@@ -13,6 +13,8 @@ test("application rollback gate is isolated, revision-pinned, and forward-schema
   assert.match(gate, /ORB_ROLLBACK_APP_REVISION/);
   assert.match(gate, /git worktree add --detach/);
   assert.match(gate, /127\.0\.0\.1/);
+  assert.match(gate, /database_url=.*\$\{db_password\}/);
+  assert.doesNotMatch(gate, /database_url=.*:\*\*\*@/);
   assert.match(gate, /migrate deploy/);
   assert.match(gate, /api\/health\/ready/);
   assert.match(gate, /_prisma_migrations/);
