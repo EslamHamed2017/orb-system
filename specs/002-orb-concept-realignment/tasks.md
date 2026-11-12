@@ -139,7 +139,8 @@
   - Verification note (2026-11-12): the dedicated bilingual EN/LTR and AR/RTL cross-product movement report filters approved inbound/outbound traceability by project, product, direction and date; preserves exact per-unit totals and source transaction links; and explicitly excludes stock-balance and inventory-valuation semantics. Four focused TDD tests, adjacent Reports tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and two managed Chromium journeys pass.
 - [x] T073 Contract fulfillment report
   - Verification note (2026-11-12): the dedicated bilingual EN/LTR and AR/RTL contract-fulfillment report filters approved sales and purchase contract lines by project, type, status, date and search; calculates exact unit- and currency-partitioned contracted, fulfilled and remaining totals; and preserves project/contract 360 links. Four focused TDD tests, adjacent Reports tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and two managed Chromium journeys pass.
-- [ ] T074 Accounts and project profitability operational reports
+- [x] T074 Accounts and project profitability operational reports
+  - Verification note (2026-11-12): dedicated bilingual EN/LTR and AR/RTL Accounts and project-profitability reports now apply project/date/type/search filters, preserve Project 360 links, partition exact-decimal totals and operational margins by source currency, and remain operational-only without general-ledger or inventory-valuation semantics. Focused TDD tests, strict typecheck, all 535 canonical tests, the production build, and four Chromium acceptance journeys pass.
 
 ## Phase 6 — Verification and pilot
 - [ ] T075 Unit/contract tests for new schema and rules
