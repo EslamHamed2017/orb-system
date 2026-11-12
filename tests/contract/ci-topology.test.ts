@@ -87,6 +87,8 @@ test("deployed owner UAT is explicitly authorized and limited to the bilingual p
   assert.match(journey, /response!\.headers\(\)\["x-content-type-options"\].*nosniff/is);
   assert.match(journey, /response!\.headers\(\)\["x-frame-options"\].*DENY/is);
   assert.match(journey, /response!\.headers\(\)\["strict-transport-security"\].*max-age=31536000/is);
+  assert.match(journey, /response!\.headers\(\)\["permissions-policy"\].*camera=\(\), microphone=\(\), geolocation=\(\)/is);
+  assert.match(journey, /response!\.headers\(\)\["referrer-policy"\].*strict-origin-when-cross-origin/is);
   assert.doesNotMatch(journey, /function gotoApprovedTarget[\s\S]*?await gotoApprovedTarget\(page, path\)/);
   assert.match(journey, /finalUrl\.origin.*expectedTargetOrigin/s);
   assert.match(journey, /finalUrl\.pathname.*requestedUrl\.pathname/s);
@@ -101,7 +103,7 @@ test("deployed owner UAT is explicitly authorized and limited to the bilingual p
   assert.match(journey, /reports\/product-movement/);
 });
 
-test("production responses expose anti-sniffing, anti-framing, and transport-downgrade headers on every route", async () => {
+test("production responses expose global browser security and privacy headers on every route", async () => {
   const config = (await import("../../next.config.ts")).default;
   const routes = await config.headers?.();
   const global = routes?.find((route) => route.source === "/:path*");
@@ -109,6 +111,8 @@ test("production responses expose anti-sniffing, anti-framing, and transport-dow
   assert.equal(headers["x-content-type-options"], "nosniff");
   assert.equal(headers["x-frame-options"], "DENY");
   assert.equal(headers["strict-transport-security"], "max-age=31536000; includeSubDomains");
+  assert.equal(headers["permissions-policy"], "camera=(), microphone=(), geolocation=()");
+  assert.equal(headers["referrer-policy"], "strict-origin-when-cross-origin");
 });
 
 test("offline gate cannot accidentally launch browser or target a deployment", () => {

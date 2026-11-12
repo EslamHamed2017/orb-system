@@ -18,6 +18,10 @@ async function gotoApprovedTarget(page: Page, path: string) {
   expect(response!.headers()["x-frame-options"], `navigation must prevent framing at ${path}`).toBe("DENY");
   expect(response!.headers()["strict-transport-security"], `navigation must prevent transport downgrade at ${path}`)
     .toBe("max-age=31536000; includeSubDomains");
+  expect(response!.headers()["permissions-policy"], `navigation must deny unused browser capabilities at ${path}`)
+    .toBe("camera=(), microphone=(), geolocation=()");
+  expect(response!.headers()["referrer-policy"], `navigation must constrain referrer disclosure at ${path}`)
+    .toBe("strict-origin-when-cross-origin");
   const finalUrl = new URL(page.url());
   expect(finalUrl.origin, `navigation escaped approved UAT origin at ${path}`).toBe(expectedTargetOrigin);
   expect(finalUrl.pathname, `navigation escaped approved UAT route at ${path}`).toBe(requestedUrl.pathname);
