@@ -105,6 +105,7 @@ jobs:
     env:
       ORB_TEST_BASE_URL: ${{ inputs.acceptance_base_url }}
       ORB_OWNER_UAT_AUTHORIZATION: OWNER_APPROVED
+      ORB_OWNER_UAT_EVIDENCE_DIR: ${{ runner.temp }}/owner-uat-evidence
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -116,6 +117,13 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - name: Bilingual owner-UAT technical gate
         run: ops/acceptance/run-owner-uat-gate.sh
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: owner-uat-evidence
+          path: ${{ runner.temp }}/owner-uat-evidence
+          if-no-files-found: error
+          retention-days: 14
       - uses: actions/upload-artifact@v4
         if: always()
         with:

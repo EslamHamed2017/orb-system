@@ -35,4 +35,19 @@ else:
         raise SystemExit("owner UAT target must not be loopback, private, or link-local")
 PYURL
 
-corepack pnpm exec playwright test tests/acceptance/owner-uat.spec.ts --project=chromium
+[[ ! -e "$ORB_OWNER_UAT_EVIDENCE_DIR" ]] || {
+  echo "owner UAT evidence directory already exists" >&2
+  exit 2
+}
+mkdir -m 700 -- "$ORB_OWNER_UAT_EVIDENCE_DIR"
+report="$ORB_OWNER_UAT_EVIDENCE_DIR/playwright-report.json"
+manifest="$ORB_OWNER_UAT_EVIDENCE_DIR/manifest.json"
+
+PLAYWRIGHT_JSON_OUTPUT_FILE="$report" corepack pnpm exec playwright test \
+  tests/acceptance/owner-uat.spec.ts --project=chromium --reporter=html,json
+[[ -f "$report" && ! -L "$report" ]] || {
+  echo "owner UAT JSON report was not produced safely" >&2
+  exit 2
+}
+node scripts/owner-uat-evidence.mjs --report "$report" --output "$manifest"
+printf 'owner UAT technical evidence recorded: %s\n' "$manifest"

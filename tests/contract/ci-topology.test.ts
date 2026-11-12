@@ -35,6 +35,13 @@ test("deployed owner UAT is explicitly authorized and limited to the bilingual p
   assert.match(gate, /https:\/\//);
   assert.match(gate, /owner-uat\.spec\.ts/);
   assert.match(gate, /--project=chromium/);
+  assert.match(gate, /ORB_OWNER_UAT_EVIDENCE_DIR/);
+  assert.match(gate, /PLAYWRIGHT_JSON_OUTPUT_FILE/);
+  assert.match(gate, /--reporter=html,json/);
+  assert.match(gate, /owner-uat-evidence\.mjs[\s\S]*--report[\s\S]*--output/);
+  assert.match(deployed, /ORB_OWNER_UAT_EVIDENCE_DIR:.*runner\.temp/);
+  assert.match(deployed, /name: owner-uat-evidence/);
+  assert.match(deployed, /if: success\(\)[\s\S]*path:.*owner-uat-evidence/);
   assert.doesNotMatch(gate, /ORB_TEST_AUTH|ORB_TEST_MANAGED_SERVER|\|\| true|test\.skip/);
 
   const journey = readFileSync(resolve(ROOT, "tests/acceptance/owner-uat.spec.ts"), "utf8");
