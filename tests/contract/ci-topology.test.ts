@@ -32,6 +32,9 @@ test("deployed owner UAT is explicitly authorized and limited to the bilingual p
   const gate = readFileSync(resolve(ROOT, "ops/acceptance/run-owner-uat-gate.sh"), "utf8");
   assert.match(gate, /ORB_OWNER_UAT_AUTHORIZATION/);
   assert.match(gate, /readonly release_commit=.*git rev-parse HEAD/);
+  assert.match(gate, /assert_clean_checkout/);
+  assert.match(gate, /git status --porcelain=v1 --untracked-files=all/);
+  assert.equal((gate.match(/assert_clean_checkout/g) ?? []).length, 3, "clean-checkout guard must be defined and run before and after UAT");
   assert.match(gate, /export ORB_EXPECTED_RELEASE_COMMIT="\$release_commit"/);
   assert.match(gate, /git rev-parse HEAD.*release_commit/s);
   assert.match(gate, /owner-uat-evidence\.mjs[\s\S]*--git-commit "\$release_commit"/);

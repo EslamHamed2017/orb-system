@@ -5,6 +5,13 @@ umask 077
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
+assert_clean_checkout() {
+  [[ -z "$(git status --porcelain=v1 --untracked-files=all)" ]] || {
+    echo "owner UAT checkout must be clean so evidence matches the tested commit" >&2
+    exit 2
+  }
+}
+
 : "${ORB_TEST_BASE_URL:?owner-approved UAT target is required}"
 : "${ORB_OWNER_UAT_AUTHORIZATION:?explicit owner UAT authorization is required}"
 [[ "$ORB_OWNER_UAT_AUTHORIZATION" == "OWNER_APPROVED" ]] || {
@@ -12,6 +19,7 @@ cd "$ROOT"
   exit 2
 }
 python3 ops/acceptance/validate_owner_uat_target.py "$ORB_TEST_BASE_URL"
+assert_clean_checkout
 
 [[ ! -e "$ORB_OWNER_UAT_EVIDENCE_DIR" ]] || {
   echo "owner UAT evidence directory already exists" >&2
@@ -29,6 +37,7 @@ readonly release_commit="$(git rev-parse HEAD)"
 export ORB_EXPECTED_RELEASE_COMMIT="$release_commit"
 PLAYWRIGHT_JSON_OUTPUT_FILE="$report" corepack pnpm exec playwright test \
   tests/acceptance/owner-uat.spec.ts --project=chromium --reporter=html,json
+assert_clean_checkout
 [[ -f "$report" && ! -L "$report" ]] || {
   echo "owner UAT JSON report was not produced safely" >&2
   exit 2
