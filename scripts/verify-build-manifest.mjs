@@ -82,10 +82,20 @@ export async function verifyManifest(path, options = {}) {
   return actual;
 }
 
-export function assertNoCriticalVulnerabilities(report) {
-  const critical = report?.metadata?.vulnerabilities?.critical;
-  if (!Number.isInteger(critical) || critical < 0) throw new Error("Audit report lacks a valid Critical vulnerability count");
-  if (critical !== 0) throw new Error(`Critical vulnerability findings: ${critical}`);
+export function assertProductionAudit(report) {
+  const vulnerabilities = report?.metadata?.vulnerabilities;
+  const counts = ["info", "low", "moderate", "high", "critical"];
+  if (!vulnerabilities || counts.some((severity) => !Number.isInteger(vulnerabilities[severity]) || vulnerabilities[severity] < 0))
+    throw new Error("Production audit report lacks valid vulnerability counts");
+  const dependencyCount = report?.metadata?.dependencies;
+  const totalDependencyCount = report?.metadata?.totalDependencies;
+  if (!Number.isInteger(dependencyCount) || dependencyCount <= 0 || !Number.isInteger(totalDependencyCount) || totalDependencyCount < dependencyCount)
+    throw new Error("Production audit report lacks a valid dependency count");
+  if (vulnerabilities.critical !== 0)
+    throw new Error(`Critical production dependency findings: ${vulnerabilities.critical}`);
+  if (vulnerabilities.high !== 0)
+    throw new Error(`High production dependency findings: ${vulnerabilities.high}`);
+  return { dependencyCount, totalDependencyCount, vulnerabilities: { ...vulnerabilities } };
 }
 
 async function main(args) {
@@ -93,7 +103,7 @@ async function main(args) {
   const root = rootIndex >= 0 ? args[rootIndex + 1] : process.cwd();
   if (args[0] === "--write" && args[1]) return writeManifest(args[1], await createManifest({ root }));
   if (args[0] === "--verify" && args[1]) return verifyManifest(args[1], { root });
-  if (args[0] === "--assert-audit" && args[1]) return assertNoCriticalVulnerabilities(JSON.parse(await readFile(args[1], "utf8")));
+  if (args[0] === "--assert-audit" && args[1]) return assertProductionAudit(JSON.parse(await readFile(args[1], "utf8")));
   throw new Error("Usage: verify-build-manifest.mjs --write FILE | --verify FILE | --assert-audit FILE [--root DIR]");
 }
 

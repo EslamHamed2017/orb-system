@@ -42,10 +42,26 @@ test("changes to bound bytes are detected by verification", async () => {
   await assert.rejects(verifyManifest(manifestPath, options), /does not match/);
 });
 
-test("audit gate fails on any Critical finding and accepts zero", async () => {
-  const { assertNoCriticalVulnerabilities } = await import(pathToFileURL(SCRIPT).href);
-  assert.doesNotThrow(() => assertNoCriticalVulnerabilities({ metadata: { vulnerabilities: { critical: 0 } } }));
-  assert.throws(() => assertNoCriticalVulnerabilities({ metadata: { vulnerabilities: { critical: 1 } } }), /Critical/);
+test("production dependency audit fails closed on High or Critical findings", async () => {
+  const { assertProductionAudit } = await import(pathToFileURL(SCRIPT).href);
+  const clean = {
+    metadata: {
+      vulnerabilities: { info: 0, low: 0, moderate: 0, high: 0, critical: 0 },
+      dependencies: 292,
+      totalDependencies: 426,
+    },
+  };
+  assert.doesNotThrow(() => assertProductionAudit(clean));
+  assert.throws(
+    () => assertProductionAudit({ ...clean, metadata: { ...clean.metadata, vulnerabilities: { ...clean.metadata.vulnerabilities, high: 1 } } }),
+    /High production dependency findings: 1/,
+  );
+  assert.throws(
+    () => assertProductionAudit({ ...clean, metadata: { ...clean.metadata, vulnerabilities: { ...clean.metadata.vulnerabilities, critical: 1 } } }),
+    /Critical production dependency findings: 1/,
+  );
+  assert.throws(() => assertProductionAudit({ metadata: { vulnerabilities: clean.metadata.vulnerabilities } }), /dependency count/);
+  assert.throws(() => assertProductionAudit({ error: "registry unavailable" }), /valid vulnerability counts/);
 });
 
 test("CI workflow contains every quality and immutable-build gate", () => {
@@ -57,7 +73,7 @@ test("CI workflow contains every quality and immutable-build gate", () => {
     "tests/contract/**/*.test.ts",
     "tests/integration/**/*.test.ts",
     "pnpm exec playwright test",
-    "pnpm audit --json",
+    "pnpm audit --prod --json",
     "--assert-audit",
     "pnpm run build",
     "--write",

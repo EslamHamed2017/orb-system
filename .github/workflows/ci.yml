@@ -41,7 +41,7 @@ jobs:
       - name: Dependency security scan
         shell: bash
         run: |
-          pnpm audit --json > "$RUNNER_TEMP/pnpm-audit.json" || true
+          pnpm audit --prod --json > "$RUNNER_TEMP/pnpm-audit.json" || true
           node scripts/verify-build-manifest.mjs --assert-audit "$RUNNER_TEMP/pnpm-audit.json"
 
   isolated-infrastructure:
