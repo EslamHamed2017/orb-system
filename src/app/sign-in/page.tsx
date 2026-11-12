@@ -29,7 +29,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
     <section className="orb-signin-brand" aria-label="ORB">
       <div className="orb-signin-brand-mark" aria-hidden="true">O</div>
       <p className="orb-signin-product">{ar ? "ORB لإدارة العمليات التجارية" : "ORB TRADE OPERATIONS"}</p>
-      <h1>{ar ? "العمل التشغيلي، تحت السيطرة." : "Operations, under control."}</h1>
+      <p className="orb-signin-brand-title">{ar ? "العمل التشغيلي، تحت السيطرة." : "Operations, under control."}</p>
       <p>{ar ? "منصة موحدة للمشاريع والشحنات والمالية والموافقات مع سجل تدقيق كامل." : "One workspace for projects, shipments, finance and approvals—with complete traceability."}</p>
       <ul className="orb-signin-trust-list" aria-label={ar ? "إمكانات مساحة العمل" : "Workspace capabilities"}>
         {TRUST_SIGNALS[locale].map((signal) => <li key={signal}><span aria-hidden="true">✓</span>{signal}</li>)}

@@ -41,7 +41,7 @@ export function EnterpriseStyles() {
     .orb-signin-brand::after{content:"";position:absolute;inline-size:340px;block-size:340px;border:1px solid #ffffff24;border-radius:50%;inset-inline-end:-120px;inset-block-end:-140px}
     .orb-signin-brand-mark{display:grid;place-items:center;background:white;color:#0b57d0;border-radius:20px;font-size:2rem;font-weight:900;inline-size:72px;block-size:72px;margin-block-end:24px;box-shadow:0 16px 50px #001b4480}
     .orb-signin-product{font-size:.72rem!important;font-weight:800;letter-spacing:.18em;opacity:.72!important;margin:0 0 12px}
-    .orb-signin-brand h1{font:var(--orb-type-display);font-size:clamp(2rem,4vw,3.5rem);max-inline-size:12ch;margin-block:0 16px}.orb-signin-brand>p:not(.orb-signin-product){font-size:1.05rem;line-height:1.7;max-inline-size:48ch;opacity:.84}
+    .orb-signin-brand-title{font:var(--orb-type-display);font-size:clamp(2rem,4vw,3.5rem)!important;line-height:1.08!important;max-inline-size:12ch!important;margin-block:0 16px!important;opacity:1!important}.orb-signin-brand>p:not(.orb-signin-product):not(.orb-signin-brand-title){font-size:1.05rem;line-height:1.7;max-inline-size:48ch;opacity:.84}
     .orb-signin-trust-list{display:grid;gap:12px;list-style:none;padding:0;margin:28px 0 0;font-weight:650}.orb-signin-trust-list li{display:flex;align-items:center;gap:10px}.orb-signin-trust-list span{display:grid;place-items:center;inline-size:24px;block-size:24px;border-radius:50%;background:#ffffff20;font-size:.78rem}
     .orb-signin[dir=rtl] .orb-signin-product{letter-spacing:0;line-height:1.7}.orb-signin[dir=rtl] .orb-signin-trust-list{text-align:start;line-height:1.7}
     .orb-signin-panel{display:grid;grid-template-rows:auto 1fr;align-content:center;padding:clamp(24px,6vw,64px)}

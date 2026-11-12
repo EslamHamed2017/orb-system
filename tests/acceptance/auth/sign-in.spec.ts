@@ -54,3 +54,39 @@ test("invalid credentials and expired/revoked sessions fail closed without ident
   await expect(page.getByText(/unable to sign in|authentication failed/i).first()).toBeVisible();
   await expect(page.locator("body")).not.toContainText(/unknown user|user does not exist/i);
 });
+
+test("sign-in response is hardened, accessible, motion-safe, and within the pilot performance budget", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const response = await page.goto("/sign-in?locale=en");
+  expect(response).not.toBeNull();
+  const headers = response!.headers();
+  expect(headers["cache-control"]).toMatch(/no-store/);
+  expect(headers["content-security-policy"]).toContain("default-src 'self'");
+  expect(headers["content-security-policy"]).toContain("frame-ancestors 'none'");
+  expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
+  expect(headers["x-content-type-options"]).toBe("nosniff");
+  expect(headers["x-frame-options"]).toBe("DENY");
+
+  await expect(page.locator("main h1")).toHaveCount(1);
+  await expect(page.getByLabel(/login|email/i)).toHaveAttribute("autocomplete", "username");
+  await expect(page.getByLabel(/password/i)).toHaveAttribute("autocomplete", "current-password");
+
+  const verification = await page.evaluate(() => {
+    const resources = performance.getEntriesByType("resource") as PerformanceResourceTiming[];
+    const transferredBytes = resources.reduce((total, resource) => total + resource.transferSize, 0);
+    const animatedElements = [...document.querySelectorAll("body *")].filter((node) => {
+      const style = getComputedStyle(node);
+      return style.animationName !== "none" && Number.parseFloat(style.animationDuration) > 0;
+    }).length;
+    return {
+      resourceCount: resources.length,
+      transferredBytes,
+      animatedElements,
+      horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    };
+  });
+  expect(verification.resourceCount).toBeLessThanOrEqual(20);
+  expect(verification.transferredBytes).toBeLessThanOrEqual(750_000);
+  expect(verification.animatedElements).toBe(0);
+  expect(verification.horizontalOverflow).toBe(false);
+});

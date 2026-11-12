@@ -111,7 +111,8 @@
   - Verification note (2026-11-12): the existing two-panel EN/LTR sign-in now adds concise operational trust signals, a visible Arabic route, polished secure-form semantics, responsive focus/error states, and reduced-motion handling without changing the hardened authentication flow. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, two production builds (default and loopback-only acceptance), and four Chromium authentication journeys pass.
 - [x] T060 Refine the existing strong ORB sign-in experience in AR/RTL without rebuilding it
   - Verification note (2026-11-12): the existing two-panel AR/RTL sign-in now provides localized product identity and equivalent operational trust signals, an explicit English language switch, and direction-aware Arabic typography without changing the hardened authentication flow. Focused TDD tests, strict typecheck, all 535 canonical tests with zero skips, the production build, and four Chromium authentication journeys pass.
-- [ ] T061 Sign-in accessibility, performance and security verification
+- [x] T061 Sign-in accessibility, performance and security verification
+  - Verification note (2026-11-12): the production sign-in response now emits route-scoped no-store, CSP anti-framing/form/object restrictions, referrer, MIME-sniffing, frame-denial and browser-permission headers; the page has one semantic H1, standards-based credential autocomplete, reduced-motion compliance, no horizontal overflow, and bounded resource/payload budgets. Strict typecheck, all 535 canonical tests, the production build, and five Chromium EN/LTR, AR/RTL, MFA, denial, accessibility, security and performance journeys pass.
 
 ## Phase 5 — Documents, printing and reports
 - [ ] T062 Add attachment panel to contracts
