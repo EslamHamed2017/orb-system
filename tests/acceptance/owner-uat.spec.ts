@@ -12,6 +12,8 @@ async function gotoApprovedTarget(page: Page, path: string) {
   expect(response, `navigation response is missing at ${path}`).not.toBeNull();
   expect(response!.status(), `navigation response status is not successful at ${path}`).toBeGreaterThanOrEqual(200);
   expect(response!.status(), `navigation response status is not successful at ${path}`).toBeLessThan(300);
+  expect(response!.headers()["cache-control"], `navigation response must not be served from a reusable cache at ${path}`)
+    .toMatch(/(?:^|,)\s*no-store\s*(?:,|$)/i);
   const finalUrl = new URL(page.url());
   expect(finalUrl.origin, `navigation escaped approved UAT origin at ${path}`).toBe(expectedTargetOrigin);
   expect(finalUrl.pathname, `navigation escaped approved UAT route at ${path}`).toBe(requestedUrl.pathname);
