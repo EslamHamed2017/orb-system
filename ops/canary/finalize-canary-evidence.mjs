@@ -53,7 +53,7 @@ function canonicalTime(value, label) {
   return parsed;
 }
 
-export function finalizeCanaryEvidence({ monitoringEvidence, completion }) {
+export function finalizeCanaryEvidence({ monitoringEvidence, completion, now = new Date() }) {
   rejectUnknownFields(monitoringEvidence, MONITORING_EVIDENCE_FIELDS, "final monitoring evidence");
   rejectUnknownFields(completion, COMPLETION_FIELDS, "canary completion");
 
@@ -89,6 +89,11 @@ export function finalizeCanaryEvidence({ monitoringEvidence, completion }) {
   const ends = canonicalTime(monitoringEvidence.endsAtUtc, "approved canary window end");
   const evaluated = canonicalTime(monitoringEvidence.evaluatedAtUtc, "final monitoring evaluation time");
   const completed = canonicalTime(completion.completedAtUtc, "canary completion time");
+  const reviewed = canonicalTime(completion.ownerReviewedAtUtc, "owner review time");
+  if (!(now instanceof Date) || !Number.isFinite(now.valueOf()))
+    throw new Error("evaluation time must be a valid Date");
+  if (completed > now || reviewed > now)
+    throw new Error("canary completion and owner review must not be future-dated");
   const healthIntervalSeconds = monitoringEvidence.monitoring?.healthIntervalSeconds;
   if (!Number.isInteger(healthIntervalSeconds) || healthIntervalSeconds < 15 || healthIntervalSeconds > 60)
     throw new Error("final monitoring evidence must preserve the approved health interval");
@@ -97,7 +102,6 @@ export function finalizeCanaryEvidence({ monitoringEvidence, completion }) {
   if (completed < evaluated || completed.valueOf() - evaluated.valueOf() > healthIntervalSeconds * 1000)
     throw new Error("canary completion must follow final monitoring within the approved health interval");
 
-  const reviewed = canonicalTime(completion.ownerReviewedAtUtc, "owner review time");
   const ownerReviewIsValid =
     completion.ownerReviewed === true &&
     typeof completion.ownerReviewerId === "string" &&

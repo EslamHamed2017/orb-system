@@ -26,18 +26,18 @@ function monitoringEvidence() {
     gate: "controlled-canary-monitoring-evidence",
     releaseCommit: "a".repeat(40),
     targetOrigin: "https://canary.orb.example",
-    startsAtUtc: "2026-11-24T08:00:00.000Z",
-    endsAtUtc: "2026-11-25T08:00:00.000Z",
+    startsAtUtc: "2026-11-12T08:00:00.000Z",
+    endsAtUtc: "2026-11-13T08:00:00.000Z",
     approvedPlanSha256: "b".repeat(64),
     approvedUatEvidenceSha256: "c".repeat(64),
     preflightEvidenceSha256: "d".repeat(64),
     ownerApproverId: "orb-owner-01",
-    ownerApprovalExpiresAtUtc: "2026-11-25T08:00:00.000Z",
+    ownerApprovalExpiresAtUtc: "2026-11-13T08:00:00.000Z",
     monitoring: { healthIntervalSeconds: 60 },
     observationId: "sample-003",
     observationIds: ["sample-001", "sample-002", "sample-003"],
     sampleSequence: 3,
-    evaluatedAtUtc: "2026-11-24T10:00:00.000Z",
+    evaluatedAtUtc: "2026-11-12T10:00:00.000Z",
     passed: true,
   };
   evidence.monitoringEvidenceSha256 = sha256(evidence);
@@ -51,10 +51,10 @@ function completion() {
     releaseCommit: evidence.releaseCommit,
     preflightEvidenceSha256: evidence.preflightEvidenceSha256,
     finalMonitoringEvidenceSha256: evidence.monitoringEvidenceSha256,
-    completedAtUtc: "2026-11-24T10:00:30.000Z",
+    completedAtUtc: "2026-11-12T10:00:30.000Z",
     ownerReviewed: true,
     ownerReviewerId: evidence.ownerApproverId,
-    ownerReviewedAtUtc: "2026-11-24T10:05:00.000Z",
+    ownerReviewedAtUtc: "2026-11-12T10:05:00.000Z",
   };
 }
 
@@ -71,7 +71,7 @@ test("canary completion binds fresh final monitoring evidence and post-walkthrou
 });
 
 test("canary completion rejects tampered or non-passing final monitoring evidence", () => {
-  for (const patch of [{ passed: false }, { sampleSequence: 2 }, { evaluatedAtUtc: "2026-11-24T10:00:01.000Z" }]) {
+  for (const patch of [{ passed: false }, { sampleSequence: 2 }, { evaluatedAtUtc: "2026-11-12T10:00:01.000Z" }]) {
     assert.throws(
       () => finalizeCanaryEvidence({ monitoringEvidence: { ...monitoringEvidence(), ...patch }, completion: completion() }),
       /final monitoring evidence.*(passing|intact|chain)/i,
@@ -80,7 +80,7 @@ test("canary completion rejects tampered or non-passing final monitoring evidenc
 });
 
 test("canary completion rejects stale or out-of-window closure", () => {
-  for (const completedAtUtc of ["2026-11-24T10:01:00.001Z", "2026-11-25T08:00:00.000Z"]) {
+  for (const completedAtUtc of ["2026-11-12T10:01:00.001Z", "2026-11-13T08:00:00.000Z"]) {
     assert.throws(
       () => finalizeCanaryEvidence({ monitoringEvidence: monitoringEvidence(), completion: { ...completion(), completedAtUtc } }),
       /completion.*(health interval|approved window)/i,
@@ -101,11 +101,34 @@ test("canary completion requires exact immutable release and evidence bindings",
   }
 });
 
+test("canary completion rejects future-dated completion or owner review", () => {
+  const now = new Date("2026-11-12T10:00:40.000Z");
+  assert.throws(
+    () => finalizeCanaryEvidence({
+      monitoringEvidence: monitoringEvidence(),
+      completion: { ...completion(), completedAtUtc: "2026-11-12T10:00:41.000Z", ownerReviewedAtUtc: "2026-11-12T10:00:41.000Z" },
+      now,
+    }),
+    /completion and owner review must not be future-dated/i,
+  );
+  assert.throws(
+    () => finalizeCanaryEvidence({
+      monitoringEvidence: monitoringEvidence(),
+      completion: { ...completion(), ownerReviewedAtUtc: "2026-11-12T10:00:41.000Z" },
+      now,
+    }),
+    /completion and owner review must not be future-dated/i,
+  );
+  assert.equal(finalizeCanaryEvidence({
+    monitoringEvidence: monitoringEvidence(), completion: completion(), now: new Date("2026-11-12T10:05:00.000Z"),
+  }).passed, true);
+});
+
 test("canary completion requires owner review after walkthrough completion", () => {
   for (const patch of [
     { ownerReviewed: false },
     { ownerReviewerId: "different-owner" },
-    { ownerReviewedAtUtc: "2026-11-24T10:00:29.999Z" },
+    { ownerReviewedAtUtc: "2026-11-12T10:00:29.999Z" },
   ]) {
     assert.throws(
       () => finalizeCanaryEvidence({ monitoringEvidence: monitoringEvidence(), completion: { ...completion(), ...patch } }),
