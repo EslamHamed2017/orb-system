@@ -115,6 +115,12 @@ test("canary preflight binds owner authorization to the exact release, target, a
   }
 });
 
+test("canary preflight rejects future-dated owner approval", () => {
+  const result = run(validPlan(), validUat(), "2026-11-23T07:50:00.000Z");
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /owner approval.*future/i);
+});
+
 test("canary preflight rejects release or target drift from passing bilingual UAT", () => {
   for (const uat of [
     { ...validUat(), gitCommit: "b".repeat(40) },

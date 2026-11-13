@@ -48,6 +48,7 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
   if (approvedAt < uatCompleted) throw new Error("owner approval must follow completed UAT");
   const approvalExpires = canonicalTime(plan.ownerApproval.expiresAtUtc, "owner approval expiry");
   const now = canonicalTime(nowUtc, "current time");
+  if (now < approvedAt) throw new Error("owner approval cannot be future-dated");
   if (now > approvalExpires) throw new Error("owner approval has expired");
 
   const starts = canonicalTime(plan.window?.startsAtUtc, "canary window start");
