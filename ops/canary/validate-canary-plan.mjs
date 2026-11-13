@@ -74,6 +74,8 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
   boundedInteger(plan.scope?.maxProjects, 1, 3, "maxProjects");
 
   const monitoring = plan.monitoring ?? {};
+  if (typeof monitoring.operatorId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$/.test(monitoring.operatorId))
+    throw new Error("canary monitoring requires an explicit operator identity");
   if (!Number.isInteger(monitoring.healthIntervalSeconds) || monitoring.healthIntervalSeconds < 15 || monitoring.healthIntervalSeconds > 60 ||
       typeof monitoring.maxErrorRatePercent !== "number" || monitoring.maxErrorRatePercent <= 0 || monitoring.maxErrorRatePercent > 1 ||
       !Number.isInteger(monitoring.maxP95LatencyMs) || monitoring.maxP95LatencyMs <= 0 || monitoring.maxP95LatencyMs > 2000 ||
@@ -108,6 +110,7 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
     maxUsers: plan.scope.maxUsers,
     maxProjects: plan.scope.maxProjects,
     ownerApproverId: plan.ownerApproval.approverId,
+    monitoringOperatorId: monitoring.operatorId,
     rollbackOperatorId: plan.rollback.operatorId,
     passed: true,
   };

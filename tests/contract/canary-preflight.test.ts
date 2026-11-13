@@ -27,6 +27,7 @@ function validPlan() {
     window: { startsAtUtc: "2026-11-24T08:00:00.000Z", endsAtUtc: "2026-11-25T08:00:00.000Z" },
     scope: { maxUsers: 5, maxProjects: 3 },
     monitoring: {
+      operatorId: "orb-monitor-01",
       healthIntervalSeconds: 30,
       maxErrorRatePercent: 1,
       maxP95LatencyMs: 2000,
@@ -89,6 +90,7 @@ test("canary preflight accepts a tightly bounded owner-authorized plan bound to 
     maxUsers: 5,
     maxProjects: 3,
     ownerApproverId: "orb-owner-01",
+    monitoringOperatorId: "orb-monitor-01",
     rollbackOperatorId: "orb-operator-01",
     passed: true,
   });
@@ -211,6 +213,16 @@ test("canary preflight rejects execution before the approved canary window opens
   const result = run(validPlan(), validUat(), "2026-11-24T07:59:59.999Z");
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /canary window.*not.*open/i);
+});
+
+test("canary preflight requires an identified monitoring operator", () => {
+  for (const operatorId of [undefined, "", "   ", "monitor operator with spaces"]) {
+    const plan = validPlan();
+    plan.monitoring.operatorId = operatorId as string;
+    const result = run(plan);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /monitoring.*operator identity/i);
+  }
 });
 
 test("canary preflight requires an identified rollback operator", () => {
