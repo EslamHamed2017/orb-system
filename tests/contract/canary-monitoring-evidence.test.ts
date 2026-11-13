@@ -627,6 +627,47 @@ test("canary monitoring rejects reuse of any earlier observation identity", () =
   );
 });
 
+test("canary monitoring preserves and validates cumulative predecessor digest history", () => {
+  const first = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
+  assert.deepEqual(first.previousMonitoringEvidenceSha256s, []);
+
+  const second = evaluateCanaryMonitoring({
+    evaluatedAtUtc: "2026-11-24T09:01:00.000Z",
+    preflight,
+    previousEvidence: first,
+    observation: {
+      ...observations(),
+      observationId: "sample-20261124-090045-002",
+      sampleSequence: 2,
+      previousMonitoringEvidenceSha256: first.monitoringEvidenceSha256,
+      observedAtUtc: "2026-11-24T09:00:45.000Z",
+    },
+  });
+  assert.deepEqual(second.previousMonitoringEvidenceSha256s, [first.monitoringEvidenceSha256]);
+
+  const predecessor = {
+    ...second,
+    previousMonitoringEvidenceSha256s: [],
+  } as Record<string, unknown>;
+  predecessor.monitoringEvidenceSha256 = monitoringEvidenceSha256(predecessor);
+
+  assert.throws(
+    () => evaluateCanaryMonitoring({
+      evaluatedAtUtc: "2026-11-24T09:01:30.000Z",
+      preflight,
+      previousEvidence: predecessor,
+      observation: {
+        ...observations(),
+        observationId: "sample-20261124-090115-003",
+        sampleSequence: 3,
+        previousMonitoringEvidenceSha256: predecessor.monitoringEvidenceSha256,
+        observedAtUtc: "2026-11-24T09:01:15.000Z",
+      },
+    }),
+    /predecessor digest history.*invalid|sample chain.*digest history/i,
+  );
+});
+
 test("canary monitoring rejects a rehashed non-root predecessor with a missing chain link", () => {
   const first = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
   const second = evaluateCanaryMonitoring({

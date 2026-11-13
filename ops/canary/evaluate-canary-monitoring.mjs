@@ -30,6 +30,7 @@ const MONITORING_EVIDENCE_FIELDS = [
   "observationIds",
   "sampleSequence",
   "previousMonitoringEvidenceSha256",
+  "previousMonitoringEvidenceSha256s",
   "ownerApproved",
   "ownerRealDataAuthorized",
   "ownerApproverId",
@@ -140,7 +141,12 @@ function validateSampleChain({ observation, previousEvidence }) {
   if (sequence === 1) {
     if (previousDigest !== null || previousEvidence !== undefined)
       throw new Error("first monitoring sample must not claim previous monitoring evidence");
-    return { sequence, previousDigest: null, observationIds: [observation.observationId] };
+    return {
+      sequence,
+      previousDigest: null,
+      previousDigests: [],
+      observationIds: [observation.observationId],
+    };
   }
   if (!previousEvidence || !SHA256.test(previousDigest ?? ""))
     throw new Error("canary monitoring sample chain requires previous monitoring evidence");
@@ -156,6 +162,13 @@ function validateSampleChain({ observation, previousEvidence }) {
   if ((previousEvidence.sampleSequence === 1 && predecessorLink !== null) ||
       (previousEvidence.sampleSequence > 1 && !SHA256.test(predecessorLink ?? "")))
     throw new Error("previous monitoring evidence chain link is invalid");
+  const previousDigests = previousEvidence.previousMonitoringEvidenceSha256s;
+  if (!Array.isArray(previousDigests) ||
+      previousDigests.length !== previousEvidence.sampleSequence - 1 ||
+      previousDigests.some((digest) => !SHA256.test(digest ?? "")) ||
+      (previousEvidence.sampleSequence > 1 && previousDigests.at(-1) !== predecessorLink) ||
+      new Set(previousDigests).size !== previousDigests.length)
+    throw new Error("canary monitoring predecessor digest history is invalid");
   const previousObservationIds = previousEvidence.observationIds;
   if (!Array.isArray(previousObservationIds) ||
       previousObservationIds.length !== sequence - 1 ||
@@ -165,7 +178,12 @@ function validateSampleChain({ observation, previousEvidence }) {
     throw new Error("canary monitoring sample chain observation identity history is invalid");
   if (previousObservationIds.includes(observation.observationId))
     throw new Error("canary monitoring sample chain observation identity was reused");
-  return { sequence, previousDigest, observationIds: [...previousObservationIds, observation.observationId] };
+  return {
+    sequence,
+    previousDigest,
+    previousDigests: [...previousDigests, previousDigest],
+    observationIds: [...previousObservationIds, observation.observationId],
+  };
 }
 
 export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUtc, previousEvidence }) {
@@ -235,6 +253,7 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
   const {
     sequence: sampleSequence,
     previousDigest: previousMonitoringEvidenceSha256,
+    previousDigests: previousMonitoringEvidenceSha256s,
     observationIds,
   } = validateSampleChain({ observation, previousEvidence });
   const observationId = observation.observationId;
@@ -456,6 +475,7 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
     observationIds,
     sampleSequence,
     previousMonitoringEvidenceSha256,
+    previousMonitoringEvidenceSha256s,
     ownerApproved: preflight.ownerApproved,
     ownerRealDataAuthorized: preflight.ownerRealDataAuthorized,
     ownerApproverId: preflight.ownerApproverId,
