@@ -124,6 +124,38 @@ test("canary completion rejects future-dated completion or owner review", () => 
   }).passed, true);
 });
 
+test("canary completion requires owner review inside the approved authorization window", () => {
+  for (const ownerReviewedAtUtc of [
+    "2026-11-13T08:00:00.000Z",
+    "2026-11-13T08:00:00.001Z",
+  ]) {
+    assert.throws(
+      () => finalizeCanaryEvidence({
+        monitoringEvidence: monitoringEvidence(),
+        completion: { ...completion(), ownerReviewedAtUtc },
+        now: new Date("2026-11-13T08:00:01.000Z"),
+      }),
+      /owner review.*(approved window|authorization)/i,
+    );
+  }
+
+  const authorizationEndsFirst = monitoringEvidence();
+  authorizationEndsFirst.ownerApprovalExpiresAtUtc = "2026-11-12T10:04:00.000Z";
+  authorizationEndsFirst.monitoringEvidenceSha256 = sha256(
+    Object.fromEntries(Object.entries(authorizationEndsFirst).filter(([key]) => key !== "monitoringEvidenceSha256")),
+  );
+  assert.throws(
+    () => finalizeCanaryEvidence({
+      monitoringEvidence: authorizationEndsFirst,
+      completion: {
+        ...completion(),
+        finalMonitoringEvidenceSha256: authorizationEndsFirst.monitoringEvidenceSha256,
+      },
+    }),
+    /owner review.*authorization/i,
+  );
+});
+
 test("canary completion requires owner review strictly after walkthrough completion", () => {
   for (const patch of [
     { ownerReviewed: false },

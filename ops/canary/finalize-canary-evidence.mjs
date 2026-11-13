@@ -88,6 +88,10 @@ export function finalizeCanaryEvidence({ monitoringEvidence, completion, now = n
   const starts = canonicalTime(monitoringEvidence.startsAtUtc, "approved canary window start");
   const ends = canonicalTime(monitoringEvidence.endsAtUtc, "approved canary window end");
   const evaluated = canonicalTime(monitoringEvidence.evaluatedAtUtc, "final monitoring evaluation time");
+  const authorizationExpires = canonicalTime(
+    monitoringEvidence.ownerApprovalExpiresAtUtc,
+    "owner authorization expiry",
+  );
   const completed = canonicalTime(completion.completedAtUtc, "canary completion time");
   const reviewed = canonicalTime(completion.ownerReviewedAtUtc, "owner review time");
   if (!(now instanceof Date) || !Number.isFinite(now.valueOf()))
@@ -101,6 +105,10 @@ export function finalizeCanaryEvidence({ monitoringEvidence, completion, now = n
     throw new Error("canary completion must occur inside the approved window");
   if (completed < evaluated || completed.valueOf() - evaluated.valueOf() > healthIntervalSeconds * 1000)
     throw new Error("canary completion must follow final monitoring within the approved health interval");
+  if (reviewed >= ends)
+    throw new Error("owner review must occur inside the approved window");
+  if (reviewed >= authorizationExpires)
+    throw new Error("owner review must occur before owner authorization expires");
 
   const ownerReviewIsValid =
     completion.ownerReviewed === true &&
