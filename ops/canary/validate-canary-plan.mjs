@@ -36,10 +36,16 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
   if (!plan || plan.schemaVersion !== 1) throw new Error("canary plan schemaVersion must be 1");
   if (!SHA1.test(plan.releaseCommit ?? "")) throw new Error("canary releaseCommit must be a full lowercase SHA-1");
   const targetOrigin = exactHttpsOrigin(plan.targetOrigin, "canary targetOrigin");
+  const uat = ownerUatEvidence;
 
   if (plan.ownerApproval?.approved !== true) throw new Error("explicit owner approval is required");
   if (plan.ownerApproval?.realDataAuthorized !== true) throw new Error("explicit owner real-data authorization is required");
+  if (plan.ownerApproval?.approvedReleaseCommit !== plan.releaseCommit ||
+      plan.ownerApproval?.approvedTargetOrigin !== targetOrigin)
+    throw new Error("owner approval must bind the exact canary release and target origin");
   const approvedAt = canonicalTime(plan.ownerApproval.approvedAtUtc, "owner approval time");
+  const uatCompleted = canonicalTime(uat?.reportCompletedAtUtc, "completed UAT time");
+  if (approvedAt < uatCompleted) throw new Error("owner approval must follow completed UAT");
   const approvalExpires = canonicalTime(plan.ownerApproval.expiresAtUtc, "owner approval expiry");
   const now = canonicalTime(nowUtc, "current time");
   if (now > approvalExpires) throw new Error("owner approval has expired");
@@ -69,7 +75,6 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
       !Number.isInteger(plan.rollback?.maxMinutes) || plan.rollback.maxMinutes < 1 || plan.rollback.maxMinutes > 5)
     throw new Error("canary rollback must use the rehearsed command with an assigned operator and a five-minute maximum");
 
-  const uat = ownerUatEvidence;
   const bilingual = Array.isArray(uat?.locales) && uat.locales.length === 2 &&
     uat.locales.some((entry) => entry?.locale === "en" && entry.direction === "ltr" && entry.passed === true) &&
     uat.locales.some((entry) => entry?.locale === "ar" && entry.direction === "rtl" && entry.passed === true);

@@ -17,6 +17,8 @@ function validPlan() {
     ownerApproval: {
       approved: true,
       realDataAuthorized: true,
+      approvedReleaseCommit: commit,
+      approvedTargetOrigin: "https://canary.orb.example",
       approvedAtUtc: "2026-11-23T08:00:00.000Z",
       expiresAtUtc: "2026-11-25T12:00:00.000Z",
     },
@@ -44,9 +46,14 @@ function validUat() {
   return {
     schemaVersion: 1,
     gate: "owner-uat-technical-journey",
+    generatedAtUtc: "2026-11-23T07:45:00.000Z",
+    reportStartedAtUtc: "2026-11-23T07:30:00.000Z",
+    reportCompletedAtUtc: "2026-11-23T07:44:00.000Z",
     gitCommit: commit,
     targetOrigin: "https://canary.orb.example",
+    reportSha256: "b".repeat(64),
     passed: true,
+    ownerApprovalRecorded: false,
     locales: [
       { locale: "en", direction: "ltr", passed: true },
       { locale: "ar", direction: "rtl", passed: true },
@@ -90,6 +97,21 @@ test("canary preflight rejects absent owner approval or real-data authorization"
     const result = run(plan);
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /owner approval|real-data authorization/i);
+  }
+});
+
+test("canary preflight binds owner authorization to the exact release, target, and completed UAT", () => {
+  const wrongRelease = validPlan();
+  wrongRelease.ownerApproval.approvedReleaseCommit = "c".repeat(40);
+  const wrongTarget = validPlan();
+  wrongTarget.ownerApproval.approvedTargetOrigin = "https://other.orb.example";
+  const approvalBeforeUatCompleted = validPlan();
+  approvalBeforeUatCompleted.ownerApproval.approvedAtUtc = "2026-11-23T07:40:00.000Z";
+
+  for (const plan of [wrongRelease, wrongTarget, approvalBeforeUatCompleted]) {
+    const result = run(plan);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /owner approval|completed UAT/i);
   }
 });
 
