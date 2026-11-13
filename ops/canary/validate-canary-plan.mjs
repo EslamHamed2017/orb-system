@@ -113,6 +113,10 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
     monitoringOperatorId: monitoring.operatorId,
     rollbackOperatorId: plan.rollback.operatorId,
     approvedUatEvidenceSha256: plan.ownerApproval.approvedUatEvidenceSha256,
+    uatEvidenceGeneratedAtUtc: uatGenerated.toISOString(),
+    ownerApprovedAtUtc: approvedAt.toISOString(),
+    ownerApprovalExpiresAtUtc: approvalExpires.toISOString(),
+    preflightGeneratedAtUtc: now.toISOString(),
     monitoring: {
       operatorId: monitoring.operatorId,
       healthIntervalSeconds: monitoring.healthIntervalSeconds,
