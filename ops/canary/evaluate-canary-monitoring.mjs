@@ -169,6 +169,12 @@ export function evaluateCanaryMonitoring({ preflight, observation }) {
     targetOrigin,
     approvedPlanSha256: preflight.approvedPlanSha256,
     approvedUatEvidenceSha256: preflight.approvedUatEvidenceSha256,
+    ownerApproved: preflight.ownerApproved,
+    ownerRealDataAuthorized: preflight.ownerRealDataAuthorized,
+    ownerApproverId: preflight.ownerApproverId,
+    ownerApprovedAtUtc: approvedAt.toISOString(),
+    ownerApprovalExpiresAtUtc: approvalExpires.toISOString(),
+    preflightGeneratedAtUtc: preflightGenerated.toISOString(),
     observedAtUtc: observedAt.toISOString(),
     monitoringOperatorId: monitoring.operatorId,
     monitoring: {

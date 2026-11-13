@@ -87,6 +87,12 @@ test("passing canary monitoring evidence preserves approved controls and evaluat
   assert.deepEqual(evidence.stopConditions, preflight.stopConditions);
   assert.deepEqual(evidence.securityEvents, observations().securityEvents);
   assert.deepEqual(evidence.rollback, preflight.rollback);
+  assert.equal(evidence.ownerApproved, true);
+  assert.equal(evidence.ownerRealDataAuthorized, true);
+  assert.equal(evidence.ownerApproverId, preflight.ownerApproverId);
+  assert.equal(evidence.ownerApprovedAtUtc, preflight.ownerApprovedAtUtc);
+  assert.equal(evidence.ownerApprovalExpiresAtUtc, preflight.ownerApprovalExpiresAtUtc);
+  assert.equal(evidence.preflightGeneratedAtUtc, preflight.preflightGeneratedAtUtc);
 });
 
 test("canary monitoring evidence fails closed on every immediate security and integrity stop", () => {
