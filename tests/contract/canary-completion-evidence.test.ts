@@ -28,6 +28,10 @@ function monitoringEvidence() {
     targetOrigin: "https://canary.orb.example",
     startsAtUtc: "2026-11-12T08:00:00.000Z",
     endsAtUtc: "2026-11-13T08:00:00.000Z",
+    maxUsers: 2,
+    maxProjects: 1,
+    userIds: ["pilot-user-01", "pilot-user-02"],
+    projectIds: ["pilot-project-01"],
     approvedPlanSha256: "b".repeat(64),
     approvedUatEvidenceSha256: "c".repeat(64),
     preflightEvidenceSha256: "d".repeat(64),
@@ -98,6 +102,22 @@ test("canary completion binds fresh final monitoring evidence and post-walkthrou
   assert.match(result.completionEvidenceSha256, /^[a-f0-9]{64}$/);
   const { completionEvidenceSha256: _digest, ...payload } = result;
   assert.equal(result.completionEvidenceSha256, sha256(payload));
+});
+
+test("canary completion certificate preserves approved authorization and pilot scope", () => {
+  const monitoring = monitoringEvidence();
+  const result = finalizeCanaryEvidence({ monitoringEvidence: monitoring, completion: completion() });
+
+  assert.equal(result.targetOrigin, monitoring.targetOrigin);
+  assert.equal(result.startsAtUtc, monitoring.startsAtUtc);
+  assert.equal(result.endsAtUtc, monitoring.endsAtUtc);
+  assert.equal(result.ownerApproverId, monitoring.ownerApproverId);
+  assert.equal(result.ownerApprovedAtUtc, monitoring.ownerApprovedAtUtc);
+  assert.equal(result.ownerApprovalExpiresAtUtc, monitoring.ownerApprovalExpiresAtUtc);
+  assert.equal(result.maxUsers, monitoring.maxUsers);
+  assert.equal(result.maxProjects, monitoring.maxProjects);
+  assert.deepEqual(result.userIds, monitoring.userIds);
+  assert.deepEqual(result.projectIds, monitoring.projectIds);
 });
 
 test("canary completion rejects tampered or non-passing final monitoring evidence", () => {
