@@ -154,3 +154,16 @@ test("canary monitoring independently validates owner authorization and rollback
     );
   }
 });
+
+test("canary monitoring rejects unsupported approved preflight claims", () => {
+  for (const candidate of [
+    { ...preflight, emergencyOverride: true },
+    { ...preflight, monitoring: { ...preflight.monitoring, ignoredAlertChannel: "ops" } },
+    { ...preflight, rollback: { ...preflight.rollback, skipIntegrityCheck: true } },
+  ]) {
+    assert.throws(
+      () => evaluateCanaryMonitoring({ preflight: candidate, observation: observations() }),
+      /unknown approved canary (preflight|monitoring|rollback) field/i,
+    );
+  }
+});

@@ -54,6 +54,39 @@ export function evaluateCanaryMonitoring({ preflight, observation }) {
     "securityEvents",
   ], "canary observation");
   rejectUnknownFields(observation.securityEvents, SECURITY_STOPS, "canary security event");
+  rejectUnknownFields(preflight, [
+    "schemaVersion",
+    "gate",
+    "releaseCommit",
+    "targetOrigin",
+    "startsAtUtc",
+    "endsAtUtc",
+    "approvedPlanSha256",
+    "approvedUatEvidenceSha256",
+    "ownerApproved",
+    "ownerRealDataAuthorized",
+    "ownerApproverId",
+    "ownerApprovedAtUtc",
+    "ownerApprovalExpiresAtUtc",
+    "preflightGeneratedAtUtc",
+    "monitoring",
+    "rollbackOperatorId",
+    "rollback",
+    "stopConditions",
+    "passed",
+  ], "approved canary preflight");
+  rejectUnknownFields(preflight.monitoring, [
+    "operatorId",
+    "healthIntervalSeconds",
+    "maxErrorRatePercent",
+    "maxP95LatencyMs",
+    "maxConsecutiveReadinessFailures",
+  ], "approved canary monitoring");
+  rejectUnknownFields(preflight.rollback, [
+    "command",
+    "maxMinutes",
+    "operatorId",
+  ], "approved canary rollback");
   if (observation.schemaVersion !== 1)
     throw new Error("canary observation schemaVersion must be 1");
   if (preflight?.schemaVersion !== 1 || preflight?.gate !== "controlled-canary-preflight" || preflight?.passed !== true)
