@@ -168,12 +168,31 @@ export function evaluateCanaryMonitoring({ preflight, observation }) {
     releaseCommit: preflight.releaseCommit,
     targetOrigin,
     approvedPlanSha256: preflight.approvedPlanSha256,
+    approvedUatEvidenceSha256: preflight.approvedUatEvidenceSha256,
     observedAtUtc: observedAt.toISOString(),
     monitoringOperatorId: monitoring.operatorId,
+    monitoring: {
+      operatorId: monitoring.operatorId,
+      healthIntervalSeconds: monitoring.healthIntervalSeconds,
+      maxErrorRatePercent: monitoring.maxErrorRatePercent,
+      maxP95LatencyMs: monitoring.maxP95LatencyMs,
+      maxConsecutiveReadinessFailures: monitoring.maxConsecutiveReadinessFailures,
+    },
+    stopConditions: [...approvedStops],
+    rollback: {
+      command: rollback.command,
+      maxMinutes: rollback.maxMinutes,
+      operatorId: rollback.operatorId,
+    },
     readiness: observation.readiness,
     consecutiveReadinessFailures: failures,
     errorRatePercent: errorRate,
     p95LatencyMs: latency,
+    securityEvents: {
+      permissionBypass: securityEvents.permissionBypass,
+      attachmentIsolationFailure: securityEvents.attachmentIsolationFailure,
+      dataIntegrityFailure: securityEvents.dataIntegrityFailure,
+    },
     passed: true,
   };
 }

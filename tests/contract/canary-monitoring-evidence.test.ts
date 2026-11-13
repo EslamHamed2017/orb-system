@@ -79,6 +79,16 @@ test("canary monitoring evidence fails closed on any approved threshold breach",
   }
 });
 
+test("passing canary monitoring evidence preserves approved controls and evaluated outcomes", () => {
+  const evidence = evaluateCanaryMonitoring({ preflight, observation: observations() });
+
+  assert.equal(evidence.approvedUatEvidenceSha256, preflight.approvedUatEvidenceSha256);
+  assert.deepEqual(evidence.monitoring, preflight.monitoring);
+  assert.deepEqual(evidence.stopConditions, preflight.stopConditions);
+  assert.deepEqual(evidence.securityEvents, observations().securityEvents);
+  assert.deepEqual(evidence.rollback, preflight.rollback);
+});
+
 test("canary monitoring evidence fails closed on every immediate security and integrity stop", () => {
   for (const stop of ["permissionBypass", "attachmentIsolationFailure", "dataIntegrityFailure"] as const) {
     const observation = observations();
