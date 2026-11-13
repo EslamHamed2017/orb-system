@@ -248,6 +248,16 @@ test("canary preflight requires owner approval strictly after UAT completion", (
   assert.match(result.stderr, /owner approval.*follow.*UAT/i);
 });
 
+test("canary preflight rejects owner approval based on UAT evidence older than 24 hours", () => {
+  const plan = validPlan();
+  plan.ownerApproval.approvedAtUtc = "2026-11-24T07:45:00.001Z";
+  plan.window.startsAtUtc = "2026-11-24T08:00:00.000Z";
+
+  const result = run(plan);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /UAT evidence.*24 hours|owner approval.*fresh/i);
+});
+
 test("canary preflight requires owner approval after a chronologically valid UAT evidence manifest", () => {
   const approvalBeforeEvidence = validUat();
   approvalBeforeEvidence.generatedAtUtc = "2026-11-23T08:01:00.000Z";

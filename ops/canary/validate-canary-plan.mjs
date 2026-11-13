@@ -145,6 +145,9 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
   if (uatCompleted < uatStarted || uatGenerated < uatCompleted)
     throw new Error("UAT evidence chronology must order report start, completion, and manifest generation");
   if (approvedAt <= uatGenerated) throw new Error("owner approval must follow generated UAT evidence");
+  const maximumUatEvidenceAgeMs = 24 * 60 * 60 * 1000;
+  if (approvedAt.valueOf() - uatGenerated.valueOf() > maximumUatEvidenceAgeMs)
+    throw new Error("owner approval requires UAT evidence generated within the previous 24 hours");
   const approvalExpires = canonicalTime(plan.ownerApproval.expiresAtUtc, "owner approval expiry");
   const now = canonicalTime(nowUtc, "current time");
   if (now < approvedAt) throw new Error("owner approval cannot be future-dated");
