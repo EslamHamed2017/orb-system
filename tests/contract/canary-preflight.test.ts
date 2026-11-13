@@ -63,7 +63,7 @@ function validUat() {
   };
 }
 
-function run(plan = validPlan(), uat = validUat(), now = "2026-11-24T07:00:00.000Z") {
+function run(plan = validPlan(), uat = validUat(), now = "2026-11-24T09:00:00.000Z") {
   const directory = mkdtempSync(join(tmpdir(), "orb-canary-preflight-"));
   const planPath = join(directory, "plan.json");
   const uatPath = join(directory, "uat.json");
@@ -205,6 +205,12 @@ test("canary preflight rejects a canary scheduled beyond the bounded owner-appro
   const result = run(plan, validUat(), "2026-11-24T07:00:00.000Z");
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /owner approval.*72 hours/i);
+});
+
+test("canary preflight rejects execution before the approved canary window opens", () => {
+  const result = run(validPlan(), validUat(), "2026-11-24T07:59:59.999Z");
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /canary window.*not.*open/i);
 });
 
 test("canary preflight requires an identified rollback operator", () => {
