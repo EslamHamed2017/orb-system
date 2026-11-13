@@ -17,6 +17,7 @@ function validPlan() {
     ownerApproval: {
       approved: true,
       realDataAuthorized: true,
+      approverId: "orb-owner-01",
       approvedReleaseCommit: commit,
       approvedTargetOrigin: "https://canary.orb.example",
       approvedUatEvidenceSha256: "b".repeat(64),
@@ -87,6 +88,7 @@ test("canary preflight accepts a tightly bounded owner-authorized plan bound to 
     endsAtUtc: "2026-11-25T08:00:00.000Z",
     maxUsers: 5,
     maxProjects: 3,
+    ownerApproverId: "orb-owner-01",
     rollbackOperatorId: "orb-operator-01",
     passed: true,
   });
@@ -99,6 +101,16 @@ test("canary preflight rejects absent owner approval or real-data authorization"
     const result = run(plan);
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /owner approval|real-data authorization/i);
+  }
+});
+
+test("canary preflight requires an identified owner approver", () => {
+  for (const approverId of [undefined, "", "   ", "owner name with spaces"]) {
+    const plan = validPlan();
+    plan.ownerApproval.approverId = approverId as string;
+    const result = run(plan);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /owner approval.*approver identity/i);
   }
 });
 

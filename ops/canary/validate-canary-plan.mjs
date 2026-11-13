@@ -41,6 +41,8 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
 
   if (plan.ownerApproval?.approved !== true) throw new Error("explicit owner approval is required");
   if (plan.ownerApproval?.realDataAuthorized !== true) throw new Error("explicit owner real-data authorization is required");
+  if (typeof plan.ownerApproval?.approverId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$/.test(plan.ownerApproval.approverId))
+    throw new Error("owner approval requires an explicit approver identity");
   if (plan.ownerApproval?.approvedReleaseCommit !== plan.releaseCommit ||
       plan.ownerApproval?.approvedTargetOrigin !== targetOrigin ||
       !SHA256.test(plan.ownerApproval?.approvedUatEvidenceSha256 ?? "") ||
@@ -101,6 +103,7 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
     endsAtUtc: ends.toISOString(),
     maxUsers: plan.scope.maxUsers,
     maxProjects: plan.scope.maxProjects,
+    ownerApproverId: plan.ownerApproval.approverId,
     rollbackOperatorId: plan.rollback.operatorId,
     passed: true,
   };
