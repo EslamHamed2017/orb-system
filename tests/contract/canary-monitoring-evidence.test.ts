@@ -10,6 +10,7 @@ const ROOT = resolve(import.meta.dirname, "../..");
 const evaluator = resolve(ROOT, "ops/canary/evaluate-canary-monitoring.mjs");
 const commit = "a".repeat(40);
 const digest = "b".repeat(64);
+const evaluatedAtUtc = "2026-11-24T09:00:30.000Z";
 
 const preflight = {
   schemaVersion: 1,
@@ -84,7 +85,7 @@ function observations() {
 }
 
 test("canary monitoring evidence fails closed on any approved threshold breach", () => {
-  const safe = evaluateCanaryMonitoring({ preflight, observation: observations() });
+  const safe = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
   assert.equal(safe.passed, true);
 
   for (const patch of [
@@ -93,14 +94,14 @@ test("canary monitoring evidence fails closed on any approved threshold breach",
     { p95LatencyMs: 2001 },
   ]) {
     assert.throws(
-      () => evaluateCanaryMonitoring({ preflight, observation: { ...observations(), ...patch } }),
+      () => evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: { ...observations(), ...patch } }),
       /mandatory canary stop condition/i,
     );
   }
 });
 
 test("passing canary monitoring evidence preserves approved controls and evaluated outcomes", () => {
-  const evidence = evaluateCanaryMonitoring({ preflight, observation: observations() });
+  const evidence = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
 
   assert.equal(evidence.approvedUatEvidenceSha256, preflight.approvedUatEvidenceSha256);
   assert.deepEqual(evidence.monitoring, preflight.monitoring);
@@ -129,7 +130,7 @@ test("canary monitoring accepts and preserves the exact approved pilot cohort", 
     projectIds: ["pilot-project-01", "pilot-project-02"],
   };
 
-  const evidence = evaluateCanaryMonitoring({ preflight: scopedPreflight, observation: observations() });
+  const evidence = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight: scopedPreflight, observation: observations() });
 
   assert.equal(evidence.maxUsers, scopedPreflight.maxUsers);
   assert.equal(evidence.maxProjects, scopedPreflight.maxProjects);
@@ -153,7 +154,7 @@ test("canary monitoring rejects a malformed approved pilot cohort", () => {
     { maxProjects: 0 },
   ]) {
     assert.throws(
-      () => evaluateCanaryMonitoring({ preflight: { ...scopedPreflight, ...patch }, observation: observations() }),
+      () => evaluateCanaryMonitoring({ evaluatedAtUtc, preflight: { ...scopedPreflight, ...patch }, observation: observations() }),
       /approved pilot cohort/i,
     );
   }
@@ -164,7 +165,7 @@ test("canary monitoring evidence fails closed on every immediate security and in
     const observation = observations();
     observation.securityEvents[stop] = true;
     assert.throws(
-      () => evaluateCanaryMonitoring({ preflight, observation }),
+      () => evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation }),
       /mandatory canary stop condition/i,
     );
   }
@@ -172,7 +173,7 @@ test("canary monitoring evidence fails closed on every immediate security and in
 
 test("canary monitoring evidence rejects unsupported observation claims", () => {
   assert.throws(
-    () => evaluateCanaryMonitoring({
+    () => evaluateCanaryMonitoring({ evaluatedAtUtc,
       preflight,
       observation: { ...observations(), operatorOverride: "unapproved-operator" },
     }),
@@ -182,14 +183,14 @@ test("canary monitoring evidence rejects unsupported observation claims", () => 
   const observation = observations();
   Object.assign(observation.securityEvents, { attachmentScanPassed: true });
   assert.throws(
-    () => evaluateCanaryMonitoring({ preflight, observation }),
+    () => evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation }),
     /unknown canary security event field: attachmentScanPassed/i,
   );
 });
 
 test("canary monitoring evidence requires the supported observation schema", () => {
   assert.throws(
-    () => evaluateCanaryMonitoring({
+    () => evaluateCanaryMonitoring({ evaluatedAtUtc,
       preflight,
       observation: { ...observations(), schemaVersion: 2 },
     }),
@@ -208,7 +209,7 @@ test("canary monitoring independently validates approved preflight safety contro
     { stopConditions: [...preflight.stopConditions, "ignoreAuditFailure"] },
   ]) {
     assert.throws(
-      () => evaluateCanaryMonitoring({ preflight: { ...preflight, ...patch }, observation: observations() }),
+      () => evaluateCanaryMonitoring({ evaluatedAtUtc, preflight: { ...preflight, ...patch }, observation: observations() }),
       /approved canary safety controls/i,
     );
   }
@@ -229,7 +230,7 @@ test("canary monitoring independently validates owner authorization and rollback
     { rollback: { ...preflight.rollback, maxMinutes: 6 } },
   ]) {
     assert.throws(
-      () => evaluateCanaryMonitoring({ preflight: { ...preflight, ...patch }, observation: observations() }),
+      () => evaluateCanaryMonitoring({ evaluatedAtUtc, preflight: { ...preflight, ...patch }, observation: observations() }),
       /approved owner authorization and rollback accountability/i,
     );
   }
@@ -242,7 +243,7 @@ test("canary monitoring rejects unsupported approved preflight claims", () => {
     { ...preflight, rollback: { ...preflight.rollback, skipIntegrityCheck: true } },
   ]) {
     assert.throws(
-      () => evaluateCanaryMonitoring({ preflight: candidate, observation: observations() }),
+      () => evaluateCanaryMonitoring({ evaluatedAtUtc, preflight: candidate, observation: observations() }),
       /unknown approved canary (preflight|monitoring|rollback) field/i,
     );
   }
@@ -253,8 +254,24 @@ test("canary monitoring CLI emits validated evidence from immutable input files"
   const directory = mkdtempSync(join(tmpdir(), "orb-canary-monitoring-cli-"));
   const preflightPath = join(directory, "preflight.json");
   const observationPath = join(directory, "observation.json");
-  writeFileSync(preflightPath, JSON.stringify(preflight));
-  writeFileSync(observationPath, JSON.stringify(observations()));
+  const now = Date.now();
+  const runtimePreflight = {
+    ...preflight,
+    startsAtUtc: new Date(now - 60 * 60 * 1000).toISOString(),
+    endsAtUtc: new Date(now + 60 * 60 * 1000).toISOString(),
+    ownerApprovedAtUtc: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
+    ownerApprovalExpiresAtUtc: new Date(now + 2 * 60 * 60 * 1000).toISOString(),
+    preflightGeneratedAtUtc: new Date(now - 60 * 60 * 1000).toISOString(),
+    uatReportStartedAtUtc: new Date(now - 3 * 60 * 60 * 1000).toISOString(),
+    uatReportCompletedAtUtc: new Date(now - 165 * 60 * 1000).toISOString(),
+    uatEvidenceGeneratedAtUtc: new Date(now - 150 * 60 * 1000).toISOString(),
+  };
+  const runtimeObservation = {
+    ...observations(),
+    observedAtUtc: new Date(now - 1000).toISOString(),
+  };
+  writeFileSync(preflightPath, JSON.stringify(runtimePreflight));
+  writeFileSync(observationPath, JSON.stringify(runtimeObservation));
 
   const result = spawnSync(process.execPath, [
     evaluator,
@@ -266,7 +283,8 @@ test("canary monitoring CLI emits validated evidence from immutable input files"
   const evidence = JSON.parse(result.stdout);
   assert.equal(evidence.gate, "controlled-canary-monitoring-evidence");
   assert.equal(evidence.passed, true);
-  assert.equal(evidence.observedAtUtc, observations().observedAtUtc);
+  assert.equal(evidence.observedAtUtc, runtimeObservation.observedAtUtc);
+  assert.match(evidence.evaluatedAtUtc, /Z$/);
 });
 
 test("canary monitoring CLI rejects unknown, missing, and duplicate inputs", () => {
@@ -292,7 +310,7 @@ test("canary monitoring CLI rejects unknown, missing, and duplicate inputs", () 
 });
 
 test("canary monitoring observations cover the exact approved pilot cohort", () => {
-  const evidence = evaluateCanaryMonitoring({ preflight, observation: observations() });
+  const evidence = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
   assert.deepEqual(evidence.userIds, preflight.userIds);
   assert.deepEqual(evidence.projectIds, preflight.projectIds);
 
@@ -307,8 +325,30 @@ test("canary monitoring observations cover the exact approved pilot cohort", () 
     { projectIds: ["pilot-project-01", "unapproved-project"] },
   ]) {
     assert.throws(
-      () => evaluateCanaryMonitoring({ preflight, observation: { ...observations(), ...patch } }),
+      () => evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: { ...observations(), ...patch } }),
       /exact approved pilot cohort/i,
     );
   }
+});
+
+test("canary monitoring rejects observations older than the approved health interval", () => {
+  assert.throws(
+    () => evaluateCanaryMonitoring({
+      preflight,
+      observation: observations(),
+      evaluatedAtUtc: "2026-11-24T09:00:30.001Z",
+    }),
+    /observation.*fresh|health interval/i,
+  );
+});
+
+test("canary monitoring rejects observations dated after evaluation", () => {
+  assert.throws(
+    () => evaluateCanaryMonitoring({
+      preflight,
+      observation: observations(),
+      evaluatedAtUtc: "2026-11-24T08:59:59.999Z",
+    }),
+    /observation.*fresh|health interval/i,
+  );
 });

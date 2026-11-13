@@ -175,6 +175,7 @@ test("canary monitoring accepts the exact manifest emitted by canary preflight",
   });
 
   const evidence = evaluateCanaryMonitoring({
+    evaluatedAtUtc: "2026-11-24T09:01:30.000Z",
     preflight: manifest,
     observation: {
       schemaVersion: 1,

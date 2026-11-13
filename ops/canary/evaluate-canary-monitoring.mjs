@@ -52,7 +52,7 @@ function approvedCohortIds(value, maximum, label) {
   return [...value];
 }
 
-export function evaluateCanaryMonitoring({ preflight, observation }) {
+export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUtc }) {
   rejectUnknownFields(observation, [
     "schemaVersion",
     "releaseCommit",
@@ -199,6 +199,11 @@ export function evaluateCanaryMonitoring({ preflight, observation }) {
   if (!controlsAreValid)
     throw new Error("canary monitoring requires valid approved canary safety controls");
 
+  const evaluatedAt = canonicalTime(evaluatedAtUtc, "canary monitoring evaluation time");
+  const observationAgeMs = evaluatedAt.valueOf() - observedAt.valueOf();
+  if (observationAgeMs < 0 || observationAgeMs > monitoring.healthIntervalSeconds * 1000)
+    throw new Error("canary observation must be fresh within the approved health interval");
+
   const failures = observation?.consecutiveReadinessFailures;
   if (!Number.isInteger(failures) || failures < 0)
     throw new Error("consecutive readiness failures must be a non-negative integer");
@@ -239,6 +244,7 @@ export function evaluateCanaryMonitoring({ preflight, observation }) {
     ],
     preflightGeneratedAtUtc: preflightGenerated.toISOString(),
     observedAtUtc: observedAt.toISOString(),
+    evaluatedAtUtc: evaluatedAt.toISOString(),
     monitoringOperatorId: monitoring.operatorId,
     monitoring: {
       operatorId: monitoring.operatorId,
@@ -291,7 +297,11 @@ async function main(args) {
     readFile(preflightPath, "utf8").then(JSON.parse),
     readFile(observationPath, "utf8").then(JSON.parse),
   ]);
-  const evidence = evaluateCanaryMonitoring({ preflight, observation });
+  const evidence = evaluateCanaryMonitoring({
+    preflight,
+    observation,
+    evaluatedAtUtc: new Date().toISOString(),
+  });
   process.stdout.write(`${JSON.stringify(evidence, null, 2)}\n`);
 }
 
