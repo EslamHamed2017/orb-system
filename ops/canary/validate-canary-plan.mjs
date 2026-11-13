@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 
 const SHA1 = /^[a-f0-9]{40}$/;
@@ -39,6 +40,28 @@ function boundedUniqueIds(value, maximum, label) {
       new Set(value).size !== value.length)
     throw new Error(`${label} must identify a unique controlled canary scope`);
   return [...value];
+}
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value).sort(([left], [right]) => left.localeCompare(right));
+    return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function approvedControlsSha256(plan) {
+  const controls = {
+    releaseCommit: plan.releaseCommit,
+    targetOrigin: plan.targetOrigin,
+    window: plan.window,
+    scope: plan.scope,
+    monitoring: plan.monitoring,
+    stopConditions: plan.stopConditions,
+    rollback: plan.rollback,
+  };
+  return createHash("sha256").update(canonicalJson(controls)).digest("hex");
 }
 
 export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date().toISOString() }) {
@@ -103,6 +126,11 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
   if (typeof plan.rollback.operatorId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$/.test(plan.rollback.operatorId))
     throw new Error("canary rollback requires an explicit operator identity");
 
+  const approvedPlanSha256 = approvedControlsSha256(plan);
+  if (!SHA256.test(plan.ownerApproval?.approvedPlanSha256 ?? "") ||
+      plan.ownerApproval.approvedPlanSha256 !== approvedPlanSha256)
+    throw new Error("owner approval must bind the exact approved canary controls");
+
   const bilingual = Array.isArray(uat?.locales) && uat.locales.length === 2 &&
     uat.locales.some((entry) => entry?.locale === "en" && entry.direction === "ltr" && entry.passed === true) &&
     uat.locales.some((entry) => entry?.locale === "ar" && entry.direction === "rtl" && entry.passed === true);
@@ -127,6 +155,7 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
     monitoringOperatorId: monitoring.operatorId,
     rollbackOperatorId: plan.rollback.operatorId,
     approvedUatEvidenceSha256: plan.ownerApproval.approvedUatEvidenceSha256,
+    approvedPlanSha256,
     uatReportStartedAtUtc: uatStarted.toISOString(),
     uatReportCompletedAtUtc: uatCompleted.toISOString(),
     uatEvidenceGeneratedAtUtc: uatGenerated.toISOString(),

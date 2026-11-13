@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -9,8 +10,30 @@ const ROOT = resolve(import.meta.dirname, "../..");
 const validator = resolve(ROOT, "ops/canary/validate-canary-plan.mjs");
 const commit = "a".repeat(40);
 
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right));
+    return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function approvedControlsSha256(plan: ReturnType<typeof validPlan>) {
+  const controls = {
+    releaseCommit: plan.releaseCommit,
+    targetOrigin: plan.targetOrigin,
+    window: plan.window,
+    scope: plan.scope,
+    monitoring: plan.monitoring,
+    stopConditions: plan.stopConditions,
+    rollback: plan.rollback,
+  };
+  return createHash("sha256").update(canonicalJson(controls)).digest("hex");
+}
+
 function validPlan() {
-  return {
+  const plan = {
     schemaVersion: 1,
     releaseCommit: commit,
     targetOrigin: "https://canary.orb.example",
@@ -21,6 +44,7 @@ function validPlan() {
       approvedReleaseCommit: commit,
       approvedTargetOrigin: "https://canary.orb.example",
       approvedUatEvidenceSha256: "b".repeat(64),
+      approvedPlanSha256: "",
       approvedAtUtc: "2026-11-23T08:00:00.000Z",
       expiresAtUtc: "2026-11-25T12:00:00.000Z",
     },
@@ -48,6 +72,8 @@ function validPlan() {
     },
     rollback: { command: "ops/deploy/rollback.sh", maxMinutes: 5, operatorAssigned: true, operatorId: "orb-operator-01" },
   };
+  plan.ownerApproval.approvedPlanSha256 = approvedControlsSha256(plan);
+  return plan;
 }
 
 function validUat() {
@@ -102,6 +128,7 @@ test("canary preflight accepts a tightly bounded owner-authorized plan bound to 
     monitoringOperatorId: "orb-monitor-01",
     rollbackOperatorId: "orb-operator-01",
     approvedUatEvidenceSha256: "b".repeat(64),
+    approvedPlanSha256: approvedControlsSha256(validPlan()),
     uatReportStartedAtUtc: "2026-11-23T07:30:00.000Z",
     uatReportCompletedAtUtc: "2026-11-23T07:44:00.000Z",
     uatEvidenceGeneratedAtUtc: "2026-11-23T07:45:00.000Z",
@@ -171,6 +198,28 @@ test("canary preflight binds owner authorization to the exact release, target, a
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /owner approval|completed UAT/i);
   }
+});
+
+test("canary approval digest is canonical across JSON object key ordering", () => {
+  const plan = validPlan();
+  plan.scope = {
+    projectIds: plan.scope.projectIds,
+    userIds: plan.scope.userIds,
+    maxProjects: plan.scope.maxProjects,
+    maxUsers: plan.scope.maxUsers,
+  };
+
+  const result = run(plan);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+});
+
+test("canary preflight binds owner authorization to the exact approved canary controls", () => {
+  const plan = validPlan();
+  plan.scope.userIds = ["replacement-pilot-user"];
+
+  const result = run(plan);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /owner approval.*canary controls/i);
 });
 
 test("canary preflight requires a canonical UAT evidence digest", () => {
