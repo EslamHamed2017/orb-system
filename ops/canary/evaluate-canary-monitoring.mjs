@@ -176,6 +176,8 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
     rollback.operatorId === preflight.rollbackOperatorId;
   if (!authorizationIsValid)
     throw new Error("canary monitoring requires approved owner authorization and rollback accountability");
+  if (approvedAt.valueOf() - uatGenerated.valueOf() > 24 * 60 * 60 * 1000)
+    throw new Error("canary monitoring requires UAT evidence generated within 24 hours of owner approval");
 
   const monitoring = preflight.monitoring ?? {};
   const approvedStops = preflight.stopConditions;

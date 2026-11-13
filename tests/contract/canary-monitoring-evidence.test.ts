@@ -217,6 +217,22 @@ test("canary monitoring independently validates approved preflight safety contro
 });
 
 
+test("canary monitoring rejects owner approval based on UAT evidence older than 24 hours", () => {
+  assert.throws(
+    () => evaluateCanaryMonitoring({
+      evaluatedAtUtc,
+      preflight: {
+        ...preflight,
+        uatReportStartedAtUtc: "2026-11-22T07:30:00.000Z",
+        uatReportCompletedAtUtc: "2026-11-22T07:44:00.000Z",
+        uatEvidenceGeneratedAtUtc: "2026-11-22T07:59:59.999Z",
+      },
+      observation: observations(),
+    }),
+    /approved owner authorization|UAT evidence.*24 hours/i,
+  );
+});
+
 test("canary monitoring independently validates owner authorization and rollback accountability", () => {
   for (const patch of [
     { ownerApproved: false },
