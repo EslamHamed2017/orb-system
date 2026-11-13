@@ -17,7 +17,7 @@ function report(
     config: { filteredProjects: [{ name: "chromium", use: { baseURL } }] },
     stats: { startTime, duration, expected: 2, skipped: 0, unexpected: 0, flaky: 0 },
     errors: [],
-    suites: [{ title: "owner-uat.spec.ts", specs: titles.map((title) => ({
+    suites: [{ title: "owner-uat.spec.ts", file: "owner-uat.spec.ts", specs: titles.map((title) => ({
       title, ok: status === "passed", tests: [{ expectedStatus: "passed", results: [{ status }] }],
     })) }],
   };
@@ -64,6 +64,25 @@ test("owner UAT evidence rejects any target that is not a credential-free HTTPS 
       () => createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit: commit }),
       /credential-free HTTPS(?: origin)?/,
       `accepted unsafe evidence target ${targetUrl}`,
+    );
+  }
+});
+
+test("owner UAT evidence rejects approved journey titles reported by an unrelated suite", () => {
+  for (const mutate of [
+    (value: ReturnType<typeof report>) => { value.suites[0].title = "unrelated.spec.ts"; },
+    (value: ReturnType<typeof report>) => { value.suites[0].file = "unrelated.spec.ts"; },
+  ]) {
+    const value = report();
+    mutate(value);
+    assert.throws(
+      () => createOwnerUatEvidence({
+        reportBytes: Buffer.from(JSON.stringify(value)),
+        targetUrl: "https://uat.example.test",
+        gitCommit: commit,
+        generatedAtUtc: "2026-11-12T10:00:00.000Z",
+      }),
+      /approved owner UAT suite/i,
     );
   }
 });
