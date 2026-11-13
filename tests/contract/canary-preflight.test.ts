@@ -5,6 +5,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
+import { validateCanaryPlan } from "../../ops/canary/validate-canary-plan.mjs";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const validator = resolve(ROOT, "ops/canary/validate-canary-plan.mjs");
@@ -96,15 +97,16 @@ function validUat() {
 }
 
 function run(plan = validPlan(), uat = validUat(), now = "2026-11-24T09:00:00.000Z") {
-  const directory = mkdtempSync(join(tmpdir(), "orb-canary-preflight-"));
-  const planPath = join(directory, "plan.json");
-  const uatPath = join(directory, "uat.json");
-  writeFileSync(planPath, JSON.stringify(plan));
-  writeFileSync(uatPath, JSON.stringify(uat));
-  return spawnSync(process.execPath, [validator, "--plan", planPath, "--uat-evidence", uatPath, "--now", now], {
-    cwd: ROOT,
-    encoding: "utf8",
-  });
+  try {
+    const manifest = validateCanaryPlan({ plan, ownerUatEvidence: uat, nowUtc: now });
+    return { status: 0, stdout: `${JSON.stringify(manifest)}\n`, stderr: "" };
+  } catch (error) {
+    return {
+      status: 1,
+      stdout: "",
+      stderr: `${error instanceof Error ? error.message : String(error)}\n`,
+    };
+  }
 }
 
 test("canary preflight accepts a tightly bounded owner-authorized plan bound to passing bilingual UAT", () => {
@@ -364,4 +366,22 @@ test("canary preflight rejects missing stop conditions, weak monitoring, or unav
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /stop condition|monitoring|rollback/i);
   }
+});
+
+test("canary preflight CLI rejects caller-controlled clock overrides", () => {
+  const directory = mkdtempSync(join(tmpdir(), "orb-canary-cli-clock-"));
+  const planPath = join(directory, "plan.json");
+  const uatPath = join(directory, "uat.json");
+  writeFileSync(planPath, JSON.stringify(validPlan()));
+  writeFileSync(uatPath, JSON.stringify(validUat()));
+
+  const result = spawnSync(process.execPath, [
+    validator,
+    "--plan", planPath,
+    "--uat-evidence", uatPath,
+    "--now", "2026-11-24T09:00:00.000Z",
+  ], { cwd: ROOT, encoding: "utf8" });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /unknown argument|clock override|--now/i);
 });

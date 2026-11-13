@@ -184,12 +184,17 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
 }
 
 async function main(args) {
+  const allowedArguments = new Set(["--plan", "--uat-evidence"]);
+  for (let index = 0; index < args.length; index += 2) {
+    if (!allowedArguments.has(args[index]) || args[index + 1] === undefined)
+      throw new Error(`unknown argument or missing value: ${args[index] ?? "<missing>"}`);
+  }
   const value = (name) => { const index = args.indexOf(name); return index >= 0 ? args[index + 1] : undefined; };
   const planPath = value("--plan");
   const evidencePath = value("--uat-evidence");
-  const nowUtc = value("--now") ?? new Date().toISOString();
   if (!planPath || !evidencePath)
-    throw new Error("Usage: validate-canary-plan.mjs --plan FILE --uat-evidence FILE [--now ISO_UTC]");
+    throw new Error("Usage: validate-canary-plan.mjs --plan FILE --uat-evidence FILE");
+  const nowUtc = new Date().toISOString();
   const [plan, ownerUatEvidence] = await Promise.all([
     readFile(planPath, "utf8").then(JSON.parse),
     readFile(evidencePath, "utf8").then(JSON.parse),
