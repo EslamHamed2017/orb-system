@@ -627,6 +627,27 @@ test("canary monitoring rejects reuse of any earlier observation identity", () =
   );
 });
 
+test("canary monitoring rejects a gap longer than the approved health interval", () => {
+  const first = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
+  const delayedObservation = {
+    ...observations(),
+    observationId: "sample-20261124-090100-002",
+    sampleSequence: 2,
+    previousMonitoringEvidenceSha256: first.monitoringEvidenceSha256,
+    observedAtUtc: "2026-11-24T09:01:00.001Z",
+  };
+
+  assert.throws(
+    () => evaluateCanaryMonitoring({
+      evaluatedAtUtc: "2026-11-24T09:01:15.000Z",
+      preflight,
+      previousEvidence: first,
+      observation: delayedObservation,
+    }),
+    /monitoring sample gap.*health interval|continuous monitoring/i,
+  );
+});
+
 test("canary monitoring rejects a chained observation that predates predecessor evaluation", () => {
   const first = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
   const retroactiveObservation = {
