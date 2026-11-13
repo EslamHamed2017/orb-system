@@ -397,6 +397,20 @@ test("canary preflight rejects unknown approved control fields instead of silent
   }
 });
 
+test("canary preflight rejects unknown plan and owner-approval fields instead of silently omitting them", () => {
+  const unknownPlanField = validPlan() as ReturnType<typeof validPlan> & Record<string, unknown>;
+  unknownPlanField.deploymentMode = "unrestricted";
+
+  const unknownApprovalField = validPlan();
+  (unknownApprovalField.ownerApproval as typeof unknownApprovalField.ownerApproval & Record<string, unknown>).bypassReview = true;
+
+  for (const plan of [unknownPlanField, unknownApprovalField]) {
+    const result = run(plan);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /unknown.*plan|unknown.*owner approval/i);
+  }
+});
+
 test("canary preflight CLI rejects caller-controlled clock overrides", () => {
   const directory = mkdtempSync(join(tmpdir(), "orb-canary-cli-clock-"));
   const planPath = join(directory, "plan.json");

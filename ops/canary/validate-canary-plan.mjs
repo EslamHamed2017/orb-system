@@ -73,7 +73,29 @@ function approvedControlsSha256(plan) {
 }
 
 export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date().toISOString() }) {
-  if (!plan || plan.schemaVersion !== 1) throw new Error("canary plan schemaVersion must be 1");
+  rejectUnknownFields(plan, [
+    "schemaVersion",
+    "releaseCommit",
+    "targetOrigin",
+    "ownerApproval",
+    "window",
+    "scope",
+    "monitoring",
+    "stopConditions",
+    "rollback",
+  ], "plan");
+  if (plan.schemaVersion !== 1) throw new Error("canary plan schemaVersion must be 1");
+  rejectUnknownFields(plan.ownerApproval, [
+    "approved",
+    "realDataAuthorized",
+    "approverId",
+    "approvedReleaseCommit",
+    "approvedTargetOrigin",
+    "approvedUatEvidenceSha256",
+    "approvedPlanSha256",
+    "approvedAtUtc",
+    "expiresAtUtc",
+  ], "owner approval");
   if (!SHA1.test(plan.releaseCommit ?? "")) throw new Error("canary releaseCommit must be a full lowercase SHA-1");
   const targetOrigin = exactHttpsOrigin(plan.targetOrigin, "canary targetOrigin");
   const uat = ownerUatEvidence;
