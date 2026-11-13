@@ -660,6 +660,36 @@ test("canary monitoring rejects rehashed predecessor evidence with a stop-condit
   }
 });
 
+test("canary monitoring rejects rehashed predecessor evidence with invalid monitoring chronology", () => {
+  const first = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
+  const invalidChronologies = [
+    { observedAtUtc: "2026-11-24T07:59:59.999Z" },
+    { evaluatedAtUtc: "2026-11-24T08:59:59.999Z" },
+    { evaluatedAtUtc: "2026-11-24T09:00:30.001Z" },
+  ];
+
+  for (const chronology of invalidChronologies) {
+    const predecessor = { ...first, ...chronology } as Record<string, unknown>;
+    predecessor.monitoringEvidenceSha256 = monitoringEvidenceSha256(predecessor);
+
+    assert.throws(
+      () => evaluateCanaryMonitoring({
+        evaluatedAtUtc: "2026-11-24T09:01:15.000Z",
+        preflight,
+        previousEvidence: predecessor,
+        observation: {
+          ...observations(),
+          observationId: "sample-20261124-090100-002",
+          sampleSequence: 2,
+          previousMonitoringEvidenceSha256: predecessor.monitoringEvidenceSha256,
+          observedAtUtc: "2026-11-24T09:01:00.000Z",
+        },
+      }),
+      /previous monitoring evidence.*chronology|invalid.*previous monitoring evidence/i,
+    );
+  }
+});
+
 test("canary monitoring rejects rehashed predecessor evidence with authorization or control drift", () => {
   const first = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
   const drifts = [

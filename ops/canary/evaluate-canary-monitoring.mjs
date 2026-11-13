@@ -372,6 +372,19 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
       throw new Error("previous monitoring evidence must preserve the exact approved safety controls");
   }
   if (previousEvidence) {
+    const previousObservedAt = canonicalTime(previousEvidence.observedAtUtc, "previous canary observation time");
+    const previousEvaluatedAt = canonicalTime(previousEvidence.evaluatedAtUtc, "previous canary evaluation time");
+    const previousObservationAgeMs = previousEvaluatedAt.valueOf() - previousObservedAt.valueOf();
+    const previousChronologyIsValid =
+      previousObservedAt >= starts && previousObservedAt < ends &&
+      previousObservedAt >= preflightGenerated &&
+      previousEvaluatedAt >= starts && previousEvaluatedAt < ends &&
+      previousEvaluatedAt < approvalExpires &&
+      previousObservationAgeMs >= 0 &&
+      previousObservationAgeMs <= monitoring.healthIntervalSeconds * 1000;
+    if (!previousChronologyIsValid)
+      throw new Error("previous monitoring evidence chronology must satisfy the approved window and health interval");
+
     const previousFailures = previousEvidence.consecutiveReadinessFailures;
     const previousErrorRate = previousEvidence.errorRatePercent;
     const previousLatency = previousEvidence.p95LatencyMs;
