@@ -21,6 +21,11 @@ function canonicalJson(value: unknown): string {
   return JSON.stringify(value);
 }
 
+function preflightEvidenceSha256(manifest: Record<string, unknown>) {
+  const { preflightEvidenceSha256: _digest, ...payload } = manifest;
+  return createHash("sha256").update(canonicalJson(payload)).digest("hex");
+}
+
 function approvedControlsSha256(plan: ReturnType<typeof validPlan>) {
   const controls = {
     releaseCommit: plan.releaseCommit,
@@ -114,7 +119,7 @@ test("canary preflight accepts a tightly bounded owner-authorized plan bound to 
   const result = run();
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const manifest = JSON.parse(result.stdout);
-  assert.deepEqual(manifest, {
+  const expected: Record<string, unknown> = {
     schemaVersion: 1,
     gate: "controlled-canary-preflight",
     releaseCommit: commit,
@@ -163,7 +168,9 @@ test("canary preflight accepts a tightly bounded owner-authorized plan bound to 
       operatorId: "orb-operator-01",
     },
     passed: true,
-  });
+  };
+  expected.preflightEvidenceSha256 = preflightEvidenceSha256(expected);
+  assert.deepEqual(manifest, expected);
 });
 
 test("canary monitoring accepts the exact manifest emitted by canary preflight", () => {
@@ -183,6 +190,7 @@ test("canary monitoring accepts the exact manifest emitted by canary preflight",
       targetOrigin: plan.targetOrigin,
       approvedPlanSha256: plan.ownerApproval.approvedPlanSha256,
       approvedUatEvidenceSha256: manifest.approvedUatEvidenceSha256,
+      preflightEvidenceSha256: manifest.preflightEvidenceSha256,
       observationId: "sample-20261124-090015-001",
       sampleSequence: 1,
       previousMonitoringEvidenceSha256: null,

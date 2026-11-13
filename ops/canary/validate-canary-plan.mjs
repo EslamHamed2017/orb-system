@@ -59,6 +59,11 @@ function canonicalJson(value) {
   return JSON.stringify(value);
 }
 
+function preflightEvidenceSha256(evidence) {
+  const { preflightEvidenceSha256: _digest, ...payload } = evidence;
+  return createHash("sha256").update(canonicalJson(payload)).digest("hex");
+}
+
 function approvedControlsSha256(plan) {
   const controls = {
     releaseCommit: plan.releaseCommit,
@@ -208,7 +213,7 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
       uat?.gitCommit !== plan.releaseCommit || uat?.targetOrigin !== targetOrigin)
     throw new Error("canary plan is not bound to passing bilingual UAT evidence for the same release and target");
 
-  return {
+  const evidence = {
     schemaVersion: 1,
     gate: "controlled-canary-preflight",
     releaseCommit: plan.releaseCommit,
@@ -250,6 +255,10 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
       operatorId: plan.rollback.operatorId,
     },
     passed: true,
+  };
+  return {
+    ...evidence,
+    preflightEvidenceSha256: preflightEvidenceSha256(evidence),
   };
 }
 

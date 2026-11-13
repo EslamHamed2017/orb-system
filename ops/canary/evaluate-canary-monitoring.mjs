@@ -28,6 +28,7 @@ const MONITORING_EVIDENCE_FIELDS = [
   "projectIds",
   "approvedPlanSha256",
   "approvedUatEvidenceSha256",
+  "preflightEvidenceSha256",
   "observationId",
   "observationIds",
   "sampleSequence",
@@ -130,6 +131,11 @@ function approvedCohortIds(value, maximum, label) {
   return [...value];
 }
 
+function preflightEvidenceSha256(evidence) {
+  const { preflightEvidenceSha256: _digest, ...payload } = evidence;
+  return createHash("sha256").update(canonicalJson(payload)).digest("hex");
+}
+
 function monitoringEvidenceSha256(evidence) {
   const { monitoringEvidenceSha256: _digest, ...payload } = evidence;
   return createHash("sha256").update(canonicalJson(payload)).digest("hex");
@@ -195,6 +201,7 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
     "targetOrigin",
     "approvedPlanSha256",
     "approvedUatEvidenceSha256",
+    "preflightEvidenceSha256",
     "observationId",
     "sampleSequence",
     "previousMonitoringEvidenceSha256",
@@ -222,6 +229,7 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
     "projectIds",
     "approvedPlanSha256",
     "approvedUatEvidenceSha256",
+    "preflightEvidenceSha256",
     "ownerApproved",
     "ownerRealDataAuthorized",
     "ownerApproverId",
@@ -271,7 +279,8 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
       previousEvidence.releaseCommit !== preflight.releaseCommit ||
       previousEvidence.targetOrigin !== targetOrigin ||
       previousEvidence.approvedPlanSha256 !== preflight.approvedPlanSha256 ||
-      previousEvidence.approvedUatEvidenceSha256 !== preflight.approvedUatEvidenceSha256))
+      previousEvidence.approvedUatEvidenceSha256 !== preflight.approvedUatEvidenceSha256 ||
+      previousEvidence.preflightEvidenceSha256 !== preflight.preflightEvidenceSha256))
     throw new Error("previous monitoring evidence must bind the exact approved canary and UAT evidence");
   if (observation?.releaseCommit !== preflight.releaseCommit ||
       observation?.targetOrigin !== targetOrigin ||
@@ -464,6 +473,11 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
   if (observationAgeMs < 0 || observationAgeMs > monitoring.healthIntervalSeconds * 1000)
     throw new Error("canary observation must be fresh within the approved health interval");
 
+  if (!SHA256.test(preflight.preflightEvidenceSha256 ?? "") ||
+      preflightEvidenceSha256(preflight) !== preflight.preflightEvidenceSha256 ||
+      observation.preflightEvidenceSha256 !== preflight.preflightEvidenceSha256)
+    throw new Error("canary observation must bind the exact preflight evidence");
+
   const failures = observation?.consecutiveReadinessFailures;
   if (!Number.isInteger(failures) || failures < 0)
     throw new Error("consecutive readiness failures must be a non-negative integer");
@@ -492,6 +506,7 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
     projectIds,
     approvedPlanSha256: preflight.approvedPlanSha256,
     approvedUatEvidenceSha256: preflight.approvedUatEvidenceSha256,
+    preflightEvidenceSha256: preflight.preflightEvidenceSha256,
     observationId,
     observationIds,
     sampleSequence,

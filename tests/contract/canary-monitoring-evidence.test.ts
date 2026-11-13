@@ -26,6 +26,7 @@ const preflight = {
   projectIds: ["pilot-project-01", "pilot-project-02"],
   approvedPlanSha256: digest,
   approvedUatEvidenceSha256: "c".repeat(64),
+  preflightEvidenceSha256: "",
   ownerApproved: true,
   ownerRealDataAuthorized: true,
   ownerApproverId: "orb-owner-01",
@@ -101,8 +102,14 @@ function monitoringEvidenceSha256(candidate: Record<string, unknown>): string {
   return createHash("sha256").update(canonicalJson(payload)).digest("hex");
 }
 
+function preflightEvidenceSha256(candidate: Record<string, unknown>): string {
+  const { preflightEvidenceSha256: _digest, ...payload } = candidate;
+  return createHash("sha256").update(canonicalJson(payload)).digest("hex");
+}
+
 digest = approvedControlsSha256(preflight);
 preflight.approvedPlanSha256 = digest;
+preflight.preflightEvidenceSha256 = preflightEvidenceSha256(preflight);
 
 function observations() {
   return {
@@ -111,6 +118,7 @@ function observations() {
     targetOrigin: "https://canary.orb.example",
     approvedPlanSha256: digest,
     approvedUatEvidenceSha256: preflight.approvedUatEvidenceSha256,
+    preflightEvidenceSha256: preflight.preflightEvidenceSha256,
     observationId: "sample-20261124-090000-001",
     sampleSequence: 1,
     previousMonitoringEvidenceSha256: null,
@@ -286,6 +294,35 @@ test("canary monitoring observations bind the exact owner-approved UAT evidence"
   }
 });
 
+test("canary monitoring observations bind the exact preflight evidence", () => {
+  const boundPreflight = { ...preflight } as Record<string, unknown>;
+  boundPreflight.preflightEvidenceSha256 = preflightEvidenceSha256(boundPreflight);
+  const boundObservation = {
+    ...observations(),
+    preflightEvidenceSha256: boundPreflight.preflightEvidenceSha256,
+  };
+
+  const evidence = evaluateCanaryMonitoring({
+    evaluatedAtUtc,
+    preflight: boundPreflight,
+    observation: boundObservation,
+  });
+  assert.equal(evidence.preflightEvidenceSha256, boundPreflight.preflightEvidenceSha256);
+
+  const substitutedPreflight = {
+    ...boundPreflight,
+    ownerApproverId: "substituted-owner",
+  };
+  assert.throws(
+    () => evaluateCanaryMonitoring({
+      evaluatedAtUtc,
+      preflight: substitutedPreflight,
+      observation: boundObservation,
+    }),
+    /exact preflight evidence/i,
+  );
+});
+
 test("canary monitoring rejects post-approval drift from the owner-approved control digest", () => {
   const changedMonitoring = {
     ...preflight,
@@ -379,9 +416,11 @@ test("canary monitoring CLI emits validated evidence from immutable input files"
     uatEvidenceGeneratedAtUtc: new Date(now - 150 * 60 * 1000).toISOString(),
   };
   runtimePreflight.approvedPlanSha256 = approvedControlsSha256(runtimePreflight);
+  runtimePreflight.preflightEvidenceSha256 = preflightEvidenceSha256(runtimePreflight);
   const runtimeObservation = {
     ...observations(),
     approvedPlanSha256: runtimePreflight.approvedPlanSha256,
+    preflightEvidenceSha256: runtimePreflight.preflightEvidenceSha256,
     observedAtUtc: new Date(now - 1000).toISOString(),
   };
   writeFileSync(preflightPath, JSON.stringify(runtimePreflight));
