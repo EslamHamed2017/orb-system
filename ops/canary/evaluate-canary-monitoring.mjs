@@ -338,6 +338,40 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
   if (!controlsAreValid)
     throw new Error("canary monitoring requires valid approved canary safety controls");
   if (previousEvidence) {
+    const previousAuthorizationIsExact =
+      previousEvidence.ownerApproved === preflight.ownerApproved &&
+      previousEvidence.ownerRealDataAuthorized === preflight.ownerRealDataAuthorized &&
+      previousEvidence.ownerApproverId === preflight.ownerApproverId &&
+      previousEvidence.ownerApprovedAtUtc === approvedAt.toISOString() &&
+      previousEvidence.ownerApprovalExpiresAtUtc === approvalExpires.toISOString() &&
+      previousEvidence.uatReportStartedAtUtc === uatStarted.toISOString() &&
+      previousEvidence.uatReportCompletedAtUtc === uatCompleted.toISOString() &&
+      previousEvidence.uatEvidenceGeneratedAtUtc === uatGenerated.toISOString() &&
+      canonicalJson(previousEvidence.uatLocales) === canonicalJson([
+        { locale: "en", direction: "ltr", passed: true },
+        { locale: "ar", direction: "rtl", passed: true },
+      ]) &&
+      previousEvidence.preflightGeneratedAtUtc === preflightGenerated.toISOString();
+    if (!previousAuthorizationIsExact)
+      throw new Error("previous monitoring evidence must preserve the exact approved authorization");
+
+    const previousControlsAreExact =
+      previousEvidence.maxUsers === preflight.maxUsers &&
+      previousEvidence.maxProjects === preflight.maxProjects &&
+      canonicalJson(previousEvidence.userIds) === canonicalJson(userIds) &&
+      canonicalJson(previousEvidence.projectIds) === canonicalJson(projectIds) &&
+      previousEvidence.monitoringOperatorId === monitoring.operatorId &&
+      canonicalJson(previousEvidence.monitoring) === canonicalJson(monitoring) &&
+      canonicalJson(previousEvidence.stopConditions) === canonicalJson(approvedStops) &&
+      canonicalJson(previousEvidence.rollback) === canonicalJson({
+        command: rollback.command,
+        maxMinutes: rollback.maxMinutes,
+        operatorId: rollback.operatorId,
+      });
+    if (!previousControlsAreExact)
+      throw new Error("previous monitoring evidence must preserve the exact approved safety controls");
+  }
+  if (previousEvidence) {
     const previousFailures = previousEvidence.consecutiveReadinessFailures;
     const previousErrorRate = previousEvidence.errorRatePercent;
     const previousLatency = previousEvidence.p95LatencyMs;

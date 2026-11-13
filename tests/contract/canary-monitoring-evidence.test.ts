@@ -660,6 +660,41 @@ test("canary monitoring rejects rehashed predecessor evidence with a stop-condit
   }
 });
 
+test("canary monitoring rejects rehashed predecessor evidence with authorization or control drift", () => {
+  const first = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
+  const drifts = [
+    { ownerApproved: false },
+    { ownerApproverId: "substituted-owner" },
+    { maxUsers: 1 },
+    { userIds: ["pilot-user-01"] },
+    { monitoringOperatorId: "substituted-monitor" },
+    { monitoring: { ...first.monitoring, maxP95LatencyMs: 1500 } },
+    { rollback: { ...first.rollback, operatorId: "substituted-operator" } },
+    { stopConditions: first.stopConditions.slice(1) },
+  ];
+
+  for (const drift of drifts) {
+    const predecessor = { ...first, ...drift } as Record<string, unknown>;
+    predecessor.monitoringEvidenceSha256 = monitoringEvidenceSha256(predecessor);
+
+    assert.throws(
+      () => evaluateCanaryMonitoring({
+        evaluatedAtUtc: "2026-11-24T09:01:00.000Z",
+        preflight,
+        previousEvidence: predecessor,
+        observation: {
+          ...observations(),
+          observationId: "sample-20261124-090045-002",
+          sampleSequence: 2,
+          previousMonitoringEvidenceSha256: predecessor.monitoringEvidenceSha256,
+          observedAtUtc: "2026-11-24T09:00:45.000Z",
+        },
+      }),
+      /previous monitoring evidence.*approved authorization|previous monitoring evidence.*safety controls|invalid.*previous monitoring evidence/i,
+    );
+  }
+});
+
 test("canary monitoring rejects unsupported claims in predecessor evidence", () => {
   const first = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
   const predecessor = { ...first, unsupportedApprovalOverride: true } as Record<string, unknown>;
