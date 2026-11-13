@@ -58,7 +58,7 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
   const approvalExpires = canonicalTime(plan.ownerApproval.expiresAtUtc, "owner approval expiry");
   const now = canonicalTime(nowUtc, "current time");
   if (now < approvedAt) throw new Error("owner approval cannot be future-dated");
-  if (now > approvalExpires) throw new Error("owner approval has expired");
+  if (now >= approvalExpires) throw new Error("owner approval has expired");
 
   const starts = canonicalTime(plan.window?.startsAtUtc, "canary window start");
   const ends = canonicalTime(plan.window?.endsAtUtc, "canary window end");
@@ -68,7 +68,7 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
   if (ends.valueOf() - approvedAt.valueOf() > maximumCanaryDurationMs)
     throw new Error("owner approval must bound canary execution to 72 hours");
   if (now < starts) throw new Error("canary window is not yet open");
-  if (now > ends) throw new Error("canary window has expired");
+  if (now >= ends) throw new Error("canary window has expired");
 
   boundedInteger(plan.scope?.maxUsers, 1, 5, "maxUsers");
   boundedInteger(plan.scope?.maxProjects, 1, 3, "maxProjects");

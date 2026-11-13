@@ -215,6 +215,18 @@ test("canary preflight rejects execution before the approved canary window opens
   assert.match(result.stderr, /canary window.*not.*open/i);
 });
 
+test("canary preflight treats the window end and approval expiry as exclusive boundaries", () => {
+  const atWindowEnd = run(validPlan(), validUat(), "2026-11-25T08:00:00.000Z");
+  assert.notEqual(atWindowEnd.status, 0);
+  assert.match(atWindowEnd.stderr, /canary window.*expired/i);
+
+  const plan = validPlan();
+  plan.window.endsAtUtc = plan.ownerApproval.expiresAtUtc;
+  const atApprovalExpiry = run(plan, validUat(), plan.ownerApproval.expiresAtUtc);
+  assert.notEqual(atApprovalExpiry.status, 0);
+  assert.match(atApprovalExpiry.stderr, /owner approval.*expired/i);
+});
+
 test("canary preflight requires an identified monitoring operator", () => {
   for (const operatorId of [undefined, "", "   ", "monitor operator with spaces"]) {
     const plan = validPlan();
