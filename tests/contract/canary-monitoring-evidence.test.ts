@@ -167,6 +167,13 @@ test("passing canary monitoring evidence preserves approved controls and evaluat
   assert.deepEqual(evidence.uatLocales, preflight.uatLocales);
 });
 
+test("passing canary monitoring evidence preserves the exact approved window", () => {
+  const evidence = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
+
+  assert.equal(evidence.startsAtUtc, preflight.startsAtUtc);
+  assert.equal(evidence.endsAtUtc, preflight.endsAtUtc);
+});
+
 test("canary monitoring accepts and preserves the exact approved pilot cohort", () => {
   const scopedPreflight = {
     ...preflight,
@@ -702,6 +709,31 @@ test("canary monitoring rejects a rehashed non-root predecessor with a missing c
       },
     }),
     /previous monitoring evidence.*chain link|invalid.*previous monitoring evidence/i,
+  );
+});
+
+test("canary monitoring rejects a substituted predecessor window", () => {
+  const first = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
+  const predecessor = {
+    ...first,
+    startsAtUtc: "2026-11-24T08:30:00.000Z",
+  } as Record<string, unknown>;
+  predecessor.monitoringEvidenceSha256 = monitoringEvidenceSha256(predecessor);
+
+  assert.throws(
+    () => evaluateCanaryMonitoring({
+      evaluatedAtUtc: "2026-11-24T09:01:00.000Z",
+      preflight,
+      previousEvidence: predecessor,
+      observation: {
+        ...observations(),
+        observationId: "sample-20261124-090045-002",
+        sampleSequence: 2,
+        previousMonitoringEvidenceSha256: predecessor.monitoringEvidenceSha256,
+        observedAtUtc: "2026-11-24T09:00:45.000Z",
+      },
+    }),
+    /previous monitoring evidence.*approved window/i,
   );
 });
 
