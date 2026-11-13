@@ -244,9 +244,13 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
 
 async function main(args) {
   const allowedArguments = new Set(["--plan", "--uat-evidence"]);
+  const seenArguments = new Set();
   for (let index = 0; index < args.length; index += 2) {
     if (!allowedArguments.has(args[index]) || args[index + 1] === undefined)
       throw new Error(`unknown argument or missing value: ${args[index] ?? "<missing>"}`);
+    if (seenArguments.has(args[index]))
+      throw new Error(`duplicate argument: ${args[index]}`);
+    seenArguments.add(args[index]);
   }
   const value = (name) => { const index = args.indexOf(name); return index >= 0 ? args[index + 1] : undefined; };
   const planPath = value("--plan");

@@ -442,3 +442,36 @@ test("canary preflight CLI rejects caller-controlled clock overrides", () => {
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /unknown argument|clock override|--now/i);
 });
+
+test("canary preflight CLI rejects duplicate input flags", () => {
+  const directory = mkdtempSync(join(tmpdir(), "orb-canary-cli-duplicate-"));
+  const plan = validPlan();
+  const uat = validUat();
+  const now = Date.now();
+  uat.reportStartedAtUtc = new Date(now - 5 * 60_000).toISOString();
+  uat.reportCompletedAtUtc = new Date(now - 4 * 60_000).toISOString();
+  uat.generatedAtUtc = new Date(now - 3 * 60_000).toISOString();
+  plan.ownerApproval.approvedAtUtc = new Date(now - 2 * 60_000).toISOString();
+  plan.window.startsAtUtc = new Date(now - 60_000).toISOString();
+  plan.window.endsAtUtc = new Date(now + 60 * 60_000).toISOString();
+  plan.ownerApproval.expiresAtUtc = new Date(now + 2 * 60 * 60_000).toISOString();
+  plan.ownerApproval.approvedPlanSha256 = approvedControlsSha256(plan);
+
+  const planPath = join(directory, "plan.json");
+  const alternatePlanPath = join(directory, "alternate-plan.json");
+  const uatPath = join(directory, "uat.json");
+  const alternateUatPath = join(directory, "alternate-uat.json");
+  writeFileSync(planPath, JSON.stringify(plan));
+  writeFileSync(alternatePlanPath, JSON.stringify(plan));
+  writeFileSync(uatPath, JSON.stringify(uat));
+  writeFileSync(alternateUatPath, JSON.stringify(uat));
+
+  for (const [duplicateFlag, args] of [
+    ["--plan", ["--plan", planPath, "--plan", alternatePlanPath, "--uat-evidence", uatPath]],
+    ["--uat-evidence", ["--plan", planPath, "--uat-evidence", uatPath, "--uat-evidence", alternateUatPath]],
+  ] as const) {
+    const result = spawnSync(process.execPath, [validator, ...args], { cwd: ROOT, encoding: "utf8" });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, new RegExp(`duplicate.*${duplicateFlag}`, "i"));
+  }
+});
