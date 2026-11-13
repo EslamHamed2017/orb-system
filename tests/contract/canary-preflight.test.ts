@@ -371,6 +371,15 @@ test("canary preflight rejects a canary scheduled beyond the bounded owner-appro
   assert.match(result.stderr, /owner approval.*72 hours/i);
 });
 
+test("canary preflight rejects owner authorization that remains valid beyond 72 hours", () => {
+  const plan = validPlan();
+  plan.ownerApproval.expiresAtUtc = "2026-11-27T08:00:00.001Z";
+
+  const result = run(plan);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /owner approval.*expir.*72 hours|authorization.*72 hours/i);
+});
+
 test("canary preflight rejects execution before the approved canary window opens", () => {
   const result = run(validPlan(), validUat(), "2026-11-24T07:59:59.999Z");
   assert.notEqual(result.status, 0);

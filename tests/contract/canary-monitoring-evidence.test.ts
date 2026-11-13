@@ -534,6 +534,20 @@ test("canary monitoring independently bounds execution to 72 hours after owner a
   );
 });
 
+test("canary monitoring independently rejects owner authorization valid beyond 72 hours", () => {
+  assert.throws(
+    () => evaluateCanaryMonitoring({
+      evaluatedAtUtc,
+      preflight: {
+        ...preflight,
+        ownerApprovalExpiresAtUtc: "2026-11-26T08:00:00.001Z",
+      },
+      observation: observations(),
+    }),
+    /owner approval.*expir.*72 hours|authorization.*72 hours/i,
+  );
+});
+
 test("canary monitoring rejects evaluation at or after the approved window closes", () => {
   const closingObservation = {
     ...observations(),
