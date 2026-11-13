@@ -15,6 +15,45 @@ const REQUIRED_STOPS = [
   "errorRateThresholdExceeded",
   "latencyThresholdExceeded",
 ];
+const MONITORING_EVIDENCE_FIELDS = [
+  "schemaVersion",
+  "gate",
+  "releaseCommit",
+  "targetOrigin",
+  "maxUsers",
+  "maxProjects",
+  "userIds",
+  "projectIds",
+  "approvedPlanSha256",
+  "approvedUatEvidenceSha256",
+  "observationId",
+  "observationIds",
+  "sampleSequence",
+  "previousMonitoringEvidenceSha256",
+  "ownerApproved",
+  "ownerRealDataAuthorized",
+  "ownerApproverId",
+  "ownerApprovedAtUtc",
+  "ownerApprovalExpiresAtUtc",
+  "uatReportStartedAtUtc",
+  "uatReportCompletedAtUtc",
+  "uatEvidenceGeneratedAtUtc",
+  "uatLocales",
+  "preflightGeneratedAtUtc",
+  "observedAtUtc",
+  "evaluatedAtUtc",
+  "monitoringOperatorId",
+  "monitoring",
+  "stopConditions",
+  "rollback",
+  "readiness",
+  "consecutiveReadinessFailures",
+  "errorRatePercent",
+  "p95LatencyMs",
+  "securityEvents",
+  "passed",
+  "monitoringEvidenceSha256",
+];
 function canonicalJson(value) {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
   if (value && typeof value === "object") {
@@ -105,6 +144,7 @@ function validateSampleChain({ observation, previousEvidence }) {
   }
   if (!previousEvidence || !SHA256.test(previousDigest ?? ""))
     throw new Error("canary monitoring sample chain requires previous monitoring evidence");
+  rejectUnknownFields(previousEvidence, MONITORING_EVIDENCE_FIELDS, "previous canary monitoring evidence");
   if (previousEvidence.schemaVersion !== 1 ||
       previousEvidence.gate !== "controlled-canary-monitoring-evidence" ||
       previousEvidence.passed !== true ||
