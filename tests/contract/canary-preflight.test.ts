@@ -271,6 +271,15 @@ test("canary preflight requires owner approval after a chronologically valid UAT
   }
 });
 
+test("canary preflight independently rejects UAT reports exceeding the bounded owner-review duration", () => {
+  const uat = validUat();
+  uat.reportStartedAtUtc = "2026-11-23T07:13:59.999Z";
+
+  const result = run(validPlan(), uat);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /UAT report.*30 minutes|owner-review duration/i);
+});
+
 test("canary preflight rejects release or target drift from passing bilingual UAT", () => {
   for (const uat of [
     { ...validUat(), gitCommit: "b".repeat(40) },

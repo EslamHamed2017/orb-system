@@ -144,6 +144,9 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
   const uatGenerated = canonicalTime(uat?.generatedAtUtc, "UAT evidence generation time");
   if (uatCompleted < uatStarted || uatGenerated < uatCompleted)
     throw new Error("UAT evidence chronology must order report start, completion, and manifest generation");
+  const maximumUatReportDurationMs = 30 * 60 * 1000;
+  if (uatCompleted.valueOf() - uatStarted.valueOf() > maximumUatReportDurationMs)
+    throw new Error("UAT report must complete within the 30-minute owner-review duration");
   if (approvedAt <= uatGenerated) throw new Error("owner approval must follow generated UAT evidence");
   const maximumUatEvidenceAgeMs = 24 * 60 * 60 * 1000;
   if (approvedAt.valueOf() - uatGenerated.valueOf() > maximumUatEvidenceAgeMs)
