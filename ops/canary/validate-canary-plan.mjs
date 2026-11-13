@@ -115,6 +115,11 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
       !Number.isInteger(monitoring.maxConsecutiveReadinessFailures) || monitoring.maxConsecutiveReadinessFailures < 1 || monitoring.maxConsecutiveReadinessFailures > 2)
     throw new Error("canary monitoring thresholds must satisfy the controlled pilot limits");
 
+  const unknownStopConditions = plan.stopConditions && typeof plan.stopConditions === "object"
+    ? Object.keys(plan.stopConditions).filter((condition) => !REQUIRED_STOPS.includes(condition))
+    : [];
+  if (unknownStopConditions.length > 0)
+    throw new Error(`unknown canary stop condition: ${unknownStopConditions.join(", ")}`);
   for (const condition of REQUIRED_STOPS) {
     if (plan.stopConditions?.[condition] !== true)
       throw new Error(`mandatory canary stop condition is not enabled: ${condition}`);

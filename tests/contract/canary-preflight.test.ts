@@ -368,6 +368,16 @@ test("canary preflight rejects missing stop conditions, weak monitoring, or unav
   }
 });
 
+test("canary preflight rejects unknown stop conditions instead of dropping them from the manifest", () => {
+  const plan = validPlan();
+  (plan.stopConditions as Record<string, boolean>).attachmentIsolationFailue = true;
+  plan.ownerApproval.approvedPlanSha256 = approvedControlsSha256(plan);
+
+  const result = run(plan);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /unknown.*stop condition|stop condition.*unknown/i);
+});
+
 test("canary preflight CLI rejects caller-controlled clock overrides", () => {
   const directory = mkdtempSync(join(tmpdir(), "orb-canary-cli-clock-"));
   const planPath = join(directory, "plan.json");
