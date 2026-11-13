@@ -45,6 +45,9 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
   if (!Number.isFinite(reportStarted.valueOf()) || reportStarted.toISOString() !== report?.stats?.startTime ||
       !Number.isFinite(reportDuration) || reportDuration < 0)
     throw new Error("owner UAT report timing must be valid");
+  const maximumReportDurationMs = 30 * 60 * 1000;
+  if (reportDuration > maximumReportDurationMs)
+    throw new Error("owner UAT report duration must not exceed 30 minutes");
   const reportCompleted = new Date(reportStarted.valueOf() + reportDuration);
   if (reportCompleted > generated) throw new Error("owner UAT report cannot be future-dated");
   if (generated.valueOf() - reportCompleted.valueOf() > 15 * 60 * 1000)

@@ -94,6 +94,19 @@ test("owner UAT evidence rejects stale or future-dated browser reports", () => {
   }
 });
 
+test("owner UAT evidence rejects reports exceeding the bounded owner-review duration", () => {
+  const value = report("passed", undefined, undefined, "2026-11-12T09:29:59.999Z", 30 * 60_000 + 1);
+  assert.throws(
+    () => createOwnerUatEvidence({
+      reportBytes: Buffer.from(JSON.stringify(value)),
+      targetUrl: "https://uat.example.test",
+      gitCommit: commit,
+      generatedAtUtc: "2026-11-12T10:00:00.000Z",
+    }),
+    /duration|30 minutes/i,
+  );
+});
+
 test("owner UAT evidence fails closed on failed, missing, duplicated, or unexpected journeys", () => {
   const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
   for (const value of [
