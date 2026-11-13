@@ -19,6 +19,7 @@ function validPlan() {
       realDataAuthorized: true,
       approvedReleaseCommit: commit,
       approvedTargetOrigin: "https://canary.orb.example",
+      approvedUatEvidenceSha256: "b".repeat(64),
       approvedAtUtc: "2026-11-23T08:00:00.000Z",
       expiresAtUtc: "2026-11-25T12:00:00.000Z",
     },
@@ -105,14 +106,26 @@ test("canary preflight binds owner authorization to the exact release, target, a
   wrongRelease.ownerApproval.approvedReleaseCommit = "c".repeat(40);
   const wrongTarget = validPlan();
   wrongTarget.ownerApproval.approvedTargetOrigin = "https://other.orb.example";
+  const wrongEvidence = validPlan();
+  wrongEvidence.ownerApproval.approvedUatEvidenceSha256 = "c".repeat(64);
   const approvalBeforeUatCompleted = validPlan();
   approvalBeforeUatCompleted.ownerApproval.approvedAtUtc = "2026-11-23T07:40:00.000Z";
 
-  for (const plan of [wrongRelease, wrongTarget, approvalBeforeUatCompleted]) {
+  for (const plan of [wrongRelease, wrongTarget, wrongEvidence, approvalBeforeUatCompleted]) {
     const result = run(plan);
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /owner approval|completed UAT/i);
   }
+});
+
+test("canary preflight requires a canonical UAT evidence digest", () => {
+  const plan = validPlan();
+  const uat = validUat();
+  plan.ownerApproval.approvedUatEvidenceSha256 = "not-a-digest";
+  uat.reportSha256 = "not-a-digest";
+  const result = run(plan, uat);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /UAT evidence/i);
 });
 
 test("canary preflight rejects future-dated owner approval", () => {

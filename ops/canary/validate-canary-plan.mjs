@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
 const SHA1 = /^[a-f0-9]{40}$/;
+const SHA256 = /^[a-f0-9]{64}$/;
 const REQUIRED_STOPS = [
   "permissionBypass",
   "attachmentIsolationFailure",
@@ -41,8 +42,10 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
   if (plan.ownerApproval?.approved !== true) throw new Error("explicit owner approval is required");
   if (plan.ownerApproval?.realDataAuthorized !== true) throw new Error("explicit owner real-data authorization is required");
   if (plan.ownerApproval?.approvedReleaseCommit !== plan.releaseCommit ||
-      plan.ownerApproval?.approvedTargetOrigin !== targetOrigin)
-    throw new Error("owner approval must bind the exact canary release and target origin");
+      plan.ownerApproval?.approvedTargetOrigin !== targetOrigin ||
+      !SHA256.test(plan.ownerApproval?.approvedUatEvidenceSha256 ?? "") ||
+      plan.ownerApproval.approvedUatEvidenceSha256 !== uat?.reportSha256)
+    throw new Error("owner approval must bind the exact canary release, target origin, and UAT evidence");
   const approvedAt = canonicalTime(plan.ownerApproval.approvedAtUtc, "owner approval time");
   const uatCompleted = canonicalTime(uat?.reportCompletedAtUtc, "completed UAT time");
   if (approvedAt <= uatCompleted) throw new Error("owner approval must follow completed UAT");
