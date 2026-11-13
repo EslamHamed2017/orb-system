@@ -93,8 +93,14 @@ migration_state() {
   docker exec "$container" psql -X -U orb_migrator -d orb_rollback -At -v ON_ERROR_STOP=1 \
     -c "SELECT count(*) || '|' || count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) || '|' || count(*) FILTER (WHERE rolled_back_at IS NOT NULL) FROM _prisma_migrations"
 }
+migration_digest() {
+  docker exec "$container" psql -X -U orb_migrator -d orb_rollback -At -v ON_ERROR_STOP=1 \
+    -c "SELECT encode(digest(COALESCE(jsonb_agg(to_jsonb(m) ORDER BY migration_name)::text, '[]'), 'sha256'), 'hex') FROM _prisma_migrations m"
+}
 before=$(migration_state)
 [[ "$before" == "${expected}|${expected}|0" ]] || { echo "expanded migration history is not clean: $before" >&2; exit 2; }
+before_digest=$(migration_digest)
+[[ "$before_digest" =~ ^[a-f0-9]{64}$ ]] || { echo "expanded migration history digest is invalid" >&2; exit 2; }
 compatible=$(docker exec "$container" psql -X -U orb_migrator -d orb_rollback -At -v ON_ERROR_STOP=1 -c \
   "SELECT to_regclass('public.\"ContractLine\"') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='ContractVersion' AND column_name='coffee_specification_id')" \
   | tr -d '[:space:]')
@@ -142,6 +148,8 @@ curl --fail --silent --location "http://127.0.0.1:${app_port}/sign-in" | python3
 # Rollback must not alter or roll back migration history, and both legacy writes survive.
 after=$(migration_state)
 [[ "$after" == "$before" ]] || { echo "application rollback changed migration history: $before -> $after" >&2; exit 2; }
+after_digest=$(migration_digest)
+[[ "$after_digest" == "$before_digest" ]] || { echo "application rollback mutated migration history" >&2; exit 2; }
 markers=$(docker exec "$container" psql -X -U orb_migrator -d orb_rollback -At -v ON_ERROR_STOP=1 -c \
   "SELECT string_agg(trim(code), ',' ORDER BY code) FROM \"Currency\" WHERE trim(code) IN ('RLA','RLB')")
 [[ "$markers" == "RLA,RLB" ]] || { echo "legacy write markers missing after rollback" >&2; exit 2; }
