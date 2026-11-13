@@ -92,6 +92,27 @@ test("canary preflight accepts a tightly bounded owner-authorized plan bound to 
     ownerApproverId: "orb-owner-01",
     monitoringOperatorId: "orb-monitor-01",
     rollbackOperatorId: "orb-operator-01",
+    approvedUatEvidenceSha256: "b".repeat(64),
+    monitoring: {
+      operatorId: "orb-monitor-01",
+      healthIntervalSeconds: 30,
+      maxErrorRatePercent: 1,
+      maxP95LatencyMs: 2000,
+      maxConsecutiveReadinessFailures: 2,
+    },
+    stopConditions: [
+      "permissionBypass",
+      "attachmentIsolationFailure",
+      "dataIntegrityFailure",
+      "readinessThresholdExceeded",
+      "errorRateThresholdExceeded",
+      "latencyThresholdExceeded",
+    ],
+    rollback: {
+      command: "ops/deploy/rollback.sh",
+      maxMinutes: 5,
+      operatorId: "orb-operator-01",
+    },
     passed: true,
   });
 });

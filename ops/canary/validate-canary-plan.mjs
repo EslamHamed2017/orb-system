@@ -112,6 +112,20 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
     ownerApproverId: plan.ownerApproval.approverId,
     monitoringOperatorId: monitoring.operatorId,
     rollbackOperatorId: plan.rollback.operatorId,
+    approvedUatEvidenceSha256: plan.ownerApproval.approvedUatEvidenceSha256,
+    monitoring: {
+      operatorId: monitoring.operatorId,
+      healthIntervalSeconds: monitoring.healthIntervalSeconds,
+      maxErrorRatePercent: monitoring.maxErrorRatePercent,
+      maxP95LatencyMs: monitoring.maxP95LatencyMs,
+      maxConsecutiveReadinessFailures: monitoring.maxConsecutiveReadinessFailures,
+    },
+    stopConditions: [...REQUIRED_STOPS],
+    rollback: {
+      command: plan.rollback.command,
+      maxMinutes: plan.rollback.maxMinutes,
+      operatorId: plan.rollback.operatorId,
+    },
     passed: true,
   };
 }
