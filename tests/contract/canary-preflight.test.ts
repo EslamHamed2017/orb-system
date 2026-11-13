@@ -183,6 +183,8 @@ test("canary monitoring accepts the exact manifest emitted by canary preflight",
       targetOrigin: plan.targetOrigin,
       approvedPlanSha256: plan.ownerApproval.approvedPlanSha256,
       observationId: "sample-20261124-090100-001",
+      sampleSequence: 1,
+      previousMonitoringEvidenceSha256: null,
       observedAtUtc: "2026-11-24T09:01:00.000Z",
       userIds: [...plan.scope.userIds],
       projectIds: [...plan.scope.projectIds],
@@ -200,6 +202,8 @@ test("canary monitoring accepts the exact manifest emitted by canary preflight",
   });
 
   assert.equal(evidence.passed, true);
+  assert.equal(evidence.sampleSequence, 1);
+  assert.match(evidence.monitoringEvidenceSha256, /^[a-f0-9]{64}$/);
   assert.deepEqual(evidence.userIds, plan.scope.userIds);
   assert.deepEqual(evidence.projectIds, plan.scope.projectIds);
 });

@@ -88,13 +88,42 @@ function approvedCohortIds(value, maximum, label) {
   return [...value];
 }
 
-export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUtc }) {
+function monitoringEvidenceSha256(evidence) {
+  const { monitoringEvidenceSha256: _digest, ...payload } = evidence;
+  return createHash("sha256").update(canonicalJson(payload)).digest("hex");
+}
+
+function validateSampleChain({ observation, previousEvidence }) {
+  const sequence = observation.sampleSequence;
+  const previousDigest = observation.previousMonitoringEvidenceSha256;
+  if (!Number.isInteger(sequence) || sequence < 1)
+    throw new Error("canary monitoring sample sequence must be a positive integer");
+  if (sequence === 1) {
+    if (previousDigest !== null || previousEvidence !== undefined)
+      throw new Error("first monitoring sample must not claim previous monitoring evidence");
+    return { sequence, previousDigest: null };
+  }
+  if (!previousEvidence || !SHA256.test(previousDigest ?? ""))
+    throw new Error("canary monitoring sample chain requires previous monitoring evidence");
+  if (previousEvidence.schemaVersion !== 1 ||
+      previousEvidence.gate !== "controlled-canary-monitoring-evidence" ||
+      previousEvidence.passed !== true ||
+      previousEvidence.sampleSequence !== sequence - 1 ||
+      previousEvidence.monitoringEvidenceSha256 !== previousDigest ||
+      monitoringEvidenceSha256(previousEvidence) !== previousDigest)
+    throw new Error("canary monitoring sample chain contains invalid or tampered previous monitoring evidence");
+  return { sequence, previousDigest };
+}
+
+export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUtc, previousEvidence }) {
   rejectUnknownFields(observation, [
     "schemaVersion",
     "releaseCommit",
     "targetOrigin",
     "approvedPlanSha256",
     "observationId",
+    "sampleSequence",
+    "previousMonitoringEvidenceSha256",
     "observedAtUtc",
     "userIds",
     "projectIds",
@@ -150,6 +179,7 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
   ], "approved canary rollback");
   if (observation.schemaVersion !== 1)
     throw new Error("canary observation schemaVersion must be 1");
+  const { sequence: sampleSequence, previousDigest: previousMonitoringEvidenceSha256 } = validateSampleChain({ observation, previousEvidence });
   const observationId = observation.observationId;
   if (typeof observationId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$/.test(observationId))
     throw new Error("canary observation identity must be a bounded immutable identifier");
@@ -158,6 +188,11 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
   if (!SHA1.test(preflight.releaseCommit ?? "") || !SHA256.test(preflight.approvedPlanSha256 ?? ""))
     throw new Error("canary monitoring requires immutable approved preflight bindings");
   const targetOrigin = exactHttpsOrigin(preflight.targetOrigin);
+  if (previousEvidence && (
+      previousEvidence.releaseCommit !== preflight.releaseCommit ||
+      previousEvidence.targetOrigin !== targetOrigin ||
+      previousEvidence.approvedPlanSha256 !== preflight.approvedPlanSha256))
+    throw new Error("previous monitoring evidence must bind the exact approved canary");
   if (observation?.releaseCommit !== preflight.releaseCommit ||
       observation?.targetOrigin !== targetOrigin ||
       observation?.approvedPlanSha256 !== preflight.approvedPlanSha256)
@@ -182,6 +217,8 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
   const observedAt = canonicalTime(observation?.observedAtUtc, "canary observation time");
   if (observedAt < starts || observedAt >= ends)
     throw new Error("canary observation must fall inside the approved window");
+  if (previousEvidence && canonicalTime(previousEvidence.observedAtUtc, "previous canary observation time") >= observedAt)
+    throw new Error("canary monitoring sample sequence must advance observation time");
 
   const identity = /^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$/;
   const approvedAt = canonicalTime(preflight.ownerApprovedAtUtc, "owner approval time");
@@ -268,7 +305,7 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
       latency > monitoring.maxP95LatencyMs || securityBreach)
     throw new Error("mandatory canary stop condition was triggered");
 
-  return {
+  const evidence = {
     schemaVersion: 1,
     gate: "controlled-canary-monitoring-evidence",
     releaseCommit: preflight.releaseCommit,
@@ -280,6 +317,8 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
     approvedPlanSha256: preflight.approvedPlanSha256,
     approvedUatEvidenceSha256: preflight.approvedUatEvidenceSha256,
     observationId,
+    sampleSequence,
+    previousMonitoringEvidenceSha256,
     ownerApproved: preflight.ownerApproved,
     ownerRealDataAuthorized: preflight.ownerRealDataAuthorized,
     ownerApproverId: preflight.ownerApproverId,
@@ -320,11 +359,15 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
     },
     passed: true,
   };
+  return {
+    ...evidence,
+    monitoringEvidenceSha256: monitoringEvidenceSha256(evidence),
+  };
 }
 
 
 async function main(args) {
-  const allowedArguments = new Set(["--preflight", "--observation"]);
+  const allowedArguments = new Set(["--preflight", "--observation", "--previous-evidence"]);
   const seenArguments = new Set();
   for (let index = 0; index < args.length; index += 2) {
     const argument = args[index];
@@ -340,17 +383,20 @@ async function main(args) {
   };
   const preflightPath = value("--preflight");
   const observationPath = value("--observation");
+  const previousEvidencePath = value("--previous-evidence");
   if (!preflightPath || !observationPath)
     throw new Error("Usage: evaluate-canary-monitoring.mjs --preflight FILE --observation FILE");
 
-  const [preflight, observation] = await Promise.all([
+  const [preflight, observation, previousEvidence] = await Promise.all([
     readFile(preflightPath, "utf8").then(JSON.parse),
     readFile(observationPath, "utf8").then(JSON.parse),
+    previousEvidencePath ? readFile(previousEvidencePath, "utf8").then(JSON.parse) : undefined,
   ]);
   const evidence = evaluateCanaryMonitoring({
     preflight,
     observation,
     evaluatedAtUtc: new Date().toISOString(),
+    previousEvidence,
   });
   process.stdout.write(`${JSON.stringify(evidence, null, 2)}\n`);
 }

@@ -106,6 +106,8 @@ function observations() {
     targetOrigin: "https://canary.orb.example",
     approvedPlanSha256: digest,
     observationId: "sample-20261124-090000-001",
+    sampleSequence: 1,
+    previousMonitoringEvidenceSha256: null,
     observedAtUtc: "2026-11-24T09:00:00.000Z",
     userIds: ["pilot-user-01", "pilot-user-02"],
     projectIds: ["pilot-project-01", "pilot-project-02"],
@@ -361,6 +363,28 @@ test("canary monitoring CLI emits validated evidence from immutable input files"
   assert.equal(evidence.passed, true);
   assert.equal(evidence.observedAtUtc, runtimeObservation.observedAtUtc);
   assert.match(evidence.evaluatedAtUtc, /Z$/);
+
+  const previousEvidencePath = join(directory, "previous-evidence.json");
+  const secondObservationPath = join(directory, "observation-2.json");
+  const secondObservation = {
+    ...runtimeObservation,
+    observationId: "sample-runtime-002",
+    sampleSequence: 2,
+    previousMonitoringEvidenceSha256: evidence.monitoringEvidenceSha256,
+    observedAtUtc: new Date(now - 500).toISOString(),
+  };
+  writeFileSync(previousEvidencePath, JSON.stringify(evidence));
+  writeFileSync(secondObservationPath, JSON.stringify(secondObservation));
+  const chainedResult = spawnSync(process.execPath, [
+    evaluator,
+    "--preflight", preflightPath,
+    "--observation", secondObservationPath,
+    "--previous-evidence", previousEvidencePath,
+  ], { cwd: ROOT, encoding: "utf8" });
+  assert.equal(chainedResult.status, 0, chainedResult.stderr || chainedResult.stdout);
+  const chainedEvidence = JSON.parse(chainedResult.stdout);
+  assert.equal(chainedEvidence.sampleSequence, 2);
+  assert.equal(chainedEvidence.previousMonitoringEvidenceSha256, evidence.monitoringEvidenceSha256);
 });
 
 test("canary monitoring CLI rejects unknown, missing, and duplicate inputs", () => {
@@ -474,5 +498,69 @@ test("canary monitoring rejects observations dated after evaluation", () => {
       evaluatedAtUtc: "2026-11-24T08:59:59.999Z",
     }),
     /observation.*fresh|health interval/i,
+  );
+});
+
+
+test("canary monitoring evidence forms a tamper-evident ordered sample chain", () => {
+  const first = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
+  assert.equal(first.sampleSequence, 1);
+  assert.equal(first.previousMonitoringEvidenceSha256, null);
+  assert.match(first.monitoringEvidenceSha256, /^[a-f0-9]{64}$/);
+
+  const secondObservation = {
+    ...observations(),
+    observationId: "sample-20261124-090015-002",
+    sampleSequence: 2,
+    previousMonitoringEvidenceSha256: first.monitoringEvidenceSha256,
+    observedAtUtc: "2026-11-24T09:00:15.000Z",
+  };
+  const second = evaluateCanaryMonitoring({
+    evaluatedAtUtc: "2026-11-24T09:00:30.000Z",
+    preflight,
+    previousEvidence: first,
+    observation: secondObservation,
+  });
+  assert.equal(second.sampleSequence, 2);
+  assert.equal(second.previousMonitoringEvidenceSha256, first.monitoringEvidenceSha256);
+  assert.match(second.monitoringEvidenceSha256, /^[a-f0-9]{64}$/);
+  assert.notEqual(second.monitoringEvidenceSha256, first.monitoringEvidenceSha256);
+});
+
+test("canary monitoring rejects missing, out-of-order, or tampered sample chains", () => {
+  const first = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
+  const secondObservation = {
+    ...observations(),
+    observationId: "sample-20261124-090015-002",
+    sampleSequence: 2,
+    previousMonitoringEvidenceSha256: first.monitoringEvidenceSha256,
+    observedAtUtc: "2026-11-24T09:00:15.000Z",
+  };
+
+  for (const candidate of [
+    { previousEvidence: undefined, observation: secondObservation },
+    { previousEvidence: first, observation: { ...secondObservation, sampleSequence: 3 } },
+    { previousEvidence: first, observation: { ...secondObservation, previousMonitoringEvidenceSha256: "d".repeat(64) } },
+    { previousEvidence: { ...first, errorRatePercent: 0.5 }, observation: secondObservation },
+  ]) {
+    assert.throws(
+      () => evaluateCanaryMonitoring({
+        evaluatedAtUtc: "2026-11-24T09:00:30.000Z",
+        preflight,
+        previousEvidence: candidate.previousEvidence,
+        observation: candidate.observation,
+      }),
+      /sample chain|previous monitoring evidence|sequence/i,
+    );
+  }
+
+  assert.throws(
+    () => evaluateCanaryMonitoring({
+      evaluatedAtUtc,
+      preflight,
+      previousEvidence: first,
+      observation: observations(),
+    }),
+    /sample chain|first monitoring sample/i,
   );
 });
