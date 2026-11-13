@@ -175,7 +175,7 @@ test("canary monitoring accepts the exact manifest emitted by canary preflight",
   });
 
   const evidence = evaluateCanaryMonitoring({
-    evaluatedAtUtc: "2026-11-24T09:01:30.000Z",
+    evaluatedAtUtc: "2026-11-24T09:00:30.000Z",
     preflight: manifest,
     observation: {
       schemaVersion: 1,
@@ -183,10 +183,10 @@ test("canary monitoring accepts the exact manifest emitted by canary preflight",
       targetOrigin: plan.targetOrigin,
       approvedPlanSha256: plan.ownerApproval.approvedPlanSha256,
       approvedUatEvidenceSha256: manifest.approvedUatEvidenceSha256,
-      observationId: "sample-20261124-090100-001",
+      observationId: "sample-20261124-090015-001",
       sampleSequence: 1,
       previousMonitoringEvidenceSha256: null,
-      observedAtUtc: "2026-11-24T09:01:00.000Z",
+      observedAtUtc: "2026-11-24T09:00:15.000Z",
       userIds: [...plan.scope.userIds],
       projectIds: [...plan.scope.projectIds],
       monitoringOperatorId: plan.monitoring.operatorId,

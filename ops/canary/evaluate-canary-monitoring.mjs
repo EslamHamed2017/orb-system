@@ -457,6 +457,9 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
   }
   if (evaluatedAt < starts || evaluatedAt >= ends || evaluatedAt >= approvalExpires)
     throw new Error("canary monitoring evaluation must occur inside the approved window");
+  if (!previousEvidence &&
+      evaluatedAt.valueOf() - preflightGenerated.valueOf() > monitoring.healthIntervalSeconds * 1000)
+    throw new Error("first monitoring sample must begin within the approved health interval");
   const observationAgeMs = evaluatedAt.valueOf() - observedAt.valueOf();
   if (observationAgeMs < 0 || observationAgeMs > monitoring.healthIntervalSeconds * 1000)
     throw new Error("canary observation must be fresh within the approved health interval");

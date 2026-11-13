@@ -39,7 +39,7 @@ const preflight = {
   ],
   ownerApprovedAtUtc: "2026-11-23T08:00:00.000Z",
   ownerApprovalExpiresAtUtc: "2026-11-25T12:00:00.000Z",
-  preflightGeneratedAtUtc: "2026-11-24T08:00:00.000Z",
+  preflightGeneratedAtUtc: "2026-11-24T09:00:00.000Z",
   monitoring: {
     operatorId: "orb-monitor-01",
     healthIntervalSeconds: 30,
@@ -373,7 +373,7 @@ test("canary monitoring CLI emits validated evidence from immutable input files"
     endsAtUtc: new Date(now + 60 * 60 * 1000).toISOString(),
     ownerApprovedAtUtc: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
     ownerApprovalExpiresAtUtc: new Date(now + 2 * 60 * 60 * 1000).toISOString(),
-    preflightGeneratedAtUtc: new Date(now - 60 * 60 * 1000).toISOString(),
+    preflightGeneratedAtUtc: new Date(now - 1000).toISOString(),
     uatReportStartedAtUtc: new Date(now - 3 * 60 * 60 * 1000).toISOString(),
     uatReportCompletedAtUtc: new Date(now - 165 * 60 * 1000).toISOString(),
     uatEvidenceGeneratedAtUtc: new Date(now - 150 * 60 * 1000).toISOString(),
@@ -499,6 +499,17 @@ test("canary monitoring observations require the exact approved monitoring opera
       /observation.*approved monitoring operator/i,
     );
   }
+});
+
+test("canary monitoring rejects a first sample delayed beyond the approved health interval", () => {
+  assert.throws(
+    () => evaluateCanaryMonitoring({
+      preflight: { ...preflight, preflightGeneratedAtUtc: "2026-11-24T08:00:00.000Z" },
+      observation: observations(),
+      evaluatedAtUtc,
+    }),
+    /first monitoring sample.*health interval|monitoring must begin/i,
+  );
 });
 
 test("canary monitoring rejects observations older than the approved health interval", () => {
