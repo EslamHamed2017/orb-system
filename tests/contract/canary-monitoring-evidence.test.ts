@@ -72,6 +72,7 @@ function observations() {
     observedAtUtc: "2026-11-24T09:00:00.000Z",
     userIds: ["pilot-user-01", "pilot-user-02"],
     projectIds: ["pilot-project-01", "pilot-project-02"],
+    monitoringOperatorId: "orb-monitor-01",
     readiness: true,
     consecutiveReadinessFailures: 0,
     errorRatePercent: 0.25,
@@ -327,6 +328,22 @@ test("canary monitoring observations cover the exact approved pilot cohort", () 
     assert.throws(
       () => evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: { ...observations(), ...patch } }),
       /exact approved pilot cohort/i,
+    );
+  }
+});
+
+test("canary monitoring observations require the exact approved monitoring operator", () => {
+  const evidence = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
+  assert.equal(evidence.monitoringOperatorId, preflight.monitoringOperatorId);
+
+  for (const monitoringOperatorId of [undefined, "", "different-monitor"] as const) {
+    assert.throws(
+      () => evaluateCanaryMonitoring({
+        evaluatedAtUtc,
+        preflight,
+        observation: { ...observations(), monitoringOperatorId },
+      }),
+      /observation.*approved monitoring operator/i,
     );
   }
 });

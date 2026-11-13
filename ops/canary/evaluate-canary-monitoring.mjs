@@ -61,6 +61,7 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
     "observedAtUtc",
     "userIds",
     "projectIds",
+    "monitoringOperatorId",
     "readiness",
     "consecutiveReadinessFailures",
     "errorRatePercent",
@@ -198,6 +199,8 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
     new Set(approvedStops).size === REQUIRED_STOPS.length;
   if (!controlsAreValid)
     throw new Error("canary monitoring requires valid approved canary safety controls");
+  if (observation.monitoringOperatorId !== monitoring.operatorId)
+    throw new Error("canary observation must identify the exact approved monitoring operator");
 
   const evaluatedAt = canonicalTime(evaluatedAtUtc, "canary monitoring evaluation time");
   const observationAgeMs = evaluatedAt.valueOf() - observedAt.valueOf();
