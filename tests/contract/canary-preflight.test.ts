@@ -39,7 +39,7 @@ function validPlan() {
       errorRateThresholdExceeded: true,
       latencyThresholdExceeded: true,
     },
-    rollback: { command: "ops/deploy/rollback.sh", maxMinutes: 5, operatorAssigned: true },
+    rollback: { command: "ops/deploy/rollback.sh", maxMinutes: 5, operatorAssigned: true, operatorId: "orb-operator-01" },
   };
 }
 
@@ -87,6 +87,7 @@ test("canary preflight accepts a tightly bounded owner-authorized plan bound to 
     endsAtUtc: "2026-11-25T08:00:00.000Z",
     maxUsers: 5,
     maxProjects: 3,
+    rollbackOperatorId: "orb-operator-01",
     passed: true,
   });
 });
@@ -182,6 +183,16 @@ test("canary preflight rejects over-broad scope, windows, or expired approval", 
   const expired = run(validPlan(), validUat(), "2026-11-26T07:00:00.000Z");
   assert.notEqual(expired.status, 0);
   assert.match(expired.stderr, /expired/i);
+});
+
+test("canary preflight requires an identified rollback operator", () => {
+  for (const operatorId of [undefined, "", "   "]) {
+    const plan = validPlan();
+    plan.rollback.operatorId = operatorId as string;
+    const result = run(plan);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /rollback.*operator identity/i);
+  }
 });
 
 test("canary preflight rejects missing stop conditions, weak monitoring, or unavailable rollback", () => {

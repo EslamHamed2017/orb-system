@@ -82,6 +82,8 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
   if (plan.rollback?.command !== "ops/deploy/rollback.sh" || plan.rollback?.operatorAssigned !== true ||
       !Number.isInteger(plan.rollback?.maxMinutes) || plan.rollback.maxMinutes < 1 || plan.rollback.maxMinutes > 5)
     throw new Error("canary rollback must use the rehearsed command with an assigned operator and a five-minute maximum");
+  if (typeof plan.rollback.operatorId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$/.test(plan.rollback.operatorId))
+    throw new Error("canary rollback requires an explicit operator identity");
 
   const bilingual = Array.isArray(uat?.locales) && uat.locales.length === 2 &&
     uat.locales.some((entry) => entry?.locale === "en" && entry.direction === "ltr" && entry.passed === true) &&
@@ -99,6 +101,7 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
     endsAtUtc: ends.toISOString(),
     maxUsers: plan.scope.maxUsers,
     maxProjects: plan.scope.maxProjects,
+    rollbackOperatorId: plan.rollback.operatorId,
     passed: true,
   };
 }
