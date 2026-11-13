@@ -411,6 +411,20 @@ test("canary preflight rejects unknown plan and owner-approval fields instead of
   }
 });
 
+test("canary preflight rejects unknown UAT evidence and locale fields instead of silently certifying them", () => {
+  const unknownEvidenceField = validUat() as ReturnType<typeof validUat> & Record<string, unknown>;
+  unknownEvidenceField.reviewMode = "owner-approved";
+
+  const unknownLocaleField = validUat();
+  (unknownLocaleField.locales[0] as typeof unknownLocaleField.locales[number] & Record<string, unknown>).reviewed = true;
+
+  for (const uat of [unknownEvidenceField, unknownLocaleField]) {
+    const result = run(validPlan(), uat);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /unknown.*UAT evidence|unknown.*UAT locale/i);
+  }
+});
+
 test("canary preflight CLI rejects caller-controlled clock overrides", () => {
   const directory = mkdtempSync(join(tmpdir(), "orb-canary-cli-clock-"));
   const planPath = join(directory, "plan.json");

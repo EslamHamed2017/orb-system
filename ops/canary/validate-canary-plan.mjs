@@ -99,6 +99,23 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
   if (!SHA1.test(plan.releaseCommit ?? "")) throw new Error("canary releaseCommit must be a full lowercase SHA-1");
   const targetOrigin = exactHttpsOrigin(plan.targetOrigin, "canary targetOrigin");
   const uat = ownerUatEvidence;
+  rejectUnknownFields(uat, [
+    "schemaVersion",
+    "gate",
+    "generatedAtUtc",
+    "reportStartedAtUtc",
+    "reportCompletedAtUtc",
+    "gitCommit",
+    "targetOrigin",
+    "reportSha256",
+    "passed",
+    "ownerApprovalRecorded",
+    "locales",
+  ], "UAT evidence");
+  if (Array.isArray(uat.locales)) {
+    for (const locale of uat.locales)
+      rejectUnknownFields(locale, ["locale", "direction", "passed"], "UAT locale");
+  }
 
   rejectUnknownFields(plan.window, ["startsAtUtc", "endsAtUtc"], "window");
   rejectUnknownFields(plan.scope, ["maxUsers", "maxProjects", "userIds", "projectIds"], "scope");
