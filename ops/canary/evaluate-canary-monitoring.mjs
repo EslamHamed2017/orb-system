@@ -5,6 +5,12 @@ const SECURITY_STOPS = [
   "attachmentIsolationFailure",
   "dataIntegrityFailure",
 ];
+const REQUIRED_STOPS = [
+  ...SECURITY_STOPS,
+  "readinessThresholdExceeded",
+  "errorRateThresholdExceeded",
+  "latencyThresholdExceeded",
+];
 function canonicalTime(value, label) {
   const parsed = new Date(value);
   if (!Number.isFinite(parsed.valueOf()) || parsed.toISOString() !== value)
@@ -67,6 +73,27 @@ export function evaluateCanaryMonitoring({ preflight, observation }) {
     throw new Error("canary observation must fall inside the approved window");
 
   const monitoring = preflight.monitoring ?? {};
+  const approvedStops = preflight.stopConditions;
+  const controlsAreValid =
+    typeof monitoring.operatorId === "string" &&
+    /^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$/.test(monitoring.operatorId) &&
+    Number.isInteger(monitoring.healthIntervalSeconds) &&
+    monitoring.healthIntervalSeconds >= 15 && monitoring.healthIntervalSeconds <= 60 &&
+    typeof monitoring.maxErrorRatePercent === "number" &&
+    Number.isFinite(monitoring.maxErrorRatePercent) &&
+    monitoring.maxErrorRatePercent > 0 && monitoring.maxErrorRatePercent <= 1 &&
+    Number.isInteger(monitoring.maxP95LatencyMs) &&
+    monitoring.maxP95LatencyMs > 0 && monitoring.maxP95LatencyMs <= 2000 &&
+    Number.isInteger(monitoring.maxConsecutiveReadinessFailures) &&
+    monitoring.maxConsecutiveReadinessFailures >= 1 &&
+    monitoring.maxConsecutiveReadinessFailures <= 2 &&
+    Array.isArray(approvedStops) &&
+    approvedStops.length === REQUIRED_STOPS.length &&
+    REQUIRED_STOPS.every((stop) => approvedStops.includes(stop)) &&
+    new Set(approvedStops).size === REQUIRED_STOPS.length;
+  if (!controlsAreValid)
+    throw new Error("canary monitoring requires valid approved canary safety controls");
+
   const failures = observation?.consecutiveReadinessFailures;
   if (!Number.isInteger(failures) || failures < 0)
     throw new Error("consecutive readiness failures must be a non-negative integer");

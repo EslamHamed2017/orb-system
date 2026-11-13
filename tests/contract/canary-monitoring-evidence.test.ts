@@ -103,3 +103,20 @@ test("canary monitoring evidence requires the supported observation schema", () 
     /canary observation schemaVersion must be 1/i,
   );
 });
+
+test("canary monitoring independently validates approved preflight safety controls", () => {
+  for (const patch of [
+    { monitoring: { ...preflight.monitoring, operatorId: "" } },
+    { monitoring: { ...preflight.monitoring, healthIntervalSeconds: 10 } },
+    { monitoring: { ...preflight.monitoring, maxErrorRatePercent: 2 } },
+    { monitoring: { ...preflight.monitoring, maxP95LatencyMs: Number.POSITIVE_INFINITY } },
+    { monitoring: { ...preflight.monitoring, maxConsecutiveReadinessFailures: 0 } },
+    { stopConditions: preflight.stopConditions.filter((condition) => condition !== "permissionBypass") },
+    { stopConditions: [...preflight.stopConditions, "ignoreAuditFailure"] },
+  ]) {
+    assert.throws(
+      () => evaluateCanaryMonitoring({ preflight: { ...preflight, ...patch }, observation: observations() }),
+      /approved canary safety controls/i,
+    );
+  }
+});
