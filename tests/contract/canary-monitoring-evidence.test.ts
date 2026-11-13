@@ -69,6 +69,7 @@ function observations() {
     releaseCommit: commit,
     targetOrigin: "https://canary.orb.example",
     approvedPlanSha256: digest,
+    observationId: "sample-20261124-090000-001",
     observedAtUtc: "2026-11-24T09:00:00.000Z",
     userIds: ["pilot-user-01", "pilot-user-02"],
     projectIds: ["pilot-project-01", "pilot-project-02"],
@@ -105,6 +106,7 @@ test("passing canary monitoring evidence preserves approved controls and evaluat
   const evidence = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
 
   assert.equal(evidence.approvedUatEvidenceSha256, preflight.approvedUatEvidenceSha256);
+  assert.equal(evidence.observationId, observations().observationId);
   assert.deepEqual(evidence.monitoring, preflight.monitoring);
   assert.deepEqual(evidence.stopConditions, preflight.stopConditions);
   assert.deepEqual(evidence.securityEvents, observations().securityEvents);
@@ -323,6 +325,22 @@ test("canary monitoring CLI rejects unknown, missing, and duplicate inputs", () 
     const result = spawnSync(process.execPath, [evaluator, ...args], { cwd: ROOT, encoding: "utf8" });
     assert.notEqual(result.status, 0, `${label} input unexpectedly passed`);
     assert.match(result.stderr, /unknown argument|missing value|usage|duplicate argument/i);
+  }
+});
+
+test("canary monitoring evidence requires and preserves an immutable observation identity", () => {
+  const evidence = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
+  assert.equal(evidence.observationId, observations().observationId);
+
+  for (const observationId of [undefined, "", "sample identity with spaces", "x".repeat(129)] as const) {
+    assert.throws(
+      () => evaluateCanaryMonitoring({
+        evaluatedAtUtc,
+        preflight,
+        observation: { ...observations(), observationId },
+      }),
+      /observation identity/i,
+    );
   }
 });
 

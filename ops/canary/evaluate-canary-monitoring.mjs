@@ -58,6 +58,7 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
     "releaseCommit",
     "targetOrigin",
     "approvedPlanSha256",
+    "observationId",
     "observedAtUtc",
     "userIds",
     "projectIds",
@@ -113,6 +114,9 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
   ], "approved canary rollback");
   if (observation.schemaVersion !== 1)
     throw new Error("canary observation schemaVersion must be 1");
+  const observationId = observation.observationId;
+  if (typeof observationId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$/.test(observationId))
+    throw new Error("canary observation identity must be a bounded immutable identifier");
   if (preflight?.schemaVersion !== 1 || preflight?.gate !== "controlled-canary-preflight" || preflight?.passed !== true)
     throw new Error("canary monitoring requires a passing controlled canary preflight");
   if (!SHA1.test(preflight.releaseCommit ?? "") || !SHA256.test(preflight.approvedPlanSha256 ?? ""))
@@ -235,6 +239,7 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
     projectIds,
     approvedPlanSha256: preflight.approvedPlanSha256,
     approvedUatEvidenceSha256: preflight.approvedUatEvidenceSha256,
+    observationId,
     ownerApproved: preflight.ownerApproved,
     ownerRealDataAuthorized: preflight.ownerRealDataAuthorized,
     ownerApproverId: preflight.ownerApproverId,
