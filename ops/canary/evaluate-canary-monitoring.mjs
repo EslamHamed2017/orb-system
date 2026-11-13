@@ -101,7 +101,7 @@ function validateSampleChain({ observation, previousEvidence }) {
   if (sequence === 1) {
     if (previousDigest !== null || previousEvidence !== undefined)
       throw new Error("first monitoring sample must not claim previous monitoring evidence");
-    return { sequence, previousDigest: null };
+    return { sequence, previousDigest: null, observationIds: [observation.observationId] };
   }
   if (!previousEvidence || !SHA256.test(previousDigest ?? ""))
     throw new Error("canary monitoring sample chain requires previous monitoring evidence");
@@ -112,9 +112,15 @@ function validateSampleChain({ observation, previousEvidence }) {
       previousEvidence.monitoringEvidenceSha256 !== previousDigest ||
       monitoringEvidenceSha256(previousEvidence) !== previousDigest)
     throw new Error("canary monitoring sample chain contains invalid or tampered previous monitoring evidence");
-  if (previousEvidence.observationId === observation.observationId)
-    throw new Error("canary monitoring sample chain observation identity must differ from its predecessor");
-  return { sequence, previousDigest };
+  const previousObservationIds = previousEvidence.observationIds;
+  if (!Array.isArray(previousObservationIds) ||
+      previousObservationIds.length !== sequence - 1 ||
+      previousObservationIds.at(-1) !== previousEvidence.observationId ||
+      new Set(previousObservationIds).size !== previousObservationIds.length)
+    throw new Error("canary monitoring sample chain observation identity history is invalid");
+  if (previousObservationIds.includes(observation.observationId))
+    throw new Error("canary monitoring sample chain observation identity was reused");
+  return { sequence, previousDigest, observationIds: [...previousObservationIds, observation.observationId] };
 }
 
 export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUtc, previousEvidence }) {
@@ -181,7 +187,11 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
   ], "approved canary rollback");
   if (observation.schemaVersion !== 1)
     throw new Error("canary observation schemaVersion must be 1");
-  const { sequence: sampleSequence, previousDigest: previousMonitoringEvidenceSha256 } = validateSampleChain({ observation, previousEvidence });
+  const {
+    sequence: sampleSequence,
+    previousDigest: previousMonitoringEvidenceSha256,
+    observationIds,
+  } = validateSampleChain({ observation, previousEvidence });
   const observationId = observation.observationId;
   if (typeof observationId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$/.test(observationId))
     throw new Error("canary observation identity must be a bounded immutable identifier");
@@ -325,6 +335,7 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
     approvedPlanSha256: preflight.approvedPlanSha256,
     approvedUatEvidenceSha256: preflight.approvedUatEvidenceSha256,
     observationId,
+    observationIds,
     sampleSequence,
     previousMonitoringEvidenceSha256,
     ownerApproved: preflight.ownerApproved,

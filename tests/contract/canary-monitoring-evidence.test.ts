@@ -549,6 +549,37 @@ test("canary monitoring rejects reuse of the predecessor observation identity", 
   );
 });
 
+test("canary monitoring rejects reuse of any earlier observation identity", () => {
+  const first = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
+  const second = evaluateCanaryMonitoring({
+    evaluatedAtUtc: "2026-11-24T09:01:00.000Z",
+    preflight,
+    previousEvidence: first,
+    observation: {
+      ...observations(),
+      observationId: "sample-20261124-090045-002",
+      sampleSequence: 2,
+      previousMonitoringEvidenceSha256: first.monitoringEvidenceSha256,
+      observedAtUtc: "2026-11-24T09:00:45.000Z",
+    },
+  });
+
+  assert.throws(
+    () => evaluateCanaryMonitoring({
+      evaluatedAtUtc: "2026-11-24T09:01:30.000Z",
+      preflight,
+      previousEvidence: second,
+      observation: {
+        ...observations(),
+        sampleSequence: 3,
+        previousMonitoringEvidenceSha256: second.monitoringEvidenceSha256,
+        observedAtUtc: "2026-11-24T09:01:15.000Z",
+      },
+    }),
+    /observation identity.*reused|sample chain.*identity/i,
+  );
+});
+
 test("canary monitoring rejects a chained observation that predates predecessor evaluation", () => {
   const first = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
   const retroactiveObservation = {
