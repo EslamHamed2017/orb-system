@@ -509,6 +509,31 @@ test("canary monitoring independently enforces the approved 72-hour window limit
   );
 });
 
+test("canary monitoring independently bounds execution to 72 hours after owner approval", () => {
+  const staleAuthorizationPreflight = {
+    ...preflight,
+    startsAtUtc: "2026-11-26T08:00:00.000Z",
+    endsAtUtc: "2026-11-27T08:00:00.000Z",
+    ownerApprovalExpiresAtUtc: "2026-11-27T12:00:00.000Z",
+    preflightGeneratedAtUtc: "2026-11-26T08:00:00.000Z",
+  };
+  staleAuthorizationPreflight.approvedPlanSha256 = approvedControlsSha256(staleAuthorizationPreflight);
+
+  assert.throws(
+    () => evaluateCanaryMonitoring({
+      preflight: staleAuthorizationPreflight,
+      observation: {
+        ...observations(),
+        approvedPlanSha256: staleAuthorizationPreflight.approvedPlanSha256,
+        observationId: "sample-20261126-090000-001",
+        observedAtUtc: "2026-11-26T09:00:00.000Z",
+      },
+      evaluatedAtUtc: "2026-11-26T09:00:30.000Z",
+    }),
+    /owner approval.*72 hours|authorization.*72 hours/i,
+  );
+});
+
 test("canary monitoring rejects evaluation at or after the approved window closes", () => {
   const closingObservation = {
     ...observations(),
