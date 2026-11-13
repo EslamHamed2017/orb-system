@@ -337,6 +337,24 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
     new Set(approvedStops).size === REQUIRED_STOPS.length;
   if (!controlsAreValid)
     throw new Error("canary monitoring requires valid approved canary safety controls");
+  if (previousEvidence) {
+    const previousFailures = previousEvidence.consecutiveReadinessFailures;
+    const previousErrorRate = previousEvidence.errorRatePercent;
+    const previousLatency = previousEvidence.p95LatencyMs;
+    const previousSecurityEvents = previousEvidence.securityEvents ?? {};
+    const previousOutcomeIsValid =
+      Number.isInteger(previousFailures) && previousFailures >= 0 &&
+      previousEvidence.readiness === (previousFailures === 0) &&
+      previousFailures <= monitoring.maxConsecutiveReadinessFailures &&
+      typeof previousErrorRate === "number" && Number.isFinite(previousErrorRate) &&
+      previousErrorRate >= 0 && previousErrorRate <= monitoring.maxErrorRatePercent &&
+      typeof previousLatency === "number" && Number.isFinite(previousLatency) &&
+      previousLatency >= 0 && previousLatency <= monitoring.maxP95LatencyMs &&
+      Object.keys(previousSecurityEvents).length === SECURITY_STOPS.length &&
+      SECURITY_STOPS.every((name) => previousSecurityEvents[name] === false);
+    if (!previousOutcomeIsValid)
+      throw new Error("previous monitoring evidence contains a mandatory stop condition breach");
+  }
   if (approvedControlsSha256(preflight) !== preflight.approvedPlanSha256)
     throw new Error("canary monitoring requires the exact owner-approved control digest");
   if (observation.monitoringOperatorId !== monitoring.operatorId)
