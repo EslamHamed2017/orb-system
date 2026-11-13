@@ -529,6 +529,27 @@ test("canary monitoring evidence forms a tamper-evident ordered sample chain", (
   assert.notEqual(second.monitoringEvidenceSha256, first.monitoringEvidenceSha256);
 });
 
+test("canary monitoring chain remains bound to the same approved UAT evidence", () => {
+  const first = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
+  const secondObservation = {
+    ...observations(),
+    observationId: "sample-20261124-090045-002",
+    sampleSequence: 2,
+    previousMonitoringEvidenceSha256: first.monitoringEvidenceSha256,
+    observedAtUtc: "2026-11-24T09:00:45.000Z",
+  };
+
+  assert.throws(
+    () => evaluateCanaryMonitoring({
+      evaluatedAtUtc: "2026-11-24T09:01:00.000Z",
+      preflight: { ...preflight, approvedUatEvidenceSha256: "d".repeat(64) },
+      previousEvidence: first,
+      observation: secondObservation,
+    }),
+    /previous monitoring evidence.*approved UAT|exact approved canary/i,
+  );
+});
+
 test("canary monitoring rejects reuse of the predecessor observation identity", () => {
   const first = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
   const repeatedIdentityObservation = {

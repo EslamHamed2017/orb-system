@@ -203,8 +203,9 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
   if (previousEvidence && (
       previousEvidence.releaseCommit !== preflight.releaseCommit ||
       previousEvidence.targetOrigin !== targetOrigin ||
-      previousEvidence.approvedPlanSha256 !== preflight.approvedPlanSha256))
-    throw new Error("previous monitoring evidence must bind the exact approved canary");
+      previousEvidence.approvedPlanSha256 !== preflight.approvedPlanSha256 ||
+      previousEvidence.approvedUatEvidenceSha256 !== preflight.approvedUatEvidenceSha256))
+    throw new Error("previous monitoring evidence must bind the exact approved canary and UAT evidence");
   if (observation?.releaseCommit !== preflight.releaseCommit ||
       observation?.targetOrigin !== targetOrigin ||
       observation?.approvedPlanSha256 !== preflight.approvedPlanSha256)
