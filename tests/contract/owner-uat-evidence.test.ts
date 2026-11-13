@@ -18,7 +18,7 @@ function report(
     stats: { startTime, duration, expected: 2, skipped: 0, unexpected: 0, flaky: 0 },
     errors: [],
     suites: [{ title: "owner-uat.spec.ts", file: "owner-uat.spec.ts", specs: titles.map((title) => ({
-      title, ok: status === "passed", tests: [{ expectedStatus: "passed", results: [{ status }] }],
+      title, ok: status === "passed", tests: [{ projectName: "chromium", expectedStatus: "passed", results: [{ status }] }],
     })) }],
   };
 }
@@ -85,6 +85,20 @@ test("owner UAT evidence rejects approved journey titles reported by an unrelate
       /approved owner UAT suite/i,
     );
   }
+});
+
+test("owner UAT evidence rejects journeys attributed to a non-approved browser project", () => {
+  const value = report();
+  value.suites[0].specs[0].tests[0].projectName = "firefox";
+  assert.throws(
+    () => createOwnerUatEvidence({
+      reportBytes: Buffer.from(JSON.stringify(value)),
+      targetUrl: "https://uat.example.test",
+      gitCommit: commit,
+      generatedAtUtc: "2026-11-12T10:00:00.000Z",
+    }),
+    /approved Chromium project/i,
+  );
 });
 
 test("owner UAT evidence rejects a report recorded against a different target origin", () => {
