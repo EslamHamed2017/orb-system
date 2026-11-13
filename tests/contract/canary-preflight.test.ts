@@ -142,6 +142,19 @@ test("canary preflight requires owner approval strictly after UAT completion", (
   assert.match(result.stderr, /owner approval.*follow.*UAT/i);
 });
 
+test("canary preflight requires owner approval after a chronologically valid UAT evidence manifest", () => {
+  const approvalBeforeEvidence = validUat();
+  approvalBeforeEvidence.generatedAtUtc = "2026-11-23T08:01:00.000Z";
+  const completionBeforeStart = validUat();
+  completionBeforeStart.reportStartedAtUtc = "2026-11-23T07:45:00.000Z";
+
+  for (const uat of [approvalBeforeEvidence, completionBeforeStart]) {
+    const result = run(validPlan(), uat);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /UAT.*chronology|owner approval.*evidence/i);
+  }
+});
+
 test("canary preflight rejects release or target drift from passing bilingual UAT", () => {
   for (const uat of [
     { ...validUat(), gitCommit: "b".repeat(40) },

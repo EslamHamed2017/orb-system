@@ -47,8 +47,12 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
       plan.ownerApproval.approvedUatEvidenceSha256 !== uat?.reportSha256)
     throw new Error("owner approval must bind the exact canary release, target origin, and UAT evidence");
   const approvedAt = canonicalTime(plan.ownerApproval.approvedAtUtc, "owner approval time");
+  const uatStarted = canonicalTime(uat?.reportStartedAtUtc, "UAT report start time");
   const uatCompleted = canonicalTime(uat?.reportCompletedAtUtc, "completed UAT time");
-  if (approvedAt <= uatCompleted) throw new Error("owner approval must follow completed UAT");
+  const uatGenerated = canonicalTime(uat?.generatedAtUtc, "UAT evidence generation time");
+  if (uatCompleted < uatStarted || uatGenerated < uatCompleted)
+    throw new Error("UAT evidence chronology must order report start, completion, and manifest generation");
+  if (approvedAt <= uatGenerated) throw new Error("owner approval must follow generated UAT evidence");
   const approvalExpires = canonicalTime(plan.ownerApproval.expiresAtUtc, "owner approval expiry");
   const now = canonicalTime(nowUtc, "current time");
   if (now < approvedAt) throw new Error("owner approval cannot be future-dated");
