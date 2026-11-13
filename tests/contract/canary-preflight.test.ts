@@ -89,6 +89,8 @@ test("canary preflight accepts a tightly bounded owner-authorized plan bound to 
     endsAtUtc: "2026-11-25T08:00:00.000Z",
     maxUsers: 5,
     maxProjects: 3,
+    ownerApproved: true,
+    ownerRealDataAuthorized: true,
     ownerApproverId: "orb-owner-01",
     monitoringOperatorId: "orb-monitor-01",
     rollbackOperatorId: "orb-operator-01",

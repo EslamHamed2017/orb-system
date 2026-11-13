@@ -109,6 +109,8 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
     endsAtUtc: ends.toISOString(),
     maxUsers: plan.scope.maxUsers,
     maxProjects: plan.scope.maxProjects,
+    ownerApproved: plan.ownerApproval.approved,
+    ownerRealDataAuthorized: plan.ownerApproval.realDataAuthorized,
     ownerApproverId: plan.ownerApproval.approverId,
     monitoringOperatorId: monitoring.operatorId,
     rollbackOperatorId: plan.rollback.operatorId,
