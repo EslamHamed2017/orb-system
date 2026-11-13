@@ -95,7 +95,13 @@ test("canary preflight accepts a tightly bounded owner-authorized plan bound to 
     monitoringOperatorId: "orb-monitor-01",
     rollbackOperatorId: "orb-operator-01",
     approvedUatEvidenceSha256: "b".repeat(64),
+    uatReportStartedAtUtc: "2026-11-23T07:30:00.000Z",
+    uatReportCompletedAtUtc: "2026-11-23T07:44:00.000Z",
     uatEvidenceGeneratedAtUtc: "2026-11-23T07:45:00.000Z",
+    uatLocales: [
+      { locale: "en", direction: "ltr", passed: true },
+      { locale: "ar", direction: "rtl", passed: true },
+    ],
     ownerApprovedAtUtc: "2026-11-23T08:00:00.000Z",
     ownerApprovalExpiresAtUtc: "2026-11-25T12:00:00.000Z",
     preflightGeneratedAtUtc: "2026-11-24T09:00:00.000Z",

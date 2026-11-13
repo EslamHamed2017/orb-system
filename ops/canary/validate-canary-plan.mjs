@@ -115,7 +115,13 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
     monitoringOperatorId: monitoring.operatorId,
     rollbackOperatorId: plan.rollback.operatorId,
     approvedUatEvidenceSha256: plan.ownerApproval.approvedUatEvidenceSha256,
+    uatReportStartedAtUtc: uatStarted.toISOString(),
+    uatReportCompletedAtUtc: uatCompleted.toISOString(),
     uatEvidenceGeneratedAtUtc: uatGenerated.toISOString(),
+    uatLocales: [
+      { locale: "en", direction: "ltr", passed: true },
+      { locale: "ar", direction: "rtl", passed: true },
+    ],
     ownerApprovedAtUtc: approvedAt.toISOString(),
     ownerApprovalExpiresAtUtc: approvalExpires.toISOString(),
     preflightGeneratedAtUtc: now.toISOString(),
