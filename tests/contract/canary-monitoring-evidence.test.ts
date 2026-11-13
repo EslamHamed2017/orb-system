@@ -69,6 +69,8 @@ function observations() {
     targetOrigin: "https://canary.orb.example",
     approvedPlanSha256: digest,
     observedAtUtc: "2026-11-24T09:00:00.000Z",
+    userIds: ["pilot-user-01", "pilot-user-02"],
+    projectIds: ["pilot-project-01", "pilot-project-02"],
     readiness: true,
     consecutiveReadinessFailures: 0,
     errorRatePercent: 0.25,
@@ -286,5 +288,27 @@ test("canary monitoring CLI rejects unknown, missing, and duplicate inputs", () 
     const result = spawnSync(process.execPath, [evaluator, ...args], { cwd: ROOT, encoding: "utf8" });
     assert.notEqual(result.status, 0, `${label} input unexpectedly passed`);
     assert.match(result.stderr, /unknown argument|missing value|usage|duplicate argument/i);
+  }
+});
+
+test("canary monitoring observations cover the exact approved pilot cohort", () => {
+  const evidence = evaluateCanaryMonitoring({ preflight, observation: observations() });
+  assert.deepEqual(evidence.userIds, preflight.userIds);
+  assert.deepEqual(evidence.projectIds, preflight.projectIds);
+
+  for (const patch of [
+    { userIds: undefined },
+    { userIds: ["pilot-user-01"] },
+    { userIds: ["pilot-user-02", "pilot-user-01"] },
+    { userIds: ["pilot-user-01", "unapproved-user"] },
+    { projectIds: undefined },
+    { projectIds: ["pilot-project-01"] },
+    { projectIds: ["pilot-project-02", "pilot-project-01"] },
+    { projectIds: ["pilot-project-01", "unapproved-project"] },
+  ]) {
+    assert.throws(
+      () => evaluateCanaryMonitoring({ preflight, observation: { ...observations(), ...patch } }),
+      /exact approved pilot cohort/i,
+    );
   }
 });

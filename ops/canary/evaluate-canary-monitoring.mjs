@@ -59,6 +59,8 @@ export function evaluateCanaryMonitoring({ preflight, observation }) {
     "targetOrigin",
     "approvedPlanSha256",
     "observedAtUtc",
+    "userIds",
+    "projectIds",
     "readiness",
     "consecutiveReadinessFailures",
     "errorRatePercent",
@@ -127,6 +129,15 @@ export function evaluateCanaryMonitoring({ preflight, observation }) {
     throw new Error("approved pilot cohort limits are invalid");
   const userIds = approvedCohortIds(preflight.userIds, preflight.maxUsers, "pilot user IDs");
   const projectIds = approvedCohortIds(preflight.projectIds, preflight.maxProjects, "pilot project IDs");
+  const observationCoversApprovedCohort =
+    Array.isArray(observation.userIds) &&
+    Array.isArray(observation.projectIds) &&
+    observation.userIds.length === userIds.length &&
+    observation.projectIds.length === projectIds.length &&
+    observation.userIds.every((id, index) => id === userIds[index]) &&
+    observation.projectIds.every((id, index) => id === projectIds[index]);
+  if (!observationCoversApprovedCohort)
+    throw new Error("canary observation must cover the exact approved pilot cohort");
   const observedAt = canonicalTime(observation?.observedAtUtc, "canary observation time");
   if (observedAt < starts || observedAt >= ends)
     throw new Error("canary observation must fall inside the approved window");
