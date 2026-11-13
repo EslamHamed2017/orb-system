@@ -31,6 +31,8 @@ function monitoringEvidence() {
     approvedPlanSha256: "b".repeat(64),
     approvedUatEvidenceSha256: "c".repeat(64),
     preflightEvidenceSha256: "d".repeat(64),
+    ownerApproved: true,
+    ownerRealDataAuthorized: true,
     ownerApproverId: "orb-owner-01",
     ownerApprovalExpiresAtUtc: "2026-11-13T08:00:00.000Z",
     monitoring: { healthIntervalSeconds: 60 },
@@ -122,6 +124,27 @@ test("canary completion rejects future-dated completion or owner review", () => 
   assert.equal(finalizeCanaryEvidence({
     monitoringEvidence: monitoringEvidence(), completion: completion(), now: new Date("2026-11-12T10:05:00.000Z"),
   }).passed, true);
+});
+
+test("canary completion independently requires owner authorization", () => {
+  for (const patch of [
+    { ownerApproved: false },
+    { ownerRealDataAuthorized: false },
+  ]) {
+    const monitoring = { ...monitoringEvidence(), ...patch };
+    const { monitoringEvidenceSha256: _digest, ...payload } = monitoring;
+    monitoring.monitoringEvidenceSha256 = sha256(payload);
+    assert.throws(
+      () => finalizeCanaryEvidence({
+        monitoringEvidence: monitoring,
+        completion: {
+          ...completion(),
+          finalMonitoringEvidenceSha256: monitoring.monitoringEvidenceSha256,
+        },
+      }),
+      /owner approval and real-data authorization/i,
+    );
+  }
 });
 
 test("canary completion requires owner review inside the approved authorization window", () => {

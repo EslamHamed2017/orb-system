@@ -73,6 +73,8 @@ export function finalizeCanaryEvidence({ monitoringEvidence, completion, now = n
     observationIds.at(-1) === monitoringEvidence.observationId;
   if (!chainIsIntact)
     throw new Error("final monitoring evidence must be passing with an intact sample chain");
+  if (monitoringEvidence.ownerApproved !== true || monitoringEvidence.ownerRealDataAuthorized !== true)
+    throw new Error("final monitoring evidence must preserve owner approval and real-data authorization");
 
   if (completion.schemaVersion !== 1)
     throw new Error("canary completion schemaVersion must be 1");
