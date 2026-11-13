@@ -194,6 +194,7 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
     "releaseCommit",
     "targetOrigin",
     "approvedPlanSha256",
+    "approvedUatEvidenceSha256",
     "observationId",
     "sampleSequence",
     "previousMonitoringEvidenceSha256",
@@ -276,6 +277,9 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
       observation?.targetOrigin !== targetOrigin ||
       observation?.approvedPlanSha256 !== preflight.approvedPlanSha256)
     throw new Error("canary observation must bind the exact approved preflight");
+  if (!SHA256.test(observation?.approvedUatEvidenceSha256 ?? "") ||
+      observation.approvedUatEvidenceSha256 !== preflight.approvedUatEvidenceSha256)
+    throw new Error("canary observation must bind the exact approved UAT evidence");
 
   const starts = canonicalTime(preflight.startsAtUtc, "canary window start");
   const ends = canonicalTime(preflight.endsAtUtc, "canary window end");

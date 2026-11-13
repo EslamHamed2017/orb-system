@@ -110,6 +110,7 @@ function observations() {
     releaseCommit: commit,
     targetOrigin: "https://canary.orb.example",
     approvedPlanSha256: digest,
+    approvedUatEvidenceSha256: preflight.approvedUatEvidenceSha256,
     observationId: "sample-20261124-090000-001",
     sampleSequence: 1,
     previousMonitoringEvidenceSha256: null,
@@ -269,6 +270,22 @@ test("canary monitoring independently validates approved preflight safety contro
 });
 
 
+test("canary monitoring observations bind the exact owner-approved UAT evidence", () => {
+  const evidence = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
+  assert.equal(evidence.approvedUatEvidenceSha256, observations().approvedUatEvidenceSha256);
+
+  for (const approvedUatEvidenceSha256 of [undefined, "d".repeat(64), "not-a-digest"] as const) {
+    assert.throws(
+      () => evaluateCanaryMonitoring({
+        evaluatedAtUtc,
+        preflight,
+        observation: { ...observations(), approvedUatEvidenceSha256 },
+      }),
+      /observation.*approved UAT evidence/i,
+    );
+  }
+});
+
 test("canary monitoring rejects post-approval drift from the owner-approved control digest", () => {
   const changedMonitoring = {
     ...preflight,
@@ -309,7 +326,6 @@ test("canary monitoring independently validates owner authorization and rollback
     { ownerApproved: false },
     { ownerRealDataAuthorized: false },
     { ownerApproverId: "" },
-    { approvedUatEvidenceSha256: "not-a-digest" },
     { ownerApprovedAtUtc: "2026-11-25T12:00:00.000Z" },
     { ownerApprovalExpiresAtUtc: "2026-11-24T08:00:00.000Z" },
     { preflightGeneratedAtUtc: "2026-11-23T07:59:59.999Z" },
@@ -317,8 +333,16 @@ test("canary monitoring independently validates owner authorization and rollback
     { rollback: { ...preflight.rollback, command: "ops/deploy/unsafe.sh" } },
     { rollback: { ...preflight.rollback, maxMinutes: 6 } },
   ]) {
+    const candidate = { ...preflight, ...patch };
     assert.throws(
-      () => evaluateCanaryMonitoring({ evaluatedAtUtc, preflight: { ...preflight, ...patch }, observation: observations() }),
+      () => evaluateCanaryMonitoring({
+        evaluatedAtUtc,
+        preflight: candidate,
+        observation: {
+          ...observations(),
+          approvedUatEvidenceSha256: candidate.approvedUatEvidenceSha256,
+        },
+      }),
       /approved owner authorization and rollback accountability/i,
     );
   }
