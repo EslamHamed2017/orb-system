@@ -15,7 +15,7 @@ export function ProjectContextNavigation({ locale, projectId, current, recordId 
       {recordId ? <li className={styles.current} aria-current="page"><bdi>{recordId}</bdi></li> : null}
     </ol></nav>
     <nav aria-label={text.related}><ul className={styles.related}>{destinations.map(({ key, label, href }) =>
-      <li key={key}><a href={href} aria-current={current === key || (current === "shipments" && (key === "supplierContainer" || key === "salesShipment")) ? "page" : undefined}>{label}</a></li>
+      <li key={key}><a href={href} aria-current={current === key || (key === "shipments" && (current === "supplierContainer" || current === "salesShipment")) || (key === "activity" && current === "audit") ? "page" : undefined}>{label}</a></li>
     )}</ul></nav>
   </div>;
 }
