@@ -118,13 +118,26 @@ test("owner UAT evidence rejects stale or future-dated browser reports", () => {
   const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
   for (const value of [
     report("passed", undefined, undefined, "2026-11-12T09:40:00.000Z", 30_000),
-    report("passed", undefined, undefined, "2026-11-12T10:00:01.000Z", 0),
+    report("passed", undefined, undefined, "2026-11-12T10:00:01.000Z", 1),
   ]) {
     assert.throws(
       () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
       /fresh|future/i,
     );
   }
+});
+
+test("owner UAT evidence rejects a zero-duration browser report", () => {
+  const value = report("passed", undefined, undefined, "2026-11-12T10:00:00.000Z", 0);
+  assert.throws(
+    () => createOwnerUatEvidence({
+      reportBytes: Buffer.from(JSON.stringify(value)),
+      targetUrl: "https://uat.example.test",
+      gitCommit: commit,
+      generatedAtUtc: "2026-11-12T10:00:00.000Z",
+    }),
+    /duration|positive/i,
+  );
 });
 
 test("owner UAT evidence rejects reports exceeding the bounded owner-review duration", () => {
