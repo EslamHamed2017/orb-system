@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import test from "node:test";
 import { evaluateCanaryMonitoring } from "../../ops/canary/evaluate-canary-monitoring.mjs";
 
+const ROOT = resolve(import.meta.dirname, "../..");
+const evaluator = resolve(ROOT, "ops/canary/evaluate-canary-monitoring.mjs");
 const commit = "a".repeat(40);
 const digest = "b".repeat(64);
 
@@ -237,5 +243,48 @@ test("canary monitoring rejects unsupported approved preflight claims", () => {
       () => evaluateCanaryMonitoring({ preflight: candidate, observation: observations() }),
       /unknown approved canary (preflight|monitoring|rollback) field/i,
     );
+  }
+});
+
+
+test("canary monitoring CLI emits validated evidence from immutable input files", () => {
+  const directory = mkdtempSync(join(tmpdir(), "orb-canary-monitoring-cli-"));
+  const preflightPath = join(directory, "preflight.json");
+  const observationPath = join(directory, "observation.json");
+  writeFileSync(preflightPath, JSON.stringify(preflight));
+  writeFileSync(observationPath, JSON.stringify(observations()));
+
+  const result = spawnSync(process.execPath, [
+    evaluator,
+    "--preflight", preflightPath,
+    "--observation", observationPath,
+  ], { cwd: ROOT, encoding: "utf8" });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const evidence = JSON.parse(result.stdout);
+  assert.equal(evidence.gate, "controlled-canary-monitoring-evidence");
+  assert.equal(evidence.passed, true);
+  assert.equal(evidence.observedAtUtc, observations().observedAtUtc);
+});
+
+test("canary monitoring CLI rejects unknown, missing, and duplicate inputs", () => {
+  const directory = mkdtempSync(join(tmpdir(), "orb-canary-monitoring-cli-invalid-"));
+  const preflightPath = join(directory, "preflight.json");
+  const alternatePreflightPath = join(directory, "alternate-preflight.json");
+  const observationPath = join(directory, "observation.json");
+  writeFileSync(preflightPath, JSON.stringify(preflight));
+  writeFileSync(alternatePreflightPath, JSON.stringify(preflight));
+  writeFileSync(observationPath, JSON.stringify(observations()));
+
+  const cases = [
+    ["unknown", ["--preflight", preflightPath, "--observation", observationPath, "--unsafe", "true"]],
+    ["missing", ["--preflight", preflightPath]],
+    ["duplicate", ["--preflight", preflightPath, "--preflight", alternatePreflightPath, "--observation", observationPath]],
+  ] as const;
+
+  for (const [label, args] of cases) {
+    const result = spawnSync(process.execPath, [evaluator, ...args], { cwd: ROOT, encoding: "utf8" });
+    assert.notEqual(result.status, 0, `${label} input unexpectedly passed`);
+    assert.match(result.stderr, /unknown argument|missing value|usage|duplicate argument/i);
   }
 });

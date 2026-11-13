@@ -1,3 +1,6 @@
+import { readFile } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
+
 const SHA1 = /^[a-f0-9]{40}$/;
 const SHA256 = /^[a-f0-9]{64}$/;
 const SECURITY_STOPS = [
@@ -250,4 +253,40 @@ export function evaluateCanaryMonitoring({ preflight, observation }) {
     },
     passed: true,
   };
+}
+
+
+async function main(args) {
+  const allowedArguments = new Set(["--preflight", "--observation"]);
+  const seenArguments = new Set();
+  for (let index = 0; index < args.length; index += 2) {
+    const argument = args[index];
+    if (!allowedArguments.has(argument) || args[index + 1] === undefined)
+      throw new Error(`unknown argument or missing value: ${argument ?? "<missing>"}`);
+    if (seenArguments.has(argument))
+      throw new Error(`duplicate argument: ${argument}`);
+    seenArguments.add(argument);
+  }
+  const value = (name) => {
+    const index = args.indexOf(name);
+    return index >= 0 ? args[index + 1] : undefined;
+  };
+  const preflightPath = value("--preflight");
+  const observationPath = value("--observation");
+  if (!preflightPath || !observationPath)
+    throw new Error("Usage: evaluate-canary-monitoring.mjs --preflight FILE --observation FILE");
+
+  const [preflight, observation] = await Promise.all([
+    readFile(preflightPath, "utf8").then(JSON.parse),
+    readFile(observationPath, "utf8").then(JSON.parse),
+  ]);
+  const evidence = evaluateCanaryMonitoring({ preflight, observation });
+  process.stdout.write(`${JSON.stringify(evidence, null, 2)}\n`);
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  main(process.argv.slice(2)).catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  });
 }
