@@ -20,6 +20,9 @@ test("application rollback gate is isolated, revision-pinned, and forward-schema
   assert.match(gate, /_prisma_migrations/);
   assert.match(gate, /migration_digest\(\)/);
   assert.match(gate, /before_digest=\$\(migration_digest\)/);
+  assert.match(gate, /expected_migration_names/);
+  assert.match(gate, /database_migration_names/);
+  assert.match(gate, /\[\[ "\$database_migration_names" == "\$expected_migration_names" \]\]/);
   assert.match(gate, /after_digest=\$\(migration_digest\)/);
   assert.match(gate, /\[\[ "\$after_digest" == "\$before_digest" \]\]/);
   assert.doesNotMatch(gate, /migrate reset|DROP (?:DATABASE|SCHEMA|TABLE|COLUMN)/i);

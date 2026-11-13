@@ -89,6 +89,20 @@ from pathlib import Path
 print(sum(1 for p in Path("prisma/migrations").iterdir() if p.is_dir() and (p / "migration.sql").is_file()))
 PYCOUNT
 )
+expected_migration_names=$(python3 - <<'PYNAMES'
+from pathlib import Path
+print("\n".join(sorted(
+    p.name for p in Path("prisma/migrations").iterdir()
+    if p.is_dir() and (p / "migration.sql").is_file()
+)))
+PYNAMES
+)
+database_migration_names=$(docker exec "$container" psql -X -U orb_migrator -d orb_rollback -At -v ON_ERROR_STOP=1 \
+  -c "SELECT string_agg(migration_name, E'\\n' ORDER BY migration_name) FROM _prisma_migrations")
+[[ "$database_migration_names" == "$expected_migration_names" ]] || {
+  echo "expanded database migration names differ from the candidate filesystem" >&2
+  exit 2
+}
 migration_state() {
   docker exec "$container" psql -X -U orb_migrator -d orb_rollback -At -v ON_ERROR_STOP=1 \
     -c "SELECT count(*) || '|' || count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) || '|' || count(*) FILTER (WHERE rolled_back_at IS NOT NULL) FROM _prisma_migrations"
