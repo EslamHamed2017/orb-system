@@ -29,6 +29,14 @@ function exactHttpsOrigin(value, label) {
   return url.origin;
 }
 
+function rejectUnknownFields(value, allowedFields, label) {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error(`${label} controls must be an object`);
+  const unknownFields = Object.keys(value).filter((field) => !allowedFields.includes(field));
+  if (unknownFields.length > 0)
+    throw new Error(`unknown ${label} control field: ${unknownFields.join(", ")}`);
+}
+
 function boundedInteger(value, minimum, maximum, label) {
   if (!Number.isInteger(value) || value < minimum || value > maximum)
     throw new Error(`${label} is outside the controlled canary scope`);
@@ -69,6 +77,18 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
   if (!SHA1.test(plan.releaseCommit ?? "")) throw new Error("canary releaseCommit must be a full lowercase SHA-1");
   const targetOrigin = exactHttpsOrigin(plan.targetOrigin, "canary targetOrigin");
   const uat = ownerUatEvidence;
+
+  rejectUnknownFields(plan.window, ["startsAtUtc", "endsAtUtc"], "window");
+  rejectUnknownFields(plan.scope, ["maxUsers", "maxProjects", "userIds", "projectIds"], "scope");
+  rejectUnknownFields(plan.monitoring, [
+    "operatorId",
+    "healthIntervalSeconds",
+    "maxErrorRatePercent",
+    "maxP95LatencyMs",
+    "maxConsecutiveReadinessFailures",
+  ], "monitoring");
+  rejectUnknownFields(plan.stopConditions, REQUIRED_STOPS, "stop condition");
+  rejectUnknownFields(plan.rollback, ["command", "maxMinutes", "operatorAssigned", "operatorId"], "rollback");
 
   if (plan.ownerApproval?.approved !== true) throw new Error("explicit owner approval is required");
   if (plan.ownerApproval?.realDataAuthorized !== true) throw new Error("explicit owner real-data authorization is required");
@@ -115,11 +135,6 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
       !Number.isInteger(monitoring.maxConsecutiveReadinessFailures) || monitoring.maxConsecutiveReadinessFailures < 1 || monitoring.maxConsecutiveReadinessFailures > 2)
     throw new Error("canary monitoring thresholds must satisfy the controlled pilot limits");
 
-  const unknownStopConditions = plan.stopConditions && typeof plan.stopConditions === "object"
-    ? Object.keys(plan.stopConditions).filter((condition) => !REQUIRED_STOPS.includes(condition))
-    : [];
-  if (unknownStopConditions.length > 0)
-    throw new Error(`unknown canary stop condition: ${unknownStopConditions.join(", ")}`);
   for (const condition of REQUIRED_STOPS) {
     if (plan.stopConditions?.[condition] !== true)
       throw new Error(`mandatory canary stop condition is not enabled: ${condition}`);

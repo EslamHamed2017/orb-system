@@ -378,6 +378,25 @@ test("canary preflight rejects unknown stop conditions instead of dropping them 
   assert.match(result.stderr, /unknown.*stop condition|stop condition.*unknown/i);
 });
 
+test("canary preflight rejects unknown approved control fields instead of silently omitting them", () => {
+  const cases = [
+    ["window", "endsAtUt"],
+    ["scope", "maxProjectz"],
+    ["monitoring", "maxErrorRatePercnt"],
+    ["rollback", "maxMinutez"],
+  ] as const;
+
+  for (const [section, field] of cases) {
+    const plan = validPlan();
+    (plan[section] as Record<string, unknown>)[field] = 1;
+    plan.ownerApproval.approvedPlanSha256 = approvedControlsSha256(plan);
+
+    const result = run(plan);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /unknown.*control|unknown.*field/i);
+  }
+});
+
 test("canary preflight CLI rejects caller-controlled clock overrides", () => {
   const directory = mkdtempSync(join(tmpdir(), "orb-canary-cli-clock-"));
   const planPath = join(directory, "plan.json");
