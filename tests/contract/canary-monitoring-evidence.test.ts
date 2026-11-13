@@ -725,6 +725,43 @@ test("canary monitoring rejects rehashed predecessor evidence with authorization
   }
 });
 
+test("canary monitoring rejects malformed predecessor observation identity history", () => {
+  const first = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
+  const second = evaluateCanaryMonitoring({
+    evaluatedAtUtc: "2026-11-24T09:01:00.000Z",
+    preflight,
+    previousEvidence: first,
+    observation: {
+      ...observations(),
+      observationId: "sample-20261124-090045-002",
+      sampleSequence: 2,
+      previousMonitoringEvidenceSha256: first.monitoringEvidenceSha256,
+      observedAtUtc: "2026-11-24T09:00:45.000Z",
+    },
+  });
+  const predecessor = {
+    ...second,
+    observationIds: ["", second.observationId],
+  } as Record<string, unknown>;
+  predecessor.monitoringEvidenceSha256 = monitoringEvidenceSha256(predecessor);
+
+  assert.throws(
+    () => evaluateCanaryMonitoring({
+      evaluatedAtUtc: "2026-11-24T09:01:30.000Z",
+      preflight,
+      previousEvidence: predecessor,
+      observation: {
+        ...observations(),
+        observationId: "sample-20261124-090115-003",
+        sampleSequence: 3,
+        previousMonitoringEvidenceSha256: predecessor.monitoringEvidenceSha256,
+        observedAtUtc: "2026-11-24T09:01:15.000Z",
+      },
+    }),
+    /observation identity history.*invalid/i,
+  );
+});
+
 test("canary monitoring rejects unsupported claims in predecessor evidence", () => {
   const first = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
   const predecessor = { ...first, unsupportedApprovalOverride: true } as Record<string, unknown>;

@@ -155,6 +155,7 @@ function validateSampleChain({ observation, previousEvidence }) {
   const previousObservationIds = previousEvidence.observationIds;
   if (!Array.isArray(previousObservationIds) ||
       previousObservationIds.length !== sequence - 1 ||
+      previousObservationIds.some((id) => typeof id !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$/.test(id)) ||
       previousObservationIds.at(-1) !== previousEvidence.observationId ||
       new Set(previousObservationIds).size !== previousObservationIds.length)
     throw new Error("canary monitoring sample chain observation identity history is invalid");
