@@ -26,11 +26,14 @@ test("deployed owner UAT is explicitly authorized and limited to the bilingual p
   const deployed = workflow.match(/^  deployed-acceptance:\n([\s\S]*?)(?=^  [a-z][a-z-]+:\n)/m)?.[1] ?? "";
   assert.match(workflow, /owner_uat_authorized:[\s\S]*?type: boolean/);
   assert.match(workflow, /approved_release_commit:[\s\S]*?required: true[\s\S]*?type: string/);
+  assert.match(workflow, /release_candidate_manifest_base64:[\s\S]*?required: true[\s\S]*?type: string/);
+  assert.match(workflow, /release_public_key_base64:[\s\S]*?required: true[\s\S]*?type: string/);
   assert.match(deployed, /inputs\.owner_uat_authorized == true/);
   assert.match(deployed, /ORB_APPROVED_RELEASE_COMMIT:.*inputs\.approved_release_commit/);
   assert.match(deployed, /actions\/checkout@v4[\s\S]*?ref:.*inputs\.approved_release_commit/);
   assert.match(deployed, /Validate approved release commit input[\s\S]*?\^\[a-f0-9\]\{40\}\$/);
   assert.match(deployed, /Verify exact approved release checkout[\s\S]*?git rev-parse HEAD[\s\S]*?git status --porcelain=v1 --untracked-files=all/);
+  assert.match(deployed, /Materialize approved signed release candidate[\s\S]*?base64 --decode[\s\S]*?ORB_RELEASE_CANDIDATE_MANIFEST[\s\S]*?ORB_RELEASE_PUBLIC_KEY_PATH/);
   const checkoutIndex = deployed.indexOf("uses: actions/checkout@v4");
   const identityIndex = deployed.indexOf("name: Verify exact approved release checkout");
   const installIndex = deployed.indexOf("pnpm install --frozen-lockfile");
@@ -43,6 +46,9 @@ test("deployed owner UAT is explicitly authorized and limited to the bilingual p
   assert.match(gate, /ORB_OWNER_UAT_AUTHORIZATION/);
   assert.match(gate, /readonly release_commit=.*git rev-parse HEAD/);
   assert.match(gate, /ORB_APPROVED_RELEASE_COMMIT/);
+  assert.match(gate, /ORB_RELEASE_CANDIDATE_MANIFEST/);
+  assert.match(gate, /ORB_RELEASE_PUBLIC_KEY_PATH/);
+  assert.match(gate, /verify-owner-uat-candidate\.sh/);
   assert.match(gate, /approved release commit must be a full lowercase SHA-1/);
   assert.match(gate, /release_commit.*ORB_APPROVED_RELEASE_COMMIT|ORB_APPROVED_RELEASE_COMMIT.*release_commit/s);
   assert.match(gate, /assert_clean_checkout/);

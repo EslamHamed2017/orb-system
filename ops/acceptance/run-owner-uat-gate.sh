@@ -18,6 +18,10 @@ assert_clean_checkout() {
   echo "approved release commit must be a full lowercase SHA-1" >&2
   exit 2
 }
+: "${ORB_RELEASE_CANDIDATE_MANIFEST:?signed release-candidate manifest is required}"
+: "${ORB_RELEASE_PUBLIC_KEY_PATH:?release-candidate public key is required}"
+ops/acceptance/verify-owner-uat-candidate.sh \
+  "$ORB_RELEASE_CANDIDATE_MANIFEST" "$ORB_RELEASE_PUBLIC_KEY_PATH" "$ORB_APPROVED_RELEASE_COMMIT"
 : "${ORB_OWNER_UAT_AUTHORIZATION:?explicit owner UAT authorization is required}"
 [[ "$ORB_OWNER_UAT_AUTHORIZATION" == "OWNER_APPROVED" ]] || {
   echo "owner UAT authorization was not explicitly granted" >&2
