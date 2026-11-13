@@ -112,6 +112,8 @@ function validateSampleChain({ observation, previousEvidence }) {
       previousEvidence.monitoringEvidenceSha256 !== previousDigest ||
       monitoringEvidenceSha256(previousEvidence) !== previousDigest)
     throw new Error("canary monitoring sample chain contains invalid or tampered previous monitoring evidence");
+  if (previousEvidence.observationId === observation.observationId)
+    throw new Error("canary monitoring sample chain observation identity must differ from its predecessor");
   return { sequence, previousDigest };
 }
 
