@@ -25,7 +25,12 @@ function validPlan() {
       expiresAtUtc: "2026-11-25T12:00:00.000Z",
     },
     window: { startsAtUtc: "2026-11-24T08:00:00.000Z", endsAtUtc: "2026-11-25T08:00:00.000Z" },
-    scope: { maxUsers: 5, maxProjects: 3 },
+    scope: {
+      maxUsers: 5,
+      maxProjects: 3,
+      userIds: ["pilot-user-01", "pilot-user-02"],
+      projectIds: ["pilot-project-01"],
+    },
     monitoring: {
       operatorId: "orb-monitor-01",
       healthIntervalSeconds: 30,
@@ -89,6 +94,8 @@ test("canary preflight accepts a tightly bounded owner-authorized plan bound to 
     endsAtUtc: "2026-11-25T08:00:00.000Z",
     maxUsers: 5,
     maxProjects: 3,
+    userIds: ["pilot-user-01", "pilot-user-02"],
+    projectIds: ["pilot-project-01"],
     ownerApproved: true,
     ownerRealDataAuthorized: true,
     ownerApproverId: "orb-owner-01",
@@ -258,6 +265,22 @@ test("canary preflight treats the window end and approval expiry as exclusive bo
   const atApprovalExpiry = run(plan, validUat(), plan.ownerApproval.expiresAtUtc);
   assert.notEqual(atApprovalExpiry.status, 0);
   assert.match(atApprovalExpiry.stderr, /owner approval.*expired/i);
+});
+
+test("canary preflight binds execution to an explicit unique pilot cohort and project set", () => {
+  const cases = [
+    Object.assign(validPlan(), { scope: { maxUsers: 5, maxProjects: 3, userIds: [], projectIds: ["pilot-project-01"] } }),
+    Object.assign(validPlan(), { scope: { maxUsers: 5, maxProjects: 3, userIds: ["pilot-user-01"], projectIds: [] } }),
+    Object.assign(validPlan(), { scope: { maxUsers: 1, maxProjects: 3, userIds: ["pilot-user-01", "pilot-user-02"], projectIds: ["pilot-project-01"] } }),
+    Object.assign(validPlan(), { scope: { maxUsers: 5, maxProjects: 3, userIds: ["pilot-user-01", "pilot-user-01"], projectIds: ["pilot-project-01"] } }),
+    Object.assign(validPlan(), { scope: { maxUsers: 5, maxProjects: 3, userIds: ["pilot user"], projectIds: ["pilot-project-01"] } }),
+  ];
+
+  for (const plan of cases) {
+    const result = run(plan);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /pilot.*user|pilot.*project|canary scope/i);
+  }
 });
 
 test("canary preflight requires an identified monitoring operator", () => {

@@ -33,6 +33,14 @@ function boundedInteger(value, minimum, maximum, label) {
     throw new Error(`${label} is outside the controlled canary scope`);
 }
 
+function boundedUniqueIds(value, maximum, label) {
+  if (!Array.isArray(value) || value.length < 1 || value.length > maximum ||
+      value.some((id) => typeof id !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$/.test(id)) ||
+      new Set(value).size !== value.length)
+    throw new Error(`${label} must identify a unique controlled canary scope`);
+  return [...value];
+}
+
 export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date().toISOString() }) {
   if (!plan || plan.schemaVersion !== 1) throw new Error("canary plan schemaVersion must be 1");
   if (!SHA1.test(plan.releaseCommit ?? "")) throw new Error("canary releaseCommit must be a full lowercase SHA-1");
@@ -72,6 +80,8 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
 
   boundedInteger(plan.scope?.maxUsers, 1, 5, "maxUsers");
   boundedInteger(plan.scope?.maxProjects, 1, 3, "maxProjects");
+  const userIds = boundedUniqueIds(plan.scope?.userIds, plan.scope.maxUsers, "pilot user IDs");
+  const projectIds = boundedUniqueIds(plan.scope?.projectIds, plan.scope.maxProjects, "pilot project IDs");
 
   const monitoring = plan.monitoring ?? {};
   if (typeof monitoring.operatorId !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$/.test(monitoring.operatorId))
@@ -109,6 +119,8 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
     endsAtUtc: ends.toISOString(),
     maxUsers: plan.scope.maxUsers,
     maxProjects: plan.scope.maxProjects,
+    userIds,
+    projectIds,
     ownerApproved: plan.ownerApproval.approved,
     ownerRealDataAuthorized: plan.ownerApproval.realDataAuthorized,
     ownerApproverId: plan.ownerApproval.approverId,
