@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
 import { validateCanaryPlan } from "../../ops/canary/validate-canary-plan.mjs";
+import { evaluateCanaryMonitoring } from "../../ops/canary/evaluate-canary-monitoring.mjs";
 
 const ROOT = resolve(import.meta.dirname, "../..");
 const validator = resolve(ROOT, "ops/canary/validate-canary-plan.mjs");
@@ -163,6 +164,39 @@ test("canary preflight accepts a tightly bounded owner-authorized plan bound to 
     },
     passed: true,
   });
+});
+
+test("canary monitoring accepts the exact manifest emitted by canary preflight", () => {
+  const plan = validPlan();
+  const manifest = validateCanaryPlan({
+    plan,
+    ownerUatEvidence: validUat(),
+    nowUtc: "2026-11-24T09:00:00.000Z",
+  });
+
+  const evidence = evaluateCanaryMonitoring({
+    preflight: manifest,
+    observation: {
+      schemaVersion: 1,
+      releaseCommit: commit,
+      targetOrigin: plan.targetOrigin,
+      approvedPlanSha256: plan.ownerApproval.approvedPlanSha256,
+      observedAtUtc: "2026-11-24T09:01:00.000Z",
+      readiness: true,
+      consecutiveReadinessFailures: 0,
+      errorRatePercent: 0.25,
+      p95LatencyMs: 750,
+      securityEvents: {
+        permissionBypass: false,
+        attachmentIsolationFailure: false,
+        dataIntegrityFailure: false,
+      },
+    },
+  });
+
+  assert.equal(evidence.passed, true);
+  assert.deepEqual(evidence.userIds, plan.scope.userIds);
+  assert.deepEqual(evidence.projectIds, plan.scope.projectIds);
 });
 
 test("canary preflight rejects absent owner approval or real-data authorization", () => {

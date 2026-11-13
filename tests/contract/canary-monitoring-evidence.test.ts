@@ -12,11 +12,23 @@ const preflight = {
   targetOrigin: "https://canary.orb.example",
   startsAtUtc: "2026-11-24T08:00:00.000Z",
   endsAtUtc: "2026-11-25T08:00:00.000Z",
+  maxUsers: 2,
+  maxProjects: 2,
+  userIds: ["pilot-user-01", "pilot-user-02"],
+  projectIds: ["pilot-project-01", "pilot-project-02"],
   approvedPlanSha256: digest,
   approvedUatEvidenceSha256: "c".repeat(64),
   ownerApproved: true,
   ownerRealDataAuthorized: true,
   ownerApproverId: "orb-owner-01",
+  monitoringOperatorId: "orb-monitor-01",
+  uatReportStartedAtUtc: "2026-11-23T07:30:00.000Z",
+  uatReportCompletedAtUtc: "2026-11-23T07:44:00.000Z",
+  uatEvidenceGeneratedAtUtc: "2026-11-23T07:45:00.000Z",
+  uatLocales: [
+    { locale: "en", direction: "ltr", passed: true },
+    { locale: "ar", direction: "rtl", passed: true },
+  ],
   ownerApprovedAtUtc: "2026-11-23T08:00:00.000Z",
   ownerApprovalExpiresAtUtc: "2026-11-25T12:00:00.000Z",
   preflightGeneratedAtUtc: "2026-11-24T08:00:00.000Z",
@@ -93,6 +105,50 @@ test("passing canary monitoring evidence preserves approved controls and evaluat
   assert.equal(evidence.ownerApprovedAtUtc, preflight.ownerApprovedAtUtc);
   assert.equal(evidence.ownerApprovalExpiresAtUtc, preflight.ownerApprovalExpiresAtUtc);
   assert.equal(evidence.preflightGeneratedAtUtc, preflight.preflightGeneratedAtUtc);
+  assert.equal(evidence.monitoringOperatorId, preflight.monitoringOperatorId);
+  assert.equal(evidence.uatReportStartedAtUtc, preflight.uatReportStartedAtUtc);
+  assert.equal(evidence.uatReportCompletedAtUtc, preflight.uatReportCompletedAtUtc);
+  assert.equal(evidence.uatEvidenceGeneratedAtUtc, preflight.uatEvidenceGeneratedAtUtc);
+  assert.deepEqual(evidence.uatLocales, preflight.uatLocales);
+});
+
+test("canary monitoring accepts and preserves the exact approved pilot cohort", () => {
+  const scopedPreflight = {
+    ...preflight,
+    maxUsers: 2,
+    maxProjects: 2,
+    userIds: ["pilot-user-01", "pilot-user-02"],
+    projectIds: ["pilot-project-01", "pilot-project-02"],
+  };
+
+  const evidence = evaluateCanaryMonitoring({ preflight: scopedPreflight, observation: observations() });
+
+  assert.equal(evidence.maxUsers, scopedPreflight.maxUsers);
+  assert.equal(evidence.maxProjects, scopedPreflight.maxProjects);
+  assert.deepEqual(evidence.userIds, scopedPreflight.userIds);
+  assert.deepEqual(evidence.projectIds, scopedPreflight.projectIds);
+});
+
+test("canary monitoring rejects a malformed approved pilot cohort", () => {
+  const scopedPreflight = {
+    ...preflight,
+    maxUsers: 2,
+    maxProjects: 1,
+    userIds: ["pilot-user-01", "pilot-user-02"],
+    projectIds: ["pilot-project-01"],
+  };
+
+  for (const patch of [
+    { userIds: ["pilot-user-01", "pilot-user-01"] },
+    { projectIds: [] },
+    { maxUsers: 6 },
+    { maxProjects: 0 },
+  ]) {
+    assert.throws(
+      () => evaluateCanaryMonitoring({ preflight: { ...scopedPreflight, ...patch }, observation: observations() }),
+      /approved pilot cohort/i,
+    );
+  }
 });
 
 test("canary monitoring evidence fails closed on every immediate security and integrity stop", () => {

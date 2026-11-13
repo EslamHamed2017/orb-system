@@ -40,6 +40,15 @@ function rejectUnknownFields(value, allowedFields, label) {
     throw new Error(`unknown ${label} field: ${unknownFields.join(", ")}`);
 }
 
+function approvedCohortIds(value, maximum, label) {
+  const identity = /^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$/;
+  if (!Array.isArray(value) || value.length < 1 || value.length > maximum ||
+      value.some((id) => typeof id !== "string" || !identity.test(id)) ||
+      new Set(value).size !== value.length)
+    throw new Error(`${label} must identify the approved pilot cohort`);
+  return [...value];
+}
+
 export function evaluateCanaryMonitoring({ preflight, observation }) {
   rejectUnknownFields(observation, [
     "schemaVersion",
@@ -61,11 +70,20 @@ export function evaluateCanaryMonitoring({ preflight, observation }) {
     "targetOrigin",
     "startsAtUtc",
     "endsAtUtc",
+    "maxUsers",
+    "maxProjects",
+    "userIds",
+    "projectIds",
     "approvedPlanSha256",
     "approvedUatEvidenceSha256",
     "ownerApproved",
     "ownerRealDataAuthorized",
     "ownerApproverId",
+    "monitoringOperatorId",
+    "uatReportStartedAtUtc",
+    "uatReportCompletedAtUtc",
+    "uatEvidenceGeneratedAtUtc",
+    "uatLocales",
     "ownerApprovedAtUtc",
     "ownerApprovalExpiresAtUtc",
     "preflightGeneratedAtUtc",
@@ -101,6 +119,11 @@ export function evaluateCanaryMonitoring({ preflight, observation }) {
 
   const starts = canonicalTime(preflight.startsAtUtc, "canary window start");
   const ends = canonicalTime(preflight.endsAtUtc, "canary window end");
+  if (!Number.isInteger(preflight.maxUsers) || preflight.maxUsers < 1 || preflight.maxUsers > 5 ||
+      !Number.isInteger(preflight.maxProjects) || preflight.maxProjects < 1 || preflight.maxProjects > 3)
+    throw new Error("approved pilot cohort limits are invalid");
+  const userIds = approvedCohortIds(preflight.userIds, preflight.maxUsers, "pilot user IDs");
+  const projectIds = approvedCohortIds(preflight.projectIds, preflight.maxProjects, "pilot project IDs");
   const observedAt = canonicalTime(observation?.observedAtUtc, "canary observation time");
   if (observedAt < starts || observedAt >= ends)
     throw new Error("canary observation must fall inside the approved window");
@@ -109,6 +132,20 @@ export function evaluateCanaryMonitoring({ preflight, observation }) {
   const approvedAt = canonicalTime(preflight.ownerApprovedAtUtc, "owner approval time");
   const approvalExpires = canonicalTime(preflight.ownerApprovalExpiresAtUtc, "owner approval expiry");
   const preflightGenerated = canonicalTime(preflight.preflightGeneratedAtUtc, "canary preflight generation time");
+  const uatStarted = canonicalTime(preflight.uatReportStartedAtUtc, "UAT report start time");
+  const uatCompleted = canonicalTime(preflight.uatReportCompletedAtUtc, "UAT report completion time");
+  const uatGenerated = canonicalTime(preflight.uatEvidenceGeneratedAtUtc, "UAT evidence generation time");
+  const uatLocales = preflight.uatLocales;
+  const uatEvidenceIsValid =
+    uatCompleted >= uatStarted &&
+    uatCompleted.valueOf() - uatStarted.valueOf() <= 30 * 60 * 1000 &&
+    uatGenerated >= uatCompleted && uatGenerated < approvedAt &&
+    Array.isArray(uatLocales) && uatLocales.length === 2 &&
+    uatLocales.some((entry) => entry?.locale === "en" && entry.direction === "ltr" && entry.passed === true && Object.keys(entry).length === 3) &&
+    uatLocales.some((entry) => entry?.locale === "ar" && entry.direction === "rtl" && entry.passed === true && Object.keys(entry).length === 3);
+  if (!uatEvidenceIsValid)
+    throw new Error("canary monitoring requires valid approved UAT evidence");
+
   const rollback = preflight.rollback ?? {};
   const authorizationIsValid =
     preflight.ownerApproved === true &&
@@ -130,6 +167,7 @@ export function evaluateCanaryMonitoring({ preflight, observation }) {
   const controlsAreValid =
     typeof monitoring.operatorId === "string" &&
     /^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$/.test(monitoring.operatorId) &&
+    preflight.monitoringOperatorId === monitoring.operatorId &&
     Number.isInteger(monitoring.healthIntervalSeconds) &&
     monitoring.healthIntervalSeconds >= 15 && monitoring.healthIntervalSeconds <= 60 &&
     typeof monitoring.maxErrorRatePercent === "number" &&
@@ -167,6 +205,10 @@ export function evaluateCanaryMonitoring({ preflight, observation }) {
     gate: "controlled-canary-monitoring-evidence",
     releaseCommit: preflight.releaseCommit,
     targetOrigin,
+    maxUsers: preflight.maxUsers,
+    maxProjects: preflight.maxProjects,
+    userIds,
+    projectIds,
     approvedPlanSha256: preflight.approvedPlanSha256,
     approvedUatEvidenceSha256: preflight.approvedUatEvidenceSha256,
     ownerApproved: preflight.ownerApproved,
@@ -174,6 +216,13 @@ export function evaluateCanaryMonitoring({ preflight, observation }) {
     ownerApproverId: preflight.ownerApproverId,
     ownerApprovedAtUtc: approvedAt.toISOString(),
     ownerApprovalExpiresAtUtc: approvalExpires.toISOString(),
+    uatReportStartedAtUtc: uatStarted.toISOString(),
+    uatReportCompletedAtUtc: uatCompleted.toISOString(),
+    uatEvidenceGeneratedAtUtc: uatGenerated.toISOString(),
+    uatLocales: [
+      { locale: "en", direction: "ltr", passed: true },
+      { locale: "ar", direction: "rtl", passed: true },
+    ],
     preflightGeneratedAtUtc: preflightGenerated.toISOString(),
     observedAtUtc: observedAt.toISOString(),
     monitoringOperatorId: monitoring.operatorId,
