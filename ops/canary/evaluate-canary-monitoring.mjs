@@ -26,7 +26,30 @@ function finiteNumber(value, label) {
   return value;
 }
 
+function rejectUnknownFields(value, allowedFields, label) {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error(`${label} must be an object`);
+  const unknownFields = Object.keys(value).filter((field) => !allowedFields.includes(field));
+  if (unknownFields.length > 0)
+    throw new Error(`unknown ${label} field: ${unknownFields.join(", ")}`);
+}
+
 export function evaluateCanaryMonitoring({ preflight, observation }) {
+  rejectUnknownFields(observation, [
+    "schemaVersion",
+    "releaseCommit",
+    "targetOrigin",
+    "approvedPlanSha256",
+    "observedAtUtc",
+    "readiness",
+    "consecutiveReadinessFailures",
+    "errorRatePercent",
+    "p95LatencyMs",
+    "securityEvents",
+  ], "canary observation");
+  rejectUnknownFields(observation.securityEvents, SECURITY_STOPS, "canary security event");
+  if (observation.schemaVersion !== 1)
+    throw new Error("canary observation schemaVersion must be 1");
   if (preflight?.schemaVersion !== 1 || preflight?.gate !== "controlled-canary-preflight" || preflight?.passed !== true)
     throw new Error("canary monitoring requires a passing controlled canary preflight");
   if (!SHA1.test(preflight.releaseCommit ?? "") || !SHA256.test(preflight.approvedPlanSha256 ?? ""))

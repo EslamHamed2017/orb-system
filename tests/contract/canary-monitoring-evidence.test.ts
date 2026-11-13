@@ -66,7 +66,6 @@ test("canary monitoring evidence fails closed on any approved threshold breach",
   }
 });
 
-
 test("canary monitoring evidence fails closed on every immediate security and integrity stop", () => {
   for (const stop of ["permissionBypass", "attachmentIsolationFailure", "dataIntegrityFailure"] as const) {
     const observation = observations();
@@ -76,4 +75,31 @@ test("canary monitoring evidence fails closed on every immediate security and in
       /mandatory canary stop condition/i,
     );
   }
+});
+
+test("canary monitoring evidence rejects unsupported observation claims", () => {
+  assert.throws(
+    () => evaluateCanaryMonitoring({
+      preflight,
+      observation: { ...observations(), operatorOverride: "unapproved-operator" },
+    }),
+    /unknown canary observation field: operatorOverride/i,
+  );
+
+  const observation = observations();
+  Object.assign(observation.securityEvents, { attachmentScanPassed: true });
+  assert.throws(
+    () => evaluateCanaryMonitoring({ preflight, observation }),
+    /unknown canary security event field: attachmentScanPassed/i,
+  );
+});
+
+test("canary monitoring evidence requires the supported observation schema", () => {
+  assert.throws(
+    () => evaluateCanaryMonitoring({
+      preflight,
+      observation: { ...observations(), schemaVersion: 2 },
+    }),
+    /canary observation schemaVersion must be 1/i,
+  );
 });
