@@ -366,12 +366,14 @@ test("canary monitoring CLI emits validated evidence from immutable input files"
 
   const previousEvidencePath = join(directory, "previous-evidence.json");
   const secondObservationPath = join(directory, "observation-2.json");
+  const predecessorEvaluatedAt = Date.parse(evidence.evaluatedAtUtc);
+  while (Date.now() <= predecessorEvaluatedAt) { /* preserve strict chain chronology */ }
   const secondObservation = {
     ...runtimeObservation,
     observationId: "sample-runtime-002",
     sampleSequence: 2,
     previousMonitoringEvidenceSha256: evidence.monitoringEvidenceSha256,
-    observedAtUtc: new Date(now - 500).toISOString(),
+    observedAtUtc: new Date().toISOString(),
   };
   writeFileSync(previousEvidencePath, JSON.stringify(evidence));
   writeFileSync(secondObservationPath, JSON.stringify(secondObservation));
@@ -513,10 +515,10 @@ test("canary monitoring evidence forms a tamper-evident ordered sample chain", (
     observationId: "sample-20261124-090015-002",
     sampleSequence: 2,
     previousMonitoringEvidenceSha256: first.monitoringEvidenceSha256,
-    observedAtUtc: "2026-11-24T09:00:15.000Z",
+    observedAtUtc: "2026-11-24T09:00:45.000Z",
   };
   const second = evaluateCanaryMonitoring({
-    evaluatedAtUtc: "2026-11-24T09:00:30.000Z",
+    evaluatedAtUtc: "2026-11-24T09:01:00.000Z",
     preflight,
     previousEvidence: first,
     observation: secondObservation,
@@ -544,6 +546,27 @@ test("canary monitoring rejects reuse of the predecessor observation identity", 
       observation: repeatedIdentityObservation,
     }),
     /observation identity.*differ|sample chain.*identity/i,
+  );
+});
+
+test("canary monitoring rejects a chained observation that predates predecessor evaluation", () => {
+  const first = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
+  const retroactiveObservation = {
+    ...observations(),
+    observationId: "sample-20261124-090015-002",
+    sampleSequence: 2,
+    previousMonitoringEvidenceSha256: first.monitoringEvidenceSha256,
+    observedAtUtc: "2026-11-24T09:00:15.000Z",
+  };
+
+  assert.throws(
+    () => evaluateCanaryMonitoring({
+      evaluatedAtUtc: "2026-11-24T09:00:45.000Z",
+      preflight,
+      previousEvidence: first,
+      observation: retroactiveObservation,
+    }),
+    /sample chain.*evaluation|observation.*predecessor/i,
   );
 });
 

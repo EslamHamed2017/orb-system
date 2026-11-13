@@ -219,8 +219,14 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
   const observedAt = canonicalTime(observation?.observedAtUtc, "canary observation time");
   if (observedAt < starts || observedAt >= ends)
     throw new Error("canary observation must fall inside the approved window");
-  if (previousEvidence && canonicalTime(previousEvidence.observedAtUtc, "previous canary observation time") >= observedAt)
-    throw new Error("canary monitoring sample sequence must advance observation time");
+  if (previousEvidence) {
+    const previousObservedAt = canonicalTime(previousEvidence.observedAtUtc, "previous canary observation time");
+    const previousEvaluatedAt = canonicalTime(previousEvidence.evaluatedAtUtc, "previous canary evaluation time");
+    if (previousObservedAt >= observedAt)
+      throw new Error("canary monitoring sample sequence must advance observation time");
+    if (previousEvaluatedAt >= observedAt)
+      throw new Error("canary monitoring sample chain observation must follow predecessor evaluation");
+  }
 
   const identity = /^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$/;
   const approvedAt = canonicalTime(preflight.ownerApprovedAtUtc, "owner approval time");
