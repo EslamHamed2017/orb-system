@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
@@ -14,6 +15,41 @@ const REQUIRED_STOPS = [
   "errorRateThresholdExceeded",
   "latencyThresholdExceeded",
 ];
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value).sort(([left], [right]) => left.localeCompare(right));
+    return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function approvedControlsSha256(preflight) {
+  const controls = {
+    releaseCommit: preflight.releaseCommit,
+    targetOrigin: preflight.targetOrigin,
+    window: {
+      startsAtUtc: preflight.startsAtUtc,
+      endsAtUtc: preflight.endsAtUtc,
+    },
+    scope: {
+      maxUsers: preflight.maxUsers,
+      maxProjects: preflight.maxProjects,
+      userIds: preflight.userIds,
+      projectIds: preflight.projectIds,
+    },
+    monitoring: preflight.monitoring,
+    stopConditions: Object.fromEntries(REQUIRED_STOPS.map((name) => [name, true])),
+    rollback: {
+      command: preflight.rollback?.command,
+      maxMinutes: preflight.rollback?.maxMinutes,
+      operatorAssigned: true,
+      operatorId: preflight.rollback?.operatorId,
+    },
+  };
+  return createHash("sha256").update(canonicalJson(controls)).digest("hex");
+}
+
 function canonicalTime(value, label) {
   const parsed = new Date(value);
   if (!Number.isFinite(parsed.valueOf()) || parsed.toISOString() !== value)
@@ -205,6 +241,8 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
     new Set(approvedStops).size === REQUIRED_STOPS.length;
   if (!controlsAreValid)
     throw new Error("canary monitoring requires valid approved canary safety controls");
+  if (approvedControlsSha256(preflight) !== preflight.approvedPlanSha256)
+    throw new Error("canary monitoring requires the exact owner-approved control digest");
   if (observation.monitoringOperatorId !== monitoring.operatorId)
     throw new Error("canary observation must identify the exact approved monitoring operator");
 

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -9,7 +10,7 @@ import { evaluateCanaryMonitoring } from "../../ops/canary/evaluate-canary-monit
 const ROOT = resolve(import.meta.dirname, "../..");
 const evaluator = resolve(ROOT, "ops/canary/evaluate-canary-monitoring.mjs");
 const commit = "a".repeat(40);
-const digest = "b".repeat(64);
+let digest = "";
 const evaluatedAtUtc = "2026-11-24T09:00:30.000Z";
 
 const preflight = {
@@ -62,6 +63,41 @@ const preflight = {
   ],
   passed: true,
 };
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right));
+    return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function approvedControlsSha256(candidate: typeof preflight): string {
+  const approvedControls = {
+    releaseCommit: candidate.releaseCommit,
+    targetOrigin: candidate.targetOrigin,
+    window: { startsAtUtc: candidate.startsAtUtc, endsAtUtc: candidate.endsAtUtc },
+    scope: {
+      maxUsers: candidate.maxUsers,
+      maxProjects: candidate.maxProjects,
+      userIds: candidate.userIds,
+      projectIds: candidate.projectIds,
+    },
+    monitoring: candidate.monitoring,
+    stopConditions: Object.fromEntries(candidate.stopConditions.map((name) => [name, true])),
+    rollback: {
+      command: candidate.rollback.command,
+      maxMinutes: candidate.rollback.maxMinutes,
+      operatorAssigned: true,
+      operatorId: candidate.rollback.operatorId,
+    },
+  };
+  return createHash("sha256").update(canonicalJson(approvedControls)).digest("hex");
+}
+
+digest = approvedControlsSha256(preflight);
+preflight.approvedPlanSha256 = digest;
 
 function observations() {
   return {
@@ -219,6 +255,25 @@ test("canary monitoring independently validates approved preflight safety contro
 });
 
 
+test("canary monitoring rejects post-approval drift from the owner-approved control digest", () => {
+  const changedMonitoring = {
+    ...preflight,
+    monitoring: {
+      ...preflight.monitoring,
+      maxP95LatencyMs: 1500,
+    },
+  };
+
+  assert.throws(
+    () => evaluateCanaryMonitoring({
+      evaluatedAtUtc,
+      preflight: changedMonitoring,
+      observation: observations(),
+    }),
+    /owner-approved.*control|approved plan.*digest/i,
+  );
+});
+
 test("canary monitoring rejects owner approval based on UAT evidence older than 24 hours", () => {
   assert.throws(
     () => evaluateCanaryMonitoring({
@@ -285,8 +340,10 @@ test("canary monitoring CLI emits validated evidence from immutable input files"
     uatReportCompletedAtUtc: new Date(now - 165 * 60 * 1000).toISOString(),
     uatEvidenceGeneratedAtUtc: new Date(now - 150 * 60 * 1000).toISOString(),
   };
+  runtimePreflight.approvedPlanSha256 = approvedControlsSha256(runtimePreflight);
   const runtimeObservation = {
     ...observations(),
+    approvedPlanSha256: runtimePreflight.approvedPlanSha256,
     observedAtUtc: new Date(now - 1000).toISOString(),
   };
   writeFileSync(preflightPath, JSON.stringify(runtimePreflight));
