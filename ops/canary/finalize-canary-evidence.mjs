@@ -60,6 +60,8 @@ export function finalizeCanaryEvidence({ monitoringEvidence, completion, now = n
   const monitoringDigest = monitoringEvidence.monitoringEvidenceSha256;
   const sequence = monitoringEvidence.sampleSequence;
   const observationIds = monitoringEvidence.observationIds;
+  const previousDigest = monitoringEvidence.previousMonitoringEvidenceSha256;
+  const previousDigests = monitoringEvidence.previousMonitoringEvidenceSha256s;
   const chainIsIntact =
     monitoringEvidence.schemaVersion === 1 &&
     monitoringEvidence.gate === "controlled-canary-monitoring-evidence" &&
@@ -70,7 +72,14 @@ export function finalizeCanaryEvidence({ monitoringEvidence, completion, now = n
     Array.isArray(observationIds) && observationIds.length === sequence &&
     observationIds.every((id) => typeof id === "string" && IDENTITY.test(id)) &&
     new Set(observationIds).size === observationIds.length &&
-    observationIds.at(-1) === monitoringEvidence.observationId;
+    observationIds.at(-1) === monitoringEvidence.observationId &&
+    ((sequence === 1 && previousDigest === null) ||
+      (sequence > 1 && SHA256.test(previousDigest ?? ""))) &&
+    Array.isArray(previousDigests) &&
+    previousDigests.length === sequence - 1 &&
+    previousDigests.every((entry) => SHA256.test(entry ?? "")) &&
+    new Set(previousDigests).size === previousDigests.length &&
+    (sequence === 1 || previousDigests.at(-1) === previousDigest);
   if (!chainIsIntact)
     throw new Error("final monitoring evidence must be passing with an intact sample chain");
   if (monitoringEvidence.ownerApproved !== true || monitoringEvidence.ownerRealDataAuthorized !== true)

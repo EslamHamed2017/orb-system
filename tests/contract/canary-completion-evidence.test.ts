@@ -39,6 +39,8 @@ function monitoringEvidence() {
     observationId: "sample-003",
     observationIds: ["sample-001", "sample-002", "sample-003"],
     sampleSequence: 3,
+    previousMonitoringEvidenceSha256: "2".repeat(64),
+    previousMonitoringEvidenceSha256s: ["1".repeat(64), "2".repeat(64)],
     evaluatedAtUtc: "2026-11-12T10:00:00.000Z",
     passed: true,
   };
@@ -77,6 +79,28 @@ test("canary completion rejects tampered or non-passing final monitoring evidenc
     assert.throws(
       () => finalizeCanaryEvidence({ monitoringEvidence: { ...monitoringEvidence(), ...patch }, completion: completion() }),
       /final monitoring evidence.*(passing|intact|chain)/i,
+    );
+  }
+});
+
+test("canary completion rejects a truncated or disconnected monitoring digest chain", () => {
+  for (const patch of [
+    { previousMonitoringEvidenceSha256s: ["2".repeat(64)] },
+    { previousMonitoringEvidenceSha256s: ["2".repeat(64), "2".repeat(64)] },
+    { previousMonitoringEvidenceSha256: "3".repeat(64) },
+  ]) {
+    const monitoring = { ...monitoringEvidence(), ...patch };
+    const { monitoringEvidenceSha256: _digest, ...payload } = monitoring;
+    monitoring.monitoringEvidenceSha256 = sha256(payload);
+    assert.throws(
+      () => finalizeCanaryEvidence({
+        monitoringEvidence: monitoring,
+        completion: {
+          ...completion(),
+          finalMonitoringEvidenceSha256: monitoring.monitoringEvidenceSha256,
+        },
+      }),
+      /final monitoring evidence.*(intact|chain)/i,
     );
   }
 });
