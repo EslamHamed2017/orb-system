@@ -4,7 +4,7 @@ type Line = { id: string; date: string; description: string; debit: string; cred
 const sections: Array<{ currency: string; balance: string; lines: Line[] }> = [
   { currency: "USD", balance: "150.000000", lines: [
     { id: "LINE-USD-1", date: "2026-11-01", description: "Customer invoice", debit: "1200.000000", credit: "0.000000", balance: "1200.000000", source: "CINV-0007" },
-    { id: "LINE-USD-2", date: "2026-11-02", description: "Supplier invoice", debit: "0.000000", credit: "700.000000", balance: "500.000000", source: "SUPPLIER-INVOICE-0007" },
+    { id: "LINE-USD-2", date: "2026-11-02", description: "Supplier Commercial Invoice", debit: "0.000000", credit: "700.000000", balance: "500.000000", source: "SUPPLIER-INVOICE-0007" },
     { id: "LINE-USD-3", date: "2026-11-04", description: "Direct expense", debit: "0.000000", credit: "350.000000", balance: "150.000000", source: "EXP-0007" },
   ] },
   { currency: "EUR", balance: "500.000000", lines: [

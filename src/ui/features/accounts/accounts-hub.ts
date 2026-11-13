@@ -23,15 +23,15 @@ export interface AccountDestination {
 const inactiveStates = new Set(["CANCELLED", "REVERSED"]);
 const destinationCopy = {
   en: [
-    ["salesInvoices", "Sales invoices", "Customer invoices grouped by sales shipment.", "sales-invoices"],
-    ["supplierInvoices", "Supplier invoices", "Supplier-attributable charges, including consolidated containers.", "supplier-invoices"],
+    ["salesInvoices", "Customer Commercial Invoices", "Customer billing and customs documents issued once per sales shipment.", "sales-invoices"],
+    ["supplierInvoices", "Supplier Commercial Invoices", "Supplier commercial documents received as project costs, including consolidated containers.", "supplier-invoices"],
     ["collections", "Collections", "Money received from customers.", "collections"],
     ["supplierPayments", "Supplier payments", "Money paid to each supplier.", "supplier-payments"],
     ["expenses", "Expenses", "Project and transaction operating costs.", "expenses"],
   ],
   ar: [
-    ["salesInvoices", "فواتير المبيعات", "فواتير العملاء المجمعة حسب شحنة البيع.", "sales-invoices"],
-    ["supplierInvoices", "فواتير الموردين", "تكاليف منسوبة لكل مورد، بما فيها الحاويات المجمعة.", "supplier-invoices"],
+    ["salesInvoices", "الفواتير التجارية للعملاء", "فاتورة العميل ووثيقة الشحن التجارية الصادرة مرة واحدة لكل شحنة بيع.", "sales-invoices"],
+    ["supplierInvoices", "الفواتير التجارية للموردين", "المستندات التجارية المستلمة من المورد والمسجلة كتكلفة مشروع دون تكرار.", "supplier-invoices"],
     ["collections", "التحصيلات", "المبالغ المستلمة من العملاء.", "collections"],
     ["supplierPayments", "دفعات الموردين", "المبالغ المدفوعة لكل مورد.", "supplier-payments"],
     ["expenses", "المصروفات", "تكاليف تشغيل المشاريع والمعاملات.", "expenses"],
