@@ -18,14 +18,17 @@ const rows: readonly ProjectTransaction[] = [
   { id:"other",projectId:"atlas",type:"EXPENSE",occurredOn:"2026-11-13",state:"APPROVED",reference:"EXP-90",partyName:"Agent",sourceHref:"/accounts/expenses",currency:"AED",amount:"75.000000",paidAmount:"75.000000",outstandingAmount:"0.000000" },
 ];
 
-test("project context follows the approved QuickBooks-style six-destination order", () => {
+test("project context exposes the approved granular 360-degree destinations", () => {
   assert.deepEqual(buildProjectContextLinks("en","demo").map(x=>[x.key,x.label]),[
     ["overview","Overview"],
-    ["transactions","Transactions"],
-    ["shipments","Shipments"],
-    ["documents","Documents"],
+    ["contracts","Contracts"],
+    ["supplierContainer","Supplier container"],
+    ["salesShipment","Sales shipment"],
+    ["accounts","Accounts"],
+    ["expenses","Expenses"],
+    ["claims","Claims"],
+    ["audit","Audit"],
     ["reports","Project reports"],
-    ["activity","Activity"],
   ]);
 });
 

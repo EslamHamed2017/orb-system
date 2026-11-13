@@ -64,7 +64,7 @@ export function createInMemorySalesInvoiceService(options: { now: () => string; 
     async get(input) { authorize(input.principal, "getSalesInvoice", `get-${input.invoiceId}`); return clone(current(input.invoiceId, `get-${input.invoiceId}`)); },
     async getPrintData(input) {
       authorize(input.principal, "getSalesInvoicePrintData", `print-${input.invoiceId}`); const invoice = current(input.invoiceId, `print-${input.invoiceId}`), shipment = state.shipments.get(invoice.salesShipmentId)!; const ar = input.locale === "ar";
-      return Object.freeze({ invoice: clone(invoice), title: ar ? "الفاتورة التجارية للعميل" : "Customer Commercial Invoice", direction: ar ? "rtl" : "ltr", customer: { id: shipment.customerId, name: ar ? shipment.customerNameAr : shipment.customerNameEn }, shipment: { id: shipment.id, reference: shipment.reference }, lines: clone(invoice.lines), totals: { currency: invoice.currency, totalAmount: invoice.totalAmount }, generatedAt: options.now() });
+      return Object.freeze({ invoice: clone(invoice), title: ar ? "فاتورة مبيعات" : "Sales invoice", direction: ar ? "rtl" : "ltr", customer: { id: shipment.customerId, name: ar ? shipment.customerNameAr : shipment.customerNameEn }, shipment: { id: shipment.id, reference: shipment.reference }, lines: clone(invoice.lines), totals: { currency: invoice.currency, totalAmount: invoice.totalAmount }, generatedAt: options.now() });
     },
   };
 }

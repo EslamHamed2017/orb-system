@@ -31,7 +31,7 @@ export function InvoicePrintDocument(props: Props) {
   const ar = props.locale === "ar";
   const sales = props.kind === "salesInvoice";
   const targetId = `${sales ? "sales" : "supplier"}-invoice-${props.reference}-print`;
-  const title = sales ? (ar ? "الفاتورة التجارية للعميل" : "Customer Commercial Invoice") : (ar ? "الفاتورة التجارية للمورد" : "Supplier Commercial Invoice");
+  const title = sales ? (ar ? "فاتورة مبيعات" : "Sales invoice") : (ar ? "فاتورة مورد" : "Supplier invoice");
 
   return <article id={targetId} className={`${styles.card} ${styles.printDocument}`} data-print-document aria-label={`${title} ${props.reference}`}>
     <header className={styles.sectionHeader}><div><p className={styles.eyebrow}>{ar ? "مستند قابل للطباعة" : "Printable document"}</p><h2>{title} · <bdi>{props.reference}</bdi></h2></div><div className={styles.headerActions}><span className={`${styles.chip} ${styles.success}`}>{props.state}</span><PrintAction locale={props.locale} targetId={targetId} documentKind={props.kind} className={`${styles.secondary} ${styles.noPrint}`} /></div></header>

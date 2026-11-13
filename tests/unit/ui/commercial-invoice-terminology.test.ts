@@ -3,14 +3,14 @@ import { existsSync,readFileSync } from "node:fs";
 import test from "node:test";
 import { domainTerm } from "../../../src/platform/i18n/domain-terminology.ts";
 
-test("approved commercial invoice terms are canonical in English and Arabic",()=>{
-  assert.equal(domainTerm("salesInvoice","en"),"Customer Commercial Invoice");
-  assert.equal(domainTerm("salesInvoice","ar"),"الفاتورة التجارية للعميل");
-  assert.equal(domainTerm("supplierInvoice","en"),"Supplier Commercial Invoice");
-  assert.equal(domainTerm("supplierInvoice","ar"),"الفاتورة التجارية للمورد");
+test("approved invoice terms match the frozen bilingual domain terminology",()=>{
+  assert.equal(domainTerm("salesInvoice","en"),"Sales invoice");
+  assert.equal(domainTerm("salesInvoice","ar"),"فاتورة مبيعات");
+  assert.equal(domainTerm("supplierInvoice","en"),"Supplier invoice");
+  assert.equal(domainTerm("supplierInvoice","ar"),"فاتورة مورد");
 });
 
-test("customer and supplier registers, print documents and service output use commercial invoice copy",()=>{
+test("customer and supplier registers, print documents and service output use frozen invoice copy",()=>{
   const files=[
     "src/ui/features/accounts/ProjectSalesInvoicesPage.tsx",
     "src/ui/features/accounts/ProjectSupplierInvoicesPage.tsx",
@@ -18,7 +18,7 @@ test("customer and supplier registers, print documents and service output use co
     "src/modules/invoices/sales-invoice-service.ts",
     "src/ui/features/accounts/accounts-hub.ts",
   ].map(x=>readFileSync(x,"utf8")).join("\n");
-  for(const phrase of ["Customer Commercial Invoice","Supplier Commercial Invoice","الفاتورة التجارية للعميل","الفاتورة التجارية للمورد"]) assert.match(files,new RegExp(phrase));
+  for(const phrase of ["Sales invoice","Supplier invoice","فاتورة مبيعات","فاتورة مورد"]) assert.match(files,new RegExp(phrase));
   assert.doesNotMatch(files,/>Sales invoices</);
   assert.doesNotMatch(files,/>Supplier invoices</);
   assert.doesNotMatch(files,/>فواتير المبيعات</);

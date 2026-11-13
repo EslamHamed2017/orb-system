@@ -1,7 +1,7 @@
 export function SupplierInvoicePanel({ locale }: Readonly<{ locale: "ar" | "en" }>) {
   const ar = locale === "ar";
   return <section role="region" aria-labelledby="supplier-invoice-title" style={{ background: "var(--orb-color-surface-container)", borderRadius: 16, display: "grid", gap: 12, padding: 16 }}>
-    <header><p>{ar ? "دورة ثابتة مرتبطة بشحنة مورد واحدة" : "Fixed lifecycle for one supplier shipment"}</p><h2 id="supplier-invoice-title">{ar ? "الفاتورة التجارية للمورد" : "Supplier Commercial Invoice"}</h2></header>
+    <header><p>{ar ? "دورة ثابتة مرتبطة بشحنة مورد واحدة" : "Fixed lifecycle for one supplier shipment"}</p><h2 id="supplier-invoice-title">{ar ? "فاتورة مورد" : "Supplier invoice"}</h2></header>
     <form data-operation-id="createSupplierInvoice" style={{ display: "grid", gap: 12 }}>
       <label>{ar ? "شحنة المورد" : "Supplier shipment"}<select defaultValue="ORB-SUP-0007" style={{ display: "block", minHeight: 48, width: "100%" }}><option>ORB-SUP-0007</option></select></label>
       <label>{ar ? "مرجع الفاتورة التجارية" : "Commercial Invoice reference"}<input name="invoiceReference" defaultValue="INV-2026-117" required style={{ display: "block", minHeight: 48, width: "100%" }} /></label>
