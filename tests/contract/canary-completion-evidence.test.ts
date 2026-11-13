@@ -34,7 +34,9 @@ function monitoringEvidence() {
     ownerApproved: true,
     ownerRealDataAuthorized: true,
     ownerApproverId: "orb-owner-01",
+    ownerApprovedAtUtc: "2026-11-12T07:55:00.000Z",
     ownerApprovalExpiresAtUtc: "2026-11-13T08:00:00.000Z",
+    preflightGeneratedAtUtc: "2026-11-12T08:00:00.000Z",
     monitoring: {
       operatorId: "monitor-operator-01",
       healthIntervalSeconds: 60,
@@ -253,6 +255,27 @@ test("canary completion independently requires owner authorization", () => {
         },
       }),
       /owner approval and real-data authorization/i,
+    );
+  }
+});
+
+test("canary completion independently rejects impossible owner authorization chronology", () => {
+  for (const patch of [
+    { ownerApprovedAtUtc: "2026-11-12T10:00:01.000Z" },
+    { preflightGeneratedAtUtc: "2026-11-12T10:00:01.000Z" },
+  ]) {
+    const monitoring = { ...monitoringEvidence(), ...patch };
+    const { monitoringEvidenceSha256: _digest, ...payload } = monitoring;
+    monitoring.monitoringEvidenceSha256 = sha256(payload);
+    assert.throws(
+      () => finalizeCanaryEvidence({
+        monitoringEvidence: monitoring,
+        completion: {
+          ...completion(),
+          finalMonitoringEvidenceSha256: monitoring.monitoringEvidenceSha256,
+        },
+      }),
+      /owner authorization chronology/i,
     );
   }
 });

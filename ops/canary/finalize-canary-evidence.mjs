@@ -134,9 +134,14 @@ export function finalizeCanaryEvidence({ monitoringEvidence, completion, now = n
   const starts = canonicalTime(monitoringEvidence.startsAtUtc, "approved canary window start");
   const ends = canonicalTime(monitoringEvidence.endsAtUtc, "approved canary window end");
   const evaluated = canonicalTime(monitoringEvidence.evaluatedAtUtc, "final monitoring evaluation time");
+  const approved = canonicalTime(monitoringEvidence.ownerApprovedAtUtc, "owner approval time");
   const authorizationExpires = canonicalTime(
     monitoringEvidence.ownerApprovalExpiresAtUtc,
     "owner authorization expiry",
+  );
+  const preflightGenerated = canonicalTime(
+    monitoringEvidence.preflightGeneratedAtUtc,
+    "canary preflight generation time",
   );
   const completed = canonicalTime(completion.completedAtUtc, "canary completion time");
   const reviewed = canonicalTime(completion.ownerReviewedAtUtc, "owner review time");
@@ -149,6 +154,8 @@ export function finalizeCanaryEvidence({ monitoringEvidence, completion, now = n
     throw new Error("final monitoring evidence must preserve the approved health interval");
   if (evaluated < starts || evaluated >= ends)
     throw new Error("final monitoring evaluation must occur inside the approved window");
+  if (approved >= preflightGenerated || approved >= authorizationExpires || preflightGenerated > evaluated)
+    throw new Error("final monitoring evidence has invalid owner authorization chronology");
   if (completed < starts || completed >= ends)
     throw new Error("canary completion must occur inside the approved window");
   if (completed < evaluated || completed.valueOf() - evaluated.valueOf() > healthIntervalSeconds * 1000)
