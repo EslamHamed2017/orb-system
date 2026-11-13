@@ -62,8 +62,11 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
 
   const starts = canonicalTime(plan.window?.startsAtUtc, "canary window start");
   const ends = canonicalTime(plan.window?.endsAtUtc, "canary window end");
-  if (starts < approvedAt || ends <= starts || ends > approvalExpires || ends.valueOf() - starts.valueOf() > 72 * 60 * 60 * 1000)
+  const maximumCanaryDurationMs = 72 * 60 * 60 * 1000;
+  if (starts < approvedAt || ends <= starts || ends > approvalExpires || ends.valueOf() - starts.valueOf() > maximumCanaryDurationMs)
     throw new Error("canary window must follow approval, fit its expiry, and be no longer than 72 hours");
+  if (ends.valueOf() - approvedAt.valueOf() > maximumCanaryDurationMs)
+    throw new Error("owner approval must bound canary execution to 72 hours");
   if (now > ends) throw new Error("canary window has expired");
 
   boundedInteger(plan.scope?.maxUsers, 1, 5, "maxUsers");

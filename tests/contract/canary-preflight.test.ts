@@ -197,6 +197,16 @@ test("canary preflight rejects over-broad scope, windows, or expired approval", 
   assert.match(expired.stderr, /expired/i);
 });
 
+test("canary preflight rejects a canary scheduled beyond the bounded owner-approval horizon", () => {
+  const plan = validPlan();
+  plan.ownerApproval.expiresAtUtc = "2026-12-31T12:00:00.000Z";
+  plan.window = { startsAtUtc: "2026-12-01T08:00:00.000Z", endsAtUtc: "2026-12-02T08:00:00.000Z" };
+
+  const result = run(plan, validUat(), "2026-11-24T07:00:00.000Z");
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /owner approval.*72 hours/i);
+});
+
 test("canary preflight requires an identified rollback operator", () => {
   for (const operatorId of [undefined, "", "   "]) {
     const plan = validPlan();
