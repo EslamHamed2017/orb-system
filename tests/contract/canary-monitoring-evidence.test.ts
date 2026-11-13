@@ -13,12 +13,25 @@ const preflight = {
   startsAtUtc: "2026-11-24T08:00:00.000Z",
   endsAtUtc: "2026-11-25T08:00:00.000Z",
   approvedPlanSha256: digest,
+  approvedUatEvidenceSha256: "c".repeat(64),
+  ownerApproved: true,
+  ownerRealDataAuthorized: true,
+  ownerApproverId: "orb-owner-01",
+  ownerApprovedAtUtc: "2026-11-23T08:00:00.000Z",
+  ownerApprovalExpiresAtUtc: "2026-11-25T12:00:00.000Z",
+  preflightGeneratedAtUtc: "2026-11-24T08:00:00.000Z",
   monitoring: {
     operatorId: "orb-monitor-01",
     healthIntervalSeconds: 30,
     maxErrorRatePercent: 1,
     maxP95LatencyMs: 2000,
     maxConsecutiveReadinessFailures: 2,
+  },
+  rollbackOperatorId: "orb-operator-01",
+  rollback: {
+    command: "ops/deploy/rollback.sh",
+    maxMinutes: 5,
+    operatorId: "orb-operator-01",
   },
   stopConditions: [
     "permissionBypass",
@@ -117,6 +130,27 @@ test("canary monitoring independently validates approved preflight safety contro
     assert.throws(
       () => evaluateCanaryMonitoring({ preflight: { ...preflight, ...patch }, observation: observations() }),
       /approved canary safety controls/i,
+    );
+  }
+});
+
+
+test("canary monitoring independently validates owner authorization and rollback accountability", () => {
+  for (const patch of [
+    { ownerApproved: false },
+    { ownerRealDataAuthorized: false },
+    { ownerApproverId: "" },
+    { approvedUatEvidenceSha256: "not-a-digest" },
+    { ownerApprovedAtUtc: "2026-11-25T12:00:00.000Z" },
+    { ownerApprovalExpiresAtUtc: "2026-11-24T08:00:00.000Z" },
+    { preflightGeneratedAtUtc: "2026-11-23T07:59:59.999Z" },
+    { rollbackOperatorId: "different-operator" },
+    { rollback: { ...preflight.rollback, command: "ops/deploy/unsafe.sh" } },
+    { rollback: { ...preflight.rollback, maxMinutes: 6 } },
+  ]) {
+    assert.throws(
+      () => evaluateCanaryMonitoring({ preflight: { ...preflight, ...patch }, observation: observations() }),
+      /approved owner authorization and rollback accountability/i,
     );
   }
 });

@@ -72,6 +72,26 @@ export function evaluateCanaryMonitoring({ preflight, observation }) {
   if (observedAt < starts || observedAt >= ends)
     throw new Error("canary observation must fall inside the approved window");
 
+  const identity = /^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$/;
+  const approvedAt = canonicalTime(preflight.ownerApprovedAtUtc, "owner approval time");
+  const approvalExpires = canonicalTime(preflight.ownerApprovalExpiresAtUtc, "owner approval expiry");
+  const preflightGenerated = canonicalTime(preflight.preflightGeneratedAtUtc, "canary preflight generation time");
+  const rollback = preflight.rollback ?? {};
+  const authorizationIsValid =
+    preflight.ownerApproved === true &&
+    preflight.ownerRealDataAuthorized === true &&
+    typeof preflight.ownerApproverId === "string" && identity.test(preflight.ownerApproverId) &&
+    SHA256.test(preflight.approvedUatEvidenceSha256 ?? "") &&
+    approvedAt <= starts && approvalExpires >= ends &&
+    preflightGenerated >= starts && preflightGenerated < ends &&
+    observedAt >= preflightGenerated &&
+    typeof preflight.rollbackOperatorId === "string" && identity.test(preflight.rollbackOperatorId) &&
+    rollback.command === "ops/deploy/rollback.sh" &&
+    Number.isInteger(rollback.maxMinutes) && rollback.maxMinutes >= 1 && rollback.maxMinutes <= 5 &&
+    rollback.operatorId === preflight.rollbackOperatorId;
+  if (!authorizationIsValid)
+    throw new Error("canary monitoring requires approved owner authorization and rollback accountability");
+
   const monitoring = preflight.monitoring ?? {};
   const approvedStops = preflight.stopConditions;
   const controlsAreValid =
