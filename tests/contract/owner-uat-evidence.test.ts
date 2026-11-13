@@ -3,7 +3,7 @@ import { mkdtemp, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { createOwnerUatEvidence, writeOwnerUatEvidence } from "../../scripts/owner-uat-evidence.mjs";
+import { createOwnerUatEvidence, parseOwnerUatEvidenceArgs, writeOwnerUatEvidence } from "../../scripts/owner-uat-evidence.mjs";
 
 const commit = "8".repeat(40);
 function report(
@@ -184,4 +184,26 @@ test("owner UAT evidence is written once with owner-only permissions", async () 
   assert.deepEqual(JSON.parse(await readFile(path, "utf8")), evidence);
   assert.equal((await stat(path)).mode & 0o777, 0o600);
   await assert.rejects(() => writeOwnerUatEvidence(path, evidence));
+});
+
+
+test("owner UAT evidence CLI rejects unknown and duplicate flags", () => {
+  assert.throws(
+    () => parseOwnerUatEvidenceArgs([
+      "--report", "report.json",
+      "--output", "manifest.json",
+      "--git-commit", commit,
+      "--unexpected", "value",
+    ]),
+    /unknown owner UAT evidence argument/i,
+  );
+  assert.throws(
+    () => parseOwnerUatEvidenceArgs([
+      "--report", "report.json",
+      "--report", "substituted.json",
+      "--output", "manifest.json",
+      "--git-commit", commit,
+    ]),
+    /duplicate owner UAT evidence argument/i,
+  );
 });

@@ -88,11 +88,27 @@ export async function writeOwnerUatEvidence(path, evidence) {
   await writeFile(path, `${JSON.stringify(evidence, null, 2)}\n`, { flag: "wx", mode: 0o600 });
 }
 
+export function parseOwnerUatEvidenceArgs(args) {
+  const allowed = new Map([
+    ["--report", "reportPath"],
+    ["--output", "outputPath"],
+    ["--git-commit", "gitCommit"],
+  ]);
+  const parsed = {};
+  for (let index = 0; index < args.length; index += 2) {
+    const flag = args[index];
+    const key = allowed.get(flag);
+    if (!key) throw new Error(`unknown owner UAT evidence argument: ${flag ?? "<missing>"}`);
+    if (key in parsed) throw new Error(`duplicate owner UAT evidence argument: ${flag}`);
+    const value = args[index + 1];
+    if (!value || value.startsWith("--")) throw new Error(`owner UAT evidence argument requires a value: ${flag}`);
+    parsed[key] = value;
+  }
+  return parsed;
+}
+
 async function main(args) {
-  const value = (name) => { const index = args.indexOf(name); return index >= 0 ? args[index + 1] : undefined; };
-  const reportPath = value("--report");
-  const outputPath = value("--output");
-  const gitCommit = value("--git-commit");
+  const { reportPath, outputPath, gitCommit } = parseOwnerUatEvidenceArgs(args);
   if (!reportPath || !outputPath || !gitCommit || !process.env.ORB_TEST_BASE_URL || !process.env.ORB_EXPECTED_RELEASE_COMMIT)
     throw new Error("Usage: owner-uat-evidence.mjs --report FILE --output FILE --git-commit SHA with ORB_TEST_BASE_URL and ORB_EXPECTED_RELEASE_COMMIT");
   if (gitCommit !== process.env.ORB_EXPECTED_RELEASE_COMMIT)
