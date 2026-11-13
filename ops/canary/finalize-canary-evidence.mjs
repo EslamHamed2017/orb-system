@@ -84,6 +84,8 @@ export function finalizeCanaryEvidence({ monitoringEvidence, completion, now = n
     throw new Error("final monitoring evidence must be passing with an intact sample chain");
   if (monitoringEvidence.ownerApproved !== true || monitoringEvidence.ownerRealDataAuthorized !== true)
     throw new Error("final monitoring evidence must preserve owner approval and real-data authorization");
+  if (!SHA256.test(monitoringEvidence.approvedUatEvidenceSha256 ?? ""))
+    throw new Error("final monitoring evidence must preserve the approved UAT evidence digest");
 
   if (completion.schemaVersion !== 1)
     throw new Error("canary completion schemaVersion must be 1");
@@ -138,6 +140,7 @@ export function finalizeCanaryEvidence({ monitoringEvidence, completion, now = n
     releaseCommit: monitoringEvidence.releaseCommit,
     targetOrigin: monitoringEvidence.targetOrigin,
     preflightEvidenceSha256: monitoringEvidence.preflightEvidenceSha256,
+    approvedUatEvidenceSha256: monitoringEvidence.approvedUatEvidenceSha256,
     finalMonitoringEvidenceSha256: monitoringDigest,
     sampleSequence: sequence,
     observationIds: [...observationIds],

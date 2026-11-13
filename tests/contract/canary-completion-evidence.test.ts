@@ -67,6 +67,7 @@ test("canary completion binds fresh final monitoring evidence and post-walkthrou
   const result = finalizeCanaryEvidence({ monitoringEvidence: monitoring, completion: completion() });
   assert.equal(result.gate, "controlled-canary-completion-evidence");
   assert.equal(result.releaseCommit, monitoring.releaseCommit);
+  assert.equal(result.approvedUatEvidenceSha256, monitoring.approvedUatEvidenceSha256);
   assert.equal(result.sampleSequence, 3);
   assert.equal(result.ownerReviewed, true);
   assert.match(result.completionEvidenceSha256, /^[a-f0-9]{64}$/);
@@ -135,6 +136,22 @@ test("canary completion rejects stale or out-of-window closure", () => {
       /completion.*(health interval|approved window)/i,
     );
   }
+});
+
+test("canary completion requires a valid approved UAT evidence binding", () => {
+  const monitoring = { ...monitoringEvidence(), approvedUatEvidenceSha256: "not-a-digest" };
+  const { monitoringEvidenceSha256: _digest, ...payload } = monitoring;
+  monitoring.monitoringEvidenceSha256 = sha256(payload);
+  assert.throws(
+    () => finalizeCanaryEvidence({
+      monitoringEvidence: monitoring,
+      completion: {
+        ...completion(),
+        finalMonitoringEvidenceSha256: monitoring.monitoringEvidenceSha256,
+      },
+    }),
+    /approved UAT evidence/i,
+  );
 });
 
 test("canary completion requires exact immutable release and evidence bindings", () => {
