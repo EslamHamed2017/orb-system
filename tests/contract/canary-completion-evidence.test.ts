@@ -35,7 +35,30 @@ function monitoringEvidence() {
     ownerRealDataAuthorized: true,
     ownerApproverId: "orb-owner-01",
     ownerApprovalExpiresAtUtc: "2026-11-13T08:00:00.000Z",
-    monitoring: { healthIntervalSeconds: 60 },
+    monitoring: {
+      operatorId: "monitor-operator-01",
+      healthIntervalSeconds: 60,
+      maxErrorRatePercent: 1,
+      maxP95LatencyMs: 500,
+      maxConsecutiveReadinessFailures: 1,
+    },
+    stopConditions: [
+      "permissionBypass",
+      "attachmentIsolationFailure",
+      "dataIntegrityFailure",
+      "readinessThresholdExceeded",
+      "errorRateThresholdExceeded",
+      "latencyThresholdExceeded",
+    ],
+    readiness: true,
+    consecutiveReadinessFailures: 0,
+    errorRatePercent: 0.2,
+    p95LatencyMs: 250,
+    securityEvents: {
+      permissionBypass: false,
+      attachmentIsolationFailure: false,
+      dataIntegrityFailure: false,
+    },
     observationId: "sample-003",
     observationIds: ["sample-001", "sample-002", "sample-003"],
     sampleSequence: 3,
@@ -134,6 +157,29 @@ test("canary completion rejects stale or out-of-window closure", () => {
     assert.throws(
       () => finalizeCanaryEvidence({ monitoringEvidence: monitoringEvidence(), completion: { ...completion(), completedAtUtc } }),
       /completion.*(health interval|approved window)/i,
+    );
+  }
+});
+
+test("canary completion independently rejects a final sample with a mandatory stop breach", () => {
+  for (const patch of [
+    { readiness: false, consecutiveReadinessFailures: 2 },
+    { errorRatePercent: 1.01 },
+    { p95LatencyMs: 500.01 },
+    { securityEvents: { permissionBypass: true, attachmentIsolationFailure: false, dataIntegrityFailure: false } },
+  ]) {
+    const monitoring = { ...monitoringEvidence(), ...patch };
+    const { monitoringEvidenceSha256: _digest, ...payload } = monitoring;
+    monitoring.monitoringEvidenceSha256 = sha256(payload);
+    assert.throws(
+      () => finalizeCanaryEvidence({
+        monitoringEvidence: monitoring,
+        completion: {
+          ...completion(),
+          finalMonitoringEvidenceSha256: monitoring.monitoringEvidenceSha256,
+        },
+      }),
+      /mandatory stop condition/i,
     );
   }
 });

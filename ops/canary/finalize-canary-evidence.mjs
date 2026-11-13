@@ -6,6 +6,13 @@ import { pathToFileURL } from "node:url";
 const SHA1 = /^[a-f0-9]{40}$/;
 const SHA256 = /^[a-f0-9]{64}$/;
 const IDENTITY = /^[A-Za-z0-9][A-Za-z0-9._@-]{0,127}$/;
+const SECURITY_STOPS = ["permissionBypass", "attachmentIsolationFailure", "dataIntegrityFailure"];
+const REQUIRED_STOPS = [
+  ...SECURITY_STOPS,
+  "readinessThresholdExceeded",
+  "errorRateThresholdExceeded",
+  "latencyThresholdExceeded",
+];
 const COMPLETION_FIELDS = [
   "schemaVersion", "releaseCommit", "preflightEvidenceSha256",
   "finalMonitoringEvidenceSha256", "completedAtUtc", "ownerReviewed",
@@ -86,6 +93,32 @@ export function finalizeCanaryEvidence({ monitoringEvidence, completion, now = n
     throw new Error("final monitoring evidence must preserve owner approval and real-data authorization");
   if (!SHA256.test(monitoringEvidence.approvedUatEvidenceSha256 ?? ""))
     throw new Error("final monitoring evidence must preserve the approved UAT evidence digest");
+
+  const monitoring = monitoringEvidence.monitoring;
+  const failures = monitoringEvidence.consecutiveReadinessFailures;
+  const securityEvents = monitoringEvidence.securityEvents;
+  const finiteNonNegative = (value) => typeof value === "number" && Number.isFinite(value) && value >= 0;
+  const finalOutcomeIsSafe =
+    monitoring && typeof monitoring === "object" && !Array.isArray(monitoring) &&
+    Number.isInteger(monitoring.maxConsecutiveReadinessFailures) &&
+    monitoring.maxConsecutiveReadinessFailures >= 0 &&
+    finiteNonNegative(monitoring.maxErrorRatePercent) &&
+    finiteNonNegative(monitoring.maxP95LatencyMs) &&
+    Array.isArray(monitoringEvidence.stopConditions) &&
+    monitoringEvidence.stopConditions.length === REQUIRED_STOPS.length &&
+    REQUIRED_STOPS.every((name) => monitoringEvidence.stopConditions.includes(name)) &&
+    Number.isInteger(failures) && failures >= 0 &&
+    monitoringEvidence.readiness === (failures === 0) &&
+    failures <= monitoring.maxConsecutiveReadinessFailures &&
+    finiteNonNegative(monitoringEvidence.errorRatePercent) &&
+    monitoringEvidence.errorRatePercent <= monitoring.maxErrorRatePercent &&
+    finiteNonNegative(monitoringEvidence.p95LatencyMs) &&
+    monitoringEvidence.p95LatencyMs <= monitoring.maxP95LatencyMs &&
+    securityEvents && typeof securityEvents === "object" && !Array.isArray(securityEvents) &&
+    Object.keys(securityEvents).length === SECURITY_STOPS.length &&
+    SECURITY_STOPS.every((name) => securityEvents[name] === false);
+  if (!finalOutcomeIsSafe)
+    throw new Error("final monitoring evidence contains a mandatory stop condition breach");
 
   if (completion.schemaVersion !== 1)
     throw new Error("canary completion schemaVersion must be 1");
