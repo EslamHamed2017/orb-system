@@ -393,6 +393,22 @@ test("canary monitoring rejects observations older than the approved health inte
   );
 });
 
+test("canary monitoring rejects evaluation at or after the approved window closes", () => {
+  const closingObservation = {
+    ...observations(),
+    observedAtUtc: "2026-11-25T07:59:59.999Z",
+  };
+
+  assert.throws(
+    () => evaluateCanaryMonitoring({
+      preflight,
+      observation: closingObservation,
+      evaluatedAtUtc: preflight.endsAtUtc,
+    }),
+    /evaluation.*approved window|canary window.*expired/i,
+  );
+});
+
 test("canary monitoring rejects observations dated after evaluation", () => {
   assert.throws(
     () => evaluateCanaryMonitoring({

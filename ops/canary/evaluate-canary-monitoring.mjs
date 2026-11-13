@@ -209,6 +209,8 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
     throw new Error("canary observation must identify the exact approved monitoring operator");
 
   const evaluatedAt = canonicalTime(evaluatedAtUtc, "canary monitoring evaluation time");
+  if (evaluatedAt < starts || evaluatedAt >= ends || evaluatedAt >= approvalExpires)
+    throw new Error("canary monitoring evaluation must occur inside the approved window");
   const observationAgeMs = evaluatedAt.valueOf() - observedAt.valueOf();
   if (observationAgeMs < 0 || observationAgeMs > monitoring.healthIntervalSeconds * 1000)
     throw new Error("canary observation must be fresh within the approved health interval");
