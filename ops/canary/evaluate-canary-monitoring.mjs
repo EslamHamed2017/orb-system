@@ -152,6 +152,10 @@ function validateSampleChain({ observation, previousEvidence }) {
       previousEvidence.monitoringEvidenceSha256 !== previousDigest ||
       monitoringEvidenceSha256(previousEvidence) !== previousDigest)
     throw new Error("canary monitoring sample chain contains invalid or tampered previous monitoring evidence");
+  const predecessorLink = previousEvidence.previousMonitoringEvidenceSha256;
+  if ((previousEvidence.sampleSequence === 1 && predecessorLink !== null) ||
+      (previousEvidence.sampleSequence > 1 && !SHA256.test(predecessorLink ?? "")))
+    throw new Error("previous monitoring evidence chain link is invalid");
   const previousObservationIds = previousEvidence.observationIds;
   if (!Array.isArray(previousObservationIds) ||
       previousObservationIds.length !== sequence - 1 ||

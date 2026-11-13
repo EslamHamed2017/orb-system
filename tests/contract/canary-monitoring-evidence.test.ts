@@ -627,6 +627,43 @@ test("canary monitoring rejects reuse of any earlier observation identity", () =
   );
 });
 
+test("canary monitoring rejects a rehashed non-root predecessor with a missing chain link", () => {
+  const first = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
+  const second = evaluateCanaryMonitoring({
+    evaluatedAtUtc: "2026-11-24T09:01:00.000Z",
+    preflight,
+    previousEvidence: first,
+    observation: {
+      ...observations(),
+      observationId: "sample-20261124-090045-002",
+      sampleSequence: 2,
+      previousMonitoringEvidenceSha256: first.monitoringEvidenceSha256,
+      observedAtUtc: "2026-11-24T09:00:45.000Z",
+    },
+  });
+  const predecessor = {
+    ...second,
+    previousMonitoringEvidenceSha256: null,
+  } as Record<string, unknown>;
+  predecessor.monitoringEvidenceSha256 = monitoringEvidenceSha256(predecessor);
+
+  assert.throws(
+    () => evaluateCanaryMonitoring({
+      evaluatedAtUtc: "2026-11-24T09:01:30.000Z",
+      preflight,
+      previousEvidence: predecessor,
+      observation: {
+        ...observations(),
+        observationId: "sample-20261124-090115-003",
+        sampleSequence: 3,
+        previousMonitoringEvidenceSha256: predecessor.monitoringEvidenceSha256,
+        observedAtUtc: "2026-11-24T09:01:15.000Z",
+      },
+    }),
+    /previous monitoring evidence.*chain link|invalid.*previous monitoring evidence/i,
+  );
+});
+
 test("canary monitoring rejects a gap longer than the approved health interval", () => {
   const first = evaluateCanaryMonitoring({ evaluatedAtUtc, preflight, observation: observations() });
   const delayedObservation = {
