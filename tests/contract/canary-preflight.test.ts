@@ -121,6 +121,14 @@ test("canary preflight rejects future-dated owner approval", () => {
   assert.match(result.stderr, /owner approval.*future/i);
 });
 
+test("canary preflight requires owner approval strictly after UAT completion", () => {
+  const plan = validPlan();
+  plan.ownerApproval.approvedAtUtc = validUat().reportCompletedAtUtc;
+  const result = run(plan);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /owner approval.*follow.*UAT/i);
+});
+
 test("canary preflight rejects release or target drift from passing bilingual UAT", () => {
   for (const uat of [
     { ...validUat(), gitCommit: "b".repeat(40) },
