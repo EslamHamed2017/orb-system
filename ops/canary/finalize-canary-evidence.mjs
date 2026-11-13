@@ -112,6 +112,8 @@ export function finalizeCanaryEvidence({ monitoringEvidence, completion, now = n
   const healthIntervalSeconds = monitoringEvidence.monitoring?.healthIntervalSeconds;
   if (!Number.isInteger(healthIntervalSeconds) || healthIntervalSeconds < 15 || healthIntervalSeconds > 60)
     throw new Error("final monitoring evidence must preserve the approved health interval");
+  if (evaluated < starts || evaluated >= ends)
+    throw new Error("final monitoring evaluation must occur inside the approved window");
   if (completed < starts || completed >= ends)
     throw new Error("canary completion must occur inside the approved window");
   if (completed < evaluated || completed.valueOf() - evaluated.valueOf() > healthIntervalSeconds * 1000)

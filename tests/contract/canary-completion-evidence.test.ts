@@ -105,6 +105,29 @@ test("canary completion rejects a truncated or disconnected monitoring digest ch
   }
 });
 
+test("canary completion rejects final monitoring evaluated outside the approved window", () => {
+  const monitoring = {
+    ...monitoringEvidence(),
+    evaluatedAtUtc: "2026-11-12T07:59:30.000Z",
+  };
+  const { monitoringEvidenceSha256: _digest, ...payload } = monitoring;
+  monitoring.monitoringEvidenceSha256 = sha256(payload);
+
+  assert.throws(
+    () => finalizeCanaryEvidence({
+      monitoringEvidence: monitoring,
+      completion: {
+        ...completion(),
+        finalMonitoringEvidenceSha256: monitoring.monitoringEvidenceSha256,
+        completedAtUtc: "2026-11-12T08:00:00.000Z",
+        ownerReviewedAtUtc: "2026-11-12T08:00:01.000Z",
+      },
+      now: new Date("2026-11-12T08:00:01.000Z"),
+    }),
+    /final monitoring evaluation.*approved window/i,
+  );
+});
+
 test("canary completion rejects stale or out-of-window closure", () => {
   for (const completedAtUtc of ["2026-11-12T10:01:00.001Z", "2026-11-13T08:00:00.000Z"]) {
     assert.throws(
