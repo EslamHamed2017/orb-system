@@ -346,6 +346,35 @@ test("canary completion requires owner review strictly after walkthrough complet
   }
 });
 
+test("canary completion independently rejects an invalid approved pilot scope", () => {
+  for (const patch of [
+    { maxUsers: 6 },
+    { maxProjects: 4 },
+    { userIds: [] },
+    { userIds: ["pilot-user-01", "pilot-user-01"] },
+    { userIds: ["pilot-user-01", "pilot-user-02", "pilot-user-03"] },
+    { userIds: ["invalid pilot user"] },
+    { projectIds: [] },
+    { projectIds: ["pilot-project-01", "pilot-project-01"] },
+    { projectIds: ["pilot-project-01", "pilot-project-02"] },
+    { projectIds: ["invalid pilot project"] },
+  ]) {
+    const monitoring = { ...monitoringEvidence(), ...patch };
+    const { monitoringEvidenceSha256: _digest, ...payload } = monitoring;
+    monitoring.monitoringEvidenceSha256 = sha256(payload);
+    assert.throws(
+      () => finalizeCanaryEvidence({
+        monitoringEvidence: monitoring,
+        completion: {
+          ...completion(),
+          finalMonitoringEvidenceSha256: monitoring.monitoringEvidenceSha256,
+        },
+      }),
+      /approved pilot scope/i,
+    );
+  }
+});
+
 test("canary completion closes input envelopes", () => {
   assert.throws(
     () => finalizeCanaryEvidence({ monitoringEvidence: monitoringEvidence(), completion: { ...completion(), override: true } }),

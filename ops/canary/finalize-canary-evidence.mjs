@@ -94,6 +94,21 @@ export function finalizeCanaryEvidence({ monitoringEvidence, completion, now = n
   if (!SHA256.test(monitoringEvidence.approvedUatEvidenceSha256 ?? ""))
     throw new Error("final monitoring evidence must preserve the approved UAT evidence digest");
 
+  const maxUsers = monitoringEvidence.maxUsers;
+  const maxProjects = monitoringEvidence.maxProjects;
+  const userIds = monitoringEvidence.userIds;
+  const projectIds = monitoringEvidence.projectIds;
+  const validIdSet = (ids, maximum) =>
+    Array.isArray(ids) && ids.length >= 1 && ids.length <= maximum &&
+    ids.every((id) => typeof id === "string" && IDENTITY.test(id)) &&
+    new Set(ids).size === ids.length;
+  const pilotScopeIsValid =
+    Number.isInteger(maxUsers) && maxUsers >= 1 && maxUsers <= 5 &&
+    Number.isInteger(maxProjects) && maxProjects >= 1 && maxProjects <= 3 &&
+    validIdSet(userIds, maxUsers) && validIdSet(projectIds, maxProjects);
+  if (!pilotScopeIsValid)
+    throw new Error("final monitoring evidence must preserve a valid approved pilot scope");
+
   const monitoring = monitoringEvidence.monitoring;
   const failures = monitoringEvidence.consecutiveReadinessFailures;
   const securityEvents = monitoringEvidence.securityEvents;
