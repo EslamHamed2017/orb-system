@@ -481,6 +481,27 @@ test("canary monitoring rejects observations older than the approved health inte
   );
 });
 
+test("canary monitoring independently enforces the approved 72-hour window limit", () => {
+  const candidate = {
+    ...preflight,
+    endsAtUtc: "2026-11-27T08:00:00.001Z",
+    ownerApprovalExpiresAtUtc: "2026-11-27T08:00:00.001Z",
+  };
+  candidate.approvedPlanSha256 = approvedControlsSha256(candidate);
+
+  assert.throws(
+    () => evaluateCanaryMonitoring({
+      evaluatedAtUtc,
+      preflight: candidate,
+      observation: {
+        ...observations(),
+        approvedPlanSha256: candidate.approvedPlanSha256,
+      },
+    }),
+    /approved canary window.*72 hours|canary window.*duration/i,
+  );
+});
+
 test("canary monitoring rejects evaluation at or after the approved window closes", () => {
   const closingObservation = {
     ...observations(),

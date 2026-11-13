@@ -254,6 +254,8 @@ export function evaluateCanaryMonitoring({ preflight, observation, evaluatedAtUt
 
   const starts = canonicalTime(preflight.startsAtUtc, "canary window start");
   const ends = canonicalTime(preflight.endsAtUtc, "canary window end");
+  if (ends.valueOf() - starts.valueOf() > 72 * 60 * 60 * 1000)
+    throw new Error("approved canary window duration must not exceed 72 hours");
   if (!Number.isInteger(preflight.maxUsers) || preflight.maxUsers < 1 || preflight.maxUsers > 5 ||
       !Number.isInteger(preflight.maxProjects) || preflight.maxProjects < 1 || preflight.maxProjects > 3)
     throw new Error("approved pilot cohort limits are invalid");
