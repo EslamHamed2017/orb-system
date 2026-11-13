@@ -280,6 +280,15 @@ test("canary preflight independently rejects UAT reports exceeding the bounded o
   assert.match(result.stderr, /UAT report.*30 minutes|owner-review duration/i);
 });
 
+test("canary preflight requires technical UAT evidence produced before owner approval", () => {
+  const uat = validUat();
+  uat.ownerApprovalRecorded = true;
+
+  const result = run(validPlan(), uat);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /UAT evidence.*before owner approval|owner approval.*separate/i);
+});
+
 test("canary preflight rejects release or target drift from passing bilingual UAT", () => {
   for (const uat of [
     { ...validUat(), gitCommit: "b".repeat(40) },

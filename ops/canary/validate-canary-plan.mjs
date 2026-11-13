@@ -117,6 +117,9 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
       rejectUnknownFields(locale, ["locale", "direction", "passed"], "UAT locale");
   }
 
+  if (uat?.ownerApprovalRecorded !== false)
+    throw new Error("UAT evidence must be produced before owner approval; canary approval is recorded separately");
+
   rejectUnknownFields(plan.window, ["startsAtUtc", "endsAtUtc"], "window");
   rejectUnknownFields(plan.scope, ["maxUsers", "maxProjects", "userIds", "projectIds"], "scope");
   rejectUnknownFields(plan.monitoring, [
