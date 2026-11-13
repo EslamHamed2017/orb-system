@@ -124,10 +124,11 @@ test("canary completion rejects future-dated completion or owner review", () => 
   }).passed, true);
 });
 
-test("canary completion requires owner review after walkthrough completion", () => {
+test("canary completion requires owner review strictly after walkthrough completion", () => {
   for (const patch of [
     { ownerReviewed: false },
     { ownerReviewerId: "different-owner" },
+    { ownerReviewedAtUtc: "2026-11-12T10:00:30.000Z" },
     { ownerReviewedAtUtc: "2026-11-12T10:00:29.999Z" },
   ]) {
     assert.throws(

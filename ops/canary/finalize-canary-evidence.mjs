@@ -107,7 +107,7 @@ export function finalizeCanaryEvidence({ monitoringEvidence, completion, now = n
     typeof completion.ownerReviewerId === "string" &&
     IDENTITY.test(completion.ownerReviewerId) &&
     completion.ownerReviewerId === monitoringEvidence.ownerApproverId &&
-    reviewed >= completed;
+    reviewed > completed;
   if (!ownerReviewIsValid)
     throw new Error("canary completion requires owner review after walkthrough completion");
 
