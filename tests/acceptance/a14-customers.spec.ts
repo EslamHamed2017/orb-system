@@ -8,7 +8,12 @@ for (const locale of ["en", "ar"] as const) {
     await expect(page.locator("main > section")).toHaveAttribute("dir", ar ? "rtl" : "ltr");
     await expect(page.getByRole("heading", { level: 2, name: ar ? "دليل العملاء" : "Customer directory" })).toBeVisible();
     await expect(page.getByRole("table").getByRole("row")).toHaveCount(4);
-    await expect(page.getByRole("link", { name: ar ? "إضافة عميل" : "Add customer" })).toHaveAttribute("data-operation-id", "createCustomer");
+    const addCustomer = page.getByRole("button", { name: ar ? "إضافة عميل" : "Add customer" });
+    await expect(addCustomer).toHaveAttribute("data-operation-id", "createCustomer");
+    await expect(addCustomer).toHaveAttribute("aria-controls", "customer-registration");
+    await addCustomer.click();
+    await expect(page.locator("#customer-registration")).toHaveAttribute("open", "");
+    await expect(page.locator("#customer-registration input[name=reference]")).toBeFocused();
     await page.getByRole("table").getByRole("link", { name: ar ? "عرض" : "View" }).first().click();
     await expect.poll(() => { const url = new URL(page.url()); return url.pathname + url.search; }).toBe(`/customers/customer-northstar?locale=${locale}`);
     await expect(page.getByText(ar ? "نظرة العميل ٣٦٠°" : "Customer 360", { exact: true })).toBeVisible();
