@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { parseProjectRecords, PROJECT_STORAGE_KEY, projectExpenseSummary, recordProjectExpense, removeProjectExpense, type ProjectRecord } from "../../../modules/projects/daily-projects";
+import { mutateProjectStorage } from "../../../modules/projects/browser-project-storage";
 import styles from "./ProjectExpenses.module.css";
 
 type LoadState = "loading" | "ready" | "missing" | "error";
@@ -19,25 +20,26 @@ export function SavedProjectExpenses({ id, locale, canMutate = true }: Readonly<
     } catch { setState("error"); }
   }, [id]);
 
-  function persist(update: (stored: ProjectRecord) => ProjectRecord) {
+  async function persist(update: (stored: ProjectRecord) => ProjectRecord) {
     if (!project) throw new Error("PROJECT_NOT_FOUND");
-    const records = parseProjectRecords(localStorage.getItem(PROJECT_STORAGE_KEY));
-    const index = records.findIndex((item) => item.id === project.id);
-    if (index < 0) throw new Error("PROJECT_NOT_FOUND");
-    const updated = update(records[index]);
-    records[index] = updated;
-    localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(records));
+    const updated = await mutateProjectStorage(localStorage, parseProjectRecords, (records) => {
+      const index = records.findIndex((item) => item.id === project.id);
+      if (index < 0) throw new Error("PROJECT_NOT_FOUND");
+      const next = update(records[index]);
+      records[index] = next;
+      return { records, result: next };
+    });
     setProject(updated);
   }
 
-  function saveExpense(event: FormEvent<HTMLFormElement>) {
+  async function saveExpense(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
     const form = event.currentTarget;
     const data = new FormData(form);
     const expectedUpdatedAt = project?.updatedAt ?? "";
     try {
-      persist((stored) => recordProjectExpense(stored, {
+      await persist((stored) => recordProjectExpense(stored, {
         reference: String(data.get("reference") ?? ""), occurredOn: String(data.get("occurredOn") ?? ""),
         category: String(data.get("category") ?? ""), vendor: String(data.get("vendor") ?? ""), amount: String(data.get("amount") ?? ""),
       }, new Date().toISOString(), expectedUpdatedAt));
@@ -48,12 +50,12 @@ export function SavedProjectExpenses({ id, locale, canMutate = true }: Readonly<
     }
   }
 
-  function removeExpense(reference: string) {
+  async function removeExpense(reference: string) {
     if (!window.confirm(ar ? `حذف المصروف ${reference} من هذا السجل المحلي لتصحيحه؟` : `Remove expense ${reference} from this local record so it can be corrected?`)) return;
     setMessage("");
     const expectedUpdatedAt = project?.updatedAt ?? "";
     try {
-      persist((stored) => removeProjectExpense(stored, reference, expectedUpdatedAt, new Date().toISOString()));
+      await persist((stored) => removeProjectExpense(stored, reference, expectedUpdatedAt, new Date().toISOString()));
       setMessage(ar ? "حُذف المصروف ويمكنك إدخاله من جديد." : "Expense removed; you can enter it again.");
     } catch {
       setMessage(ar ? "تعذر حذف المصروف. أعد تحميل الصفحة وحاول مجدداً." : "Expense could not be removed. Reload the page and try again.");

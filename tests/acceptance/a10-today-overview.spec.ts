@@ -25,7 +25,9 @@ test("creation persists exact fields, opens the exact detail, and Today has one 
   await expect(page.getByRole("heading", { level: 1, name: "Atlas Foods" })).toBeVisible();
   await expect(page.locator("body")).toContainText("AF-101");
   await expect(page.locator("body")).toContainText("SC-44");
-  await expect(page.getByText("Not started", { exact: true })).toHaveCount(7);
+  await expect(page.getByText("Not started", { exact: true })).toHaveCount(6);
+  await expect(page.getByText("Claims (optional, when needed)", { exact: true })).toBeVisible();
+  await expect(page.getByText("No claims recorded", { exact: true })).toBeVisible();
   await expect(page.locator('#lifecycle a[href*="/contracts"], #lifecycle a[href*="/shipments"], #lifecycle a[href*="/money"]')).toHaveCount(0);
   await expect(page.locator("body")).not.toContainText(/Pilot Customer|estimated total|actual margin/i);
   await page.reload();

@@ -8,11 +8,15 @@ export type SupplierPayment = Readonly<{ reference: string; paymentDate: string;
 export type CustomerInvoice = Readonly<{ reference: string; invoiceDate: string; amount: string }>;
 export type CustomerCollection = Readonly<{ reference: string; collectionDate: string; amount: string }>;
 export type ProjectExpense = Readonly<{ reference: string; occurredOn: string; category: string; vendor: string; amount: string }>;
+export const PROJECT_CLAIM_TYPES = ["QUANTITY", "WEIGHT", "QUALITY", "DELIVERY", "PRICE", "DOCUMENT"] as const;
+export type ProjectClaimType = typeof PROJECT_CLAIM_TYPES[number];
+export type ProjectClaimStatus = "OPEN" | "RESOLVED";
+export type ProjectClaim = Readonly<{ reference: string; type: ProjectClaimType; claimDate: string; claimant: string; respondent: string; description: string; amount?: string; status: ProjectClaimStatus; createdAt: string; resolutionNote?: string; resolutionDate?: string; resolvedAt?: string }>;
 export type ProjectRecord = Readonly<{
   id: string; code: string; customer: string; supplier?: string; reference: string; contractReference: string; purchaseContractReference?: string;
   startDate: string; commodity: string; quantity: string; unit: string; currency: string;
   unitPrice: string; value: number; origin: string; destination: string;
-  status: ProjectStatus; supplierShipment?: SupplierShipment; customerShipment?: CustomerShipment; customerShipmentReviewedAt?: string; supplierInvoice?: SupplierInvoice; supplierPayment?: SupplierPayment; customerInvoice?: CustomerInvoice; customerCollections?: readonly CustomerCollection[]; expenses?: readonly ProjectExpense[]; createdAt: string; updatedAt: string;
+  status: ProjectStatus; supplierShipment?: SupplierShipment; customerShipment?: CustomerShipment; customerShipmentReviewedAt?: string; supplierInvoice?: SupplierInvoice; supplierPayment?: SupplierPayment; customerInvoice?: CustomerInvoice; customerCollections?: readonly CustomerCollection[]; expenses?: readonly ProjectExpense[]; claims?: readonly ProjectClaim[]; createdAt: string; updatedAt: string;
 }>;
 export type ProjectInput = Readonly<Omit<ProjectRecord, "id" | "code" | "value" | "status" | "createdAt" | "updatedAt">>;
 
@@ -124,6 +128,38 @@ function isValidCustomerCollections(value: unknown, status: unknown, customerInv
 }
 
 
+function compareClaims(left: ProjectClaim, right: ProjectClaim): number {
+  return left.claimDate.localeCompare(right.claimDate) || left.createdAt.localeCompare(right.createdAt) || left.reference.localeCompare(right.reference);
+}
+
+function isValidProjectClaims(value: unknown, status: unknown, customer: unknown, supplier: unknown, startDate: unknown, createdAt: unknown, updatedAt: unknown): value is readonly ProjectClaim[] {
+  if (value === undefined) return true;
+  if (!Array.isArray(value) || !["ACTIVE", "CLOSED"].includes(String(status)) || typeof customer !== "string" || typeof supplier !== "string" || typeof startDate !== "string") return false;
+  const references = new Set<string>();
+  let previous: ProjectClaim | undefined;
+  for (const item of value) {
+    if (!item || typeof item !== "object") return false;
+    const claim = item as Record<string, unknown>;
+    const amount = claim.amount === undefined ? null : parseMoneyUnits(claim.amount);
+    const partiesValid = (claim.claimant === customer && claim.respondent === supplier) || (claim.claimant === supplier && claim.respondent === customer);
+    const openShape = claim.status === "OPEN" && claim.resolutionNote === undefined && claim.resolutionDate === undefined && claim.resolvedAt === undefined;
+    const resolvedShape = claim.status === "RESOLVED" && typeof claim.resolutionNote === "string" && claim.resolutionNote.trim() === claim.resolutionNote && claim.resolutionNote !== "" &&
+      typeof claim.resolutionDate === "string" && isStrictDate(claim.resolutionDate) && typeof claim.claimDate === "string" && claim.resolutionDate >= claim.claimDate &&
+      isStrictTimestamp(claim.resolvedAt) && typeof claim.createdAt === "string" && claim.resolvedAt >= claim.createdAt && typeof updatedAt === "string" && claim.resolvedAt <= updatedAt;
+    if (typeof claim.reference !== "string" || claim.reference.trim() !== claim.reference || claim.reference === "" || references.has(claim.reference) ||
+        typeof claim.type !== "string" || !PROJECT_CLAIM_TYPES.includes(claim.type as ProjectClaimType) ||
+        typeof claim.claimDate !== "string" || !isStrictDate(claim.claimDate) || claim.claimDate < startDate || !partiesValid ||
+        typeof claim.description !== "string" || claim.description.trim() !== claim.description || claim.description.length < 3 ||
+        !isStrictTimestamp(claim.createdAt) || typeof createdAt !== "string" || typeof updatedAt !== "string" || claim.createdAt < createdAt || claim.createdAt > updatedAt ||
+        (claim.amount !== undefined && (amount === null || amount <= 0n)) || (!openShape && !resolvedShape)) return false;
+    const typed = claim as unknown as ProjectClaim;
+    if (previous && compareClaims(previous, typed) > 0) return false;
+    previous = typed;
+    references.add(claim.reference);
+  }
+  return true;
+}
+
 function isValidProjectExpenses(value: unknown, status: unknown, startDate: unknown): value is readonly ProjectExpense[] {
   if (value === undefined) return true;
   if (!Array.isArray(value) || !["ACTIVE", "CLOSED"].includes(String(status))) return false;
@@ -171,7 +207,8 @@ function isProjectRecord(value: unknown): value is ProjectRecord {
     isValidSupplierPayment(item.supplierPayment, item.status, item.supplierInvoice, item.customerShipmentReviewedAt) &&
     isValidCustomerInvoice(item.customerInvoice, item.status, item.value, item.customerShipment, item.supplierPayment) &&
     isValidCustomerCollections(item.customerCollections, item.status, item.customerInvoice) &&
-    isValidProjectExpenses(item.expenses, item.status, item.startDate);
+    isValidProjectExpenses(item.expenses, item.status, item.startDate) &&
+    isValidProjectClaims(item.claims, item.status, item.customer, item.supplier, item.startDate, item.createdAt, item.updatedAt);
 }
 
 export function parseProjectRecords(raw: string | null): ProjectRecord[] {
@@ -292,6 +329,47 @@ export function recordProjectExpense(project: ProjectRecord, input: ProjectExpen
   return { ...project, expenses: [...existing, expense], updatedAt: now };
 }
 
+export type ProjectClaimInput = Readonly<{ reference: string; type: ProjectClaimType; claimDate: string; claimant: string; respondent: string; description: string; amount?: string }>;
+
+export function recordProjectClaim(project: ProjectRecord, input: ProjectClaimInput, now: string, expectedUpdatedAt = project.updatedAt): ProjectRecord {
+  if (project.status !== "ACTIVE" || !project.supplier || project.updatedAt !== expectedUpdatedAt) throw new Error("INVALID_PROJECT_CLAIM_STATE");
+  const reference = input.reference.trim();
+  const claimant = input.claimant.trim();
+  const respondent = input.respondent.trim();
+  const claimDate = input.claimDate.trim();
+  const description = input.description.trim();
+  const rawAmount = input.amount?.trim() ?? "";
+  const amount = rawAmount === "" ? null : parseMoneyUnits(rawAmount);
+  const partiesValid = (claimant === project.customer && respondent === project.supplier) || (claimant === project.supplier && respondent === project.customer);
+  if (reference !== input.reference || !reference || (project.claims ?? []).some((item) => item.reference === reference) ||
+      !PROJECT_CLAIM_TYPES.includes(input.type) || !isStrictDate(claimDate) || claimDate < project.startDate || !partiesValid || claimant === respondent || description.length < 3 ||
+      (rawAmount !== "" && (amount === null || amount <= 0n)) || !isValidMutationTimestamp(now, project)) throw new Error("INVALID_PROJECT_CLAIM");
+  const claim: ProjectClaim = { reference, type: input.type, claimDate, claimant, respondent, description, ...(rawAmount ? { amount: rawAmount } : {}), status: "OPEN", createdAt: now };
+  return { ...project, claims: [...(project.claims ?? []), claim].sort(compareClaims), updatedAt: now };
+}
+
+export type ProjectClaimResolutionInput = Readonly<{ reference: string; resolutionNote: string; resolutionDate: string }>;
+
+export function resolveProjectClaim(project: ProjectRecord, input: ProjectClaimResolutionInput, now: string, expectedUpdatedAt = project.updatedAt): ProjectRecord {
+  if (project.status !== "ACTIVE" || project.updatedAt !== expectedUpdatedAt) throw new Error("INVALID_PROJECT_CLAIM_RESOLUTION_STATE");
+  const reference = input.reference.trim();
+  const note = input.resolutionNote.trim();
+  const resolutionDate = input.resolutionDate.trim();
+  const claim = (project.claims ?? []).find((item) => item.reference === reference);
+  if (!claim || claim.status !== "OPEN" || reference !== input.reference || !note || note !== input.resolutionNote || !isStrictDate(resolutionDate) ||
+      resolutionDate < claim.claimDate || resolutionDate < project.startDate || !isValidMutationTimestamp(now, project) || now < claim.createdAt) throw new Error("INVALID_PROJECT_CLAIM_RESOLUTION");
+  const claims = (project.claims ?? []).map((item): ProjectClaim => item.reference === reference
+    ? { ...item, status: "RESOLVED", resolutionNote: note, resolutionDate, resolvedAt: now }
+    : item);
+  return { ...project, claims, updatedAt: now };
+}
+
+export function projectClaimSummary(project: ProjectRecord): Readonly<{ count: number; open: number; resolved: number; amountTotal: string }> {
+  const claims = project.claims ?? [];
+  const amountTotal = claims.reduce((sum, item) => sum + (item.amount ? parseMoneyUnits(item.amount) ?? 0n : 0n), 0n);
+  return { count: claims.length, open: claims.filter((item) => item.status === "OPEN").length, resolved: claims.filter((item) => item.status === "RESOLVED").length, amountTotal: formatMoneyUnits(amountTotal) };
+}
+
 export function removeProjectExpense(project: ProjectRecord, reference: string, expectedUpdatedAt: string, now: string): ProjectRecord {
   if (project.status !== "ACTIVE" || project.updatedAt !== expectedUpdatedAt) throw new Error("INVALID_PROJECT_EXPENSE_STATE");
   const cleanReference = reference.trim();
@@ -364,6 +442,10 @@ export function projectNextAction(projectOrStatus: ProjectRecord | ProjectStatus
     if (!(project.expenses?.length)) return locale === "ar"
       ? { label: "تسجيل مصروف للمشروع", detail: "أضف أول تكلفة مباشرة دُفعت لهذا المشروع؛ يسجلها ORB فقط ولا ينفذ أي دفعة.", href: `/projects/${id}/expenses` }
       : { label: "Record project expense", detail: "Add the first direct cost paid for this project; ORB records it only and does not make a payment.", href: `/projects/${id}/expenses` };
+    const openClaim = project.claims?.find((claim) => claim.status === "OPEN");
+    if (openClaim) return locale === "ar"
+      ? { label: "حل المطالبة المفتوحة", detail: `راجع المطالبة المفتوحة ${openClaim.reference} وحلها.`, href: `/projects/${id}/claims` }
+      : { label: "Resolve open claim", detail: `Review and resolve the open project claim ${openClaim.reference}.`, href: `/projects/${id}/claims` };
     return null;
   }
   const copy = {

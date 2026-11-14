@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
-import { completeProjectSetup, customerReceivableSummary, projectExpenseSummary, markCustomerShipmentReviewed, parseProjectRecords, PROJECT_STORAGE_KEY, projectNextAction, projectStatusLabel, recordCustomerCollection, recordCustomerInvoice, recordCustomerShipment, recordSupplierInvoice, recordSupplierPayment, recordSupplierShipment, resetCustomerFinance, resetSupplierFinance, type ProjectRecord } from "../../../modules/projects/daily-projects";
+import { completeProjectSetup, customerReceivableSummary, projectExpenseSummary, projectClaimSummary, markCustomerShipmentReviewed, parseProjectRecords, PROJECT_STORAGE_KEY, projectNextAction, projectStatusLabel, recordCustomerCollection, recordCustomerInvoice, recordCustomerShipment, recordSupplierInvoice, recordSupplierPayment, recordSupplierShipment, resetCustomerFinance, resetSupplierFinance, type ProjectRecord } from "../../../modules/projects/daily-projects";
+import { mutateProjectStorage } from "../../../modules/projects/browser-project-storage";
 import styles from "./Projects.module.css";
 
 type LoadState = "loading" | "ready" | "missing" | "error";
@@ -19,24 +20,25 @@ export function SavedProjectDetail({ id, locale }: { readonly id: string; readon
     } catch { setState("error"); }
   }, [id]);
 
-  function persistProject(update: (record: ProjectRecord) => ProjectRecord): ProjectRecord {
+  async function persistProject(update: (record: ProjectRecord) => ProjectRecord): Promise<ProjectRecord> {
     if (!project) throw new Error("PROJECT_NOT_FOUND");
-    const records = parseProjectRecords(localStorage.getItem(PROJECT_STORAGE_KEY));
-    const index = records.findIndex((item) => item.id === project.id);
-    if (index < 0) throw new Error("PROJECT_NOT_FOUND");
-    const updated = update(records[index]);
-    records[index] = updated;
-    localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(records));
+    const updated = await mutateProjectStorage(localStorage, parseProjectRecords, (records) => {
+      const index = records.findIndex((item) => item.id === project.id);
+      if (index < 0) throw new Error("PROJECT_NOT_FOUND");
+      const next = update(records[index]);
+      records[index] = next;
+      return { records, result: next };
+    });
     setProject(updated);
     return updated;
   }
 
-  function saveSupplierShipment(event: FormEvent<HTMLFormElement>) {
+  async function saveSupplierShipment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaveError("");
     try {
       const form = new FormData(event.currentTarget);
-      persistProject((stored) => recordSupplierShipment(stored, {
+      await persistProject((stored) => recordSupplierShipment(stored, {
         reference: String(form.get("shipmentReference") ?? ""),
         expectedArrival: String(form.get("expectedArrival") ?? ""),
         quantity: String(form.get("shipmentQuantity") ?? ""),
@@ -46,12 +48,12 @@ export function SavedProjectDetail({ id, locale }: { readonly id: string; readon
     }
   }
 
-  function saveCustomerShipment(event: FormEvent<HTMLFormElement>) {
+  async function saveCustomerShipment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaveError("");
     try {
       const form = new FormData(event.currentTarget);
-      persistProject((stored) => recordCustomerShipment(stored, {
+      await persistProject((stored) => recordCustomerShipment(stored, {
         reference: String(form.get("customerShipmentReference") ?? ""),
         plannedDispatchDate: String(form.get("plannedDispatchDate") ?? ""),
         quantity: String(form.get("customerShipmentQuantity") ?? ""),
@@ -61,21 +63,21 @@ export function SavedProjectDetail({ id, locale }: { readonly id: string; readon
     }
   }
 
-  function reviewCustomerShipment() {
+  async function reviewCustomerShipment() {
     setSaveError("");
     try {
-      persistProject((stored) => markCustomerShipmentReviewed(stored, new Date().toISOString()));
+      await persistProject((stored) => markCustomerShipmentReviewed(stored, new Date().toISOString()));
     } catch {
       setSaveError(ar ? "تعذر حفظ مراجعة التسليم. أعد تحميل الصفحة وتحقق من حالة المشروع." : "Handover review could not be saved. Reload the page and check the project state.");
     }
   }
 
-  function saveSupplierInvoice(event: FormEvent<HTMLFormElement>) {
+  async function saveSupplierInvoice(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaveError("");
     try {
       const form = new FormData(event.currentTarget);
-      persistProject((stored) => recordSupplierInvoice(stored, {
+      await persistProject((stored) => recordSupplierInvoice(stored, {
         reference: String(form.get("supplierInvoiceReference") ?? ""),
         invoiceDate: String(form.get("supplierInvoiceDate") ?? ""),
         amount: String(form.get("supplierInvoiceAmount") ?? ""),
@@ -86,12 +88,12 @@ export function SavedProjectDetail({ id, locale }: { readonly id: string; readon
     }
   }
 
-  function saveSupplierPayment(event: FormEvent<HTMLFormElement>) {
+  async function saveSupplierPayment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaveError("");
     try {
       const form = new FormData(event.currentTarget);
-      persistProject((stored) => recordSupplierPayment(stored, {
+      await persistProject((stored) => recordSupplierPayment(stored, {
         reference: String(form.get("supplierPaymentReference") ?? ""),
         paymentDate: String(form.get("supplierPaymentDate") ?? ""),
         amount: String(form.get("supplierPaymentAmount") ?? ""),
@@ -102,13 +104,13 @@ export function SavedProjectDetail({ id, locale }: { readonly id: string; readon
     }
   }
 
-  function saveCustomerInvoice(event: FormEvent<HTMLFormElement>) {
+  async function saveCustomerInvoice(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaveError("");
     try {
       const form = new FormData(event.currentTarget);
       const expectedUpdatedAt = project?.updatedAt ?? "";
-      persistProject((stored) => recordCustomerInvoice(stored, {
+      await persistProject((stored) => recordCustomerInvoice(stored, {
         reference: String(form.get("customerInvoiceReference") ?? ""),
         invoiceDate: String(form.get("customerInvoiceDate") ?? ""),
         amount: String(form.get("customerInvoiceAmount") ?? ""),
@@ -119,13 +121,13 @@ export function SavedProjectDetail({ id, locale }: { readonly id: string; readon
     }
   }
 
-  function saveCustomerCollection(event: FormEvent<HTMLFormElement>) {
+  async function saveCustomerCollection(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaveError("");
     try {
       const form = new FormData(event.currentTarget);
       const expectedUpdatedAt = project?.updatedAt ?? "";
-      persistProject((stored) => recordCustomerCollection(stored, {
+      await persistProject((stored) => recordCustomerCollection(stored, {
         reference: String(form.get("customerCollectionReference") ?? ""),
         collectionDate: String(form.get("customerCollectionDate") ?? ""),
         amount: String(form.get("customerCollectionAmount") ?? ""),
@@ -137,7 +139,7 @@ export function SavedProjectDetail({ id, locale }: { readonly id: string; readon
     }
   }
 
-  function correctCustomerFinance() {
+  async function correctCustomerFinance() {
     const confirmed = window.confirm(project?.customerCollections?.length
       ? (ar ? "هل تريد حذف فاتورة العميل والتحصيلات المسجلة لإعادة إدخالها؟ ستبقى بيانات المورد كما هي." : "Remove the customer invoice and recorded collections so you can enter them again? Supplier finance will remain unchanged.")
       : (ar ? "هل تريد حذف فاتورة العميل المسجلة وإعادة إدخالها؟ ستبقى بيانات المورد كما هي." : "Remove the recorded customer invoice so you can enter it again? Supplier finance will remain unchanged."));
@@ -145,14 +147,14 @@ export function SavedProjectDetail({ id, locale }: { readonly id: string; readon
     setSaveError("");
     try {
       const expectedUpdatedAt = project?.updatedAt ?? "";
-      persistProject((stored) => resetCustomerFinance(stored, expectedUpdatedAt, new Date().toISOString()));
+      await persistProject((stored) => resetCustomerFinance(stored, expectedUpdatedAt, new Date().toISOString()));
       requestAnimationFrame(() => document.getElementById("customer-finance")?.scrollIntoView({ block: "start" }));
     } catch {
       setSaveError(ar ? "تعذر فتح بيانات العميل المالية للتصحيح. أعد تحميل الصفحة وحاول مجدداً." : "Customer finance could not be reopened for correction. Reload the page and try again.");
     }
   }
 
-  function correctSupplierFinance() {
+  async function correctSupplierFinance() {
     const confirmed = window.confirm(project?.customerInvoice
       ? (ar ? "سيؤدي تصحيح بيانات المورد إلى حذف فاتورة العميل والتحصيلات التابعة لها من هذا السجل المحلي. هل تريد المتابعة؟" : "Correcting supplier finance will also remove the dependent customer invoice and collections from this local record. Continue?")
       : project?.supplierPayment
@@ -162,20 +164,20 @@ export function SavedProjectDetail({ id, locale }: { readonly id: string; readon
     setSaveError("");
     try {
       const expectedUpdatedAt = project?.updatedAt ?? "";
-      persistProject((stored) => resetSupplierFinance(stored, expectedUpdatedAt, new Date().toISOString()));
+      await persistProject((stored) => resetSupplierFinance(stored, expectedUpdatedAt, new Date().toISOString()));
       requestAnimationFrame(() => document.getElementById("supplier-finance")?.scrollIntoView({ block: "start" }));
     } catch {
       setSaveError(ar ? "تعذر فتح البيانات المالية للتصحيح. أعد تحميل الصفحة وحاول مجدداً." : "Finance details could not be reopened for correction. Reload the page and try again.");
     }
   }
 
-  function saveSetup(event: FormEvent<HTMLFormElement>) {
+  async function saveSetup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaveError("");
     if (!project) return;
     try {
       const form = new FormData(event.currentTarget);
-      persistProject((stored) => completeProjectSetup(stored, {
+      await persistProject((stored) => completeProjectSetup(stored, {
         customer: String(form.get("setupCustomer") ?? ""),
         supplier: String(form.get("supplier") ?? ""),
         salesContractReference: String(form.get("salesContractReference") ?? ""),
@@ -194,10 +196,11 @@ export function SavedProjectDetail({ id, locale }: { readonly id: string; readon
   const next = projectNextAction(project, locale);
   const receivable = customerReceivableSummary(project);
   const expenseSummary = projectExpenseSummary(project);
+  const claimSummary = projectClaimSummary(project);
   const tasks: LifecycleItem[] = (ar ? [
-    "العميل والمورد", "عقود البيع والشراء", "شحنات المورد والعميل", "الفواتير والمدفوعات", "المصروفات", "المطالبات", "الإغلاق وإعادة الفتح",
+    "العميل والمورد", "عقود البيع والشراء", "شحنات المورد والعميل", "الفواتير والمدفوعات", "المصروفات", "المطالبات (اختيارية عند الحاجة)", "الإغلاق وإعادة الفتح",
   ] : [
-    "Customer and supplier", "Sales and purchase contracts", "Supplier and customer shipments", "Invoices and payments", "Expenses", "Claims", "Closure and reopening",
+    "Customer and supplier", "Sales and purchase contracts", "Supplier and customer shipments", "Invoices and payments", "Expenses", "Claims (optional, when needed)", "Closure and reopening",
   ]).map((label, index) => ({ label, status: index < 2 && project.status !== "SETUP"
     ? (ar ? "اكتمل الإعداد" : "Setup complete")
     : index === 2 && project.customerShipmentReviewedAt
@@ -216,7 +219,11 @@ export function SavedProjectDetail({ id, locale }: { readonly id: string; readon
                 ? (ar ? "سُجلت فاتورة المورد" : "Supplier invoice recorded")
                 : index === 4 && expenseSummary.count > 0
                   ? (ar ? `سُجل ${expenseSummary.count} مصروف` : `${expenseSummary.count} expense${expenseSummary.count === 1 ? "" : "s"} recorded`)
-                  : (ar ? "لم يبدأ" : "Not started") }));
+                  : index === 5
+                    ? claimSummary.count > 0
+                      ? (ar ? `مفتوحة ${claimSummary.open} · محلولة ${claimSummary.resolved}` : `${claimSummary.open} open · ${claimSummary.resolved} resolved`)
+                      : (ar ? "لا توجد مطالبات مسجلة" : "No claims recorded")
+                    : (ar ? "لم يبدأ" : "Not started") }));
   const shipmentArrival = project.supplierShipment ? new Intl.DateTimeFormat(ar ? "ar-EG" : "en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${project.supplierShipment.expectedArrival}T00:00:00.000Z`)) : "";
   const dateFormatter = new Intl.DateTimeFormat(ar ? "ar-EG" : "en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
   const customerDispatch = project.customerShipment ? dateFormatter.format(new Date(`${project.customerShipment.plannedDispatchDate}T00:00:00.000Z`)) : "";
@@ -233,15 +240,30 @@ export function SavedProjectDetail({ id, locale }: { readonly id: string; readon
   const storageWarning = ar
     ? "البيانات موجودة في هذا المتصفح فقط، ولا تتم مزامنتها أو نسخها احتياطياً، ومسح بيانات المتصفح يحذفها."
     : "Data exists only in this browser. It is not synchronized or backed up. Clearing browser data removes it.";
-  const finalTitle = project.status === "CLOSED" ? (ar ? "المشروع مغلق" : "Project closed") : expenseSummary.count > 0 ? (ar ? "تم تسجيل المصروفات" : "Expenses recorded") : (ar ? "اكتمل التحصيل المسجل" : "Recorded collection complete");
+  const finalTitle = project.status === "CLOSED" ? (ar ? "المشروع مغلق" : "Project closed") : claimSummary.count > 0 ? (ar ? "تم تسجيل المطالبات" : "Claims recorded") : expenseSummary.count > 0 ? (ar ? "تم تسجيل المصروفات" : "Expenses recorded") : (ar ? "اكتمل التحصيل المسجل" : "Recorded collection complete");
   const finalDetail = project.status === "CLOSED"
     ? (ar ? "هذا المشروع مغلق. راجع البيانات المسجلة أدناه؛ لا يفترض ORB وجود أي حركة مالية غير مسجلة." : "This project is closed. Review the recorded details below; ORB does not assume any unrecorded financial movement exists.")
-    : expenseSummary.count > 0
+    : claimSummary.count > 0
+      ? (ar ? `سُجلت ${claimSummary.count} مطالبة: ${claimSummary.open} مفتوحة و${claimSummary.resolved} محلولة، في هذا المتصفح فقط.` : `${claimSummary.count} claim${claimSummary.count === 1 ? " is" : "s are"} recorded in this browser only: ${claimSummary.open} open and ${claimSummary.resolved} resolved.`)
+      : expenseSummary.count > 0
       ? (ar ? `سُجل ${expenseSummary.count} مصروف بإجمالي ${expenseSummary.total} ${project.currency} في هذا المتصفح فقط. لم ينفذ ORB أي دفعة.` : `${expenseSummary.count} expense${expenseSummary.count === 1 ? "" : "s"} totalling ${expenseSummary.total} ${project.currency} are recorded in this browser only. ORB did not make a payment.`)
       : (ar ? "تم تسجيل فاتورة العميل والتحصيل الكامل في هذا المتصفح فقط. لم يتصل ORB بالبنك ولم ينفذ تحويلاً." : "The customer invoice and full collection are recorded in this browser only. ORB did not connect to a bank or execute a transfer.");
+  const projectTruth = claimSummary.count > 0
+    ? (ar ? `سُجلت ${claimSummary.count} مطالبة: ${claimSummary.open} مفتوحة و${claimSummary.resolved} محلولة.` : `${claimSummary.count} claim${claimSummary.count === 1 ? " is" : "s are"} recorded: ${claimSummary.open} open and ${claimSummary.resolved} resolved.`)
+    : expenseSummary.count > 0
+      ? (ar ? `سُجل ${expenseSummary.count} مصروف بإجمالي ${expenseSummary.total} ${project.currency}؛ لا توجد مطالبات مسجلة.` : `${expenseSummary.count} expense${expenseSummary.count === 1 ? "" : "s"} totalling ${expenseSummary.total} ${project.currency} are recorded; no claims are recorded.`)
+      : project.supplierPayment
+        ? (ar ? "سُجلت فاتورة المورد ودفعتها بالكامل فقط؛ لا توجد مصروفات أو مطالبات مسجلة." : "The supplier invoice and full payment are recorded; no expenses or claims are recorded.")
+        : project.supplierInvoice
+          ? (ar ? "سُجلت فاتورة المورد؛ لم تُسجل دفعتها أو أي مصروفات بعد." : "The supplier invoice is recorded; its payment and any expenses are not recorded yet.")
+          : project.customerShipment
+            ? (ar ? "سُجلت كميتا شحنتي المورد والعميل فقط؛ لا توجد فواتير أو مدفوعات أو مصروفات مسجلة." : "Only supplier and customer shipment quantities are recorded; no invoices, payments, or expenses are recorded.")
+            : project.supplierShipment
+              ? (ar ? "سُجلت كمية شحنة المورد فقط؛ لا توجد فواتير أو مدفوعات أو مصروفات مسجلة." : "Only the supplier shipment quantity is recorded; no invoices, payments, or expenses are recorded.")
+              : (ar ? "لا توجد أرقام تشغيلية أو مالية مسجلة لهذا المشروع حتى الآن." : "No operational or financial figures are recorded for this project yet.");
 
   return <section className={styles.page} dir={ar ? "rtl" : "ltr"} aria-labelledby="project-title">
-    <header className={styles.overviewHeader}><div className={styles.overviewTop}><div><p className={styles.code}>{project.code}</p><h1 id="project-title">{project.customer}</h1><p className={styles.subtitle}>{project.reference} · <bdi>{project.origin} → {project.destination}</bdi></p><div className={styles.statusRow}><span className={styles.status}>{projectStatusLabel(project.status, locale)}</span><span className={styles.browserBadge}>{ar ? "محفوظ في هذا المتصفح" : "Saved in this browser"}</span></div></div><div className={styles.overviewActions}>{project.status === "SETUP" ? <button className={styles.filledButton} type="button" onClick={() => setEditingSetup(true)}>{ar ? "إكمال إعداد المشروع" : "Complete project setup"}</button> : <>{next && nextHref ? <a className={styles.filledButton} href={nextHref}>{next.label}</a> : <span className={styles.browserBadge}>{finalTitle}</span>}{project.status === "ACTIVE" && (!next || !next.href.endsWith("/expenses")) ? <a className={styles.outlinedButton} href={`/projects/${encodeURIComponent(project.id)}/expenses?locale=${locale}`}>{ar ? "مصروفات المشروع" : "Project expenses"}</a> : null}</>}</div></div></header>
+    <header className={styles.overviewHeader}><div className={styles.overviewTop}><div><p className={styles.code}>{project.code}</p><h1 id="project-title">{project.customer}</h1><p className={styles.subtitle}>{project.reference} · <bdi>{project.origin} → {project.destination}</bdi></p><div className={styles.statusRow}><span className={styles.status}>{projectStatusLabel(project.status, locale)}</span><span className={styles.browserBadge}>{ar ? "محفوظ في هذا المتصفح" : "Saved in this browser"}</span></div></div><div className={styles.overviewActions}>{project.status === "SETUP" ? <button className={styles.filledButton} type="button" onClick={() => setEditingSetup(true)}>{ar ? "إكمال إعداد المشروع" : "Complete project setup"}</button> : <>{next && nextHref ? <a className={styles.filledButton} href={nextHref}>{next.label}</a> : <span className={styles.browserBadge}>{finalTitle}</span>}{project.status === "ACTIVE" && (!next || !next.href.endsWith("/expenses")) ? <a className={styles.outlinedButton} href={`/projects/${encodeURIComponent(project.id)}/expenses?locale=${locale}`}>{ar ? "مصروفات المشروع" : "Project expenses"}</a> : null}{(!next || !next.href.endsWith("/claims")) ? <a className={styles.outlinedButton} href={`/projects/${encodeURIComponent(project.id)}/claims?locale=${locale}`}>{claimSummary.count > 0 ? (ar ? `${claimSummary.open} مطالبة مفتوحة` : `${claimSummary.open} open claim${claimSummary.open === 1 ? "" : "s"}`) : (ar ? "مطالبات المشروع" : "Project claims")}</a> : null}</>}</div></div></header>
     <section className={styles.nextAction}><p>{next ? (ar ? "الإجراء التالي" : "Next action") : (ar ? "حالة المسار" : "Flow status")}</p><h2>{next ? next.label : finalTitle}</h2><span>{next ? next.detail : finalDetail}</span></section>
     {project.status === "SETUP" && editingSetup ? <section className={styles.setupEditor} aria-labelledby="setup-editor-title">
       <div><p className={styles.eyebrow}>{ar ? "الخطوة الأولى" : "First lifecycle step"}</p><h2 id="setup-editor-title">{ar ? "إكمال إعداد المشروع" : "Complete project setup"}</h2><p className={styles.muted}>{ar ? "أكد طرفي المشروع ومرجعي عقد البيع والشراء. لا يتم إرسال أي بيانات خارج هذا المتصفح." : "Confirm both project parties and the sales and purchase contract references. Nothing is sent outside this browser."}</p></div>
@@ -276,6 +298,6 @@ export function SavedProjectDetail({ id, locale }: { readonly id: string; readon
       {project.customerInvoice ? !receivable.complete ? <form className={styles.setupForm} onSubmit={saveCustomerCollection}><div className={styles.formGrid}><label>{ar ? "مرجع التحصيل" : "Collection reference"}<input required name="customerCollectionReference" /></label><label>{ar ? "تاريخ التحصيل" : "Collection date"}<input required type="date" min={project.customerInvoice.invoiceDate} name="customerCollectionDate" /></label><label>{ar ? "المبلغ المستلم" : "Amount received"}<input required type="number" min="0.000001" max={customerBalance} step="any" name="customerCollectionAmount" /></label><label>{ar ? "العملة" : "Currency"}<input value={project.currency} readOnly aria-readonly="true" /></label></div><div className={styles.actions}><button className={styles.outlinedButton} type="button" onClick={correctCustomerFinance}>{ar ? "تصحيح فاتورة العميل" : "Correct customer invoice"}</button><button className={styles.filledButton} type="submit">{ar ? "حفظ التحصيل" : "Save collection"}</button></div></form> : <><p className={styles.recordOnly}>{ar ? "مسجل فقط — لم يتصل ORB بالبنك ولم ينفذ أي تحويل" : "Recorded only — ORB did not connect to a bank or execute a transfer"}</p><div className={styles.correctionAction}><button className={styles.outlinedButton} type="button" onClick={correctCustomerFinance}>{ar ? "تصحيح فاتورة العميل أو التحصيلات" : "Correct customer invoice or collections"}</button></div></> : <form className={styles.setupForm} onSubmit={saveCustomerInvoice}><div className={styles.formGrid}><label>{ar ? "مرجع فاتورة العميل" : "Customer invoice reference"}<input required name="customerInvoiceReference" /></label><label>{ar ? "تاريخ الفاتورة" : "Invoice date"}<input required type="date" min={project.customerShipment?.plannedDispatchDate} name="customerInvoiceDate" /></label><label>{ar ? "قيمة الفاتورة" : "Invoice amount"}<input required type="number" min="0.000001" max={project.value} step="any" defaultValue={project.value} name="customerInvoiceAmount" /></label><label>{ar ? "العملة" : "Currency"}<input value={project.currency} readOnly aria-readonly="true" /></label></div><div className={styles.actions}><button className={styles.filledButton} type="submit">{ar ? "حفظ فاتورة العميل" : "Save customer invoice"}</button></div></form>}
     </section> : null}
     <div className={styles.detailGrid}><section className={styles.panel} id="lifecycle"><header className={styles.panelHeader}><div><h2>{ar ? "مسار دورة العمل" : "Lifecycle tasks"}</h2><p className={styles.muted}>{expenseSummary.count > 0 ? (ar ? `تم حفظ ${expenseSummary.count} مصروف وإجماليها ${expenseSummary.total} ${project.currency} في هذا المتصفح.` : `${expenseSummary.count} expense${expenseSummary.count === 1 ? "" : "s"} totalling ${expenseSummary.total} ${project.currency} are saved in this browser.`) : project.supplierPayment ? (ar ? "تم حفظ إعداد المشروع والشحنات وفاتورة المورد ودفعتها بالكامل في هذا المتصفح." : "Project setup, shipments, supplier invoice, and full payment are saved in this browser.") : project.supplierInvoice ? (ar ? "تم حفظ فاتورة المورد. سجّل الدفعة الكاملة لإكمال هذا المسار المالي الصغير." : "The supplier invoice is saved. Record its full payment to complete this small finance flow.") : project.customerShipmentReviewedAt ? (ar ? "اكتملت مراجعة التسليم. سجّل فاتورة المورد للانتقال إلى الدفعة." : "Shipment handover is reviewed. Record the supplier invoice to move to payment.") : project.customerShipment ? (ar ? "تم حفظ إعداد المشروع وشحنتي المورد والعميل في هذا المتصفح. راجع تسليم الشحنة لإكمال المسار المحدود." : "Project setup and both supplier and customer shipments are saved in this browser. Review the shipment handover to complete the bounded flow.") : project.supplierShipment ? (ar ? "تم حفظ إعداد المشروع وشحنة المورد. سجل شحنة العميل للانتقال إلى المراجعة التشغيلية التالية." : "Project setup and the supplier shipment are saved. Record the customer shipment to move to the next operational review.") : (ar ? "تم حفظ إعداد المشروع فقط. سجل شحنة المورد للانتقال إلى الخطوة التشغيلية التالية." : "Project setup is saved. Record the supplier shipment to move to the next operational step.")}</p></div></header><ol className={styles.lifecycle}>{tasks.map((task, index) => <li key={`${task.label}-${index}`}><span>{index + 1}</span><div><h3>{task.label}</h3><p>{task.status}</p></div></li>)}</ol></section>
-      <aside className={styles.panel} id="project-data"><header className={styles.panelHeader}><h2>{ar ? "بيانات المشروع" : "Project data"}</h2></header><dl className={styles.detailFacts}><div><dt>{ar ? "العميل" : "Customer"}</dt><dd>{project.customer}</dd></div><div><dt>{ar ? "المورد" : "Supplier"}</dt><dd>{project.supplier || (ar ? "لم يُدخل بعد" : "Not entered yet")}</dd></div><div><dt>{ar ? "مرجع عقد البيع" : "Sales contract reference"}</dt><dd>{project.contractReference}</dd></div><div><dt>{ar ? "مرجع عقد الشراء" : "Purchase contract reference"}</dt><dd>{project.purchaseContractReference || (ar ? "لم يُدخل بعد" : "Not entered yet")}</dd></div><div><dt>{ar ? "السلعة" : "Commodity"}</dt><dd>{project.commodity}</dd></div><div><dt>{ar ? "الكمية" : "Quantity"}</dt><dd><bdi>{project.quantity} {project.unit}</bdi></dd></div><div><dt>{ar ? "السعر لكل وحدة" : "Unit price"}</dt><dd><bdi>{project.unitPrice} {project.currency}</bdi></dd></div><div><dt>{ar ? "تاريخ البدء" : "Start date"}</dt><dd><time dateTime={project.startDate}>{project.startDate}</time></dd></div></dl><p className={styles.truthNote}>{expenseSummary.count > 0 ? (ar ? `سُجل ${expenseSummary.count} مصروف بإجمالي ${expenseSummary.total} ${project.currency}؛ لا توجد مطالبات مسجلة بعد.` : `${expenseSummary.count} expense${expenseSummary.count === 1 ? "" : "s"} totalling ${expenseSummary.total} ${project.currency} are recorded; no claims are recorded yet.`) : project.supplierPayment ? (ar ? "سُجلت فاتورة المورد ودفعتها بالكامل فقط؛ لا توجد مصروفات أو مطالبات مسجلة بعد." : "The supplier invoice and full payment are recorded; no expenses or claims are recorded yet.") : project.supplierInvoice ? (ar ? "سُجلت فاتورة المورد؛ لم تُسجل دفعتها أو أي مصروفات بعد." : "The supplier invoice is recorded; its payment and any expenses are not recorded yet.") : project.customerShipment ? (ar ? "سُجلت كميتا شحنتي المورد والعميل فقط؛ لا توجد فواتير أو مدفوعات أو مصروفات مسجلة بعد." : "Only supplier and customer shipment quantities are recorded; no invoices, payments, or expenses are recorded yet.") : project.supplierShipment ? (ar ? "سُجلت كمية شحنة المورد فقط؛ لا توجد فواتير أو مدفوعات أو مصروفات مسجلة بعد." : "Only the supplier shipment quantity is recorded; no invoices, payments, or expenses are recorded yet.") : (ar ? "لا توجد أرقام تشغيلية أو مالية مسجلة لهذا المشروع حتى الآن." : "No operational or financial figures are recorded for this project yet.")}</p></aside></div>
+      <aside className={styles.panel} id="project-data"><header className={styles.panelHeader}><h2>{ar ? "بيانات المشروع" : "Project data"}</h2></header><dl className={styles.detailFacts}><div><dt>{ar ? "العميل" : "Customer"}</dt><dd>{project.customer}</dd></div><div><dt>{ar ? "المورد" : "Supplier"}</dt><dd>{project.supplier || (ar ? "لم يُدخل بعد" : "Not entered yet")}</dd></div><div><dt>{ar ? "مرجع عقد البيع" : "Sales contract reference"}</dt><dd>{project.contractReference}</dd></div><div><dt>{ar ? "مرجع عقد الشراء" : "Purchase contract reference"}</dt><dd>{project.purchaseContractReference || (ar ? "لم يُدخل بعد" : "Not entered yet")}</dd></div><div><dt>{ar ? "السلعة" : "Commodity"}</dt><dd>{project.commodity}</dd></div><div><dt>{ar ? "الكمية" : "Quantity"}</dt><dd><bdi>{project.quantity} {project.unit}</bdi></dd></div><div><dt>{ar ? "السعر لكل وحدة" : "Unit price"}</dt><dd><bdi>{project.unitPrice} {project.currency}</bdi></dd></div><div><dt>{ar ? "تاريخ البدء" : "Start date"}</dt><dd><time dateTime={project.startDate}>{project.startDate}</time></dd></div></dl><p className={styles.truthNote}>{projectTruth}</p></aside></div>
   </section>;
 }
