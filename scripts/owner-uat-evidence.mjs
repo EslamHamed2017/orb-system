@@ -112,6 +112,8 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
     if (test.expectedStatus !== "passed" || !Array.isArray(test.results) || test.results.length !== 1 || test.results[0]?.status !== "passed")
       throw new Error(`owner UAT journey did not pass: ${spec.title}`);
     const result = test.results[0];
+    if (result?.attachments !== undefined && (!Array.isArray(result.attachments) || result.attachments.length !== 0))
+      throw new Error(`owner UAT journey must not retain attached artifacts: ${spec.title}`);
     if (result?.retry !== 0)
       throw new Error(`owner UAT journey must pass on a clean first attempt with retry provenance: ${spec.title}`);
     if ((result?.errors !== undefined && (!Array.isArray(result.errors) || result.errors.length !== 0)) || result?.error != null)

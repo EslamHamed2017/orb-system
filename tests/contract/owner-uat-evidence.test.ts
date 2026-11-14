@@ -241,6 +241,23 @@ test("owner UAT evidence requires each bilingual journey to execute exactly once
   }
 });
 
+test("owner UAT evidence rejects bilingual journeys with retained attachments", () => {
+  const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
+  const attached = report();
+  Object.assign(attached.suites[0].specs[0].tests[0].results[0], {
+    attachments: [{ name: "trace", contentType: "application/zip", path: "/tmp/owner-uat-trace.zip" }],
+  });
+  const malformed = report();
+  Object.assign(malformed.suites[0].specs[0].tests[0].results[0], { attachments: { name: "trace" } });
+
+  for (const value of [attached, malformed]) {
+    assert.throws(
+      () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
+      /attachments|attached artifacts/i,
+    );
+  }
+});
+
 test("owner UAT evidence rejects annotated bilingual journeys", () => {
   const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
   const annotated = report();
