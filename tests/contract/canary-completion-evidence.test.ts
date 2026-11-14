@@ -346,6 +346,32 @@ test("canary completion requires owner review strictly after walkthrough complet
   }
 });
 
+test("canary completion requires a credential-free HTTPS target origin", () => {
+  for (const targetOrigin of [
+    "http://canary.orb.example",
+    "https://user:secret@canary.orb.example",
+    "https://canary.orb.example/review",
+    "https://canary.orb.example/?token=secret",
+    "https://canary.orb.example/#review",
+    "not-a-url",
+  ]) {
+    const monitoring = { ...monitoringEvidence(), targetOrigin };
+    const { monitoringEvidenceSha256: _digest, ...payload } = monitoring;
+    monitoring.monitoringEvidenceSha256 = sha256(payload);
+    assert.throws(
+      () => finalizeCanaryEvidence({
+        monitoringEvidence: monitoring,
+        completion: {
+          ...completion(),
+          finalMonitoringEvidenceSha256: monitoring.monitoringEvidenceSha256,
+        },
+      }),
+      /credential-free HTTPS target origin/i,
+      `accepted unsafe canary target ${targetOrigin}`,
+    );
+  }
+});
+
 test("canary completion independently rejects an invalid approved pilot scope", () => {
   for (const patch of [
     { maxUsers: 6 },

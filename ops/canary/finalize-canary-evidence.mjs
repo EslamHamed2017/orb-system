@@ -94,6 +94,13 @@ export function finalizeCanaryEvidence({ monitoringEvidence, completion, now = n
   if (!SHA256.test(monitoringEvidence.approvedUatEvidenceSha256 ?? ""))
     throw new Error("final monitoring evidence must preserve the approved UAT evidence digest");
 
+  let target;
+  try { target = new URL(monitoringEvidence.targetOrigin); }
+  catch { throw new Error("final monitoring evidence must preserve a credential-free HTTPS target origin"); }
+  if (target.protocol !== "https:" || target.username || target.password ||
+      target.pathname !== "/" || target.search || target.hash || target.origin !== monitoringEvidence.targetOrigin)
+    throw new Error("final monitoring evidence must preserve a credential-free HTTPS target origin");
+
   const maxUsers = monitoringEvidence.maxUsers;
   const maxProjects = monitoringEvidence.maxProjects;
   const userIds = monitoringEvidence.userIds;
