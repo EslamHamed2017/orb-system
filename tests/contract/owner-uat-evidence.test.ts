@@ -24,7 +24,7 @@ function report(
   duration = 30_000,
 ) {
   return {
-    config: { forbidOnly: true, fullyParallel: false, filteredProjects: [{ name: "chromium", use: { baseURL } }] },
+    config: { forbidOnly: true, fullyParallel: false, workers: 1, filteredProjects: [{ name: "chromium", use: { baseURL } }] },
     stats: { startTime, duration, expected: 2, skipped: 0, unexpected: 0, flaky: 0 },
     errors: [],
     suites: [{ title: "owner-uat.spec.ts", file: "owner-uat.spec.ts", specs: titles.map((title, index) => ({
@@ -192,6 +192,21 @@ test("owner UAT evidence requires Playwright suite parallelism to be disabled", 
     assert.throws(
       () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
       /parallel|fullyParallel/i,
+    );
+  }
+});
+
+test("owner UAT evidence requires exactly one Playwright worker", () => {
+  const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
+  const concurrent = report();
+  concurrent.config.workers = 2;
+  const missing = report();
+  delete (missing.config as { workers?: number }).workers;
+
+  for (const value of [concurrent, missing]) {
+    assert.throws(
+      () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
+      /exactly one.*worker|workers/i,
     );
   }
 });
