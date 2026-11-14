@@ -5,11 +5,13 @@ export type SupplierShipment = Readonly<{ reference: string; expectedArrival: st
 export type CustomerShipment = Readonly<{ reference: string; plannedDispatchDate: string; quantity: string }>;
 export type SupplierInvoice = Readonly<{ reference: string; invoiceDate: string; amount: string }>;
 export type SupplierPayment = Readonly<{ reference: string; paymentDate: string; amount: string }>;
+export type CustomerInvoice = Readonly<{ reference: string; invoiceDate: string; amount: string }>;
+export type CustomerCollection = Readonly<{ reference: string; collectionDate: string; amount: string }>;
 export type ProjectRecord = Readonly<{
   id: string; code: string; customer: string; supplier?: string; reference: string; contractReference: string; purchaseContractReference?: string;
   startDate: string; commodity: string; quantity: string; unit: string; currency: string;
   unitPrice: string; value: number; origin: string; destination: string;
-  status: ProjectStatus; supplierShipment?: SupplierShipment; customerShipment?: CustomerShipment; customerShipmentReviewedAt?: string; supplierInvoice?: SupplierInvoice; supplierPayment?: SupplierPayment; createdAt: string; updatedAt: string;
+  status: ProjectStatus; supplierShipment?: SupplierShipment; customerShipment?: CustomerShipment; customerShipmentReviewedAt?: string; supplierInvoice?: SupplierInvoice; supplierPayment?: SupplierPayment; customerInvoice?: CustomerInvoice; customerCollections?: readonly CustomerCollection[]; createdAt: string; updatedAt: string;
 }>;
 export type ProjectInput = Readonly<Omit<ProjectRecord, "id" | "code" | "value" | "status" | "createdAt" | "updatedAt">>;
 
@@ -25,6 +27,20 @@ function isStrictTimestamp(value: unknown): value is string {
   if (typeof value !== "string" || value.trim() !== value || value === "") return false;
   const parsed = new Date(value);
   return Number.isFinite(parsed.getTime()) && parsed.toISOString() === value;
+}
+
+const MONEY_SCALE = 1_000_000n;
+
+function parseMoneyUnits(value: unknown): bigint | null {
+  if (typeof value !== "string" || !/^(?:0|[1-9]\d*)(?:\.\d{1,6})?$/.test(value)) return null;
+  const [whole, fraction = ""] = value.split(".");
+  return BigInt(whole) * MONEY_SCALE + BigInt(fraction.padEnd(6, "0"));
+}
+
+function formatMoneyUnits(units: bigint): string {
+  const whole = units / MONEY_SCALE;
+  const fraction = String(units % MONEY_SCALE).padStart(6, "0").replace(/0+$/, "");
+  return fraction ? `${whole}.${fraction}` : String(whole);
 }
 
 function isValidShipment(value: unknown, status: unknown, projectQuantity: unknown, startDate: unknown): value is SupplierShipment {
@@ -74,6 +90,38 @@ function isValidSupplierPayment(value: unknown, status: unknown, supplierInvoice
     typeof payment.amount === "string" && Number(payment.amount) === Number(invoice.amount) && Number(payment.amount) > 0;
 }
 
+function isValidCustomerInvoice(value: unknown, status: unknown, projectValue: unknown, customerShipment: unknown, supplierPayment: unknown): value is CustomerInvoice {
+  if (value === undefined) return true;
+  if (!value || typeof value !== "object" || !["ACTIVE", "CLOSED"].includes(String(status)) || !customerShipment || typeof customerShipment !== "object" || !supplierPayment || typeof supplierPayment !== "object") return false;
+  const invoice = value as Record<string, unknown>;
+  const shipment = customerShipment as Record<string, unknown>;
+  const amount = parseMoneyUnits(invoice.amount);
+  return typeof invoice.reference === "string" && invoice.reference.trim() === invoice.reference && invoice.reference !== "" &&
+    typeof invoice.invoiceDate === "string" && isStrictDate(invoice.invoiceDate) && typeof shipment.plannedDispatchDate === "string" && invoice.invoiceDate >= shipment.plannedDispatchDate &&
+    amount !== null && amount > 0n && typeof projectValue === "number" && Number(invoice.amount) <= projectValue;
+}
+
+function isValidCustomerCollections(value: unknown, status: unknown, customerInvoice: unknown): value is readonly CustomerCollection[] {
+  if (value === undefined) return true;
+  if (!Array.isArray(value) || !["ACTIVE", "CLOSED"].includes(String(status)) || !customerInvoice || typeof customerInvoice !== "object") return false;
+  const invoice = customerInvoice as Record<string, unknown>;
+  const invoiceAmount = parseMoneyUnits(invoice.amount);
+  if (invoiceAmount === null || invoiceAmount <= 0n) return false;
+  const references = new Set<string>();
+  let total = 0n;
+  for (const item of value) {
+    if (!item || typeof item !== "object") return false;
+    const collection = item as Record<string, unknown>;
+    const amount = parseMoneyUnits(collection.amount);
+    if (typeof collection.reference !== "string" || collection.reference.trim() !== collection.reference || collection.reference === "" || references.has(collection.reference) ||
+        typeof collection.collectionDate !== "string" || !isStrictDate(collection.collectionDate) || typeof invoice.invoiceDate !== "string" || collection.collectionDate < invoice.invoiceDate ||
+        amount === null || amount <= 0n) return false;
+    references.add(collection.reference);
+    total += amount;
+  }
+  return total <= invoiceAmount;
+}
+
 export function createProjectRecord(input: ProjectInput, options: Readonly<{ id: string; now: string; sequence: number }>): ProjectRecord {
   const clean = Object.fromEntries(Object.entries(input).map(([key, value]) => [key, String(value).trim()])) as unknown as ProjectInput;
   const quantity = Number(clean.quantity), unitPrice = Number(clean.unitPrice);
@@ -101,7 +149,9 @@ function isProjectRecord(value: unknown): value is ProjectRecord {
   return isValidShipment(item.supplierShipment, item.status, item.quantity, item.startDate) &&
     isValidCustomerShipment(item.customerShipment, item.status, item.quantity, item.supplierShipment) &&
     isValidSupplierInvoice(item.supplierInvoice, item.status, item.value, item.customerShipment, item.customerShipmentReviewedAt) &&
-    isValidSupplierPayment(item.supplierPayment, item.status, item.supplierInvoice, item.customerShipmentReviewedAt);
+    isValidSupplierPayment(item.supplierPayment, item.status, item.supplierInvoice, item.customerShipmentReviewedAt) &&
+    isValidCustomerInvoice(item.customerInvoice, item.status, item.value, item.customerShipment, item.supplierPayment) &&
+    isValidCustomerCollections(item.customerCollections, item.status, item.customerInvoice);
 }
 
 export function parseProjectRecords(raw: string | null): ProjectRecord[] {
@@ -183,11 +233,51 @@ export function recordSupplierPayment(project: ProjectRecord, input: SupplierPay
   return { ...project, supplierPayment, updatedAt: now };
 }
 
+export type CustomerInvoiceInput = Readonly<{ reference: string; invoiceDate: string; amount: string }>;
+
+export function recordCustomerInvoice(project: ProjectRecord, input: CustomerInvoiceInput, now: string, expectedUpdatedAt = project.updatedAt): ProjectRecord {
+  if (project.status !== "ACTIVE" || !project.customerShipment || !project.supplierPayment || project.customerInvoice || project.updatedAt !== expectedUpdatedAt) throw new Error("INVALID_CUSTOMER_INVOICE_STATE");
+  const customerInvoice = { reference: input.reference.trim(), invoiceDate: input.invoiceDate.trim(), amount: input.amount.trim() };
+  const amount = parseMoneyUnits(customerInvoice.amount);
+  if (!customerInvoice.reference || !isStrictDate(customerInvoice.invoiceDate) || customerInvoice.invoiceDate < project.customerShipment.plannedDispatchDate ||
+      amount === null || amount <= 0n || Number(customerInvoice.amount) > project.value || !isValidMutationTimestamp(now, project)) throw new Error("INVALID_CUSTOMER_INVOICE");
+  return { ...project, customerInvoice, customerCollections: [], updatedAt: now };
+}
+
+export type CustomerCollectionInput = Readonly<{ reference: string; collectionDate: string; amount: string }>;
+
+export function recordCustomerCollection(project: ProjectRecord, input: CustomerCollectionInput, now: string, expectedUpdatedAt = project.updatedAt): ProjectRecord {
+  if (project.status !== "ACTIVE" || !project.customerInvoice || project.updatedAt !== expectedUpdatedAt) throw new Error("INVALID_CUSTOMER_COLLECTION_STATE");
+  const customerCollection = { reference: input.reference.trim(), collectionDate: input.collectionDate.trim(), amount: input.amount.trim() };
+  const amount = parseMoneyUnits(customerCollection.amount);
+  const invoiceAmount = parseMoneyUnits(project.customerInvoice.amount);
+  const existing = project.customerCollections ?? [];
+  const collected = existing.reduce((sum, item) => sum + (parseMoneyUnits(item.amount) ?? 0n), 0n);
+  if (!customerCollection.reference || existing.some((item) => item.reference === customerCollection.reference) || !isStrictDate(customerCollection.collectionDate) ||
+      customerCollection.collectionDate < project.customerInvoice.invoiceDate || amount === null || amount <= 0n || invoiceAmount === null || collected + amount > invoiceAmount ||
+      !isValidMutationTimestamp(now, project)) throw new Error("INVALID_CUSTOMER_COLLECTION");
+  return { ...project, customerCollections: [...existing, customerCollection], updatedAt: now };
+}
+
+export function resetCustomerFinance(project: ProjectRecord, expectedUpdatedAt: string, now: string): ProjectRecord {
+  if (project.status !== "ACTIVE" || !project.customerInvoice || project.updatedAt !== expectedUpdatedAt) throw new Error("INVALID_CUSTOMER_FINANCE_RESET_STATE");
+  if (!isValidMutationTimestamp(now, project)) throw new Error("INVALID_CUSTOMER_FINANCE_RESET");
+  const { customerInvoice: _invoice, customerCollections: _collections, ...rest } = project;
+  return { ...rest, updatedAt: now };
+}
+
 export function resetSupplierFinance(project: ProjectRecord, expectedUpdatedAt: string, now: string): ProjectRecord {
   if (project.status !== "ACTIVE" || !project.supplierInvoice || project.updatedAt !== expectedUpdatedAt) throw new Error("INVALID_SUPPLIER_FINANCE_RESET_STATE");
   if (!isValidMutationTimestamp(now, project)) throw new Error("INVALID_SUPPLIER_FINANCE_RESET");
-  const { supplierInvoice: _invoice, supplierPayment: _payment, ...rest } = project;
+  const { supplierInvoice: _invoice, supplierPayment: _payment, customerInvoice: _customerInvoice, customerCollections: _customerCollections, ...rest } = project;
   return { ...rest, updatedAt: now };
+}
+
+export function customerReceivableSummary(project: ProjectRecord): Readonly<{ collected: string; remaining: string; complete: boolean }> {
+  const invoiceAmount = parseMoneyUnits(project.customerInvoice?.amount);
+  const collected = (project.customerCollections ?? []).reduce((sum, item) => sum + (parseMoneyUnits(item.amount) ?? 0n), 0n);
+  const remaining = invoiceAmount === null || collected >= invoiceAmount ? 0n : invoiceAmount - collected;
+  return { collected: formatMoneyUnits(collected), remaining: formatMoneyUnits(remaining), complete: invoiceAmount !== null && collected === invoiceAmount };
 }
 
 export type ProjectAction = Readonly<{ label: string; detail: string; href: string }>;
@@ -214,6 +304,16 @@ export function projectNextAction(projectOrStatus: ProjectRecord | ProjectStatus
     if (!project.supplierPayment) return locale === "ar"
       ? { label: "تسجيل دفعة المورد", detail: `سجل الدفعة الكاملة للفاتورة ${project.supplierInvoice.reference}. لا ينفذ ORB أي تحويل مالي.`, href: `/projects/${id}/overview#supplier-finance` }
       : { label: "Record supplier payment", detail: `Record the full payment for invoice ${project.supplierInvoice.reference}. ORB does not execute a transfer.`, href: `/projects/${id}/overview#supplier-finance` };
+    if (!project.customerInvoice) return locale === "ar"
+      ? { label: "تسجيل فاتورة العميل", detail: `أضف مرجع فاتورة ${project.customer} وتاريخها وقيمتها.`, href: `/projects/${id}/overview#customer-finance` }
+      : { label: "Record customer invoice", detail: `Add the invoice reference, date, and amount for ${project.customer}.`, href: `/projects/${id}/overview#customer-finance` };
+    const receivable = customerReceivableSummary(project);
+    if (!receivable.complete) {
+      const amount = new Intl.NumberFormat("en-US", { maximumFractionDigits: 6 }).format(Number(receivable.remaining));
+      return locale === "ar"
+        ? { label: "تسجيل تحصيل من العميل", detail: `سجل التحصيل الوارد فقط؛ المتبقي ${amount} ${project.currency}. لا يتصل ORB بالبنك.`, href: `/projects/${id}/overview#customer-finance` }
+        : { label: "Record customer collection", detail: `Record received funds only; ${amount} ${project.currency} remains. ORB does not connect to a bank.`, href: `/projects/${id}/overview#customer-finance` };
+    }
     return null;
   }
   const copy = {

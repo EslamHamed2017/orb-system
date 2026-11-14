@@ -1,11 +1,11 @@
 # Product readiness gap inventory
 
 **Audit date:** 14 November 2026
-**Scope:** the ORB web UI on canonical `origin/main`, the browser-persisted Today/Projects flow, project setup, and the bounded supplier- and customer-shipment slice delivered on 14 November 2026.
+**Scope:** the ORB web UI on canonical `origin/main`, the browser-persisted Today/Projects flow, project setup, supplier and customer shipments, supplier invoice/payment, and customer invoice/collection slices delivered on 14 November 2026.
 
 ## Truthful status
 
-This slice **does not make ORB product-ready**. It replaces fabricated projects in Today, the project register, creation, and overview with user-entered records stored only in the current browser. It is a visible workflow for evaluation, not a production data architecture.
+This work **does not make ORB product-ready**. The bounded daily-use flow uses user-entered records stored only in the current browser. It is a visible workflow for evaluation, not authenticated multi-user persistence or a production data architecture.
 
 ## Gaps observed in the live baseline
 
@@ -28,6 +28,8 @@ This slice **does not make ORB product-ready**. It replaces fabricated projects 
 - An active project can save one user-entered supplier-shipment reference, expected-arrival date, and quantity. The project lifecycle and Today then advance to recording the first customer shipment.
 - After a supplier shipment exists, the project can save one user-entered customer-shipment reference, planned-dispatch date, and quantity bounded by both project and supplier-shipment quantities. Today then advances to a completable shipment-handover review.
 - After handover review, the project can save one user-entered supplier invoice and its full recorded payment. Today advances from invoice to payment and clears the action only after both are persisted. The UI explicitly states that payment is recorded only and ORB does not initiate or execute a bank transfer. Invoice-only and paid records can be cleared for corrected re-entry, with stale destructive resets rejected.
+- After supplier payment, the project can save one user-entered customer sales invoice and one or more partial customer collections. Today shows the exact remaining balance after each collection and clears the receivables action only when recorded collections equal the invoice. The UI states that collections are records of received funds only; ORB does not connect to a bank, execute a transfer, send an invoice, or contact the customer.
+- Customer invoices and collections use exact fixed-point arithmetic to six decimal places and reject invalid chronology, duplicate collection references, non-positive values, over-collection, impossible persisted relationships, and stale versions/timestamps. Customer receivables can be cleared for corrected re-entry without removing valid supplier finance; correcting upstream supplier finance explicitly removes dependent customer receivables rather than leaving orphaned data.
 - Strict persisted-data validation rejects impossible dates, non-positive or excessive supplier/customer shipment quantities, duplicate writes/reviews, review timestamps without eligible customer shipments, customer shipments without supplier shipments, and shipments attached to impossible project states. Customer shipments and completed reviews remain parse-valid if the project later closes; corrupt records use the visible storage-error state.
 - Setup, shipment recording, and shipment-handover review refuse stale submissions when the stored lifecycle has already advanced, preserving the newer stored record.
 - English and Arabic business copy and route-scoped RTL are provided for the bounded flow; technical status enums and hashes remain hidden.
@@ -35,7 +37,7 @@ This slice **does not make ORB product-ready**. It replaces fabricated projects 
 ## Remaining work before readiness
 
 1. Replace browser-only persistence with authenticated, tenant-scoped server persistence, concurrency control, authorization, audit history, backup, and recovery.
-2. Replace browser-only setup, shipment, supplier-invoice, and supplier-payment records with authoritative customer, supplier, contract, shipment, invoice, and payment services; then connect sales invoicing, partial payments, expenses, claims, and closure before making those later stages actionable.
+2. Replace browser-only setup, shipment, supplier invoice/payment, customer invoice, and collection records with authoritative customer, supplier, contract, shipment, invoice, and money-movement services; then connect expenses, claims, and closure before making those later stages actionable.
 3. Remove remaining fixed/demo data throughout Finance, approvals, roles, recovery, and all routes outside this slice.
 4. Complete end-to-end permissions, accessibility, localization, offline/error recovery, migration, security, observability, and multi-user acceptance testing.
 5. Validate operational calculations and compliance controls against production requirements and representative customer data.

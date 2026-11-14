@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { completeProjectSetup, createProjectRecord, markCustomerShipmentReviewed, parseProjectRecords, projectNextAction, recordCustomerShipment, recordSupplierInvoice, recordSupplierPayment, recordSupplierShipment, resetSupplierFinance } from "../../../src/modules/projects/daily-projects.ts";
+import { completeProjectSetup, createProjectRecord, markCustomerShipmentReviewed, parseProjectRecords, projectNextAction, customerReceivableSummary, recordCustomerCollection, recordCustomerInvoice, recordCustomerShipment, recordSupplierInvoice, recordSupplierPayment, recordSupplierShipment, resetCustomerFinance, resetSupplierFinance } from "../../../src/modules/projects/daily-projects.ts";
 
 test("creates a project record from user-entered data without sample defaults", () => {
   const project = createProjectRecord({ customer: "Atlas Foods", reference: "AF-101", contractReference: "SC-44", startDate: "2026-11-14", commodity: "Coffee", quantity: "20", unit: "MT", currency: "USD", unitPrice: "4200", origin: "Mombasa", destination: "Dubai" }, { id: "project-user-1", now: "2026-11-14T10:00:00.000Z", sequence: 1 });
@@ -262,7 +262,7 @@ test("records a supplier invoice and full payment after shipment handover and ad
 
   const paid = recordSupplierPayment(invoiced, { reference: "PAY-001", paymentDate: "2026-12-06", amount: "50400" }, "2026-11-14T16:00:00.000Z");
   assert.deepEqual(paid.supplierPayment, { reference: "PAY-001", paymentDate: "2026-12-06", amount: "50400" });
-  assert.equal(projectNextAction(paid, "en"), null);
+  assert.equal(projectNextAction(paid, "en")?.label, "Record customer invoice");
   assert.deepEqual(parseProjectRecords(JSON.stringify([paid])), [paid]);
 });
 
@@ -300,7 +300,91 @@ test("resets a mistaken supplier finance entry back to the invoice action", () =
   const reset = resetSupplierFinance(paid, paid.updatedAt, "2026-11-14T17:00:00.000Z");
   assert.equal(reset.supplierInvoice, undefined);
   assert.equal(reset.supplierPayment, undefined);
+  assert.equal(reset.customerInvoice, undefined);
+  assert.equal(reset.customerCollections, undefined);
   assert.equal(projectNextAction(reset, "en")?.label, "Record supplier invoice");
   assert.throws(() => resetSupplierFinance(paid, invoiced.updatedAt, "2026-11-14T17:00:00.000Z"), /INVALID_SUPPLIER_FINANCE_RESET_STATE/);
   assert.throws(() => resetSupplierFinance(reviewed, reviewed.updatedAt, "2026-11-14T17:00:00.000Z"), /INVALID_SUPPLIER_FINANCE_RESET_STATE/);
+});
+
+
+test("records a customer invoice and partial collections after supplier payment and advances Today", () => {
+  const setup = completeProjectSetup(
+    createProjectRecord({ customer: "Atlas Foods", reference: "AF-101", contractReference: "SC-44", startDate: "2026-11-14", commodity: "Coffee", quantity: "20", unit: "MT", currency: "USD", unitPrice: "4200", origin: "Mombasa", destination: "Dubai" }, { id: "project-receivable-1", now: "2026-11-14T10:00:00.000Z", sequence: 1 }),
+    { customer: "Atlas Foods", supplier: "Coast Exporters", salesContractReference: "SC-44", purchaseContractReference: "PC-17" }, "2026-11-14T11:00:00.000Z",
+  );
+  const supplied = recordSupplierShipment(setup, { reference: "SS-001", expectedArrival: "2026-12-02", quantity: "12" }, "2026-11-14T12:00:00.000Z");
+  const shipped = recordCustomerShipment(supplied, { reference: "CS-001", plannedDispatchDate: "2026-12-05", quantity: "10" }, "2026-11-14T13:00:00.000Z");
+  const reviewed = markCustomerShipmentReviewed(shipped, "2026-11-14T14:00:00.000Z");
+  const invoicedSupplier = recordSupplierInvoice(reviewed, { reference: "SI-001", invoiceDate: "2026-12-05", amount: "50400" }, "2026-11-14T15:00:00.000Z");
+  const paidSupplier = recordSupplierPayment(invoicedSupplier, { reference: "PAY-001", paymentDate: "2026-12-06", amount: "50400" }, "2026-11-14T16:00:00.000Z");
+  assert.equal(projectNextAction(paidSupplier, "en")?.label, "Record customer invoice");
+  assert.equal(projectNextAction(paidSupplier, "ar")?.label, "تسجيل فاتورة العميل");
+
+  const invoicedCustomer = recordCustomerInvoice(paidSupplier, { reference: "CI-001", invoiceDate: "2026-12-06", amount: "84000" }, "2026-11-14T17:00:00.000Z");
+  assert.deepEqual(invoicedCustomer.customerInvoice, { reference: "CI-001", invoiceDate: "2026-12-06", amount: "84000" });
+  assert.equal(projectNextAction(invoicedCustomer, "en")?.label, "Record customer collection");
+  assert.equal(projectNextAction(invoicedCustomer, "ar")?.label, "تسجيل تحصيل من العميل");
+
+  const partlyCollected = recordCustomerCollection(invoicedCustomer, { reference: "COL-001", collectionDate: "2026-12-07", amount: "30000" }, "2026-11-14T18:00:00.000Z");
+  assert.deepEqual(partlyCollected.customerCollections, [{ reference: "COL-001", collectionDate: "2026-12-07", amount: "30000" }]);
+  assert.match(projectNextAction(partlyCollected, "en")?.detail ?? "", /54,000 USD remains/);
+  assert.match(projectNextAction(partlyCollected, "ar")?.detail ?? "", /54,000 USD/);
+
+  const fullyCollected = recordCustomerCollection(partlyCollected, { reference: "COL-002", collectionDate: "2026-12-08", amount: "54000" }, "2026-11-14T19:00:00.000Z");
+  assert.equal(projectNextAction(fullyCollected, "en"), null);
+  assert.deepEqual(parseProjectRecords(JSON.stringify([fullyCollected])), [fullyCollected]);
+});
+
+test("customer receivables reject impossible, duplicate, stale, and over-collected records", () => {
+  const setup = completeProjectSetup(
+    createProjectRecord({ customer: "Atlas Foods", reference: "AF-101", contractReference: "SC-44", startDate: "2026-11-14", commodity: "Coffee", quantity: "20", unit: "MT", currency: "USD", unitPrice: "4200", origin: "Mombasa", destination: "Dubai" }, { id: "project-receivable-2", now: "2026-11-14T10:00:00.000Z", sequence: 1 }),
+    { customer: "Atlas Foods", supplier: "Coast Exporters", salesContractReference: "SC-44", purchaseContractReference: "PC-17" }, "2026-11-14T11:00:00.000Z",
+  );
+  const supplied = recordSupplierShipment(setup, { reference: "SS-001", expectedArrival: "2026-12-02", quantity: "12" }, "2026-11-14T12:00:00.000Z");
+  const shipped = recordCustomerShipment(supplied, { reference: "CS-001", plannedDispatchDate: "2026-12-05", quantity: "10" }, "2026-11-14T13:00:00.000Z");
+  const reviewed = markCustomerShipmentReviewed(shipped, "2026-11-14T14:00:00.000Z");
+  const supplierInvoice = recordSupplierInvoice(reviewed, { reference: "SI-001", invoiceDate: "2026-12-05", amount: "50400" }, "2026-11-14T15:00:00.000Z");
+  const paid = recordSupplierPayment(supplierInvoice, { reference: "PAY-001", paymentDate: "2026-12-06", amount: "50400" }, "2026-11-14T16:00:00.000Z");
+  assert.throws(() => recordCustomerInvoice(supplierInvoice, { reference: "CI-X", invoiceDate: "2026-12-06", amount: "84000" }, "2026-11-14T17:00:00.000Z"), /INVALID_CUSTOMER_INVOICE_STATE/);
+  assert.throws(() => recordCustomerInvoice(paid, { reference: "CI-X", invoiceDate: "2026-12-04", amount: "84000" }, "2026-11-14T17:00:00.000Z"), /INVALID_CUSTOMER_INVOICE/);
+  assert.throws(() => recordCustomerInvoice(paid, { reference: "CI-X", invoiceDate: "2026-12-06", amount: "84000.01" }, "2026-11-14T17:00:00.000Z"), /INVALID_CUSTOMER_INVOICE/);
+  const invoiced = recordCustomerInvoice(paid, { reference: "CI-001", invoiceDate: "2026-12-06", amount: "84000" }, "2026-11-14T17:00:00.000Z");
+  assert.throws(() => recordCustomerInvoice(invoiced, { reference: "CI-002", invoiceDate: "2026-12-07", amount: "1" }, "2026-11-14T18:00:00.000Z"), /INVALID_CUSTOMER_INVOICE_STATE/);
+  assert.throws(() => recordCustomerCollection(invoiced, { reference: "COL-X", collectionDate: "2026-12-05", amount: "1" }, "2026-11-14T18:00:00.000Z"), /INVALID_CUSTOMER_COLLECTION/);
+  assert.throws(() => recordCustomerCollection(invoiced, { reference: "COL-X", collectionDate: "2026-12-07", amount: "84001" }, "2026-11-14T18:00:00.000Z"), /INVALID_CUSTOMER_COLLECTION/);
+  assert.throws(() => recordCustomerCollection(invoiced, { reference: "COL-X", collectionDate: "2026-12-07", amount: "1" }, "2026-11-14T16:59:59.999Z"), /INVALID_CUSTOMER_COLLECTION/);
+  const partial = recordCustomerCollection(invoiced, { reference: "COL-001", collectionDate: "2026-12-07", amount: "30000" }, "2026-11-14T18:00:00.000Z");
+  assert.throws(() => recordCustomerCollection(partial, { reference: "COL-001", collectionDate: "2026-12-08", amount: "1" }, "2026-11-14T19:00:00.000Z"), /INVALID_CUSTOMER_COLLECTION/);
+  assert.throws(() => parseProjectRecords(JSON.stringify([{ ...paid, customerCollections: [{ reference: "COL-X", collectionDate: "2026-12-07", amount: "1" }] }])), /CORRUPT_PROJECT_STORAGE/);
+  assert.throws(() => parseProjectRecords(JSON.stringify([{ ...invoiced, customerCollections: [{ reference: "COL-X", collectionDate: "2026-12-07", amount: "84001" }] }])), /CORRUPT_PROJECT_STORAGE/);
+});
+
+
+test("customer collections use exact decimal arithmetic and reject stale eligible submissions", () => {
+  const setup = completeProjectSetup(
+    createProjectRecord({ customer: "Atlas Foods", reference: "AF-DEC", contractReference: "SC-DEC", startDate: "2026-11-14", commodity: "Coffee", quantity: "1", unit: "MT", currency: "USD", unitPrice: "1", origin: "Mombasa", destination: "Dubai" }, { id: "project-decimal", now: "2026-11-14T10:00:00.000Z", sequence: 1 }),
+    { customer: "Atlas Foods", supplier: "Coast Exporters", salesContractReference: "SC-DEC", purchaseContractReference: "PC-DEC" }, "2026-11-14T11:00:00.000Z",
+  );
+  const supplied = recordSupplierShipment(setup, { reference: "SS-DEC", expectedArrival: "2026-12-02", quantity: "1" }, "2026-11-14T12:00:00.000Z");
+  const shipped = recordCustomerShipment(supplied, { reference: "CS-DEC", plannedDispatchDate: "2026-12-05", quantity: "1" }, "2026-11-14T13:00:00.000Z");
+  const reviewed = markCustomerShipmentReviewed(shipped, "2026-11-14T14:00:00.000Z");
+  const supplierInvoice = recordSupplierInvoice(reviewed, { reference: "SI-DEC", invoiceDate: "2026-12-05", amount: "0.3" }, "2026-11-14T15:00:00.000Z");
+  const paid = recordSupplierPayment(supplierInvoice, { reference: "PAY-DEC", paymentDate: "2026-12-06", amount: "0.3" }, "2026-11-14T16:00:00.000Z");
+  const invoiced = recordCustomerInvoice(paid, { reference: "CI-DEC", invoiceDate: "2026-12-06", amount: "0.3" }, "2026-11-14T17:00:00.000Z", paid.updatedAt);
+  assert.throws(() => recordCustomerInvoice(paid, { reference: "CI-STALE", invoiceDate: "2026-12-06", amount: "0.3" }, "2026-11-14T17:00:00.000Z", reviewed.updatedAt), /INVALID_CUSTOMER_INVOICE_STATE/);
+  const first = recordCustomerCollection(invoiced, { reference: "COL-DEC-1", collectionDate: "2026-12-07", amount: "0.1" }, "2026-11-14T18:00:00.000Z", invoiced.updatedAt);
+  assert.deepEqual(customerReceivableSummary(first), { collected: "0.1", remaining: "0.2", complete: false });
+  assert.throws(() => recordCustomerCollection(first, { reference: "COL-STALE", collectionDate: "2026-12-08", amount: "0.2" }, "2026-11-14T19:00:00.000Z", invoiced.updatedAt), /INVALID_CUSTOMER_COLLECTION_STATE/);
+  const complete = recordCustomerCollection(first, { reference: "COL-DEC-2", collectionDate: "2026-12-08", amount: "0.2" }, "2026-11-14T19:00:00.000Z", first.updatedAt);
+  assert.deepEqual(customerReceivableSummary(complete), { collected: "0.3", remaining: "0", complete: true });
+  assert.equal(projectNextAction(complete, "en"), null);
+  assert.deepEqual(parseProjectRecords(JSON.stringify([complete])), [complete]);
+  const reset = resetCustomerFinance(complete, complete.updatedAt, "2026-11-14T20:00:00.000Z");
+  assert.equal(reset.customerInvoice, undefined);
+  assert.equal(reset.customerCollections, undefined);
+  assert.deepEqual(reset.supplierInvoice, complete.supplierInvoice);
+  assert.deepEqual(reset.supplierPayment, complete.supplierPayment);
+  assert.equal(projectNextAction(reset, "en")?.label, "Record customer invoice");
+  assert.throws(() => resetCustomerFinance(complete, first.updatedAt, "2026-11-14T20:00:00.000Z"), /INVALID_CUSTOMER_FINANCE_RESET_STATE/);
 });
