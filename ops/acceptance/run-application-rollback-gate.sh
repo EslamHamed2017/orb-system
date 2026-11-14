@@ -111,10 +111,18 @@ migration_digest() {
   docker exec "$container" psql -X -U orb_migrator -d orb_rollback -At -v ON_ERROR_STOP=1 \
     -c "SELECT encode(digest(COALESCE(jsonb_agg(to_jsonb(m) ORDER BY migration_name)::text, '[]'), 'sha256'), 'hex') FROM _prisma_migrations m"
 }
+schema_digest() {
+  # PostgreSQL 18 emits random \restrict/\unrestrict tokens in otherwise
+  # deterministic schema-only dumps; exclude only those client guard lines.
+  docker exec "$container" pg_dump --schema-only --no-owner --no-privileges -U orb_migrator orb_rollback \
+    | python3 -c 'import hashlib, sys; data = b"".join(line for line in sys.stdin.buffer if not line.startswith((b"\\restrict ", b"\\unrestrict "))); print(hashlib.sha256(data).hexdigest())'
+}
 before=$(migration_state)
 [[ "$before" == "${expected}|${expected}|0" ]] || { echo "expanded migration history is not clean: $before" >&2; exit 2; }
 before_digest=$(migration_digest)
 [[ "$before_digest" =~ ^[a-f0-9]{64}$ ]] || { echo "expanded migration history digest is invalid" >&2; exit 2; }
+before_schema_digest=$(schema_digest)
+[[ "$before_schema_digest" =~ ^[a-f0-9]{64}$ ]] || { echo "expanded schema digest is invalid" >&2; exit 2; }
 compatible=$(docker exec "$container" psql -X -U orb_migrator -d orb_rollback -At -v ON_ERROR_STOP=1 -c \
   "SELECT to_regclass('public.\"ContractLine\"') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='ContractVersion' AND column_name='coffee_specification_id')" \
   | tr -d '[:space:]')
@@ -164,6 +172,8 @@ after=$(migration_state)
 [[ "$after" == "$before" ]] || { echo "application rollback changed migration history: $before -> $after" >&2; exit 2; }
 after_digest=$(migration_digest)
 [[ "$after_digest" == "$before_digest" ]] || { echo "application rollback mutated migration history" >&2; exit 2; }
+after_schema_digest=$(schema_digest)
+[[ "$after_schema_digest" == "$before_schema_digest" ]] || { echo "application rollback mutated the expanded database schema" >&2; exit 2; }
 markers=$(docker exec "$container" psql -X -U orb_migrator -d orb_rollback -At -v ON_ERROR_STOP=1 -c \
   "SELECT string_agg(trim(code), ',' ORDER BY code) FROM \"Currency\" WHERE trim(code) IN ('RLA','RLB')")
 [[ "$markers" == "RLA,RLB" ]] || { echo "legacy write markers missing after rollback" >&2; exit 2; }
