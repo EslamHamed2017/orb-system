@@ -3,7 +3,7 @@ name: ORB quality and immutable build
 on:
   pull_request:
   push:
-    branches: [001-orb-trade-operations]
+    branches: [main, 001-orb-trade-operations]
   workflow_dispatch:
     inputs:
       acceptance_base_url:
