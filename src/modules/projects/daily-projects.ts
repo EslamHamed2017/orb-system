@@ -7,11 +7,12 @@ export type SupplierInvoice = Readonly<{ reference: string; invoiceDate: string;
 export type SupplierPayment = Readonly<{ reference: string; paymentDate: string; amount: string }>;
 export type CustomerInvoice = Readonly<{ reference: string; invoiceDate: string; amount: string }>;
 export type CustomerCollection = Readonly<{ reference: string; collectionDate: string; amount: string }>;
+export type ProjectExpense = Readonly<{ reference: string; occurredOn: string; category: string; vendor: string; amount: string }>;
 export type ProjectRecord = Readonly<{
   id: string; code: string; customer: string; supplier?: string; reference: string; contractReference: string; purchaseContractReference?: string;
   startDate: string; commodity: string; quantity: string; unit: string; currency: string;
   unitPrice: string; value: number; origin: string; destination: string;
-  status: ProjectStatus; supplierShipment?: SupplierShipment; customerShipment?: CustomerShipment; customerShipmentReviewedAt?: string; supplierInvoice?: SupplierInvoice; supplierPayment?: SupplierPayment; customerInvoice?: CustomerInvoice; customerCollections?: readonly CustomerCollection[]; createdAt: string; updatedAt: string;
+  status: ProjectStatus; supplierShipment?: SupplierShipment; customerShipment?: CustomerShipment; customerShipmentReviewedAt?: string; supplierInvoice?: SupplierInvoice; supplierPayment?: SupplierPayment; customerInvoice?: CustomerInvoice; customerCollections?: readonly CustomerCollection[]; expenses?: readonly ProjectExpense[]; createdAt: string; updatedAt: string;
 }>;
 export type ProjectInput = Readonly<Omit<ProjectRecord, "id" | "code" | "value" | "status" | "createdAt" | "updatedAt">>;
 
@@ -122,6 +123,24 @@ function isValidCustomerCollections(value: unknown, status: unknown, customerInv
   return total <= invoiceAmount;
 }
 
+
+function isValidProjectExpenses(value: unknown, status: unknown, startDate: unknown): value is readonly ProjectExpense[] {
+  if (value === undefined) return true;
+  if (!Array.isArray(value) || !["ACTIVE", "CLOSED"].includes(String(status))) return false;
+  const references = new Set<string>();
+  for (const item of value) {
+    if (!item || typeof item !== "object") return false;
+    const expense = item as Record<string, unknown>;
+    const amount = parseMoneyUnits(expense.amount);
+    if (typeof expense.reference !== "string" || expense.reference.trim() !== expense.reference || expense.reference === "" || references.has(expense.reference) ||
+        typeof expense.occurredOn !== "string" || !isStrictDate(expense.occurredOn) || typeof startDate !== "string" || expense.occurredOn < startDate ||
+        typeof expense.category !== "string" || expense.category.trim() !== expense.category || expense.category === "" ||
+        typeof expense.vendor !== "string" || expense.vendor.trim() !== expense.vendor || expense.vendor === "" || amount === null || amount <= 0n) return false;
+    references.add(expense.reference);
+  }
+  return true;
+}
+
 export function createProjectRecord(input: ProjectInput, options: Readonly<{ id: string; now: string; sequence: number }>): ProjectRecord {
   const clean = Object.fromEntries(Object.entries(input).map(([key, value]) => [key, String(value).trim()])) as unknown as ProjectInput;
   const quantity = Number(clean.quantity), unitPrice = Number(clean.unitPrice);
@@ -151,7 +170,8 @@ function isProjectRecord(value: unknown): value is ProjectRecord {
     isValidSupplierInvoice(item.supplierInvoice, item.status, item.value, item.customerShipment, item.customerShipmentReviewedAt) &&
     isValidSupplierPayment(item.supplierPayment, item.status, item.supplierInvoice, item.customerShipmentReviewedAt) &&
     isValidCustomerInvoice(item.customerInvoice, item.status, item.value, item.customerShipment, item.supplierPayment) &&
-    isValidCustomerCollections(item.customerCollections, item.status, item.customerInvoice);
+    isValidCustomerCollections(item.customerCollections, item.status, item.customerInvoice) &&
+    isValidProjectExpenses(item.expenses, item.status, item.startDate);
 }
 
 export function parseProjectRecords(raw: string | null): ProjectRecord[] {
@@ -259,6 +279,33 @@ export function recordCustomerCollection(project: ProjectRecord, input: Customer
   return { ...project, customerCollections: [...existing, customerCollection], updatedAt: now };
 }
 
+
+export type ProjectExpenseInput = Readonly<{ reference: string; occurredOn: string; category: string; vendor: string; amount: string }>;
+
+export function recordProjectExpense(project: ProjectRecord, input: ProjectExpenseInput, now: string, expectedUpdatedAt = project.updatedAt): ProjectRecord {
+  if (project.status !== "ACTIVE" || project.updatedAt !== expectedUpdatedAt) throw new Error("INVALID_PROJECT_EXPENSE_STATE");
+  const expense = { reference: input.reference.trim(), occurredOn: input.occurredOn.trim(), category: input.category.trim(), vendor: input.vendor.trim(), amount: input.amount.trim() };
+  const existing = project.expenses ?? [];
+  const amount = parseMoneyUnits(expense.amount);
+  if (!expense.reference || existing.some((item) => item.reference === expense.reference) || !isStrictDate(expense.occurredOn) || expense.occurredOn < project.startDate ||
+      !expense.category || !expense.vendor || amount === null || amount <= 0n || !isValidMutationTimestamp(now, project)) throw new Error("INVALID_PROJECT_EXPENSE");
+  return { ...project, expenses: [...existing, expense], updatedAt: now };
+}
+
+export function removeProjectExpense(project: ProjectRecord, reference: string, expectedUpdatedAt: string, now: string): ProjectRecord {
+  if (project.status !== "ACTIVE" || project.updatedAt !== expectedUpdatedAt) throw new Error("INVALID_PROJECT_EXPENSE_STATE");
+  const cleanReference = reference.trim();
+  const existing = project.expenses ?? [];
+  if (!cleanReference || !existing.some((item) => item.reference === cleanReference) || !isValidMutationTimestamp(now, project)) throw new Error("INVALID_PROJECT_EXPENSE");
+  return { ...project, expenses: existing.filter((item) => item.reference !== cleanReference), updatedAt: now };
+}
+
+export function projectExpenseSummary(project: ProjectRecord): Readonly<{ count: number; total: string }> {
+  const expenses = project.expenses ?? [];
+  const total = expenses.reduce((sum, item) => sum + (parseMoneyUnits(item.amount) ?? 0n), 0n);
+  return { count: expenses.length, total: formatMoneyUnits(total) };
+}
+
 export function resetCustomerFinance(project: ProjectRecord, expectedUpdatedAt: string, now: string): ProjectRecord {
   if (project.status !== "ACTIVE" || !project.customerInvoice || project.updatedAt !== expectedUpdatedAt) throw new Error("INVALID_CUSTOMER_FINANCE_RESET_STATE");
   if (!isValidMutationTimestamp(now, project)) throw new Error("INVALID_CUSTOMER_FINANCE_RESET");
@@ -314,6 +361,9 @@ export function projectNextAction(projectOrStatus: ProjectRecord | ProjectStatus
         ? { label: "تسجيل تحصيل من العميل", detail: `سجل التحصيل الوارد فقط؛ المتبقي ${amount} ${project.currency}. لا يتصل ORB بالبنك.`, href: `/projects/${id}/overview#customer-finance` }
         : { label: "Record customer collection", detail: `Record received funds only; ${amount} ${project.currency} remains. ORB does not connect to a bank.`, href: `/projects/${id}/overview#customer-finance` };
     }
+    if (!(project.expenses?.length)) return locale === "ar"
+      ? { label: "تسجيل مصروف للمشروع", detail: "أضف أول تكلفة مباشرة دُفعت لهذا المشروع؛ يسجلها ORB فقط ولا ينفذ أي دفعة.", href: `/projects/${id}/expenses` }
+      : { label: "Record project expense", detail: "Add the first direct cost paid for this project; ORB records it only and does not make a payment.", href: `/projects/${id}/expenses` };
     return null;
   }
   const copy = {
