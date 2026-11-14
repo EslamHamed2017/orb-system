@@ -24,7 +24,7 @@ function report(
   duration = 30_000,
 ) {
   return {
-    config: { forbidOnly: true, fullyParallel: false, workers: 1, filteredProjects: [{ name: "chromium", repeatEach: 1, retries: 0, use: { baseURL } }] },
+    config: { forbidOnly: true, fullyParallel: false, shard: null, workers: 1, filteredProjects: [{ name: "chromium", repeatEach: 1, retries: 0, use: { baseURL } }] },
     stats: { startTime, duration, expected: 2, skipped: 0, unexpected: 0, flaky: 0 },
     errors: [],
     suites: [{ title: "owner-uat.spec.ts", file: "owner-uat.spec.ts", specs: titles.map((title, index) => ({
@@ -193,6 +193,21 @@ test("owner UAT evidence requires Playwright suite parallelism to be disabled", 
     assert.throws(
       () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
       /parallel|fullyParallel/i,
+    );
+  }
+});
+
+test("owner UAT evidence requires Playwright sharding to be disabled", () => {
+  const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
+  const sharded = report();
+  sharded.config.shard = { current: 1, total: 2 } as never;
+  const missing = report();
+  delete (missing.config as { shard?: null }).shard;
+
+  for (const value of [sharded, missing]) {
+    assert.throws(
+      () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
+      /shard|partition/i,
     );
   }
 });
