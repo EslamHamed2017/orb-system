@@ -69,6 +69,7 @@ test("deployed owner UAT is explicitly authorized and limited to the bilingual p
   assert.match(gate, /owner-uat\.spec\.ts/);
   assert.match(gate, /--project=chromium/);
   assert.match(gate, /playwright test[\s\S]*--workers=1/, "owner-UAT browser journeys must run in exactly one worker");
+  assert.match(gate, /playwright test[\s\S]*--timeout=30000/, "owner-UAT browser journeys must use the canonical 30-second per-journey timeout");
   assert.match(gate, /playwright test[\s\S]*--retries=0/, "owner-UAT browser journeys must disable retries");
   assert.match(gate, /playwright test[\s\S]*--repeat-each=1/, "owner-UAT browser journeys must execute exactly once per locale");
   assert.match(gate, /ORB_OWNER_UAT_EVIDENCE_DIR/);

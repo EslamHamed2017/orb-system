@@ -24,7 +24,7 @@ function report(
   duration = 30_000,
 ) {
   return {
-    config: { version: "1.64.1", forbidOnly: true, fullyParallel: false, shard: null, workers: 1, filteredProjects: [{ name: "chromium", repeatEach: 1, retries: 0, use: { baseURL, defaultBrowserType: "chromium" } }] },
+    config: { version: "1.64.1", forbidOnly: true, fullyParallel: false, shard: null, workers: 1, timeout: 30_000, filteredProjects: [{ name: "chromium", repeatEach: 1, retries: 0, use: { baseURL, defaultBrowserType: "chromium" } }] },
     stats: { startTime, duration, expected: 2, skipped: 0, unexpected: 0, flaky: 0 },
     errors: [],
     suites: [{ title: "owner-uat.spec.ts", file: "owner-uat.spec.ts", specs: titles.map((title, index) => ({
@@ -223,6 +223,23 @@ test("owner UAT evidence requires Playwright sharding to be disabled", () => {
     assert.throws(
       () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
       /shard|partition/i,
+    );
+  }
+});
+
+test("owner UAT evidence requires the canonical per-journey timeout", () => {
+  const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
+  const unbounded = report();
+  unbounded.config.timeout = 0;
+  const extended = report();
+  extended.config.timeout = 60_000;
+  const missing = report();
+  delete (missing.config as { timeout?: number }).timeout;
+
+  for (const value of [unbounded, extended, missing]) {
+    assert.throws(
+      () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
+      /canonical.*timeout|30 seconds|timeout/i,
     );
   }
 });

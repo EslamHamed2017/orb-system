@@ -63,6 +63,8 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
     throw new Error("owner UAT report must disable Playwright sharding and run as one complete partition");
   if (report?.config?.workers !== 1)
     throw new Error("owner UAT report must use exactly one Playwright worker");
+  if (report?.config?.timeout !== 30_000)
+    throw new Error("owner UAT report must use the canonical 30-second per-journey timeout");
   const filteredProjects = report?.config?.filteredProjects;
   if (!Array.isArray(filteredProjects) || filteredProjects.length !== 1 || filteredProjects[0]?.name !== "chromium")
     throw new Error("owner UAT report must contain exactly the approved Chromium project");
