@@ -74,6 +74,8 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
     if (test.expectedStatus !== "passed" || !Array.isArray(test.results) || test.results.length !== 1 || test.results[0]?.status !== "passed")
       throw new Error(`owner UAT journey did not pass: ${spec.title}`);
     const result = test.results[0];
+    if ((result?.errors !== undefined && (!Array.isArray(result.errors) || result.errors.length !== 0)) || result?.error != null)
+      throw new Error(`owner UAT journey contains test-level errors: ${spec.title}`);
     const resultDuration = result?.duration;
     if (!Number.isFinite(resultDuration) || resultDuration <= 0 || resultDuration > reportDuration)
       throw new Error(`owner UAT journey duration is invalid: ${spec.title}`);

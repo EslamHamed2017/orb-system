@@ -261,6 +261,25 @@ test("owner UAT evidence rejects a journey that passed only after a failed retry
   );
 });
 
+test("owner UAT evidence rejects passing journeys that retain test-level errors", () => {
+  const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
+  const withErrors = report();
+  Object.assign(withErrors.suites[0].specs[0].tests[0].results[0], {
+    errors: [{ message: "afterEach failed" }],
+  });
+  const withLegacyError = report();
+  Object.assign(withLegacyError.suites[0].specs[0].tests[0].results[0], {
+    error: { message: "page crashed" },
+  });
+
+  for (const value of [withErrors, withLegacyError]) {
+    assert.throws(
+      () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
+      /test-level errors/i,
+    );
+  }
+});
+
 test("owner UAT evidence is written once with owner-only permissions", async () => {
   const directory = await mkdtemp(join(tmpdir(), "orb-owner-uat-"));
   const path = join(directory, "manifest.json");
