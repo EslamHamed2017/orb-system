@@ -666,6 +666,17 @@ test("owner UAT evidence report reader rejects symlinks and non-regular inputs",
   await assert.rejects(() => readOwnerUatReport(directory), /regular non-symlink file/i);
 });
 
+test("owner UAT evidence report reader rejects oversized files before reading", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "orb-owner-uat-oversized-report-"));
+  const reportPath = join(directory, "report.json");
+  await writeFile(reportPath, Buffer.alloc(10 * 1024 * 1024 + 1));
+
+  await assert.rejects(
+    () => readOwnerUatReport(reportPath),
+    /report.*10 MiB|too large/i,
+  );
+});
+
 test("owner UAT evidence is written once with owner-only permissions", async () => {
   const directory = await mkdtemp(join(tmpdir(), "orb-owner-uat-"));
   const path = join(directory, "manifest.json");

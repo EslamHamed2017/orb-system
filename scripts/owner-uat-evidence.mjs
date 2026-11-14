@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 import { TextDecoder } from "node:util";
 
 const PLAYWRIGHT_VERSION = createRequire(import.meta.url)("@playwright/test/package.json").version;
+const MAXIMUM_REPORT_BYTES = 10 * 1024 * 1024;
 
 const JOURNEYS = new Map([
   ["owner UAT technical journey exposes the P0 lifecycle in en", { locale: "en", direction: "ltr", passed: true }],
@@ -36,8 +37,7 @@ function allSpecs(suites, output = []) {
 
 export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, generatedAtUtc = new Date().toISOString() }) {
   if (!Buffer.isBuffer(reportBytes) || reportBytes.length === 0) throw new Error("Playwright JSON report is required");
-  const maximumReportBytes = 10 * 1024 * 1024;
-  if (reportBytes.length > maximumReportBytes) throw new Error("Playwright report exceeds the 10 MiB evidence limit");
+  if (reportBytes.length > MAXIMUM_REPORT_BYTES) throw new Error("Playwright report exceeds the 10 MiB evidence limit");
   if (!/^[a-f0-9]{40}$/.test(gitCommit ?? "")) throw new Error("gitCommit must be a full lowercase SHA-1");
   const generated = new Date(generatedAtUtc);
   if (!Number.isFinite(generated.valueOf()) || generated.toISOString() !== generatedAtUtc) throw new Error("generatedAtUtc must be canonical UTC ISO-8601");
@@ -183,6 +183,7 @@ export async function readOwnerUatReport(path) {
   try {
     const metadata = await handle.stat();
     if (!metadata.isFile()) throw new Error("Playwright report must be a regular non-symlink file");
+    if (metadata.size > MAXIMUM_REPORT_BYTES) throw new Error("Playwright report exceeds the 10 MiB evidence limit");
     return await handle.readFile();
   } finally {
     await handle.close();
