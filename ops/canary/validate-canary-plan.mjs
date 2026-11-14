@@ -59,6 +59,11 @@ function canonicalJson(value) {
   return JSON.stringify(value);
 }
 
+function uatEvidenceSha256(evidence) {
+  const { evidenceSha256: _digest, ...payload } = evidence;
+  return createHash("sha256").update(canonicalJson(payload)).digest("hex");
+}
+
 function preflightEvidenceSha256(evidence) {
   const { preflightEvidenceSha256: _digest, ...payload } = evidence;
   return createHash("sha256").update(canonicalJson(payload)).digest("hex");
@@ -113,6 +118,7 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
     "gitCommit",
     "targetOrigin",
     "reportSha256",
+    "evidenceSha256",
     "passed",
     "ownerApprovalRecorded",
     "locales",
@@ -121,6 +127,8 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
     for (const locale of uat.locales)
       rejectUnknownFields(locale, ["locale", "direction", "passed"], "UAT locale");
   }
+  if (!SHA256.test(uat?.evidenceSha256 ?? "") || uat.evidenceSha256 !== uatEvidenceSha256(uat))
+    throw new Error("UAT evidence manifest integrity digest is invalid");
 
   if (uat?.ownerApprovalRecorded !== false)
     throw new Error("UAT evidence must be produced before owner approval; canary approval is recorded separately");
@@ -144,7 +152,7 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
   if (plan.ownerApproval?.approvedReleaseCommit !== plan.releaseCommit ||
       plan.ownerApproval?.approvedTargetOrigin !== targetOrigin ||
       !SHA256.test(plan.ownerApproval?.approvedUatEvidenceSha256 ?? "") ||
-      plan.ownerApproval.approvedUatEvidenceSha256 !== uat?.reportSha256)
+      plan.ownerApproval.approvedUatEvidenceSha256 !== uat?.evidenceSha256)
     throw new Error("owner approval must bind the exact canary release, target origin, and UAT evidence");
   const approvedAt = canonicalTime(plan.ownerApproval.approvedAtUtc, "owner approval time");
   const uatStarted = canonicalTime(uat?.reportStartedAtUtc, "UAT report start time");

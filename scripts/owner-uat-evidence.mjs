@@ -9,6 +9,18 @@ const JOURNEYS = new Map([
   ["owner UAT technical journey exposes the P0 lifecycle in ar", { locale: "ar", direction: "rtl", passed: true }],
 ]);
 
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function evidenceSha256(evidence) {
+  return createHash("sha256").update(canonicalJson(evidence)).digest("hex");
+}
+
 function allSpecs(suites, output = []) {
   if (!Array.isArray(suites)) throw new Error("Playwright report suites are missing");
   for (const suite of suites) {
@@ -103,7 +115,7 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
     previousJourneyCompleted = resultCompleted;
   }
   for (const title of JOURNEYS.keys()) if (!seen.has(title)) throw new Error(`owner UAT journey is missing: ${title}`);
-  return {
+  const evidence = {
     schemaVersion: 1,
     gate: "owner-uat-technical-journey",
     generatedAtUtc,
@@ -116,6 +128,7 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
     passed: true,
     ownerApprovalRecorded: false,
   };
+  return { ...evidence, evidenceSha256: evidenceSha256(evidence) };
 }
 
 export async function writeOwnerUatEvidence(path, evidence) {

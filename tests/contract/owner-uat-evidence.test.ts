@@ -1,9 +1,19 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { createOwnerUatEvidence, parseOwnerUatEvidenceArgs, writeOwnerUatEvidence } from "../../scripts/owner-uat-evidence.mjs";
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
 
 const commit = "8".repeat(40);
 function report(
@@ -33,7 +43,7 @@ test("owner UAT evidence binds a successful bilingual report without retaining s
     gitCommit: commit,
     generatedAtUtc: "2026-11-12T10:00:00.000Z",
   });
-  const { reportSha256, ...fixed } = evidence;
+  const { reportSha256, evidenceSha256, ...fixed } = evidence;
   assert.deepEqual(fixed, {
     schemaVersion: 1,
     gate: "owner-uat-technical-journey",
@@ -50,6 +60,11 @@ test("owner UAT evidence binds a successful bilingual report without retaining s
     ownerApprovalRecorded: false,
   });
   assert.match(reportSha256, /^[a-f0-9]{64}$/);
+  assert.match(evidenceSha256, /^[a-f0-9]{64}$/);
+  assert.equal(
+    evidenceSha256,
+    createHash("sha256").update(canonicalJson({ reportSha256, ...fixed })).digest("hex"),
+  );
   assert.doesNotMatch(JSON.stringify(evidence), /token|do-not-retain|\/review/);
 });
 

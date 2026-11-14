@@ -26,6 +26,11 @@ function preflightEvidenceSha256(manifest: Record<string, unknown>) {
   return createHash("sha256").update(canonicalJson(payload)).digest("hex");
 }
 
+function uatEvidenceSha256(evidence: Record<string, unknown>) {
+  const { evidenceSha256: _digest, ...payload } = evidence;
+  return createHash("sha256").update(canonicalJson(payload)).digest("hex");
+}
+
 function approvedControlsSha256(plan: ReturnType<typeof validPlan>) {
   const controls = {
     releaseCommit: plan.releaseCommit,
@@ -50,7 +55,7 @@ function validPlan() {
       approverId: "orb-owner-01",
       approvedReleaseCommit: commit,
       approvedTargetOrigin: "https://canary.orb.example",
-      approvedUatEvidenceSha256: "b".repeat(64),
+      approvedUatEvidenceSha256: validUat().evidenceSha256,
       approvedPlanSha256: "",
       approvedAtUtc: "2026-11-23T08:00:00.000Z",
       expiresAtUtc: "2026-11-25T12:00:00.000Z",
@@ -84,7 +89,7 @@ function validPlan() {
 }
 
 function validUat() {
-  return {
+  const evidence: Record<string, unknown> = {
     schemaVersion: 1,
     gate: "owner-uat-technical-journey",
     generatedAtUtc: "2026-11-23T07:45:00.000Z",
@@ -100,6 +105,14 @@ function validUat() {
       { locale: "ar", direction: "rtl", passed: true },
     ],
   };
+  return { ...evidence, evidenceSha256: uatEvidenceSha256(evidence) };
+}
+
+function planBoundToResealedUat(uat: Record<string, unknown>) {
+  uat.evidenceSha256 = uatEvidenceSha256(uat);
+  const plan = validPlan();
+  plan.ownerApproval.approvedUatEvidenceSha256 = uat.evidenceSha256 as string;
+  return plan;
 }
 
 function run(plan = validPlan(), uat = validUat(), now = "2026-11-24T09:00:00.000Z") {
@@ -135,7 +148,7 @@ test("canary preflight accepts a tightly bounded owner-authorized plan bound to 
     ownerApproverId: "orb-owner-01",
     monitoringOperatorId: "orb-monitor-01",
     rollbackOperatorId: "orb-operator-01",
-    approvedUatEvidenceSha256: "b".repeat(64),
+    approvedUatEvidenceSha256: validUat().evidenceSha256,
     approvedPlanSha256: approvedControlsSha256(validPlan()),
     uatReportStartedAtUtc: "2026-11-23T07:30:00.000Z",
     uatReportCompletedAtUtc: "2026-11-23T07:44:00.000Z",
@@ -171,6 +184,15 @@ test("canary preflight accepts a tightly bounded owner-authorized plan bound to 
   };
   expected.preflightEvidenceSha256 = preflightEvidenceSha256(expected);
   assert.deepEqual(manifest, expected);
+});
+
+
+test("canary preflight rejects owner UAT manifest claims changed after evidence generation", () => {
+  const uat = validUat();
+  uat.generatedAtUtc = "2026-11-23T07:46:00.000Z";
+  const result = run(validPlan(), uat);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /UAT evidence.*integrity|digest/i);
 });
 
 test("canary monitoring accepts the exact manifest emitted by canary preflight", () => {
@@ -317,7 +339,7 @@ test("canary preflight requires owner approval after a chronologically valid UAT
   completionBeforeStart.reportStartedAtUtc = "2026-11-23T07:45:00.000Z";
 
   for (const uat of [approvalBeforeEvidence, completionBeforeStart]) {
-    const result = run(validPlan(), uat);
+    const result = run(planBoundToResealedUat(uat), uat);
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /UAT.*chronology|owner approval.*evidence/i);
   }
@@ -327,7 +349,7 @@ test("canary preflight independently rejects UAT reports exceeding the bounded o
   const uat = validUat();
   uat.reportStartedAtUtc = "2026-11-23T07:13:59.999Z";
 
-  const result = run(validPlan(), uat);
+  const result = run(planBoundToResealedUat(uat), uat);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /UAT report.*30 minutes|owner-review duration/i);
 });
@@ -336,7 +358,7 @@ test("canary preflight requires technical UAT evidence produced before owner app
   const uat = validUat();
   uat.ownerApprovalRecorded = true;
 
-  const result = run(validPlan(), uat);
+  const result = run(planBoundToResealedUat(uat), uat);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /UAT evidence.*before owner approval|owner approval.*separate/i);
 });
@@ -348,7 +370,7 @@ test("canary preflight rejects release or target drift from passing bilingual UA
     { ...validUat(), passed: false },
     { ...validUat(), locales: [{ locale: "en", direction: "ltr", passed: true }] },
   ]) {
-    const result = run(validPlan(), uat);
+    const result = run(planBoundToResealedUat(uat), uat);
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /UAT/i);
   }
