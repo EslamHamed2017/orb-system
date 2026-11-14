@@ -130,6 +130,21 @@ function deployedConfiguration(): { config: DeployedConfiguration; binding: Bind
   return { config, binding };
 }
 
+
+function operationPathPattern(path: string): RegExp {
+  const source = path.split(/(\{[^}]+\})/).map((part) => /^\{[^}]+\}$/.test(part)
+    ? "[^/?]+"
+    : part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("");
+  return new RegExp(`^${source}$`);
+}
+
+function assertDeniedStatuses(operationId: string, statuses: readonly number[]): void {
+  if (operationId === "signIn")
+    expect(statuses.every((status) => [400, 401, 403, 422].includes(status)), "signIn negative statuses must prove safe authentication rejection").toBe(true);
+  else
+    expect(statuses.every((status) => status === 401 || status === 403), `${operationId} denial must prove authentication or role enforcement`).toBe(true);
+}
+
 function requestHeaders(operation: Operation, invocation: Invocation, config: DeployedConfiguration, allowed: boolean): Record<string, string> {
   const headers: Record<string, string> = { Accept: "application/json, application/problem+json", ...invocation.headers };
   if (invocation.role !== "UNAUTHENTICATED") {
@@ -171,6 +186,12 @@ test.describe("ORB-R1-1302 deployed-target operation sweep", () => {
 
   test("contract construction matches the complete runtime role and control inventories", async () => {
     assertInventory();
+    expect("/projects/demo").toMatch(operationPathPattern("/projects/{projectId}"));
+    expect("/sessions").not.toMatch(operationPathPattern("/projects/{projectId}"));
+    expect(() => assertDeniedStatuses("listProjects", [404])).toThrow();
+    expect(() => assertDeniedStatuses("signIn", [200])).toThrow();
+    assertDeniedStatuses("listProjects", [401, 403]);
+    assertDeniedStatuses("signIn", [400, 422]);
     if (process.env.ORB_E02_MODE === "dry-run") {
       test.info().annotations.push({ type: "non-evidence", description: "Local construction validation only; this does not earn E02." });
       return;
@@ -188,6 +209,9 @@ test.describe("ORB-R1-1302 deployed-target operation sweep", () => {
     for (const operation of operations) {
       const fixture = config.operations[operation.id];
       expect(fixture, `missing fixture for ${operation.id}`).toBeTruthy();
+      const pathPattern = operationPathPattern(operation.path);
+      expect(fixture.allowed.path, `${operation.id} allowed fixture path must match ${operation.path}`).toMatch(pathPattern);
+      expect(fixture.denied.path, `${operation.id} denied fixture path must match ${operation.path}`).toMatch(pathPattern);
       if (operation.id === "signIn") {
         expect(fixture.allowed.role).toBe("UNAUTHENTICATED");
         expect(fixture.denied.role).toBe("UNAUTHENTICATED");
@@ -200,9 +224,11 @@ test.describe("ORB-R1-1302 deployed-target operation sweep", () => {
       seenAllowed.add(operation.id);
       expect(fixture.allowed.expectedStatuses ?? [200, 201, 202, 204], `${operation.id} allowed status ${allowed.status()}`).toContain(allowed.status());
 
+      const deniedStatuses = fixture.denied.expectedStatuses ?? (operation.id === "signIn" ? [400, 401, 403, 422] : [401, 403]);
+      assertDeniedStatuses(operation.id, deniedStatuses);
       const denied = await invoke(request, operation, fixture.denied, config, false);
       seenDenied.add(operation.id);
-      expect(fixture.denied.expectedStatuses ?? [400, 401, 403, 404, 409, 412, 422, 428], `${operation.id} denied/invalid status ${denied.status()}`).toContain(denied.status());
+      expect(deniedStatuses, `${operation.id} denied status ${denied.status()}`).toContain(denied.status());
       await expectProblem(denied, operation.id);
       results.push({ operationId: operation.id, allowedStatus: allowed.status(), deniedInvalidStatus: denied.status() });
     }

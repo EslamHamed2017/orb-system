@@ -1,18 +1,39 @@
 import { expect, test, type Page } from "@playwright/test";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { operationIds as runtimeOperationIds } from "../../../src/modules/access/roles";
 
 const OPENAPI = readFileSync(resolve(process.cwd(), "specs/001-orb-trade-operations/contracts/openapi.yaml"), "utf8");
 const operationIds = [...OPENAPI.matchAll(/^\s{6}operationId: ([A-Za-z][A-Za-z0-9]*)$/gm)].map((match) => match[1]);
+function mutationIds(source: string): string[] {
+  const result: string[] = [];
+  let mutation = false;
+  for (const line of source.split(/\r?\n/)) {
+    const method = line.match(/^    (get|post|put|patch|delete|head|options|trace):\s*$/)?.[1];
+    if (method) { mutation = method !== "get" && method !== "head" && method !== "options"; continue; }
+    if (/^  \/[^:]+:\s*$/.test(line)) { mutation = false; continue; }
+    const operationId = line.match(/^      operationId: ([A-Za-z][A-Za-z0-9]*)\s*$/)?.[1];
+    if (mutation && operationId) { result.push(operationId); mutation = false; }
+  }
+  return result;
+}
+const mutationOperationIds = mutationIds(OPENAPI);
 
 const routes = [
-  "/sign-in", "/", "/masters/customers", "/masters/suppliers", "/projects", "/projects/new", "/projects/demo/overview",
-  "/projects/demo/contracts", "/projects/demo/shipments", "/sales-shipments/demo", "/supplier-shipments/demo",
-  "/projects/demo/money", "/projects/demo/expenses", "/projects/demo/statements", "/projects/demo/profit",
-  "/projects/demo/claims", "/projects/demo/closure", "/approvals", "/documents/demo", "/evidence/demo",
-  "/projects/demo/audit", "/admin/users", "/admin/backup",
+  "/", "/sign-in",
+  "/masters/customers", "/masters/suppliers",
+  "/accounts", "/accounts/collections", "/accounts/expenses", "/accounts/sales-invoices", "/accounts/supplier-invoices", "/accounts/supplier-payments",
+  "/admin/backup", "/admin/roles", "/admin/users", "/approvals", "/attachments",
+  "/customers/demo", "/documents/demo", "/evidence/demo", "/masters/products", "/products/demo/movements",
+  "/projects", "/projects/new", "/projects/demo/audit", "/projects/demo/claims", "/projects/demo/closure", "/projects/demo/contracts",
+  "/projects/demo/documents", "/projects/demo/expenses", "/projects/demo/money", "/projects/demo/overview", "/projects/demo/profit",
+  "/projects/demo/shipments", "/projects/demo/statements", "/projects/demo/transactions",
+  "/reports", "/reports/accounts", "/reports/contract-fulfillment", "/reports/product-movement", "/reports/project-profitability",
+  "/sales-shipments/demo", "/sales-shipments/demo?state=draft", "/settings",
+  "/supplier-shipments/demo", "/supplier-shipments/demo?state=draft", "/suppliers/demo",
 ] as const;
+
+const acceptanceOnlyRouteVariants = new Set(["/masters/customers", "/masters/suppliers", "/sales-shipments/demo?state=draft", "/supplier-shipments/demo?state=draft"]);
 
 const asyncStates = ["loading", "empty", "error", "permission-denied", "offline", "stale-version"] as const;
 const uiMutationOperationIds = new Set([
@@ -28,8 +49,24 @@ const uiMutationOperationIds = new Set([
   "transitionSalesShipmentExecution", "reverseSettlementAllocation", "submitApprovedExpenseCorrection", "applyApprovedExpenseCorrection",
   "cancelUnexecutedProject", "applyApprovedClaimOutcome", "reviseOutboundManifest", "submitSalesShipmentConfirmation",
   "cancelUnallocatedSupplierInvoice", "signIn", "signOutCurrentSession", "assignFixedPilotRoles", "revokePilotUserSession",
-  "startIsolatedRestoreTest",
+  "startIsolatedRestoreTest", "createContractLine", "createMasterRecord", "createRole", "createSalesShipmentLine",
+  "createSupplierShipmentLine", "createUser", "replaceRolePermissions", "updateMasterRecord", "updateSettings", "updateUser",
 ]);
+const nonDirectMutationOperations: ReadonlyMap<string, string> = new Map([
+  ["allocateShipmentLineSource", "composed inside the sales-shipment source-allocation workflow"],
+  ["createSalesInvoice", "created from the finalized sales-shipment workflow, not the invoice register"],
+  ["updateContractLine", "composed inside an amendment version rather than exposed as a standalone action"],
+] as const);
+
+function pageRoutes(directory = resolve(process.cwd(), "src/app"), segments: string[] = []): string[] {
+  const entries = readdirSync(directory, { withFileTypes: true });
+  const routes = entries.some((entry) => entry.isFile() && entry.name === "page.tsx")
+    ? [`/${segments.map((segment) => /^\[.+\]$/.test(segment) ? (segment === "[masterType]" ? "products" : "demo") : segment).join("/")}`.replace(/\/$/, "") || "/"]
+    : [];
+  for (const entry of entries.filter((candidate) => candidate.isDirectory() && !candidate.name.startsWith("_") && candidate.name !== "api"))
+    routes.push(...pageRoutes(resolve(directory, entry.name), [...segments, entry.name]));
+  return routes;
+}
 
 async function assertRendered(page: Page, route: string, locale: "en" | "ar") {
   const separator = route.includes("?") ? "&" : "?";
@@ -41,12 +78,13 @@ async function assertRendered(page: Page, route: string, locale: "en" | "ar") {
   await expect(page.locator("body")).not.toContainText(/application error|internal server error|coming soon|placeholder|not implemented/i);
 }
 
-test("the acceptance inventory matches the runtime operation registry and all 23 concrete page files", async () => {
+test("the acceptance inventory covers every page and exhaustively classifies every mutation", async () => {
   const runtimeIds = runtimeOperationIds();
   expect(new Set(operationIds)).toEqual(new Set(runtimeIds));
   expect(new Set(operationIds).size).toBe(operationIds.length);
-  expect(routes).toHaveLength(23);
-  expect([...uiMutationOperationIds].filter((id) => !operationIds.includes(id))).toEqual([]);
+  expect(pageRoutes().sort()).toEqual([...routes].filter((route) => !acceptanceOnlyRouteVariants.has(route)).sort());
+  expect(new Set([...uiMutationOperationIds, ...nonDirectMutationOperations.keys()])).toEqual(new Set(mutationOperationIds));
+  expect([...uiMutationOperationIds].filter((id) => nonDirectMutationOperations.has(id))).toEqual([]);
 });
 
 for (const locale of ["en", "ar"] as const) {
