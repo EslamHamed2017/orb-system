@@ -17,8 +17,10 @@ function report(
     config: { filteredProjects: [{ name: "chromium", use: { baseURL } }] },
     stats: { startTime, duration, expected: 2, skipped: 0, unexpected: 0, flaky: 0 },
     errors: [],
-    suites: [{ title: "owner-uat.spec.ts", file: "owner-uat.spec.ts", specs: titles.map((title) => ({
-      title, ok: status === "passed", tests: [{ projectName: "chromium", expectedStatus: "passed", results: [{ status, duration: 10_000, startTime }] }],
+    suites: [{ title: "owner-uat.spec.ts", file: "owner-uat.spec.ts", specs: titles.map((title, index) => ({
+      title, ok: status === "passed", tests: [{ projectName: "chromium", expectedStatus: "passed", results: [{
+        status, duration: 10_000, startTime: new Date(Date.parse(startTime) + index * 10_000).toISOString(),
+      }] }],
     })) }],
   };
 }
@@ -183,6 +185,22 @@ test("owner UAT evidence rejects bilingual journeys reported out of the approved
     }),
     /approved bilingual journey order/i,
   );
+});
+
+test("owner UAT evidence rejects overlapping or chronologically reversed bilingual journeys", () => {
+  const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
+  const overlapping = report();
+  overlapping.suites[0].specs[1].tests[0].results[0].startTime = "2026-11-12T09:59:05.000Z";
+  const reversed = report();
+  reversed.suites[0].specs[0].tests[0].results[0].startTime = "2026-11-12T09:59:10.000Z";
+  reversed.suites[0].specs[1].tests[0].results[0].startTime = "2026-11-12T09:59:00.000Z";
+
+  for (const value of [overlapping, reversed]) {
+    assert.throws(
+      () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
+      /journey chronology/i,
+    );
+  }
 });
 
 test("owner UAT evidence rejects reports exceeding the bounded owner-review duration", () => {
