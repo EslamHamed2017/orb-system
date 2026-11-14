@@ -171,6 +171,20 @@ test("owner UAT evidence rejects journey timing outside the certified report win
   }
 });
 
+test("owner UAT evidence rejects bilingual journeys reported out of the approved order", () => {
+  const value = report();
+  value.suites[0].specs.reverse();
+  assert.throws(
+    () => createOwnerUatEvidence({
+      reportBytes: Buffer.from(JSON.stringify(value)),
+      targetUrl: "https://uat.example.test",
+      gitCommit: commit,
+      generatedAtUtc: "2026-11-12T10:00:00.000Z",
+    }),
+    /approved bilingual journey order/i,
+  );
+});
+
 test("owner UAT evidence rejects reports exceeding the bounded owner-review duration", () => {
   const value = report("passed", undefined, undefined, "2026-11-12T09:29:59.999Z", 30 * 60_000 + 1);
   assert.throws(

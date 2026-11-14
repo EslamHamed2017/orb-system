@@ -59,6 +59,9 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
     throw new Error("owner UAT report must contain exactly the approved owner UAT suite");
   const specs = allSpecs(approvedSuites);
   if (specs.length !== JOURNEYS.size) throw new Error("owner UAT report must contain exactly the approved bilingual journeys");
+  const approvedJourneyTitles = [...JOURNEYS.keys()];
+  if (specs.some((spec, index) => spec?.title !== approvedJourneyTitles[index]))
+    throw new Error("owner UAT report must preserve the approved bilingual journey order");
   const seen = new Set();
   for (const spec of specs) {
     if (!JOURNEYS.has(spec?.title) || seen.has(spec.title)) throw new Error("owner UAT report contains a missing, duplicate, or unexpected journey");
