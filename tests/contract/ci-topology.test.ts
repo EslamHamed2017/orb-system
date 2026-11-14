@@ -32,6 +32,16 @@ test("job-level CI environments never reference the unavailable runner context",
   }
 });
 
+test("every Prisma client generation step has a non-secret build-only database URL", () => {
+  const generationSteps = workflow.split("run: pnpm run prisma:generate");
+  assert.equal(generationSteps.length - 1, 3, "expected all three CI Prisma generation steps");
+  for (const beforeRun of generationSteps.slice(0, -1)) {
+    const stepPrefix = beforeRun.slice(beforeRun.lastIndexOf("\n      - "));
+    assert.match(stepPrefix, /env:\n          DATABASE_URL: postgresql:\/\/orb_build:orb_build@127\.0\.0\.1:5432\/orb_build\n/,
+      "Prisma generation must use an isolated build-only database URL");
+  }
+});
+
 test("deployed owner UAT is explicitly authorized and limited to the bilingual pilot journey", () => {
   const deployed = workflow.match(/^  deployed-acceptance:\n([\s\S]*?)(?=^  [a-z][a-z-]+:\n)/m)?.[1] ?? "";
   assert.match(workflow, /owner_uat_authorized:[\s\S]*?type: boolean/);
