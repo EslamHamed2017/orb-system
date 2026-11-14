@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { TextDecoder } from "node:util";
+
+const PLAYWRIGHT_VERSION = createRequire(import.meta.url)("@playwright/test/package.json").version;
 
 const JOURNEYS = new Map([
   ["owner UAT technical journey exposes the P0 lifecycle in en", { locale: "en", direction: "ltr", passed: true }],
@@ -45,6 +48,8 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
   catch { throw new Error("Playwright report must use valid UTF-8 encoding"); }
   let report;
   try { report = JSON.parse(reportText); } catch { throw new Error("Playwright report must be valid JSON"); }
+  if (report?.config?.version !== PLAYWRIGHT_VERSION)
+    throw new Error(`owner UAT report must use repository-pinned Playwright reporter version ${PLAYWRIGHT_VERSION}`);
   if (!Array.isArray(report?.errors) || report.errors.length !== 0)
     throw new Error("owner UAT report contains report-level errors");
   const stats = report?.stats;

@@ -24,7 +24,7 @@ function report(
   duration = 30_000,
 ) {
   return {
-    config: { forbidOnly: true, fullyParallel: false, shard: null, workers: 1, filteredProjects: [{ name: "chromium", repeatEach: 1, retries: 0, use: { baseURL } }] },
+    config: { version: "1.64.1", forbidOnly: true, fullyParallel: false, shard: null, workers: 1, filteredProjects: [{ name: "chromium", repeatEach: 1, retries: 0, use: { baseURL } }] },
     stats: { startTime, duration, expected: 2, skipped: 0, unexpected: 0, flaky: 0 },
     errors: [],
     suites: [{ title: "owner-uat.spec.ts", file: "owner-uat.spec.ts", specs: titles.map((title, index) => ({
@@ -165,6 +165,21 @@ test("owner UAT evidence rejects a malformed nested suite envelope", () => {
     }),
     /approved owner UAT suite/i,
   );
+});
+
+test("owner UAT evidence requires the repository-pinned Playwright reporter version", () => {
+  const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
+  const substituted = report();
+  substituted.config.version = "1.63.0";
+  const missing = report();
+  delete (missing.config as { version?: string }).version;
+
+  for (const value of [substituted, missing]) {
+    assert.throws(
+      () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
+      /Playwright.*version|reporter version/i,
+    );
+  }
 });
 
 test("owner UAT evidence requires Playwright to reject focused tests", () => {
