@@ -87,6 +87,8 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
   const journeys = [];
   let previousJourneyCompleted = reportStarted;
   for (const spec of specs) {
+    if (spec?.file !== "owner-uat.spec.ts")
+      throw new Error(`owner UAT journey is not attributed to the approved owner UAT spec file: ${spec?.title ?? "<missing>"}`);
     if (!JOURNEYS.has(spec?.title) || seen.has(spec.title)) throw new Error("owner UAT report contains a missing, duplicate, or unexpected journey");
     seen.add(spec.title);
     if (spec.ok !== true || !Array.isArray(spec.tests) || spec.tests.length !== 1) throw new Error(`owner UAT journey did not pass: ${spec.title}`);

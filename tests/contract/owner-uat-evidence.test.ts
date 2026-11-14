@@ -28,7 +28,7 @@ function report(
     stats: { startTime, duration, expected: 2, skipped: 0, unexpected: 0, flaky: 0 },
     errors: [],
     suites: [{ title: "owner-uat.spec.ts", file: "owner-uat.spec.ts", specs: titles.map((title, index) => ({
-      title, ok: status === "passed", tests: [{ projectName: "chromium", expectedStatus: "passed", status: "expected", results: [{
+      title, file: "owner-uat.spec.ts", ok: status === "passed", tests: [{ projectName: "chromium", expectedStatus: "passed", status: "expected", results: [{
         status, retry: 0, duration: 10_000, startTime: new Date(Date.parse(startTime) + index * 10_000).toISOString(),
       }] }],
     })) }],
@@ -136,6 +136,20 @@ test("owner UAT evidence rejects approved journey titles reported by an unrelate
       /approved owner UAT suite/i,
     );
   }
+});
+
+test("owner UAT evidence rejects bilingual journeys attributed to another spec file", () => {
+  const value = report();
+  Object.assign(value.suites[0].specs[0], { file: "unrelated.spec.ts" });
+  assert.throws(
+    () => createOwnerUatEvidence({
+      reportBytes: Buffer.from(JSON.stringify(value)),
+      targetUrl: "https://uat.example.test",
+      gitCommit: commit,
+      generatedAtUtc: "2026-11-12T10:00:00.000Z",
+    }),
+    /approved owner UAT spec file/i,
+  );
 });
 
 test("owner UAT evidence rejects a malformed nested suite envelope", () => {
