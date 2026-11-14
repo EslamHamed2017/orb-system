@@ -258,6 +258,25 @@ test("owner UAT evidence rejects bilingual journeys with retained attachments", 
   }
 });
 
+test("owner UAT evidence rejects bilingual journeys with retained console output", () => {
+  const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
+  const variants = [
+    { stdout: ["sensitive operational output"] },
+    { stderr: [{ text: "sensitive error output" }] },
+    { stdout: { text: "malformed" } },
+    { stderr: { text: "malformed" } },
+  ];
+
+  for (const retainedOutput of variants) {
+    const value = report();
+    Object.assign(value.suites[0].specs[0].tests[0].results[0], retainedOutput);
+    assert.throws(
+      () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
+      /stdout|stderr|console output/i,
+    );
+  }
+});
+
 test("owner UAT evidence rejects annotated bilingual journeys", () => {
   const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
   const annotated = report();

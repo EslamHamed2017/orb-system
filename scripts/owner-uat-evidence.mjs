@@ -114,6 +114,9 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
     const result = test.results[0];
     if (result?.attachments !== undefined && (!Array.isArray(result.attachments) || result.attachments.length !== 0))
       throw new Error(`owner UAT journey must not retain attached artifacts: ${spec.title}`);
+    if ((result?.stdout !== undefined && (!Array.isArray(result.stdout) || result.stdout.length !== 0)) ||
+        (result?.stderr !== undefined && (!Array.isArray(result.stderr) || result.stderr.length !== 0)))
+      throw new Error(`owner UAT journey must not retain stdout or stderr console output: ${spec.title}`);
     if (result?.retry !== 0)
       throw new Error(`owner UAT journey must pass on a clean first attempt with retry provenance: ${spec.title}`);
     if ((result?.errors !== undefined && (!Array.isArray(result.errors) || result.errors.length !== 0)) || result?.error != null)
