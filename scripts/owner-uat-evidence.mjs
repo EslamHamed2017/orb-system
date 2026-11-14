@@ -121,8 +121,8 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
       throw new Error(`owner UAT journey must not retain stdout or stderr console output: ${spec.title}`);
     if (result?.retry !== 0)
       throw new Error(`owner UAT journey must pass on a clean first attempt with retry provenance: ${spec.title}`);
-    if ((result?.errors !== undefined && (!Array.isArray(result.errors) || result.errors.length !== 0)) || result?.error != null)
-      throw new Error(`owner UAT journey contains test-level errors: ${spec.title}`);
+    if (!Array.isArray(result?.errors) || result.errors.length !== 0 || result?.error != null)
+      throw new Error(`owner UAT journey must carry explicit empty result-level error provenance; test-level errors are not permitted: ${spec.title}`);
     const resultDuration = result?.duration;
     if (!Number.isFinite(resultDuration) || resultDuration <= 0 || resultDuration > reportDuration)
       throw new Error(`owner UAT journey duration is invalid: ${spec.title}`);

@@ -29,7 +29,7 @@ function report(
     errors: [],
     suites: [{ title: "owner-uat.spec.ts", file: "owner-uat.spec.ts", specs: titles.map((title, index) => ({
       title, file: "owner-uat.spec.ts", ok: status === "passed", tests: [{ projectName: "chromium", expectedStatus: "passed", status: "expected", results: [{
-        status, retry: 0, duration: 10_000, startTime: new Date(Date.parse(startTime) + index * 10_000).toISOString(), annotations: [],
+        status, retry: 0, duration: 10_000, startTime: new Date(Date.parse(startTime) + index * 10_000).toISOString(), annotations: [], errors: [],
       }] }],
     })) }],
   };
@@ -524,6 +524,21 @@ test("owner UAT evidence rejects contradictory test-level outcomes", () => {
     }),
     /test-level outcome/i,
   );
+});
+
+test("owner UAT evidence requires explicit empty result-level error provenance", () => {
+  const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
+  const missingErrors = report();
+  delete (missingErrors.suites[0].specs[0].tests[0].results[0] as { errors?: unknown[] }).errors;
+  const malformedErrors = report();
+  Object.assign(malformedErrors.suites[0].specs[0].tests[0].results[0], { errors: { message: "malformed" } });
+
+  for (const value of [missingErrors, malformedErrors]) {
+    assert.throws(
+      () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
+      /result-level error provenance|test-level errors/i,
+    );
+  }
 });
 
 test("owner UAT evidence rejects passing journeys that retain test-level errors", () => {
