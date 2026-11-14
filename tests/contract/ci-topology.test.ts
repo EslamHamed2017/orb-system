@@ -42,6 +42,12 @@ test("every Prisma client generation step has a non-secret build-only database U
   }
 });
 
+test("local browser acceptance excludes the separately authorized owner UAT spec", () => {
+  const local = workflow.match(/^  local-browser:\n([\s\S]*?)(?=^  [a-z][a-z-]+:\n)/m)?.[1] ?? "";
+  assert.ok(local.includes("pnpm exec playwright test --project=chromium '^(?!.*owner-uat\\.spec\\.ts).*'"),
+    "local acceptance must exclude the owner-only deployed UAT spec at file discovery");
+});
+
 test("deployed owner UAT is explicitly authorized and limited to the bilingual pilot journey", () => {
   const deployed = workflow.match(/^  deployed-acceptance:\n([\s\S]*?)(?=^  [a-z][a-z-]+:\n)/m)?.[1] ?? "";
   assert.match(workflow, /owner_uat_authorized:[\s\S]*?type: boolean/);
