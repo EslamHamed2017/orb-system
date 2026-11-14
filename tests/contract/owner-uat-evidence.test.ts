@@ -18,7 +18,7 @@ function report(
     stats: { startTime, duration, expected: 2, skipped: 0, unexpected: 0, flaky: 0 },
     errors: [],
     suites: [{ title: "owner-uat.spec.ts", file: "owner-uat.spec.ts", specs: titles.map((title, index) => ({
-      title, ok: status === "passed", tests: [{ projectName: "chromium", expectedStatus: "passed", results: [{
+      title, ok: status === "passed", tests: [{ projectName: "chromium", expectedStatus: "passed", status: "expected", results: [{
         status, duration: 10_000, startTime: new Date(Date.parse(startTime) + index * 10_000).toISOString(),
       }] }],
     })) }],
@@ -258,6 +258,21 @@ test("owner UAT evidence rejects a journey that passed only after a failed retry
       generatedAtUtc: "2026-11-12T10:00:00.000Z",
     }),
     /did not pass/,
+  );
+});
+
+test("owner UAT evidence rejects contradictory test-level outcomes", () => {
+  const value = report();
+  value.suites[0].specs[0].tests[0].status = "unexpected";
+
+  assert.throws(
+    () => createOwnerUatEvidence({
+      reportBytes: Buffer.from(JSON.stringify(value)),
+      targetUrl: "https://uat.example.test",
+      gitCommit: commit,
+      generatedAtUtc: "2026-11-12T10:00:00.000Z",
+    }),
+    /test-level outcome/i,
   );
 });
 

@@ -71,6 +71,8 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
     const [test] = spec.tests;
     if (test.projectName !== "chromium")
       throw new Error(`owner UAT journey did not run in the approved Chromium project: ${spec.title}`);
+    if (test.status !== "expected")
+      throw new Error(`owner UAT journey has a contradictory test-level outcome: ${spec.title}`);
     if (test.expectedStatus !== "passed" || !Array.isArray(test.results) || test.results.length !== 1 || test.results[0]?.status !== "passed")
       throw new Error(`owner UAT journey did not pass: ${spec.title}`);
     const result = test.results[0];
