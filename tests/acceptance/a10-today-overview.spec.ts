@@ -1,64 +1,66 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-const copy = {
-  en: { today: "Today", recent: "Recent projects", overview: "Project overview", blockers: "Operational blockers", quantities: "Shipment progress", money: "USD", audit: "Activity and audit", related: "Project records" },
-  ar: { today: "اليوم", recent: "المشروعات الأخيرة", overview: "نظرة عامة على المشروع", blockers: "العوائق التشغيلية", quantities: "تقدم الشحنات", money: "USD", audit: "النشاط والتدقيق", related: "سجلات المشروع" },
-} as const;
-
-for (const locale of ["en", "ar"] as const) {
-  test(`${locale} Today renders assigned approvals, recent Projects and every authoritative blocker family`, async ({ page }) => {
-    await page.goto(`/?locale=${locale}`);
-    await expect(page.locator("html")).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
-    await expect(page.getByRole("heading", { level: 1, name: copy[locale].today })).toBeVisible();
-    const blockers = page.getByRole("region", { name: copy[locale].blockers });
-    for (const family of ["approvals", "route/evidence", "document/outbound", "invoice/settlement", "expense", "claim", "closure", "audit", "recovery"])
-      await expect(blockers.getByTestId(`today-${family}`)).toBeVisible();
-    await expect(page.getByRole("region", { name: copy[locale].recent }).getByRole("link", { name: /ORB-P-0001/ })).toHaveAttribute("href", /\/projects\/[^/]+\/overview/);
-    for (const item of await blockers.getByRole("link").all()) await expect(item).toHaveAttribute("href", /^\//);
-  });
-
-  test(`${locale} Project overview renders exact quantities, currency-separated money, blockers and audit continuity`, async ({ page }) => {
-    await page.goto(`/projects/demo/overview?locale=${locale}`);
-    await expect(page.locator("html")).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
-    await expect(page.getByRole("heading", { level: 1, name: copy[locale].overview })).toBeVisible();
-    await expect(page.getByRole("region", { name: copy[locale].quantities })).toContainText(/40\.000000 MT.*20\.000000 MT/s);
-    const money = page.getByRole("region", { name: copy[locale].money });
-    for (const value of ["28500.000000", "17700.000000", "25.000000", "250.000000", "20000.000000", "12500.000000", "8500.000000", "5200.000000", "100.000000"])
-      await expect(money.getByText(value, { exact: true })).toBeVisible();
-    await expect(money.getByText(locale === "ar" ? "الهامش التشغيلي الفعلي" : "Actual operational margin", { exact: true })).toBeVisible();
-    const blockers = page.getByRole("region", { name: copy[locale].blockers });
-    for (const code of ["ROUTE_ITEM_INCOMPLETE", "CINV_MISSING", "UNALLOCATED_MONEY", "EXPENSE_PENDING", "CLAIM_INCOMPLETE", "SALES_SHIPMENT_NOT_DELIVERED"])
-      await expect(blockers.getByText(code, { exact: true })).toBeVisible();
-    const audit = page.getByRole("region", { name: copy[locale].audit });
-    await expect(audit).toContainText(/sequence 9/i);
-    await expect(audit).toContainText(locale === "ar" ? /تم التحقق من الاستمرارية/ : /continuity verified/i);
-    const related = page.getByRole("region", { name: copy[locale].related });
-    const linkedRecords = {
-      contracts: [3, `/projects/demo/contracts?locale=${locale}`], supplierContainers: [2, `/projects/demo/shipments?locale=${locale}#supplier-dataset`],
-      salesShipments: [1, `/projects/demo/shipments?locale=${locale}#sales-dataset`], salesInvoices: [1, `/projects/demo/transactions?locale=${locale}&type=CUSTOMER_COMMERCIAL_INVOICE`],
-      supplierInvoices: [2, `/projects/demo/transactions?locale=${locale}&type=SUPPLIER_COMMERCIAL_INVOICE`], collections: [1, `/projects/demo/transactions?locale=${locale}&type=COLLECTION`],
-      supplierPayments: [2, `/projects/demo/transactions?locale=${locale}&type=SUPPLIER_PAYMENT`], expenses: [2, `/projects/demo/transactions?locale=${locale}&type=EXPENSE`],
-      claims: [1, `/projects/demo/claims?locale=${locale}`], attachments: [4, `/attachments?projectId=demo&locale=${locale}`],
-    } as const;
-    for (const [key, [count, href]] of Object.entries(linkedRecords)) {
-      const record = related.getByTestId(`project-record-${key}`);
-      await expect(record.getByText(String(count), { exact: true })).toBeVisible();
-      await expect(record.getByRole("link")).toHaveAttribute("href", href);
-    }
-  });
+async function createProject(page: Page, locale: "en" | "ar" = "en"): Promise<string> {
+  await page.goto(`/projects/new?locale=${locale}`);
+  const data = { customer: "Atlas Foods", reference: "AF-101", contractReference: "SC-44", startDate: "2026-11-14", commodity: "Coffee", quantity: "20", unit: "MT", currency: "USD", unitPrice: "4200", origin: "Mombasa", destination: "Dubai" };
+  for (const [name, value] of Object.entries(data)) await page.locator(`[name="${name}"]`).fill(value);
+  await page.getByRole("button", { name: locale === "ar" ? "حفظ وفتح المشروع" : "Save and open project" }).click();
+  await page.waitForURL(/\/projects\/[^/]+\/overview/);
+  return new URL(page.url()).pathname;
 }
 
-test("Today and overview are role-shaped, directly linked and expose no deferred or fabricated aggregate", async ({ page }) => {
-  for (const path of ["/", "/projects/demo/overview"]) {
-    await page.goto(`${path}?locale=en`);
-    await expect(page.locator("body")).not.toContainText(/estimated aggregate|configurable rule|dynamic route|bank import|tax pack|multi-source/i);
-    await expect(page.locator("body")).not.toContainText(/csrf|password|secret|credential/i);
-  }
+test("empty Today and Projects disclose browser-only storage and never show fixed projects", async ({ page }) => {
+  await page.goto("/?locale=en");
+  await expect(page.getByRole("heading", { name: "No actions yet" })).toBeVisible();
+  await expect(page.locator("body")).toContainText("No sample project is inserted into your personal list");
+  await page.goto("/projects?locale=en");
+  await expect(page.getByRole("heading", { name: "No saved projects" })).toBeVisible();
+  await expect(page.locator("body")).toContainText("saved in this browser only");
+  await expect(page.locator("body")).not.toContainText(/Pilot Customer|ORB-P-0001/);
 });
 
-test("resolved items disappear after authoritative state changes rather than a client-only dismissal", async ({ page }) => {
+test("creation persists exact fields, opens the exact detail, and Today has one direct action", async ({ page }) => {
+  const detailPath = await createProject(page);
+  await expect(page.getByRole("heading", { level: 1, name: "Atlas Foods" })).toBeVisible();
+  await expect(page.locator("body")).toContainText("AF-101");
+  await expect(page.locator("body")).toContainText("SC-44");
+  await expect(page.getByText("Not started", { exact: true })).toHaveCount(7);
+  await expect(page.locator('#lifecycle a[href*="/contracts"], #lifecycle a[href*="/shipments"], #lifecycle a[href*="/money"]')).toHaveCount(0);
+  await expect(page.locator("body")).not.toContainText(/Pilot Customer|estimated total|actual margin/i);
+  await page.reload();
+  await expect(page).toHaveURL(new RegExp(detailPath));
   await page.goto("/?locale=en");
-  const blocker = page.getByTestId("today-route/evidence");
-  await expect(blocker).toBeVisible();
-  await expect(blocker.getByRole("button", { name: /dismiss|hide/i })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Review project setup" })).toHaveCount(1);
+  await expect(page.getByRole("link", { name: "Open action" })).toHaveAttribute("href", /\/overview\?locale=en#project-data$/);
+  await page.goto(`${detailPath}?locale=en`);
+  await expect(page.getByRole("button", { name: "Confirm setup and start operations" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Review project setup" })).toHaveAttribute("href", /\/overview\?locale=en#project-data$/);
+});
+
+test("corrupt browser storage shows an error instead of pretending the register is empty", async ({ page }) => {
+  await page.goto("/projects?locale=en");
+  await page.evaluate(() => localStorage.setItem("orb.user-projects.owner-1.v1", "not-json"));
+  await page.reload();
+  await expect(page.getByText("Projects could not be opened", { exact: true })).toBeVisible();
+});
+
+test("project search works and cards reflow above mobile navigation", async ({ page }) => {
+  await createProject(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/projects?locale=en");
+  const search = page.getByRole("searchbox", { name: "Search projects" });
+  await search.fill("Atlas");
+  await expect(page.getByRole("heading", { name: "Atlas Foods" })).toBeVisible();
+  await search.fill("missing");
+  await expect(page.getByRole("heading", { name: "No matching projects" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  const bottom = page.locator('[data-navigation="bottom"]');
+  await expect(bottom).toBeVisible();
+});
+
+for (const locale of ["en", "ar"] as const) test(`${locale} bounded flow uses route direction and business copy`, async ({ page }) => {
+  await createProject(page, locale);
+  await expect(page.locator("html")).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
+  await expect(page.locator("body")).toContainText(locale === "ar" ? "مسار دورة العمل" : "Lifecycle tasks");
+  await expect(page.locator("body")).not.toContainText(/SETUP|ACTIVE|CLOSED|[a-f0-9]{32}/);
 });
