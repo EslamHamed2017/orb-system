@@ -53,6 +53,23 @@ test("owner UAT evidence binds a successful bilingual report without retaining s
   assert.doesNotMatch(JSON.stringify(evidence), /token|do-not-retain|\/review/);
 });
 
+test("owner UAT evidence rejects malformed UTF-8 Playwright reports", () => {
+  const malformed = Buffer.concat([
+    Buffer.from('{"metadata":"'),
+    Buffer.from([0xff]),
+    Buffer.from('",' + JSON.stringify(report()).slice(1)),
+  ]);
+  assert.throws(
+    () => createOwnerUatEvidence({
+      reportBytes: malformed,
+      targetUrl: "https://uat.example.test",
+      gitCommit: commit,
+      generatedAtUtc: "2026-11-12T10:00:00.000Z",
+    }),
+    /UTF-8/i,
+  );
+});
+
 test("owner UAT evidence rejects oversized Playwright reports before parsing", () => {
   const reportBytes = Buffer.alloc(10 * 1024 * 1024 + 1, 0x20);
   assert.throws(

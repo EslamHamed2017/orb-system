@@ -2,6 +2,7 @@
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
+import { TextDecoder } from "node:util";
 
 const JOURNEYS = new Map([
   ["owner UAT technical journey exposes the P0 lifecycle in en", { locale: "en", direction: "ltr", passed: true }],
@@ -27,8 +28,11 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
   const target = new URL(targetUrl);
   if (target.protocol !== "https:" || target.username || target.password || target.pathname !== "/" || target.search || target.hash)
     throw new Error("owner UAT target must be a credential-free HTTPS origin");
+  let reportText;
+  try { reportText = new TextDecoder("utf-8", { fatal: true }).decode(reportBytes); }
+  catch { throw new Error("Playwright report must use valid UTF-8 encoding"); }
   let report;
-  try { report = JSON.parse(reportBytes.toString("utf8")); } catch { throw new Error("Playwright report must be valid JSON"); }
+  try { report = JSON.parse(reportText); } catch { throw new Error("Playwright report must be valid JSON"); }
   if (!Array.isArray(report?.errors) || report.errors.length !== 0)
     throw new Error("owner UAT report contains report-level errors");
   const stats = report?.stats;
