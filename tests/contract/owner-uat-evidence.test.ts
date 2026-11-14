@@ -18,7 +18,7 @@ function report(
     stats: { startTime, duration, expected: 2, skipped: 0, unexpected: 0, flaky: 0 },
     errors: [],
     suites: [{ title: "owner-uat.spec.ts", file: "owner-uat.spec.ts", specs: titles.map((title) => ({
-      title, ok: status === "passed", tests: [{ projectName: "chromium", expectedStatus: "passed", results: [{ status }] }],
+      title, ok: status === "passed", tests: [{ projectName: "chromium", expectedStatus: "passed", results: [{ status, duration: 10_000 }] }],
     })) }],
   };
 }
@@ -138,6 +138,20 @@ test("owner UAT evidence rejects a zero-duration browser report", () => {
     }),
     /duration|positive/i,
   );
+});
+
+test("owner UAT evidence rejects missing, zero, or impossible journey durations", () => {
+  const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
+  for (const duration of [undefined, 0, 30_001]) {
+    const value = report();
+    const result = value.suites[0].specs[0].tests[0].results[0] as { duration?: number };
+    if (duration === undefined) delete result.duration;
+    else result.duration = duration;
+    assert.throws(
+      () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
+      /journey duration/i,
+    );
+  }
 });
 
 test("owner UAT evidence rejects reports exceeding the bounded owner-review duration", () => {

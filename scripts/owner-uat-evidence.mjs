@@ -69,6 +69,9 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
       throw new Error(`owner UAT journey did not run in the approved Chromium project: ${spec.title}`);
     if (test.expectedStatus !== "passed" || !Array.isArray(test.results) || test.results.length !== 1 || test.results[0]?.status !== "passed")
       throw new Error(`owner UAT journey did not pass: ${spec.title}`);
+    const resultDuration = test.results[0]?.duration;
+    if (!Number.isFinite(resultDuration) || resultDuration <= 0 || resultDuration > reportDuration)
+      throw new Error(`owner UAT journey duration is invalid: ${spec.title}`);
   }
   for (const title of JOURNEYS.keys()) if (!seen.has(title)) throw new Error(`owner UAT journey is missing: ${title}`);
   return {
