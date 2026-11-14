@@ -46,8 +46,9 @@ test("rollback rehearsal verifies a legacy write after expansion and is mandator
   assert.match(gate, /legacy_app_write/);
   const workflow = readFileSync(WORKFLOW, "utf8");
   const job = workflow.match(/^  isolated-infrastructure:\n([\s\S]*?)(?=^  [a-z][a-z-]+:\n)/m)?.[1] ?? "";
-  assert.match(job, /actions\/checkout@v4[\s\S]*?fetch-depth: 0[\s\S]*?run-application-rollback-gate\.sh/,
-    "rollback rehearsal requires the pinned ancestor in checkout history");
+  assert.match(job, /      - uses: actions\/checkout@v4\n        with:\n          fetch-depth: 0(?:\n|$)/,
+    "rollback rehearsal requires complete Git history on its checkout step");
+  assert.match(job, /run-application-rollback-gate\.sh/);
 });
 
 
