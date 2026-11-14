@@ -1,6 +1,6 @@
 # Product readiness gap inventory
 
-**Audit date:** 14 November 2026  
+**Audit date:** 14 November 2026
 **Scope:** the ORB web UI at canonical baseline `54d5b4f`, plus this bounded browser-persisted Today/Projects slice.
 
 ## Truthful status
