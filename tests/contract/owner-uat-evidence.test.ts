@@ -53,6 +53,19 @@ test("owner UAT evidence binds a successful bilingual report without retaining s
   assert.doesNotMatch(JSON.stringify(evidence), /token|do-not-retain|\/review/);
 });
 
+test("owner UAT evidence rejects oversized Playwright reports before parsing", () => {
+  const reportBytes = Buffer.alloc(10 * 1024 * 1024 + 1, 0x20);
+  assert.throws(
+    () => createOwnerUatEvidence({
+      reportBytes,
+      targetUrl: "https://uat.example.test",
+      gitCommit: commit,
+      generatedAtUtc: "2026-11-12T10:00:00.000Z",
+    }),
+    /report.*10 MiB|too large/i,
+  );
+});
+
 test("owner UAT evidence rejects any target that is not a credential-free HTTPS origin", () => {
   const reportBytes = Buffer.from(JSON.stringify(report()));
   for (const targetUrl of [

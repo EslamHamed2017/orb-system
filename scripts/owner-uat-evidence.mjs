@@ -19,6 +19,8 @@ function allSpecs(suites, output = []) {
 
 export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, generatedAtUtc = new Date().toISOString() }) {
   if (!Buffer.isBuffer(reportBytes) || reportBytes.length === 0) throw new Error("Playwright JSON report is required");
+  const maximumReportBytes = 10 * 1024 * 1024;
+  if (reportBytes.length > maximumReportBytes) throw new Error("Playwright report exceeds the 10 MiB evidence limit");
   if (!/^[a-f0-9]{40}$/.test(gitCommit ?? "")) throw new Error("gitCommit must be a full lowercase SHA-1");
   const generated = new Date(generatedAtUtc);
   if (!Number.isFinite(generated.valueOf()) || generated.toISOString() !== generatedAtUtc) throw new Error("generatedAtUtc must be canonical UTC ISO-8601");
