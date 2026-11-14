@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash, generateKeyPairSync, sign } from "node:crypto";
@@ -181,5 +181,79 @@ test("owner UAT candidate verifier rejects a manifest replaced after signature v
       },
     );
     assert.notEqual(result.status, 0, "an unsigned replacement must not inherit verification from an earlier manifest snapshot");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+
+test("owner UAT candidate verifier rejects a public key replaced after initial validation", () => {
+  const dir = mkdtempSync(join(tmpdir(), "orb-uat-candidate-key-snapshot-"));
+  try {
+    const approvedCommit = "a".repeat(40);
+    const trusted = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const attacker = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const attackerPublicPem = attacker.publicKey.export({ type: "spki", format: "pem" });
+    const attackerPublicDer = attacker.publicKey.export({ type: "spki", format: "der" });
+    const hex = "b".repeat(64);
+    const signedPayload = {
+      buildManifestSha256: hex,
+      candidate: "internal-alpha-rc",
+      containerSha256: hex,
+      contractGuard: "openapi-contract, traceability, deferred-surface",
+      deploymentPerformed: false,
+      frozenAtUtc: "2026-11-13T22:30:00Z",
+      gitCommit: approvedCommit,
+      healthEvidenceSha256: hex,
+      healthEvidenceFile: "health.json",
+      lockSha256: hex,
+      openapiOperationCount: 109,
+      openapiSha256: hex,
+      ownerApprovalRecorded: false,
+      sbomFile: "sbom.json",
+      sbomSha256: hex,
+      sourceSha256: hex,
+      containerImage: `orb@sha256:${hex}`,
+    };
+    const payloadBytes = Buffer.from(JSON.stringify(signedPayload, Object.keys(signedPayload).sort()));
+    const manifest = {
+      schemaVersion: 1,
+      signature: {
+        algorithm: "RSA-SHA256",
+        publicKeySha256: createHash("sha256").update(attackerPublicDer).digest("hex"),
+        valueBase64: sign("RSA-SHA256", payloadBytes, attacker.privateKey).toString("base64"),
+      },
+      signedPayload,
+    };
+    const manifestPath = join(dir, "manifest.json");
+    const publicKeyPath = join(dir, "public.pem");
+    const replacementKeyPath = join(dir, "replacement.pem");
+    const wrapperPath = join(dir, "openssl");
+    writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
+    writeFileSync(publicKeyPath, trusted.publicKey.export({ type: "spki", format: "pem" }));
+    writeFileSync(replacementKeyPath, attackerPublicPem);
+    writeFileSync(wrapperPath, `#!/bin/sh\nset -eu\nif [ "\${1:-}" = dgst ] && [ -f "$SWAP_PUBLIC_KEY" ]; then\n  mv -- "$SWAP_PUBLIC_KEY" "$TARGET_PUBLIC_KEY"\nfi\nexec "$REAL_OPENSSL" "$@"\n`);
+    chmodSync(wrapperPath, 0o755);
+
+    const result = spawnSync(
+      "ops/acceptance/verify-owner-uat-candidate.sh",
+      [manifestPath, publicKeyPath, approvedCommit],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          PATH: `${dir}:${process.env.PATH}`,
+          REAL_OPENSSL: execFileSync("sh", ["-c", "command -v openssl"], { encoding: "utf8" }).trim(),
+          SWAP_PUBLIC_KEY: replacementKeyPath,
+          TARGET_PUBLIC_KEY: publicKeyPath,
+        },
+      },
+    );
+    assert.equal(existsSync(replacementKeyPath), false, "the wrapper must perform the simulated key replacement");
+    assert.notEqual(
+      result.status,
+      0,
+      "a replacement public key must not inherit trust from the originally approved key path",
+    );
+    assert.match(result.stderr, /manifest signature verification failed/);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });

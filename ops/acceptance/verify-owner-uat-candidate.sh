@@ -37,9 +37,24 @@ try:
 finally:
     os.close(source_fd)
 PY
+public_key_snapshot="$snapshot_dir/public.pem"
+python3 - "$public_key" "$public_key_snapshot" <<'PY'
+import os, stat, sys
+
+source_fd = os.open(sys.argv[1], os.O_RDONLY | os.O_NOFOLLOW)
+try:
+    source_stat = os.fstat(source_fd)
+    if not stat.S_ISREG(source_stat.st_mode):
+        raise SystemExit("release-candidate public key must be a regular non-symlink file")
+    output_fd = os.open(sys.argv[2], os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(source_fd, "rb", closefd=False) as source, os.fdopen(output_fd, "wb") as output:
+        output.write(source.read())
+finally:
+    os.close(source_fd)
+PY
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
-ORB_RELEASE_PUBLIC_KEY_PATH="$public_key" ops/release/verify-candidate.sh "$manifest_snapshot"
+ORB_RELEASE_PUBLIC_KEY_PATH="$public_key_snapshot" ops/release/verify-candidate.sh "$manifest_snapshot"
 candidate_commit="$(python3 - "$manifest_snapshot" <<'PY'
 import json, sys
 with open(sys.argv[1], encoding="utf-8") as handle:
