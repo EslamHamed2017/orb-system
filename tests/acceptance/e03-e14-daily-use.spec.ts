@@ -2,6 +2,7 @@ import { expect, test, type APIRequestContext, type APIResponse } from "@playwri
 import { createHash } from "node:crypto";
 import { readFileSync, realpathSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
+import { operationIds as runtimeOperationIds } from "../../src/modules/access/roles";
 
 type Role = "OWNER_ADMIN" | "OPERATIONS" | "FINANCE_VIEWER";
 type Locale = "en" | "ar";
@@ -196,8 +197,8 @@ function parseOperations(source: string): Map<string, Operation> {
     const p=line.match(/^  (\/[^:]+):\s*$/); if(p){path=p[1];current=undefined;inRequiredRoles=false;continue;}
     const m=line.match(/^    (get|post|put|patch|delete):\s*$/); if(m){currentId="";inRequiredRoles=false;current={method:m[1].toUpperCase() as Method,path,controls:new Set(),roles:[],responseRefs:[]};continue;} if(!current)continue;
     const ctl=line.match(/^      - \$ref: '#\/components\/parameters\/(IdempotencyKey|CsrfToken|IfMatch)'/); if(ctl)current.controls.add({IdempotencyKey:"Idempotency-Key",CsrfToken:"X-CSRF-Token",IfMatch:"If-Match"}[ctl[1]]!);
-    if(/^      x-required-roles:\s*$/.test(line)){inRequiredRoles=true;continue;} if(inRequiredRoles&&!/^      - /.test(line))inRequiredRoles=false;
-    const role=inRequiredRoles?line.match(/^      - (OWNER_ADMIN|OPERATIONS|FINANCE_VIEWER)$/):null; if(role){current.roles.push(role[1] as Role);if(currentId)out.set(currentId,{id:currentId,...current,roles:[...current.roles],responseRefs:[...current.responseRefs]});}
+    const flowRoles=line.match(/^      x-required-roles:\s*\[([^\]]*)\]\s*$/);if(flowRoles){for(const role of flowRoles[1].split(",").map(x=>x.trim()).filter(Boolean)){if(!ROLES.includes(role as Role))throw new Error(`Unknown fixed role: ${role}`);current.roles.push(role as Role);}if(currentId)out.set(currentId,{id:currentId,...current,roles:[...current.roles],responseRefs:[...current.responseRefs]});continue;}if(/^      x-required-roles:\s*$/.test(line)){inRequiredRoles=true;continue;} if(inRequiredRoles&&!/^      - /.test(line))inRequiredRoles=false;
+    const role=inRequiredRoles?line.match(/^      - (\S+)$/):null; if(role){if(!ROLES.includes(role[1] as Role))throw new Error(`Unknown fixed role: ${role[1]}`);current.roles.push(role[1] as Role);if(currentId)out.set(currentId,{id:currentId,...current,roles:[...current.roles],responseRefs:[...current.responseRefs]});}
     const ref=line.match(/\$ref: '#\/components\/schemas\/([^']+)'/); if(ref)current.responseRefs.push(ref[1]);
     const id=line.match(/^      operationId: (\w+)$/); if(id){currentId=id[1];out.set(id[1],{id:id[1],...current,roles:[...current.roles],responseRefs:[...current.responseRefs]});}
   } return out;
@@ -218,7 +219,7 @@ const REQUIRED_SEQUENCES:readonly (readonly string[])[]=[
 ];
 
 function validateBlueprint(steps: readonly Step[]): void {
-  expect(new Set(OPERATIONS.keys())).toEqual(REQUIRED_OPERATIONS);
+  expect([...REQUIRED_OPERATIONS].filter((id)=>!OPERATIONS.has(id))).toEqual([]);
   const keys=steps.map(x=>x.key); expect(new Set(keys).size).toBe(keys.length);
   let prior=2; const captures=new Set<string>(); for(const step of steps){ const n=Number(step.caseId.slice(1)); expect(n).toBeGreaterThanOrEqual(prior); prior=n; const op=OPERATIONS.get(step.operationId); expect(op,step.key).toBeTruthy(); const shape=new RegExp(`^${op!.path.replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/\\\{[^}]+\\\}/g,"[^/]+")}$`); expect(step.path.replace(/\$\{[^}]+\}/g,"fixture"),step.key).toMatch(shape); expect(step.checks.length,`${step.key} concrete checks`).toBeGreaterThan(0); if(step.role==="UNAUTHENTICATED")expect(op!.roles,`${step.key} public operation`).toHaveLength(0); else if(step.status<400)expect(op!.roles,`${step.key} OpenAPI role`).toContain(step.role); else if(step.problem==="PERMISSION_DENIED")expect(op!.roles,`${step.key} forbidden role must be disallowed`).not.toContain(step.role);
     const text=JSON.stringify(step); expect(text,`${step.key} malformed fixture reference`).not.toMatch(/\\\\fixture\./); for(const match of text.matchAll(/\$\{(?!fixture\.)([^}]+)\}/g))expect(captures.has(match[1])||Object.hasOwn(step.save??{},match[1]),`${step.key} capture ${match[1]} defined before use`).toBe(true); for(const name of Object.keys(step.save??{}))captures.add(name); for(const x of step.checks)if(x.kind==="same"||x.kind==="different")expect(x.saved,`${step.key} comparison source`).toBeTruthy(); }
@@ -281,7 +282,7 @@ test.describe("ORB-R1-1303 immutable E03-E14 deployed lifecycle",()=>{
     for(const sequence of REQUIRED_SEQUENCES){for(const mode of ["remove","reorder"] as const){const copy=structuredClone(EMBEDDED_BLUEPRINT) as Step[];const first=copy.findIndex(x=>x.key===sequence[0]),second=copy.findIndex(x=>x.key===sequence[Math.min(1,sequence.length-1)]);if(mode==="remove")copy.splice(second,1);else [copy[first],copy[second]]=[copy[second],copy[first]];expect(()=>validateBlueprint(copy),`${mode}: ${sequence.join(" -> ")}`).toThrow();}}
     const secretA={url:"https://example.test/x",method:"POST" as const,headers:{Cookie:"__Host-orb_session=one","X-CSRF-Token":"a".repeat(32),Accept:"application/json"},bodyBytes:Buffer.from("{\"x\":1}")};const secretB={...secretA,headers:{...secretA.headers,Cookie:"__Host-orb_session=two","X-CSRF-Token":"b".repeat(32)}};expect(requestEvidence(secretA)).toEqual(requestEvidence(secretB));expect(JSON.stringify(requestEvidence(secretA))).not.toContain("orb_session");expect(JSON.stringify(requestEvidence(secretA))).not.toContain("a".repeat(32));
     expect(sha(canonical({status:201,body:sanitized({csrfToken:"a".repeat(32),nested:{password:"pw"},value:1})}))).toBe(sha(canonical({status:201,body:sanitized({csrfToken:"b".repeat(32),nested:{password:"other"},value:1})})));
-    expect(OPERATIONS.size).toBe(79); expect(Object.isFrozen(EMBEDDED_BLUEPRINT)).toBe(true);
+    expect(new Set(OPERATIONS.keys())).toEqual(new Set(runtimeOperationIds())); expect(Object.isFrozen(EMBEDDED_BLUEPRINT)).toBe(true);
     if(process.env.ORB_E03_E14_MODE==="self-test")test.info().annotations.push({type:"non-evidence",description:"construction only; no numbered evidence"}); else binding(config());
   });
   test("executes independent EN and AR lifecycle cycles against recorded binding files",async({request},testInfo)=>{

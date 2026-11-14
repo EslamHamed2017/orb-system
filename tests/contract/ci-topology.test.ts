@@ -42,10 +42,17 @@ test("every Prisma client generation step has a non-secret build-only database U
   }
 });
 
-test("local browser acceptance excludes the separately authorized owner UAT spec", () => {
+test("local browser acceptance uses construction modes and delegates infrastructure/UAT specs to their owned jobs", () => {
   const local = workflow.match(/^  local-browser:\n([\s\S]*?)(?=^  [a-z][a-z-]+:\n)/m)?.[1] ?? "";
-  assert.ok(local.includes("pnpm exec playwright test --project=chromium '^(?!.*owner-uat\\.spec\\.ts).*'"),
-    "local acceptance must exclude the owner-only deployed UAT spec at file discovery");
+  const isolated = workflow.match(/^  isolated-infrastructure:\n([\s\S]*?)(?=^  [a-z][a-z-]+:\n)/m)?.[1] ?? "";
+  assert.match(local, /ORB_E02_MODE: dry-run/);
+  assert.match(local, /ORB_E03_E14_MODE: self-test/);
+  assert.ok(local.includes("pnpm exec playwright test --project=chromium '^(?!.*(?:owner-uat|internal-alpha-lifecycle)\\.spec\\.ts).*'"),
+    "local acceptance must exclude only the separately owned deployed and infrastructure specs at file discovery");
+  assert.match(isolated, /pnpm exec playwright install --with-deps chromium/);
+  assert.match(isolated, /run-internal-alpha-lifecycle\.sh/);
+  assert.ok(isolated.indexOf("playwright install --with-deps chromium") < isolated.indexOf("run-internal-alpha-lifecycle.sh"),
+    "the isolated runner must install Chromium before executing its lifecycle");
 });
 
 test("deployed owner UAT is explicitly authorized and limited to the bilingual pilot journey", () => {

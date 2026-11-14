@@ -1,8 +1,8 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const copy = {
-  en: { approvals: "Fixed approval inbox", users: "Pilot users and sessions", backup: "Backup and isolated restore", decide: "Approval decision", revoke: "Revoke exact session", start: "Start isolated restore test" },
-  ar: { approvals: "صندوق الموافقات الثابت", users: "مستخدمو الإصدار التجريبي والجلسات", backup: "النسخ الاحتياطي والاستعادة المعزولة", decide: "قرار الموافقة", revoke: "إلغاء الجلسة المحددة", start: "بدء اختبار استعادة معزول" },
+  en: { approvals: "Fixed approval inbox", users: "Users and access", backup: "Backup and isolated restore", decide: "Approval decision", revoke: "Revoke exact session", start: "Start isolated restore test" },
+  ar: { approvals: "صندوق الموافقات الثابت", users: "المستخدمون والوصول", backup: "النسخ الاحتياطي والاستعادة المعزولة", decide: "قرار الموافقة", revoke: "إلغاء الجلسة المحددة", start: "بدء اختبار استعادة معزول" },
 } as const;
 function region(page: Page, name: string | RegExp): Locator { return page.getByRole("region", { name }); }
 
@@ -45,8 +45,8 @@ test("audit timeline exposes independently verifiable ascending chain and cursor
 test("fixed-role administration shows exact session versions and complete active/revoked metadata", async ({ page }) => {
   await page.goto("/admin/users?locale=en");
   await expect(page.getByRole("heading", { level: 1, name: copy.en.users })).toBeVisible();
-  const users = region(page, /fixed pilot roles/i);
-  for (const role of ["OWNER_ADMIN", "OPERATIONS", "FINANCE_VIEWER"]) await expect(users.getByText(role, { exact: true })).toBeVisible();
+  const users = region(page, /user directory/i);
+  for (const role of ["OWNER_ADMIN", "OPERATIONS", "FINANCE_VIEWER"]) await expect(users.getByRole("table").getByText(role, { exact: true })).toBeVisible();
   const sessions = region(page, /exact user sessions/i);
   const active = sessions.getByTestId("session-active");
   await expect(active).toContainText(/SESSION-ACTIVE-0007.*version 4.*current.*last seen.*idle expiry.*absolute expiry/i);

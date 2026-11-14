@@ -24,8 +24,11 @@ function operations(): Operation[] {
       readingRoles = false; continue;
     }
     if (/^      x-required-roles:$/.test(line)) { readingRoles = true; continue; }
-    const roleMatch = readingRoles ? line.match(/^      - (OWNER_ADMIN|OPERATIONS|FINANCE_VIEWER)$/) : null;
-    if (roleMatch) { roles.push(roleMatch[1]); continue; }
+    const blockRoleMatch = readingRoles ? line.match(/^      - (\S+)$/) : null;
+    if (blockRoleMatch) {
+      if (!/^(OWNER_ADMIN|OPERATIONS|FINANCE_VIEWER)$/.test(blockRoleMatch[1])) throw new Error(`Unknown fixed role: ${blockRoleMatch[1]}`);
+      roles.push(blockRoleMatch[1]); continue;
+    }
     if (readingRoles && !/^\s*$/.test(line)) readingRoles = false;
   }
   flush(); return result;

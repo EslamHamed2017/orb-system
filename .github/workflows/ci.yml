@@ -66,7 +66,7 @@ jobs:
   isolated-infrastructure:
     needs: offline
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
@@ -81,6 +81,10 @@ jobs:
         run: ops/acceptance/run-isolated-infrastructure-gate.sh
       - name: Preceding-app rollback rehearsal against expanded schema
         run: ops/acceptance/run-application-rollback-gate.sh
+      - name: Install Chromium for isolated lifecycle
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Internal-alpha lifecycle against isolated infrastructure
+        run: ops/acceptance/run-internal-alpha-lifecycle.sh
 
   local-browser:
     needs: [offline, isolated-infrastructure]
@@ -91,6 +95,8 @@ jobs:
       ORB_TEST_AUTH: "1"
       ORB_TEST_BASE_URL: http://127.0.0.1:3000
       ORB_APP_ORIGIN: http://127.0.0.1:3000
+      ORB_E02_MODE: dry-run
+      ORB_E03_E14_MODE: self-test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -106,7 +112,7 @@ jobs:
       - run: pnpm run build
       - run: pnpm exec playwright install --with-deps chromium
       - name: Acceptance against CI-owned local application
-        run: pnpm exec playwright test --project=chromium '^(?!.*owner-uat\.spec\.ts).*'
+        run: pnpm exec playwright test --project=chromium '^(?!.*(?:owner-uat|internal-alpha-lifecycle)\.spec\.ts).*'
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

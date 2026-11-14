@@ -1,12 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { operationIds as runtimeOperationIds } from "../../../src/modules/access/roles";
 
 const OPENAPI = readFileSync(resolve(process.cwd(), "specs/001-orb-trade-operations/contracts/openapi.yaml"), "utf8");
 const operationIds = [...OPENAPI.matchAll(/^\s{6}operationId: ([A-Za-z][A-Za-z0-9]*)$/gm)].map((match) => match[1]);
 
 const routes = [
-  "/sign-in", "/", "/masters/customers", "/projects", "/projects/new", "/projects/demo/overview",
+  "/sign-in", "/", "/masters/customers", "/masters/suppliers", "/projects", "/projects/new", "/projects/demo/overview",
   "/projects/demo/contracts", "/projects/demo/shipments", "/sales-shipments/demo", "/supplier-shipments/demo",
   "/projects/demo/money", "/projects/demo/expenses", "/projects/demo/statements", "/projects/demo/profit",
   "/projects/demo/claims", "/projects/demo/closure", "/approvals", "/documents/demo", "/evidence/demo",
@@ -14,8 +15,8 @@ const routes = [
 ] as const;
 
 const asyncStates = ["loading", "empty", "error", "permission-denied", "offline", "stale-version"] as const;
-const mutationOperationIds = new Set([
-  "createMasterRecord", "updateMasterRecord", "createProjectWithSalesContract", "createPurchaseContract", "createContractAmendment",
+const uiMutationOperationIds = new Set([
+  "createCustomer", "updateCustomer", "createSupplier", "updateSupplier", "createProjectWithSalesContract", "createPurchaseContract", "createContractAmendment",
   "submitContractForApproval", "createSupplierShipment", "submitSupplierShipmentConfirmation", "confirmSupplierShipment", "createSalesShipment",
   "setPrimarySupplierSource", "requestToleranceException", "confirmSalesShipment", "updateRouteEvidenceOrMilestone", "uploadEvidence",
   "generateShipmentDocument", "reviseDocument", "submitDocumentForApproval", "cancelDocumentRevision", "createOutboundManifest",
@@ -40,11 +41,12 @@ async function assertRendered(page: Page, route: string, locale: "en" | "ar") {
   await expect(page.locator("body")).not.toContainText(/application error|internal server error|coming soon|placeholder|not implemented/i);
 }
 
-test("the acceptance inventory is exactly 79 unique operations and all 22 concrete page files", async () => {
-  expect(operationIds).toHaveLength(79);
-  expect(new Set(operationIds).size).toBe(79);
-  expect(routes).toHaveLength(22); // 21 route patterns; the grouped admin pattern has two concrete pages.
-  expect([...mutationOperationIds].filter((id) => !operationIds.includes(id))).toEqual([]);
+test("the acceptance inventory matches the runtime operation registry and all 23 concrete page files", async () => {
+  const runtimeIds = runtimeOperationIds();
+  expect(new Set(operationIds)).toEqual(new Set(runtimeIds));
+  expect(new Set(operationIds).size).toBe(operationIds.length);
+  expect(routes).toHaveLength(23);
+  expect([...uiMutationOperationIds].filter((id) => !operationIds.includes(id))).toEqual([]);
 });
 
 for (const locale of ["en", "ar"] as const) {
@@ -61,7 +63,7 @@ for (const locale of ["en", "ar"] as const) {
   });
 }
 
-test("every OpenAPI mutation has one reachable named UI action bound to its exact operationId", async ({ page }) => {
+test("every accepted UI mutation has one reachable named action bound to its exact operationId", async ({ page }) => {
   const found = new Map<string, number>();
   for (const route of routes) {
     await page.goto(`${route}${route.includes("?") ? "&" : "?"}locale=en&role=owner-admin`);
@@ -71,8 +73,8 @@ test("every OpenAPI mutation has one reachable named UI action bound to its exac
       if (id) found.set(id, (found.get(id) ?? 0) + 1);
     }
   }
-  const missing = [...mutationOperationIds].filter((id) => !found.has(id)).sort();
+  const missing = [...uiMutationOperationIds].filter((id) => !found.has(id)).sort();
   const unknown = [...found].filter(([id]) => !operationIds.includes(id)).sort();
-  expect(missing, "mutation controls missing exact operation bindings").toEqual([]);
+  expect(missing, "accepted UI mutation controls missing exact operation bindings").toEqual([]);
   expect(unknown, "UI controls reference unknown contract operations").toEqual([]);
 });

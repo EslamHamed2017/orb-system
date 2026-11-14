@@ -13,11 +13,10 @@ test("internal-alpha gate binds Chromium to isolated PostgreSQL and object stora
     "ORB_TEST_MANAGED_SERVER=1",
     "--project=chromium",
     "internal-alpha-lifecycle.spec.ts",
-    "owner-uat.spec.ts",
     "mc stat",
     "SELECT count(*) FROM \"Project\"",
   ]) assert.match(script, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  assert.doesNotMatch(script, /\|\| true|test\.skip|--pass-with-no-tests/);
+  assert.doesNotMatch(script, /owner-uat\.spec\.ts|\|\| true|test\.skip|--pass-with-no-tests/);
 });
 
 test("Chromium journey covers the approved daily-use lifecycle and infrastructure readiness", () => {

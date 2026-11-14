@@ -19,7 +19,7 @@ for (const locale of ["en", "ar"] as const) {
     for (const [kind, name] of [["supplier", text.supplier], ["sales", text.sales]] as const) {
       const area = workspace(page, kind);
       await expect(area.getByRole("heading", { name })).toBeVisible();
-      await expect(area.getByText(kind === "supplier" ? "ORB-SUP-0007" : "ORB-SAL-0007", { exact: true })).toBeVisible();
+      await expect(area.getByText(kind === "supplier" ? "ORB-SUP-0007" : "ORB-SAL-0007", { exact: true })).toHaveCount(2);
       const historyTable = area.getByRole("table", { name: text.history });
       await expect(historyTable).toBeVisible();
       await expect(historyTable.locator("tbody tr")).toHaveCount(2);
@@ -35,7 +35,8 @@ for (const locale of ["en", "ar"] as const) {
     const sales = workspace(page, "sales");
     await expect(sales.getByRole("combobox", { name: text.source })).toHaveValue("ORB-SUP-0007");
     await expect(sales.getByRole("combobox", { name: text.source }).locator("option:checked")).toHaveCount(1);
-    for (const value of ["10,000", "6,000", "2,000", "500", "1,500"]) await expect(sales.getByText(value, { exact: true })).toBeVisible();
+    const summary = sales.getByRole("region", { name: locale === "ar" ? "ملخص الكمية" : "Quantity summary" });
+    for (const value of ["15,000", "8,500", "5,000", "0", "1,500"]) await expect(summary.getByText(value, { exact: true })).toBeVisible();
   });
 
   test(`${locale} controls are graph-aware in draft, transit and terminal states`, async ({ page }) => {

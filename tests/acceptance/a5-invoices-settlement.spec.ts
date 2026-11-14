@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const copy = {
   en: { heading: "Money", invoice: "Supplier invoice", payment: "Supplier invoice and payment", settlement: "Sales settlement", movement: "Record money movement", allocation: "Allocate movement", reversal: "Reverse allocation", available: "Available", outstanding: "Target outstanding", after: "Post-allocation balance", submit: "Submit invoice for approval", confirm: "Confirm approved invoice", cancel: "Cancel unallocated invoice" },
-  ar: { heading: "الأموال", invoice: "فاتورة المورد", payment: "فاتورة المورد والدفع", settlement: "تسوية شحنة البيع", movement: "تسجيل حركة مالية", allocation: "تخصيص الحركة", reversal: "عكس التخصيص", available: "المتاح", outstanding: "المستحق على الهدف", after: "الرصيد بعد التخصيص", submit: "إرسال الفاتورة للموافقة", confirm: "تأكيد الفاتورة المعتمدة", cancel: "إلغاء الفاتورة غير المخصصة" },
+  ar: { heading: "الأموال", invoice: "فاتورة مورد", payment: "فاتورة مورد والدفع", settlement: "تسوية شحنة البيع", movement: "تسجيل حركة مالية", allocation: "تخصيص الحركة", reversal: "عكس التخصيص", available: "المتاح", outstanding: "المستحق على الهدف", after: "الرصيد بعد التخصيص", submit: "إرسال الفاتورة للموافقة", confirm: "تأكيد الفاتورة المعتمدة", cancel: "إلغاء الفاتورة غير المخصصة" },
 } as const;
 
 function region(page: Page, name: string): Locator {
@@ -17,8 +17,8 @@ for (const locale of ["en", "ar"] as const) {
     await expect(page.getByRole("heading", { level: 1, name: text.heading })).toBeVisible();
 
     const invoice = region(page, text.invoice);
-    await expect(invoice.getByLabel(locale === "ar" ? "مرجع الفاتورة" : "Invoice reference")).toBeVisible();
-    await expect(invoice.getByLabel(locale === "ar" ? "دليل الفاتورة" : "Invoice evidence")).toBeVisible();
+    await expect(invoice.getByLabel(locale === "ar" ? "مرجع الفاتورة التجارية" : "Invoice reference")).toBeVisible();
+    await expect(invoice.getByLabel(locale === "ar" ? "أصل الفاتورة التجارية" : "Commercial Invoice original")).toBeVisible();
     await expect(invoice.getByRole("button", { name: text.submit })).toBeVisible();
     await expect(invoice.getByRole("button", { name: text.confirm })).toBeVisible();
     await expect(invoice.getByRole("button", { name: text.cancel })).toBeVisible();

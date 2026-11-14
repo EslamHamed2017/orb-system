@@ -50,7 +50,7 @@ for (const locale of ["en", "ar"] as const) {
       await expect(card.getByText(/USD/)).toBeVisible();
       await expect(card.getByText(locale === "ar" ? /المعادلة/ : /formula/i)).toBeVisible();
       await expect(card.getByText(/ORB-R1-PROFIT-1/)).toBeVisible();
-      await expect(card.getByRole("button", { name: text.drilldown })).toBeVisible();
+      await expect(card.getByRole("link", { name: text.drilldown })).toBeVisible();
     }
     const expected = region(page, text.expected);
     await expect(expected.getByText(/AED/)).toBeVisible();

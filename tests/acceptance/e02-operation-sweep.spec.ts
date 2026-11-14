@@ -1,6 +1,7 @@
 import { expect, test, type APIRequestContext, type APIResponse } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { operationIds as runtimeOperationIds, requiredRolesForOperation } from "../../src/modules/access/roles";
 
 type Role = "OWNER_ADMIN" | "OPERATIONS" | "FINANCE_VIEWER";
 type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -41,14 +42,7 @@ const CONTROL_REFS = {
 } as const;
 const ALL_ROLES = ["OWNER_ADMIN", "OPERATIONS", "FINANCE_VIEWER"] as const;
 const METHODS = new Set(["get", "post", "put", "patch", "delete"]);
-const EXPECTED_COUNTS = { operations: 79, idempotency: 58, csrf: 57, ifMatch: 53 } as const;
-const EXPECTED_ROLE_GROUPS: ReadonlyArray<readonly [readonly Role[], readonly string[]]> = [
-  [ALL_ROLES, ["listMasterRecords", "listProjects", "getProject", "getFixedRouteChecklist", "getEvidenceMetadata", "viewOrDownloadEvidence", "getDocumentGenerationStatus", "getOperationalStatement", "getProjectMarginAndCash", "requestClosureException", "submitFinalCloseForApproval", "submitReopenForApproval", "listProjectAuditEvents", "listSupplierShipmentDatasetHistory", "listSalesShipmentDatasetHistory", "getOutboundManifestExactPreview", "listOutboundSendAttempts", "signOutCurrentSession", "getSupplierShipmentWorkspace", "getSalesShipmentWorkspace"]],
-  [["OWNER_ADMIN", "OPERATIONS"], ["createMasterRecord", "updateMasterRecord", "createProjectWithSalesContract", "createPurchaseContract", "createContractAmendment", "submitContractForApproval", "createSupplierShipment", "submitSupplierShipmentConfirmation", "confirmSupplierShipment", "createSalesShipment", "setPrimarySupplierSource", "requestToleranceException", "confirmSalesShipment", "updateRouteEvidenceOrMilestone", "uploadEvidence", "generateShipmentDocument", "reviseDocument", "submitDocumentForApproval", "cancelDocumentRevision", "createOutboundManifest", "submitOutboundManifestForApproval", "sendApprovedOutboundManifest", "cancelOutboundManifest", "createDirectExpense", "submitDirectExpense", "openSimpleClaim", "moveClaimUnderReview", "submitClaimOutcomeForApproval", "assessProjectClosure", "reviseSupplierShipmentDataset", "reviseSalesShipmentDataset", "transitionSupplierShipmentExecution", "transitionSalesShipmentExecution", "submitApprovedExpenseCorrection", "applyApprovedExpenseCorrection", "applyApprovedClaimOutcome", "reviseOutboundManifest", "submitSalesShipmentConfirmation"]],
-  [["OWNER_ADMIN"], ["listFixedApprovalInbox", "decideFixedApproval", "finalCloseProject", "reopenProject", "cancelUnexecutedProject", "listPilotUsers", "assignFixedPilotRoles", "revokePilotUserSession", "getBackupRecoveryStatus", "startIsolatedRestoreTest", "getIsolatedRestoreTest", "listPilotUserSessions"]],
-  [["OWNER_ADMIN", "FINANCE_VIEWER"], ["createSupplierInvoice", "submitSupplierInvoice", "confirmSupplierInvoice", "recordMoneyMovement", "allocateMoneyMovement", "reverseMoneyMovement", "reverseSettlementAllocation", "cancelUnallocatedSupplierInvoice"]],
-];
-
+const EXPECTED_CONTROL_COUNTS = { idempotency: 73, csrf: 72, ifMatch: 64 } as const;
 function parseOperations(source: string): Operation[] {
   const lines = source.replace(/\r\n?/g, "\n").split("\n");
   const operations: Array<{ id?: string; method: Method; path: string; roles: Role[]; controls: Set<"Idempotency-Key" | "X-CSRF-Token" | "If-Match"> }> = [];
@@ -68,11 +62,19 @@ function parseOperations(source: string): Operation[] {
     if (idMatch) { current.id = idMatch[1]; continue; }
     const controlMatch = line.match(/^      - \$ref: '#\/components\/parameters\/(IdempotencyKey|CsrfToken|IfMatch)'\s*$/);
     if (controlMatch) { current.controls.add(CONTROL_REFS[controlMatch[1] as keyof typeof CONTROL_REFS]); continue; }
-    if (/^      x-required-roles:\s*\[\]\s*$/.test(line)) { current.roles = []; readingRoles = false; continue; }
+    const flowRoles = line.match(/^      x-required-roles:\s*\[([^\]]*)\]\s*$/);
+    if (flowRoles) {
+      const roles = flowRoles[1].split(",").map((role) => role.trim()).filter(Boolean);
+      for (const role of roles) if (!ALL_ROLES.includes(role as Role)) throw new Error(`Unknown fixed role: ${role}`);
+      current.roles = roles as Role[]; readingRoles = false; continue;
+    }
     if (/^      x-required-roles:\s*$/.test(line)) { readingRoles = true; continue; }
     if (readingRoles) {
-      const roleMatch = line.match(/^      - (OWNER_ADMIN|OPERATIONS|FINANCE_VIEWER)\s*$/);
-      if (roleMatch) { current.roles.push(roleMatch[1] as Role); continue; }
+      const roleMatch = line.match(/^      - (\S+)\s*$/);
+      if (roleMatch) {
+        if (!ALL_ROLES.includes(roleMatch[1] as Role)) throw new Error(`Unknown fixed role: ${roleMatch[1]}`);
+        current.roles.push(roleMatch[1] as Role); continue;
+      }
       readingRoles = false;
     }
   }
@@ -81,17 +83,14 @@ function parseOperations(source: string): Operation[] {
 }
 
 const operations = parseOperations(readFileSync(OPENAPI_PATH, "utf8"));
-const expectedRoles = new Map<string, readonly Role[]>(EXPECTED_ROLE_GROUPS.flatMap(([roles, ids]) => ids.map((id) => [id, roles])));
-expectedRoles.set("signIn", []);
-
 function assertInventory(): void {
-  expect(operations).toHaveLength(EXPECTED_COUNTS.operations);
-  expect(new Set(operations.map(({ id }) => id)).size).toBe(EXPECTED_COUNTS.operations);
-  expect(operations.filter(({ controls }) => controls.has("Idempotency-Key"))).toHaveLength(EXPECTED_COUNTS.idempotency);
-  expect(operations.filter(({ controls }) => controls.has("X-CSRF-Token"))).toHaveLength(EXPECTED_COUNTS.csrf);
-  expect(operations.filter(({ controls }) => controls.has("If-Match"))).toHaveLength(EXPECTED_COUNTS.ifMatch);
-  expect(expectedRoles.size).toBe(EXPECTED_COUNTS.operations);
-  for (const operation of operations) expect([...operation.roles].sort(), operation.id).toEqual([...(expectedRoles.get(operation.id) ?? [])].sort());
+  const runtimeIds = runtimeOperationIds();
+  expect(new Set(operations.map(({ id }) => id))).toEqual(new Set(runtimeIds));
+  expect(new Set(operations.map(({ id }) => id)).size).toBe(operations.length);
+  expect(operations.filter(({ controls }) => controls.has("Idempotency-Key"))).toHaveLength(EXPECTED_CONTROL_COUNTS.idempotency);
+  expect(operations.filter(({ controls }) => controls.has("X-CSRF-Token"))).toHaveLength(EXPECTED_CONTROL_COUNTS.csrf);
+  expect(operations.filter(({ controls }) => controls.has("If-Match"))).toHaveLength(EXPECTED_CONTROL_COUNTS.ifMatch);
+  for (const operation of operations) expect([...operation.roles].sort(), operation.id).toEqual([...requiredRolesForOperation(operation.id)].sort());
 }
 
 function bindingFrom(raw: unknown, label: string): Binding {
@@ -170,7 +169,7 @@ async function expectProblem(response: APIResponse, operationId: string): Promis
 test.describe("ORB-R1-1302 deployed-target operation sweep", () => {
   test.skip(({ browserName }) => browserName !== "chromium", "the E02 API sweep executes exactly once");
 
-  test("contract construction has exactly 79 operations and exact role/control inventories", async () => {
+  test("contract construction matches the complete runtime role and control inventories", async () => {
     assertInventory();
     if (process.env.ORB_E02_MODE === "dry-run") {
       test.info().annotations.push({ type: "non-evidence", description: "Local construction validation only; this does not earn E02." });
@@ -207,14 +206,14 @@ test.describe("ORB-R1-1302 deployed-target operation sweep", () => {
       await expectProblem(denied, operation.id);
       results.push({ operationId: operation.id, allowedStatus: allowed.status(), deniedInvalidStatus: denied.status() });
     }
-    expect(seenAllowed.size).toBe(EXPECTED_COUNTS.operations);
-    expect(seenDenied.size).toBe(EXPECTED_COUNTS.operations);
-    expect(results).toHaveLength(EXPECTED_COUNTS.operations);
+    expect(seenAllowed.size).toBe(operations.length);
+    expect(seenDenied.size).toBe(operations.length);
+    expect(results).toHaveLength(operations.length);
     await testInfo.attach("e02-operation-sweep-report.json", {
       contentType: "application/json",
       body: Buffer.from(JSON.stringify({
         binding,
-        totals: { allowed: seenAllowed.size, deniedInvalid: seenDenied.size, idempotency: EXPECTED_COUNTS.idempotency, csrf: EXPECTED_COUNTS.csrf, ifMatch: EXPECTED_COUNTS.ifMatch },
+        totals: { allowed: seenAllowed.size, deniedInvalid: seenDenied.size, idempotency: EXPECTED_CONTROL_COUNTS.idempotency, csrf: EXPECTED_CONTROL_COUNTS.csrf, ifMatch: EXPECTED_CONTROL_COUNTS.ifMatch },
         operations: results,
       }, null, 2)),
     });

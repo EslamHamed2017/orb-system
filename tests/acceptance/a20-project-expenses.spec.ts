@@ -6,7 +6,7 @@ for (const locale of ["en", "ar"] as const) {
     await page.goto(`/accounts/expenses?projectId=project-1&locale=${locale}`);
     await expect(page.getByRole("heading", { level: 1, name: ar ? "المصروفات" : "Expenses" })).toBeVisible();
     await expect(page.locator("main > section")).toHaveAttribute("dir", ar ? "rtl" : "ltr");
-    await expect(page.getByRole("navigation", { name: ar ? "سجلات المشروع المرتبطة" : "Related project records" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: ar ? "مساحة عمل المشروع" : "Project workspace" })).toBeVisible();
     const table = page.getByRole("table");
     await expect(table.getByText("EXP-2026-018")).toBeVisible();
     await expect(table.getByText("EXP-2026-022")).toHaveCount(0);
