@@ -56,6 +56,10 @@ test("owner UAT evidence binds a successful bilingual report without retaining s
       { locale: "en", direction: "ltr", passed: true },
       { locale: "ar", direction: "rtl", passed: true },
     ],
+    journeys: [
+      { locale: "en", startedAtUtc: "2026-11-12T09:59:00.000Z", completedAtUtc: "2026-11-12T09:59:10.000Z" },
+      { locale: "ar", startedAtUtc: "2026-11-12T09:59:10.000Z", completedAtUtc: "2026-11-12T09:59:20.000Z" },
+    ],
     passed: true,
     ownerApprovalRecorded: false,
   });

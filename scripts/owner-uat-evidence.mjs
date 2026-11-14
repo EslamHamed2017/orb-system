@@ -83,6 +83,7 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
   if (specs.some((spec, index) => spec?.title !== approvedJourneyTitles[index]))
     throw new Error("owner UAT report must preserve the approved bilingual journey order");
   const seen = new Set();
+  const journeys = [];
   let previousJourneyCompleted = reportStarted;
   for (const spec of specs) {
     if (!JOURNEYS.has(spec?.title) || seen.has(spec.title)) throw new Error("owner UAT report contains a missing, duplicate, or unexpected journey");
@@ -112,6 +113,11 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
       throw new Error(`owner UAT journey timing is outside the certified report window: ${spec.title}`);
     if (resultStarted < previousJourneyCompleted)
       throw new Error(`owner UAT journey chronology overlaps or reverses the approved order: ${spec.title}`);
+    journeys.push({
+      locale: JOURNEYS.get(spec.title).locale,
+      startedAtUtc: resultStarted.toISOString(),
+      completedAtUtc: resultCompleted.toISOString(),
+    });
     previousJourneyCompleted = resultCompleted;
   }
   for (const title of JOURNEYS.keys()) if (!seen.has(title)) throw new Error(`owner UAT journey is missing: ${title}`);
@@ -125,6 +131,7 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
     targetOrigin: target.origin,
     reportSha256: createHash("sha256").update(reportBytes).digest("hex"),
     locales: [...JOURNEYS.values()],
+    journeys,
     passed: true,
     ownerApprovalRecorded: false,
   };

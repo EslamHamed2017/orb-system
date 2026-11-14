@@ -104,6 +104,10 @@ function validUat() {
       { locale: "en", direction: "ltr", passed: true },
       { locale: "ar", direction: "rtl", passed: true },
     ],
+    journeys: [
+      { locale: "en", startedAtUtc: "2026-11-23T07:30:00.000Z", completedAtUtc: "2026-11-23T07:37:00.000Z" },
+      { locale: "ar", startedAtUtc: "2026-11-23T07:37:00.000Z", completedAtUtc: "2026-11-23T07:44:00.000Z" },
+    ],
   };
   return { ...evidence, evidenceSha256: uatEvidenceSha256(evidence) };
 }
@@ -343,6 +347,15 @@ test("canary preflight requires owner approval after a chronologically valid UAT
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /UAT.*chronology|owner approval.*evidence/i);
   }
+});
+
+test("canary preflight independently validates preserved bilingual journey chronology", () => {
+  const uat = validUat();
+  uat.journeys[1].startedAtUtc = "2026-11-23T07:36:59.999Z";
+
+  const result = run(planBoundToResealedUat(uat), uat);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /UAT journey.*chronology|bilingual journey/i);
 });
 
 test("canary preflight independently rejects UAT reports exceeding the bounded owner-review duration", () => {

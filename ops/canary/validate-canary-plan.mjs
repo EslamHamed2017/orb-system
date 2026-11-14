@@ -122,10 +122,15 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
     "passed",
     "ownerApprovalRecorded",
     "locales",
+    "journeys",
   ], "UAT evidence");
   if (Array.isArray(uat.locales)) {
     for (const locale of uat.locales)
       rejectUnknownFields(locale, ["locale", "direction", "passed"], "UAT locale");
+  }
+  if (Array.isArray(uat.journeys)) {
+    for (const journey of uat.journeys)
+      rejectUnknownFields(journey, ["locale", "startedAtUtc", "completedAtUtc"], "UAT journey");
   }
   if (!SHA256.test(uat?.evidenceSha256 ?? "") || uat.evidenceSha256 !== uatEvidenceSha256(uat))
     throw new Error("UAT evidence manifest integrity digest is invalid");
@@ -160,6 +165,19 @@ export function validateCanaryPlan({ plan, ownerUatEvidence, nowUtc = new Date()
   const uatGenerated = canonicalTime(uat?.generatedAtUtc, "UAT evidence generation time");
   if (uatCompleted < uatStarted || uatGenerated < uatCompleted)
     throw new Error("UAT evidence chronology must order report start, completion, and manifest generation");
+  const expectedJourneyLocales = ["en", "ar"];
+  if (!Array.isArray(uat?.journeys) || uat.journeys.length !== expectedJourneyLocales.length)
+    throw new Error("UAT bilingual journey chronology must contain exactly EN then AR");
+  let previousJourneyCompleted = uatStarted;
+  for (const [index, journey] of uat.journeys.entries()) {
+    if (journey.locale !== expectedJourneyLocales[index])
+      throw new Error("UAT bilingual journey chronology must contain exactly EN then AR");
+    const journeyStarted = canonicalTime(journey.startedAtUtc, "UAT journey start time");
+    const journeyCompleted = canonicalTime(journey.completedAtUtc, "UAT journey completion time");
+    if (journeyStarted < previousJourneyCompleted || journeyCompleted <= journeyStarted || journeyCompleted > uatCompleted)
+      throw new Error("UAT journey chronology must be positive, ordered, non-overlapping, and inside the report window");
+    previousJourneyCompleted = journeyCompleted;
+  }
   const maximumUatReportDurationMs = 30 * 60 * 1000;
   if (uatCompleted.valueOf() - uatStarted.valueOf() > maximumUatReportDurationMs)
     throw new Error("UAT report must complete within the 30-minute owner-review duration");
