@@ -24,7 +24,7 @@ function report(
   duration = 30_000,
 ) {
   return {
-    config: { forbidOnly: true, fullyParallel: false, workers: 1, filteredProjects: [{ name: "chromium", retries: 0, use: { baseURL } }] },
+    config: { forbidOnly: true, fullyParallel: false, workers: 1, filteredProjects: [{ name: "chromium", repeatEach: 1, retries: 0, use: { baseURL } }] },
     stats: { startTime, duration, expected: 2, skipped: 0, unexpected: 0, flaky: 0 },
     errors: [],
     suites: [{ title: "owner-uat.spec.ts", file: "owner-uat.spec.ts", specs: titles.map((title, index) => ({
@@ -222,6 +222,21 @@ test("owner UAT evidence requires Playwright retries to be disabled", () => {
     assert.throws(
       () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
       /retries.*disabled|retries/i,
+    );
+  }
+});
+
+test("owner UAT evidence requires each bilingual journey to execute exactly once", () => {
+  const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
+  const repeated = report();
+  repeated.config.filteredProjects[0].repeatEach = 2;
+  const missing = report();
+  delete (missing.config.filteredProjects[0] as { repeatEach?: number }).repeatEach;
+
+  for (const value of [repeated, missing]) {
+    assert.throws(
+      () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
+      /execute exactly once|repeatEach/i,
     );
   }
 });

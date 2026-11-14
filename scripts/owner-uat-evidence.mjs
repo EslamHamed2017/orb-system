@@ -61,6 +61,8 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
     throw new Error("owner UAT report must contain exactly the approved Chromium project");
   if (filteredProjects[0]?.retries !== 0)
     throw new Error("owner UAT report must keep Playwright retries disabled");
+  if (filteredProjects[0]?.repeatEach !== 1)
+    throw new Error("owner UAT report must execute each bilingual journey exactly once with Playwright repeatEach");
   let reportTarget;
   try { reportTarget = new URL(filteredProjects[0]?.use?.baseURL); } catch { throw new Error("owner UAT report target must be a valid URL"); }
   if (reportTarget.protocol !== "https:" || reportTarget.username || reportTarget.password || reportTarget.pathname !== "/" || reportTarget.search || reportTarget.hash)
