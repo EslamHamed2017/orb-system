@@ -6,7 +6,13 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
 # Last application revision before the concept-realignment expand migration.
-ORB_ROLLBACK_APP_REVISION=${ORB_ROLLBACK_APP_REVISION:-05a09d8c7b714635975a5dd109cd2877d4154987}
+readonly PINNED_ROLLBACK_APP_REVISION=05a09d8c7b714635975a5dd109cd2877d4154987
+ORB_ROLLBACK_APP_REVISION=${ORB_ROLLBACK_APP_REVISION:-$PINNED_ROLLBACK_APP_REVISION}
+if [[ "$ORB_ROLLBACK_APP_REVISION" != "$PINNED_ROLLBACK_APP_REVISION" ]]; then
+  echo "rollback revision substitution is not permitted" >&2
+  exit 2
+fi
+readonly ORB_ROLLBACK_APP_REVISION
 POSTGRES_IMAGE=postgres:18.1-bookworm@sha256:cc9f4143a8d2fa8cf3749d0cb4d26ecf2d53a77a2ac807e9ebd67ae22426221a
 container="orb-rollback-$RANDOM-$$"
 work="$(mktemp -d)"
