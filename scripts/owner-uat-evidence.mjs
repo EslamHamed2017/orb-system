@@ -66,6 +66,8 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
   const filteredProjects = report?.config?.filteredProjects;
   if (!Array.isArray(filteredProjects) || filteredProjects.length !== 1 || filteredProjects[0]?.name !== "chromium")
     throw new Error("owner UAT report must contain exactly the approved Chromium project");
+  if (filteredProjects[0]?.use?.defaultBrowserType !== "chromium")
+    throw new Error("owner UAT report must use the Chromium browser engine");
   if (filteredProjects[0]?.retries !== 0)
     throw new Error("owner UAT report must keep Playwright retries disabled");
   if (filteredProjects[0]?.repeatEach !== 1)

@@ -24,7 +24,7 @@ function report(
   duration = 30_000,
 ) {
   return {
-    config: { version: "1.64.1", forbidOnly: true, fullyParallel: false, shard: null, workers: 1, filteredProjects: [{ name: "chromium", repeatEach: 1, retries: 0, use: { baseURL } }] },
+    config: { version: "1.64.1", forbidOnly: true, fullyParallel: false, shard: null, workers: 1, filteredProjects: [{ name: "chromium", repeatEach: 1, retries: 0, use: { baseURL, defaultBrowserType: "chromium" } }] },
     stats: { startTime, duration, expected: 2, skipped: 0, unexpected: 0, flaky: 0 },
     errors: [],
     suites: [{ title: "owner-uat.spec.ts", file: "owner-uat.spec.ts", specs: titles.map((title, index) => ({
@@ -238,6 +238,25 @@ test("owner UAT evidence requires exactly one Playwright worker", () => {
     assert.throws(
       () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
       /exactly one.*worker|workers/i,
+    );
+  }
+});
+
+test("owner UAT evidence requires the approved project to launch Chromium", () => {
+  const substituted = report();
+  substituted.config.filteredProjects[0].use.defaultBrowserType = "firefox";
+  const missing = report();
+  delete (missing.config.filteredProjects[0].use as { defaultBrowserType?: string }).defaultBrowserType;
+
+  for (const value of [substituted, missing]) {
+    assert.throws(
+      () => createOwnerUatEvidence({
+        reportBytes: Buffer.from(JSON.stringify(value)),
+        targetUrl: "https://uat.example.test",
+        gitCommit: commit,
+        generatedAtUtc: "2026-11-12T10:00:00.000Z",
+      }),
+      /Chromium browser engine|defaultBrowserType/i,
     );
   }
 });
