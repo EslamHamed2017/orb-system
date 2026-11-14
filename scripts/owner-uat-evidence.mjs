@@ -183,6 +183,12 @@ export async function readOwnerUatReport(path) {
   try {
     const metadata = await handle.stat();
     if (!metadata.isFile()) throw new Error("Playwright report must be a regular non-symlink file");
+    if (typeof process.getuid === "function" && metadata.uid !== process.getuid())
+      throw new Error("Playwright report must be owned by the evidence process user");
+    if ((metadata.mode & 0o077) !== 0)
+      throw new Error("Playwright report must use private owner-only permissions");
+    if (metadata.nlink !== 1)
+      throw new Error("Playwright report must have single-link provenance");
     if (metadata.size > MAXIMUM_REPORT_BYTES) throw new Error("Playwright report exceeds the 10 MiB evidence limit");
     return await handle.readFile();
   } finally {

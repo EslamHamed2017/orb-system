@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, stat, symlink, writeFile } from "node:fs/promises";
+import { chmod, link, mkdtemp, readFile, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -658,7 +658,7 @@ test("owner UAT evidence report reader rejects symlinks and non-regular inputs",
   const directory = await mkdtemp(join(tmpdir(), "orb-owner-uat-report-"));
   const reportPath = join(directory, "report.json");
   const symlinkPath = join(directory, "report-link.json");
-  await writeFile(reportPath, JSON.stringify(report()));
+  await writeFile(reportPath, JSON.stringify(report()), { mode: 0o600 });
   await symlink(reportPath, symlinkPath);
 
   assert.deepEqual(await readOwnerUatReport(reportPath), await readFile(reportPath));
@@ -666,10 +666,24 @@ test("owner UAT evidence report reader rejects symlinks and non-regular inputs",
   await assert.rejects(() => readOwnerUatReport(directory), /regular non-symlink file/i);
 });
 
+test("owner UAT evidence report reader requires private single-link ownership", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "orb-owner-uat-private-report-"));
+  const reportPath = join(directory, "report.json");
+  const hardLinkPath = join(directory, "report-hard-link.json");
+  await writeFile(reportPath, JSON.stringify(report()), { mode: 0o600 });
+
+  await chmod(reportPath, 0o640);
+  await assert.rejects(() => readOwnerUatReport(reportPath), /private owner-only permissions/i);
+
+  await chmod(reportPath, 0o600);
+  await link(reportPath, hardLinkPath);
+  await assert.rejects(() => readOwnerUatReport(reportPath), /single-link provenance/i);
+});
+
 test("owner UAT evidence report reader rejects oversized files before reading", async () => {
   const directory = await mkdtemp(join(tmpdir(), "orb-owner-uat-oversized-report-"));
   const reportPath = join(directory, "report.json");
-  await writeFile(reportPath, Buffer.alloc(10 * 1024 * 1024 + 1));
+  await writeFile(reportPath, Buffer.alloc(10 * 1024 * 1024 + 1), { mode: 0o600 });
 
   await assert.rejects(
     () => readOwnerUatReport(reportPath),
