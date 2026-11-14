@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash, generateKeyPairSync, sign } from "node:crypto";
@@ -111,5 +111,75 @@ test("owner UAT candidate verifier binds the signed manifest to the approved com
     manifest.signedPayload.gitCommit = "d".repeat(40);
     writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
     assert.notEqual(verify(approvedCommit).status, 0, "tampered signed payload must fail");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("owner UAT candidate verifier rejects a manifest replaced after signature verification", () => {
+  const dir = mkdtempSync(join(tmpdir(), "orb-uat-candidate-snapshot-"));
+  try {
+    const approvedCommit = "a".repeat(40);
+    const signedCommit = "c".repeat(40);
+    const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const publicPem = publicKey.export({ type: "spki", format: "pem" });
+    const publicDer = publicKey.export({ type: "spki", format: "der" });
+    const hex = "b".repeat(64);
+    const signedPayload = {
+      buildManifestSha256: hex,
+      candidate: "internal-alpha-rc",
+      containerSha256: hex,
+      contractGuard: "openapi-contract, traceability, deferred-surface",
+      deploymentPerformed: false,
+      frozenAtUtc: "2026-11-13T22:30:00Z",
+      gitCommit: signedCommit,
+      healthEvidenceSha256: hex,
+      healthEvidenceFile: "health.json",
+      lockSha256: hex,
+      openapiOperationCount: 109,
+      openapiSha256: hex,
+      ownerApprovalRecorded: false,
+      sbomFile: "sbom.json",
+      sbomSha256: hex,
+      sourceSha256: hex,
+      containerImage: `orb@sha256:${hex}`,
+    };
+    const payloadBytes = Buffer.from(JSON.stringify(signedPayload, Object.keys(signedPayload).sort()));
+    const manifest = {
+      schemaVersion: 1,
+      signature: {
+        algorithm: "RSA-SHA256",
+        publicKeySha256: createHash("sha256").update(publicDer).digest("hex"),
+        valueBase64: sign("RSA-SHA256", payloadBytes, privateKey).toString("base64"),
+      },
+      signedPayload,
+    };
+    const manifestPath = join(dir, "manifest.json");
+    const replacementPath = join(dir, "replacement.json");
+    const publicKeyPath = join(dir, "public.pem");
+    const wrapperPath = join(dir, "openssl");
+    writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
+    writeFileSync(replacementPath, `${JSON.stringify({
+      ...manifest,
+      signedPayload: { ...signedPayload, gitCommit: approvedCommit },
+    })}\n`);
+    writeFileSync(publicKeyPath, publicPem);
+    writeFileSync(wrapperPath, `#!/bin/sh\nset -eu\n"$REAL_OPENSSL" "$@"\nstatus=$?\nif [ "$status" -eq 0 ] && [ "\${1:-}" = dgst ] && [ -f "$SWAP_MANIFEST" ]; then\n  mv -- "$SWAP_MANIFEST" "$TARGET_MANIFEST"\nfi\nexit "$status"\n`);
+    chmodSync(wrapperPath, 0o755);
+
+    const result = spawnSync(
+      "ops/acceptance/verify-owner-uat-candidate.sh",
+      [manifestPath, publicKeyPath, approvedCommit],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          PATH: `${dir}:${process.env.PATH}`,
+          REAL_OPENSSL: execFileSync("sh", ["-c", "command -v openssl"], { encoding: "utf8" }).trim(),
+          SWAP_MANIFEST: replacementPath,
+          TARGET_MANIFEST: manifestPath,
+        },
+      },
+    );
+    assert.notEqual(result.status, 0, "an unsigned replacement must not inherit verification from an earlier manifest snapshot");
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
