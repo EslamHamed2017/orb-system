@@ -30,11 +30,11 @@ test("creation persists exact fields, opens the exact detail, and Today has one 
   await page.reload();
   await expect(page).toHaveURL(new RegExp(detailPath));
   await page.goto("/?locale=en");
-  await expect(page.getByRole("heading", { name: "Review project setup" })).toHaveCount(1);
+  await expect(page.getByRole("heading", { name: "Complete project setup" })).toHaveCount(1);
   await expect(page.getByRole("link", { name: "Open action" })).toHaveAttribute("href", /\/overview\?locale=en#project-data$/);
   await page.goto(`${detailPath}?locale=en`);
-  await expect(page.getByRole("button", { name: "Confirm setup and start operations" })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Review project setup" })).toHaveAttribute("href", /\/overview\?locale=en#project-data$/);
+  await expect(page.getByRole("button", { name: "Complete project setup" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Complete project setup" })).toHaveCount(0);
 });
 
 test("corrupt browser storage shows an error instead of pretending the register is empty", async ({ page }) => {
@@ -63,4 +63,46 @@ for (const locale of ["en", "ar"] as const) test(`${locale} bounded flow uses ro
   await expect(page.locator("html")).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
   await expect(page.locator("body")).toContainText(locale === "ar" ? "مسار دورة العمل" : "Lifecycle tasks");
   await expect(page.locator("body")).not.toContainText(/SETUP|ACTIVE|CLOSED|[a-f0-9]{32}/);
+});
+
+
+test("project setup can be completed and advances the persisted Today action", async ({ page }) => {
+  const detailPath = await createProject(page);
+  await page.getByRole("button", { name: "Complete project setup" }).click();
+  await expect(page.locator("#setup-editor-title")).toHaveText("Complete project setup");
+  await expect(page.locator('[name="setupCustomer"]')).toHaveValue("Atlas Foods");
+  await expect(page.locator('[name="salesContractReference"]')).toHaveValue("SC-44");
+  await page.locator('[name="setupCustomer"]').fill("Atlas Coffee Trading");
+  await page.locator('[name="supplier"]').fill("Coast Exporters");
+  await page.locator('[name="purchaseContractReference"]').fill("PC-17");
+  await page.getByRole("button", { name: "Save setup" }).click();
+  await expect(page.getByText("Active", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Atlas Coffee Trading" })).toBeVisible();
+  await expect(page.locator("#project-data")).toContainText("Coast Exporters");
+  await expect(page.locator("#project-data")).toContainText("PC-17");
+  await expect(page.locator("#lifecycle")).toContainText("Setup complete");
+  await page.reload();
+  await expect(page).toHaveURL(new RegExp(detailPath));
+  await expect(page.getByRole("heading", { name: "Atlas Coffee Trading" })).toBeVisible();
+  await page.goto("/?locale=en");
+  await expect(page.getByRole("heading", { name: "Review saved project data" })).toBeVisible();
+});
+
+
+test("stale setup form cannot overwrite a project closed in another session", async ({ page }) => {
+  await createProject(page);
+  await page.getByRole("button", { name: "Complete project setup" }).click();
+  await page.evaluate(() => {
+    const key = "orb.user-projects.owner-1.v1";
+    const records = JSON.parse(localStorage.getItem(key) ?? "[]");
+    records[0] = { ...records[0], status: "CLOSED", customer: "Newer customer", updatedAt: "2026-11-14T12:00:00.000Z" };
+    localStorage.setItem(key, JSON.stringify(records));
+  });
+  await page.locator('[name="supplier"]').fill("Coast Exporters");
+  await page.locator('[name="purchaseContractReference"]').fill("PC-17");
+  await page.getByRole("button", { name: "Save setup" }).click();
+  await expect(page.locator("form").getByRole("alert")).toContainText("Setup could not be saved");
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("orb.user-projects.owner-1.v1") ?? "[]")[0]);
+  expect(saved.status).toBe("CLOSED");
+  expect(saved.customer).toBe("Newer customer");
 });

@@ -2,7 +2,7 @@ export const PROJECT_STORAGE_KEY = "orb.user-projects.owner-1.v1";
 
 export type ProjectStatus = "SETUP" | "ACTIVE" | "CLOSED";
 export type ProjectRecord = Readonly<{
-  id: string; code: string; customer: string; reference: string; contractReference: string;
+  id: string; code: string; customer: string; supplier?: string; reference: string; contractReference: string; purchaseContractReference?: string;
   startDate: string; commodity: string; quantity: string; unit: string; currency: string;
   unitPrice: string; value: number; origin: string; destination: string;
   status: ProjectStatus; createdAt: string; updatedAt: string;
@@ -23,7 +23,8 @@ export function createProjectRecord(input: ProjectInput, options: Readonly<{ id:
 function isProjectRecord(value: unknown): value is ProjectRecord {
   if (!value || typeof value !== "object") return false;
   const item = value as Record<string, unknown>;
-  return textFields.every((key) => typeof item[key] === "string" && item[key] !== "") && typeof item.value === "number" && Number.isFinite(item.value) && ["SETUP", "ACTIVE", "CLOSED"].includes(String(item.status));
+  const validOptionalText = ["supplier", "purchaseContractReference"].every((key) => item[key] === undefined || (typeof item[key] === "string" && item[key] !== ""));
+  return textFields.every((key) => typeof item[key] === "string" && item[key] !== "") && validOptionalText && typeof item.value === "number" && Number.isFinite(item.value) && ["SETUP", "ACTIVE", "CLOSED"].includes(String(item.status));
 }
 
 export function parseProjectRecords(raw: string | null): ProjectRecord[] {
@@ -34,11 +35,23 @@ export function parseProjectRecords(raw: string | null): ProjectRecord[] {
   return value;
 }
 
+export type ProjectSetupInput = Readonly<{ customer: string; supplier: string; salesContractReference: string; purchaseContractReference: string }>;
+
+export function completeProjectSetup(project: ProjectRecord, input: ProjectSetupInput, now: string): ProjectRecord {
+  if (project.status !== "SETUP") throw new Error("INVALID_PROJECT_SETUP_STATE");
+  const customer = input.customer.trim();
+  const supplier = input.supplier.trim();
+  const contractReference = input.salesContractReference.trim();
+  const purchaseContractReference = input.purchaseContractReference.trim();
+  if (!customer || !supplier || !contractReference || !purchaseContractReference || !now.trim()) throw new Error("INVALID_PROJECT_SETUP");
+  return { ...project, customer, supplier, contractReference, purchaseContractReference, status: "ACTIVE", updatedAt: now };
+}
+
 export function projectNextAction(status: ProjectStatus, locale: "ar" | "en", projectId: string): Readonly<{ label: string; detail: string; href: string }> {
   const id = encodeURIComponent(projectId);
   const copy = {
-    SETUP: { en: { label: "Review project setup", detail: "Confirm the customer, contract, and route saved for this project.", href: `/projects/${id}/overview#project-data` }, ar: { label: "مراجعة إعداد المشروع", detail: "راجع العميل والعقد والمسار المحفوظة لهذا المشروع.", href: `/projects/${id}/overview#project-data` } },
-    ACTIVE: { en: { label: "Review project activity", detail: "Review the recorded lifecycle state and project data.", href: `/projects/${id}/overview#lifecycle` }, ar: { label: "مراجعة نشاط المشروع", detail: "راجع حالة دورة العمل وبيانات المشروع المسجلة.", href: `/projects/${id}/overview#lifecycle` } },
+    SETUP: { en: { label: "Complete project setup", detail: "Confirm the customer, supplier, sales contract, and purchase contract.", href: `/projects/${id}/overview#project-data` }, ar: { label: "إكمال إعداد المشروع", detail: "أكد العميل والمورد ومرجعي عقد البيع والشراء.", href: `/projects/${id}/overview#project-data` } },
+    ACTIVE: { en: { label: "Review saved project data", detail: "Review the parties, contracts, route, and commercial details saved for this project.", href: `/projects/${id}/overview#project-data` }, ar: { label: "مراجعة بيانات المشروع المحفوظة", detail: "راجع الأطراف والعقود والمسار والبيانات التجارية المحفوظة لهذا المشروع.", href: `/projects/${id}/overview#project-data` } },
     CLOSED: { en: { label: "Review project closure", detail: "Review the recorded closure state and project data.", href: `/projects/${id}/overview#lifecycle` }, ar: { label: "مراجعة إغلاق المشروع", detail: "راجع حالة الإغلاق وبيانات المشروع المسجلة.", href: `/projects/${id}/overview#lifecycle` } },
   } as const;
   return copy[status][locale];
