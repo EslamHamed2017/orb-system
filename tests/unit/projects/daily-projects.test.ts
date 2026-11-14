@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { completeProjectSetup, createProjectRecord, markCustomerShipmentReviewed, parseProjectRecords, projectNextAction, recordCustomerShipment, recordSupplierShipment } from "../../../src/modules/projects/daily-projects.ts";
+import { completeProjectSetup, createProjectRecord, markCustomerShipmentReviewed, parseProjectRecords, projectNextAction, recordCustomerShipment, recordSupplierInvoice, recordSupplierPayment, recordSupplierShipment, resetSupplierFinance } from "../../../src/modules/projects/daily-projects.ts";
 
 test("creates a project record from user-entered data without sample defaults", () => {
   const project = createProjectRecord({ customer: "Atlas Foods", reference: "AF-101", contractReference: "SC-44", startDate: "2026-11-14", commodity: "Coffee", quantity: "20", unit: "MT", currency: "USD", unitPrice: "4200", origin: "Mombasa", destination: "Dubai" }, { id: "project-user-1", now: "2026-11-14T10:00:00.000Z", sequence: 1 });
@@ -13,6 +13,11 @@ test("creates a project record from user-entered data without sample defaults", 
 test("fails visibly on malformed persisted data instead of presenting an empty register", () => {
   assert.throws(() => parseProjectRecords("not-json"), /CORRUPT_PROJECT_STORAGE/);
   assert.throws(() => parseProjectRecords(JSON.stringify([{ id: "x", customer: 42 }])), /CORRUPT_PROJECT_STORAGE/);
+});
+
+test("rejects zero-value projects that could never accept a positive supplier invoice", () => {
+  assert.throws(() => createProjectRecord({ customer: "Atlas Foods", reference: "AF-101", contractReference: "SC-44", startDate: "2026-11-14", commodity: "Coffee", quantity: "20", unit: "MT", currency: "USD", unitPrice: "0", origin: "Mombasa", destination: "Dubai" }, { id: "project-zero", now: "2026-11-14T10:00:00.000Z", sequence: 2 }), /INVALID_PROJECT_INPUT/);
+  assert.throws(() => createProjectRecord({ customer: "Atlas Foods", reference: "AF-102", contractReference: "SC-45", startDate: "2026-11-14", commodity: "Coffee", quantity: "1e-200", unit: "MT", currency: "USD", unitPrice: "1e-200", origin: "Mombasa", destination: "Dubai" }, { id: "project-underflow", now: "2026-11-14T10:00:00.000Z", sequence: 3 }), /INVALID_PROJECT_INPUT/);
 });
 
 test("rejects a project value that overflows", () => {
@@ -104,8 +109,8 @@ test("records the first customer shipment after its supplier shipment and advanc
   assert.deepEqual(projectNextAction(supplied, "ar"), { label: "تسجيل شحنة العميل", detail: "أضف مرجع شحنة العميل وتاريخ الإرسال المخطط والكمية.", href: "/projects/project-user-1/overview#customer-shipment" });
   const updated = recordCustomerShipment(supplied, { reference: "CS-001", plannedDispatchDate: "2026-12-05", quantity: "10" }, "2026-11-14T13:00:00.000Z");
   assert.deepEqual(updated.customerShipment, { reference: "CS-001", plannedDispatchDate: "2026-12-05", quantity: "10" });
-  assert.deepEqual(projectNextAction(updated, "en"), { label: "Review shipment handover", detail: "Review and confirm recorded customer shipment CS-001 to complete this bounded flow.", href: "/projects/project-user-1/overview#customer-shipment" });
-  assert.deepEqual(projectNextAction(updated, "ar"), { label: "مراجعة تسليم الشحنة", detail: "راجع وأكد شحنة العميل المسجلة CS-001 لإكمال هذا المسار المحدود.", href: "/projects/project-user-1/overview#customer-shipment" });
+  assert.deepEqual(projectNextAction(updated, "en"), { label: "Review shipment handover", detail: "Review and confirm recorded customer shipment CS-001 before recording supplier finance.", href: "/projects/project-user-1/overview#customer-shipment" });
+  assert.deepEqual(projectNextAction(updated, "ar"), { label: "مراجعة تسليم الشحنة", detail: "راجع وأكد شحنة العميل المسجلة CS-001 للانتقال إلى بيانات المورد المالية.", href: "/projects/project-user-1/overview#customer-shipment" });
 });
 
 test("rejects invalid, excessive, duplicate, and impossible customer shipment state", () => {
@@ -138,7 +143,7 @@ test("customer shipments remain parse-valid after the project closes", () => {
   assert.deepEqual(parseProjectRecords(JSON.stringify([closed])), [closed]);
 });
 
-test("reviews a customer shipment exactly once and removes the project from Today actions", () => {
+test("reviews a customer shipment exactly once and advances Today to supplier invoicing", () => {
   const active = completeProjectSetup(
     createProjectRecord({ customer: "Atlas Foods", reference: "AF-101", contractReference: "SC-44", startDate: "2026-11-14", commodity: "Coffee", quantity: "20", unit: "MT", currency: "USD", unitPrice: "4200", origin: "Mombasa", destination: "Dubai" }, { id: "project-user-1", now: "2026-11-14T10:00:00.000Z", sequence: 1 }),
     { customer: "Atlas Foods", supplier: "Coast Exporters", salesContractReference: "SC-44", purchaseContractReference: "PC-17" }, "2026-11-14T11:00:00.000Z",
@@ -148,8 +153,8 @@ test("reviews a customer shipment exactly once and removes the project from Toda
   const reviewed = markCustomerShipmentReviewed(shipped, "2026-11-14T14:00:00.000Z");
   assert.equal(reviewed.customerShipmentReviewedAt, "2026-11-14T14:00:00.000Z");
   assert.equal(reviewed.updatedAt, "2026-11-14T14:00:00.000Z");
-  assert.equal(projectNextAction(reviewed, "en"), null);
-  assert.equal(projectNextAction(reviewed, "ar"), null);
+  assert.equal(projectNextAction(reviewed, "en")?.label, "Record supplier invoice");
+  assert.equal(projectNextAction(reviewed, "ar")?.label, "تسجيل فاتورة المورد");
   assert.deepEqual(parseProjectRecords(JSON.stringify([reviewed])), [reviewed]);
   const closedAfterReview = { ...reviewed, status: "CLOSED" as const };
   assert.equal(projectNextAction(closedAfterReview, "en"), null);
@@ -236,4 +241,66 @@ test("persisted handover review timestamp stays within project chronology", () =
   assert.throws(() => parseProjectRecords(JSON.stringify([{ ...shipped, customerShipmentReviewedAt: "2026-11-14T13:00:00.001Z" }])), /CORRUPT_PROJECT_STORAGE/);
   const reviewedAtLatestMutation = { ...shipped, customerShipmentReviewedAt: shipped.updatedAt };
   assert.deepEqual(parseProjectRecords(JSON.stringify([reviewedAtLatestMutation])), [reviewedAtLatestMutation]);
+});
+
+
+test("records a supplier invoice and full payment after shipment handover and advances Today", () => {
+  const setup = completeProjectSetup(
+    createProjectRecord({ customer: "Atlas Foods", reference: "AF-101", contractReference: "SC-44", startDate: "2026-11-14", commodity: "Coffee", quantity: "20", unit: "MT", currency: "USD", unitPrice: "4200", origin: "Mombasa", destination: "Dubai" }, { id: "project-user-1", now: "2026-11-14T10:00:00.000Z", sequence: 1 }),
+    { customer: "Atlas Foods", supplier: "Coast Exporters", salesContractReference: "SC-44", purchaseContractReference: "PC-17" }, "2026-11-14T11:00:00.000Z",
+  );
+  const supplied = recordSupplierShipment(setup, { reference: "SS-001", expectedArrival: "2026-12-02", quantity: "12" }, "2026-11-14T12:00:00.000Z");
+  const shipped = recordCustomerShipment(supplied, { reference: "CS-001", plannedDispatchDate: "2026-12-05", quantity: "10" }, "2026-11-14T13:00:00.000Z");
+  const reviewed = markCustomerShipmentReviewed(shipped, "2026-11-14T14:00:00.000Z");
+  assert.equal(projectNextAction(reviewed, "en")?.label, "Record supplier invoice");
+  assert.equal(projectNextAction(reviewed, "ar")?.label, "تسجيل فاتورة المورد");
+
+  const invoiced = recordSupplierInvoice(reviewed, { reference: "SI-001", invoiceDate: "2026-12-05", amount: "50400" }, "2026-11-14T15:00:00.000Z");
+  assert.deepEqual(invoiced.supplierInvoice, { reference: "SI-001", invoiceDate: "2026-12-05", amount: "50400" });
+  assert.equal(projectNextAction(invoiced, "en")?.label, "Record supplier payment");
+  assert.equal(projectNextAction(invoiced, "ar")?.label, "تسجيل دفعة المورد");
+
+  const paid = recordSupplierPayment(invoiced, { reference: "PAY-001", paymentDate: "2026-12-06", amount: "50400" }, "2026-11-14T16:00:00.000Z");
+  assert.deepEqual(paid.supplierPayment, { reference: "PAY-001", paymentDate: "2026-12-06", amount: "50400" });
+  assert.equal(projectNextAction(paid, "en"), null);
+  assert.deepEqual(parseProjectRecords(JSON.stringify([paid])), [paid]);
+});
+
+test("invoice and payment writes reject impossible or duplicate financial records", () => {
+  const setup = completeProjectSetup(
+    createProjectRecord({ customer: "Atlas Foods", reference: "AF-101", contractReference: "SC-44", startDate: "2026-11-14", commodity: "Coffee", quantity: "20", unit: "MT", currency: "USD", unitPrice: "4200", origin: "Mombasa", destination: "Dubai" }, { id: "project-user-1", now: "2026-11-14T10:00:00.000Z", sequence: 1 }),
+    { customer: "Atlas Foods", supplier: "Coast Exporters", salesContractReference: "SC-44", purchaseContractReference: "PC-17" }, "2026-11-14T11:00:00.000Z",
+  );
+  const supplied = recordSupplierShipment(setup, { reference: "SS-001", expectedArrival: "2026-12-02", quantity: "12" }, "2026-11-14T12:00:00.000Z");
+  const shipped = recordCustomerShipment(supplied, { reference: "CS-001", plannedDispatchDate: "2026-12-05", quantity: "10" }, "2026-11-14T13:00:00.000Z");
+  const reviewed = markCustomerShipmentReviewed(shipped, "2026-11-14T14:00:00.000Z");
+  assert.throws(() => recordSupplierInvoice(shipped, { reference: "SI-001", invoiceDate: "2026-12-05", amount: "1" }, "2026-11-14T15:00:00.000Z"), /INVALID_SUPPLIER_INVOICE_STATE/);
+  assert.throws(() => recordSupplierInvoice(reviewed, { reference: "SI-001", invoiceDate: "2026-12-04", amount: "50400" }, "2026-11-14T15:00:00.000Z"), /INVALID_SUPPLIER_INVOICE/);
+  assert.throws(() => recordSupplierInvoice(reviewed, { reference: "SI-001", invoiceDate: "2026-12-05", amount: "84000.01" }, "2026-11-14T15:00:00.000Z"), /INVALID_SUPPLIER_INVOICE/);
+  const invoiced = recordSupplierInvoice(reviewed, { reference: "SI-001", invoiceDate: "2026-12-05", amount: "50400" }, "2026-11-14T15:00:00.000Z");
+  assert.throws(() => recordSupplierInvoice(invoiced, { reference: "SI-002", invoiceDate: "2026-12-05", amount: "1" }, "2026-11-14T16:00:00.000Z"), /INVALID_SUPPLIER_INVOICE_STATE/);
+  assert.throws(() => recordSupplierPayment(invoiced, { reference: "PAY-001", paymentDate: "2026-12-04", amount: "50400" }, "2026-11-14T16:00:00.000Z"), /INVALID_SUPPLIER_PAYMENT/);
+  assert.throws(() => recordSupplierPayment(invoiced, { reference: "PAY-001", paymentDate: "2026-12-06", amount: "50399" }, "2026-11-14T16:00:00.000Z"), /INVALID_SUPPLIER_PAYMENT/);
+  const paid = recordSupplierPayment(invoiced, { reference: "PAY-001", paymentDate: "2026-12-06", amount: "50400" }, "2026-11-14T16:00:00.000Z");
+  assert.throws(() => recordSupplierPayment(paid, { reference: "PAY-002", paymentDate: "2026-12-07", amount: "50400" }, "2026-11-14T17:00:00.000Z"), /INVALID_SUPPLIER_PAYMENT_STATE/);
+  assert.throws(() => parseProjectRecords(JSON.stringify([{ ...reviewed, supplierPayment: { reference: "PAY-X", paymentDate: "2026-12-06", amount: "1" } }])), /CORRUPT_PROJECT_STORAGE/);
+});
+
+
+test("resets a mistaken supplier finance entry back to the invoice action", () => {
+  const setup = completeProjectSetup(
+    createProjectRecord({ customer: "Atlas Foods", reference: "AF-101", contractReference: "SC-44", startDate: "2026-11-14", commodity: "Coffee", quantity: "20", unit: "MT", currency: "USD", unitPrice: "4200", origin: "Mombasa", destination: "Dubai" }, { id: "project-user-1", now: "2026-11-14T10:00:00.000Z", sequence: 1 }),
+    { customer: "Atlas Foods", supplier: "Coast Exporters", salesContractReference: "SC-44", purchaseContractReference: "PC-17" }, "2026-11-14T11:00:00.000Z",
+  );
+  const supplied = recordSupplierShipment(setup, { reference: "SS-001", expectedArrival: "2026-12-02", quantity: "12" }, "2026-11-14T12:00:00.000Z");
+  const shipped = recordCustomerShipment(supplied, { reference: "CS-001", plannedDispatchDate: "2026-12-05", quantity: "10" }, "2026-11-14T13:00:00.000Z");
+  const reviewed = markCustomerShipmentReviewed(shipped, "2026-11-14T14:00:00.000Z");
+  const invoiced = recordSupplierInvoice(reviewed, { reference: "SI-001", invoiceDate: "2026-12-05", amount: "50400" }, "2026-11-14T15:00:00.000Z");
+  const paid = recordSupplierPayment(invoiced, { reference: "PAY-001", paymentDate: "2026-12-06", amount: "50400" }, "2026-11-14T16:00:00.000Z");
+  const reset = resetSupplierFinance(paid, paid.updatedAt, "2026-11-14T17:00:00.000Z");
+  assert.equal(reset.supplierInvoice, undefined);
+  assert.equal(reset.supplierPayment, undefined);
+  assert.equal(projectNextAction(reset, "en")?.label, "Record supplier invoice");
+  assert.throws(() => resetSupplierFinance(paid, invoiced.updatedAt, "2026-11-14T17:00:00.000Z"), /INVALID_SUPPLIER_FINANCE_RESET_STATE/);
+  assert.throws(() => resetSupplierFinance(reviewed, reviewed.updatedAt, "2026-11-14T17:00:00.000Z"), /INVALID_SUPPLIER_FINANCE_RESET_STATE/);
 });

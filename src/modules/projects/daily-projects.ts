@@ -3,11 +3,13 @@ export const PROJECT_STORAGE_KEY = "orb.user-projects.owner-1.v1";
 export type ProjectStatus = "SETUP" | "ACTIVE" | "CLOSED";
 export type SupplierShipment = Readonly<{ reference: string; expectedArrival: string; quantity: string }>;
 export type CustomerShipment = Readonly<{ reference: string; plannedDispatchDate: string; quantity: string }>;
+export type SupplierInvoice = Readonly<{ reference: string; invoiceDate: string; amount: string }>;
+export type SupplierPayment = Readonly<{ reference: string; paymentDate: string; amount: string }>;
 export type ProjectRecord = Readonly<{
   id: string; code: string; customer: string; supplier?: string; reference: string; contractReference: string; purchaseContractReference?: string;
   startDate: string; commodity: string; quantity: string; unit: string; currency: string;
   unitPrice: string; value: number; origin: string; destination: string;
-  status: ProjectStatus; supplierShipment?: SupplierShipment; customerShipment?: CustomerShipment; customerShipmentReviewedAt?: string; createdAt: string; updatedAt: string;
+  status: ProjectStatus; supplierShipment?: SupplierShipment; customerShipment?: CustomerShipment; customerShipmentReviewedAt?: string; supplierInvoice?: SupplierInvoice; supplierPayment?: SupplierPayment; createdAt: string; updatedAt: string;
 }>;
 export type ProjectInput = Readonly<Omit<ProjectRecord, "id" | "code" | "value" | "status" | "createdAt" | "updatedAt">>;
 
@@ -50,12 +52,34 @@ function isValidCustomerShipment(value: unknown, status: unknown, projectQuantit
     Number.isFinite(projectMaximum) && quantity <= projectMaximum && Number.isFinite(supplierMaximum) && quantity <= supplierMaximum;
 }
 
+
+function isValidSupplierInvoice(value: unknown, status: unknown, projectValue: unknown, customerShipment: unknown, reviewedAt: unknown): value is SupplierInvoice {
+  if (value === undefined) return true;
+  if (!value || typeof value !== "object" || !["ACTIVE", "CLOSED"].includes(String(status)) || !customerShipment || typeof customerShipment !== "object" || !isStrictTimestamp(reviewedAt)) return false;
+  const invoice = value as Record<string, unknown>;
+  const shipment = customerShipment as Record<string, unknown>;
+  const amount = Number(invoice.amount);
+  return typeof invoice.reference === "string" && invoice.reference.trim() === invoice.reference && invoice.reference !== "" &&
+    typeof invoice.invoiceDate === "string" && isStrictDate(invoice.invoiceDate) && typeof shipment.plannedDispatchDate === "string" && invoice.invoiceDate >= shipment.plannedDispatchDate &&
+    typeof invoice.amount === "string" && Number.isFinite(amount) && amount > 0 && typeof projectValue === "number" && amount <= projectValue;
+}
+
+function isValidSupplierPayment(value: unknown, status: unknown, supplierInvoice: unknown, reviewedAt: unknown): value is SupplierPayment {
+  if (value === undefined) return true;
+  if (!value || typeof value !== "object" || !["ACTIVE", "CLOSED"].includes(String(status)) || !supplierInvoice || typeof supplierInvoice !== "object" || !isStrictTimestamp(reviewedAt)) return false;
+  const payment = value as Record<string, unknown>;
+  const invoice = supplierInvoice as Record<string, unknown>;
+  return typeof payment.reference === "string" && payment.reference.trim() === payment.reference && payment.reference !== "" &&
+    typeof payment.paymentDate === "string" && isStrictDate(payment.paymentDate) && typeof invoice.invoiceDate === "string" && payment.paymentDate >= invoice.invoiceDate &&
+    typeof payment.amount === "string" && Number(payment.amount) === Number(invoice.amount) && Number(payment.amount) > 0;
+}
+
 export function createProjectRecord(input: ProjectInput, options: Readonly<{ id: string; now: string; sequence: number }>): ProjectRecord {
   const clean = Object.fromEntries(Object.entries(input).map(([key, value]) => [key, String(value).trim()])) as unknown as ProjectInput;
   const quantity = Number(clean.quantity), unitPrice = Number(clean.unitPrice);
-  if (textFields.slice(2, 13).some((key) => !clean[key as keyof ProjectInput]) || !isStrictDate(clean.startDate) || !isStrictTimestamp(options.now) || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(unitPrice) || unitPrice < 0) throw new Error("INVALID_PROJECT_INPUT");
+  if (textFields.slice(2, 13).some((key) => !clean[key as keyof ProjectInput]) || !isStrictDate(clean.startDate) || !isStrictTimestamp(options.now) || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(unitPrice) || unitPrice <= 0) throw new Error("INVALID_PROJECT_INPUT");
   const value = quantity * unitPrice;
-  if (!Number.isFinite(value)) throw new Error("INVALID_PROJECT_INPUT");
+  if (!Number.isFinite(value) || value <= 0) throw new Error("INVALID_PROJECT_INPUT");
   return { ...clean, id: options.id, code: `ORB-P-${String(options.sequence).padStart(4, "0")}`, value, status: "SETUP", createdAt: options.now, updatedAt: options.now };
 }
 
@@ -66,16 +90,18 @@ function isProjectRecord(value: unknown): value is ProjectRecord {
   if (typeof item.status !== "string" || !["SETUP", "ACTIVE", "CLOSED"].includes(item.status)) return false;
   const quantity = Number(item.quantity);
   const unitPrice = Number(item.unitPrice);
-  if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(unitPrice) || unitPrice < 0 || !isStrictDate(item.startDate as string)) return false;
+  if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(unitPrice) || unitPrice <= 0 || !isStrictDate(item.startDate as string)) return false;
   if (!isStrictTimestamp(item.createdAt) || !isStrictTimestamp(item.updatedAt) || item.createdAt > item.updatedAt) return false;
-  if (typeof item.value !== "number" || !Number.isFinite(item.value) || item.value !== quantity * unitPrice) return false;
+  if (typeof item.value !== "number" || !Number.isFinite(item.value) || item.value <= 0 || item.value !== quantity * unitPrice) return false;
   const validOptionalText = ["supplier", "purchaseContractReference"].every((key) => item[key] === undefined || (typeof item[key] === "string" && (item[key] as string).trim() !== ""));
   if (!validOptionalText) return false;
   if (item.status !== "SETUP" && (typeof item.supplier !== "string" || typeof item.purchaseContractReference !== "string")) return false;
   if (item.customerShipmentReviewedAt !== undefined &&
       (!isStrictTimestamp(item.customerShipmentReviewedAt) || item.customerShipmentReviewedAt < item.createdAt || item.customerShipmentReviewedAt > item.updatedAt || !item.customerShipment || !["ACTIVE", "CLOSED"].includes(item.status))) return false;
   return isValidShipment(item.supplierShipment, item.status, item.quantity, item.startDate) &&
-    isValidCustomerShipment(item.customerShipment, item.status, item.quantity, item.supplierShipment);
+    isValidCustomerShipment(item.customerShipment, item.status, item.quantity, item.supplierShipment) &&
+    isValidSupplierInvoice(item.supplierInvoice, item.status, item.value, item.customerShipment, item.customerShipmentReviewedAt) &&
+    isValidSupplierPayment(item.supplierPayment, item.status, item.supplierInvoice, item.customerShipmentReviewedAt);
 }
 
 export function parseProjectRecords(raw: string | null): ProjectRecord[] {
@@ -135,6 +161,35 @@ export function markCustomerShipmentReviewed(project: ProjectRecord, now: string
   return { ...project, customerShipmentReviewedAt: now, updatedAt: now };
 }
 
+
+export type SupplierInvoiceInput = Readonly<{ reference: string; invoiceDate: string; amount: string }>;
+
+export function recordSupplierInvoice(project: ProjectRecord, input: SupplierInvoiceInput, now: string): ProjectRecord {
+  if (project.status !== "ACTIVE" || !project.customerShipment || !project.customerShipmentReviewedAt || project.supplierInvoice) throw new Error("INVALID_SUPPLIER_INVOICE_STATE");
+  const supplierInvoice = { reference: input.reference.trim(), invoiceDate: input.invoiceDate.trim(), amount: input.amount.trim() };
+  const amount = Number(supplierInvoice.amount);
+  if (!supplierInvoice.reference || !isStrictDate(supplierInvoice.invoiceDate) || supplierInvoice.invoiceDate < project.customerShipment.plannedDispatchDate ||
+      !Number.isFinite(amount) || amount <= 0 || amount > project.value || !isValidMutationTimestamp(now, project)) throw new Error("INVALID_SUPPLIER_INVOICE");
+  return { ...project, supplierInvoice, updatedAt: now };
+}
+
+export type SupplierPaymentInput = Readonly<{ reference: string; paymentDate: string; amount: string }>;
+
+export function recordSupplierPayment(project: ProjectRecord, input: SupplierPaymentInput, now: string): ProjectRecord {
+  if (project.status !== "ACTIVE" || !project.supplierInvoice || project.supplierPayment) throw new Error("INVALID_SUPPLIER_PAYMENT_STATE");
+  const supplierPayment = { reference: input.reference.trim(), paymentDate: input.paymentDate.trim(), amount: input.amount.trim() };
+  if (!supplierPayment.reference || !isStrictDate(supplierPayment.paymentDate) || supplierPayment.paymentDate < project.supplierInvoice.invoiceDate ||
+      Number(supplierPayment.amount) !== Number(project.supplierInvoice.amount) || Number(supplierPayment.amount) <= 0 || !isValidMutationTimestamp(now, project)) throw new Error("INVALID_SUPPLIER_PAYMENT");
+  return { ...project, supplierPayment, updatedAt: now };
+}
+
+export function resetSupplierFinance(project: ProjectRecord, expectedUpdatedAt: string, now: string): ProjectRecord {
+  if (project.status !== "ACTIVE" || !project.supplierInvoice || project.updatedAt !== expectedUpdatedAt) throw new Error("INVALID_SUPPLIER_FINANCE_RESET_STATE");
+  if (!isValidMutationTimestamp(now, project)) throw new Error("INVALID_SUPPLIER_FINANCE_RESET");
+  const { supplierInvoice: _invoice, supplierPayment: _payment, ...rest } = project;
+  return { ...rest, updatedAt: now };
+}
+
 export type ProjectAction = Readonly<{ label: string; detail: string; href: string }>;
 export function projectNextAction(project: ProjectRecord, locale: "ar" | "en"): ProjectAction | null;
 export function projectNextAction(status: ProjectStatus, locale: "ar" | "en", projectId: string): ProjectAction;
@@ -142,7 +197,7 @@ export function projectNextAction(projectOrStatus: ProjectRecord | ProjectStatus
   const project = typeof projectOrStatus === "string" ? null : projectOrStatus;
   const status = typeof projectOrStatus === "string" ? projectOrStatus : projectOrStatus.status;
   const id = encodeURIComponent(project?.id ?? projectId ?? "");
-  if (project?.customerShipmentReviewedAt) return null;
+  if (project?.customerShipmentReviewedAt && status !== "ACTIVE") return null;
   if (status === "ACTIVE" && project) {
     if (!project.supplierShipment) return locale === "ar"
       ? { label: "تسجيل شحنة المورد", detail: "أضف مرجع شحنة المورد وموعد الوصول المتوقع والكمية المخططة.", href: `/projects/${id}/overview#supplier-shipment` }
@@ -150,9 +205,16 @@ export function projectNextAction(projectOrStatus: ProjectRecord | ProjectStatus
     if (!project.customerShipment) return locale === "ar"
       ? { label: "تسجيل شحنة العميل", detail: "أضف مرجع شحنة العميل وتاريخ الإرسال المخطط والكمية.", href: `/projects/${id}/overview#customer-shipment` }
       : { label: "Record customer shipment", detail: "Add the customer shipment reference, planned dispatch date, and quantity.", href: `/projects/${id}/overview#customer-shipment` };
-    return locale === "ar"
-      ? { label: "مراجعة تسليم الشحنة", detail: `راجع وأكد شحنة العميل المسجلة ${project.customerShipment.reference} لإكمال هذا المسار المحدود.`, href: `/projects/${id}/overview#customer-shipment` }
-      : { label: "Review shipment handover", detail: `Review and confirm recorded customer shipment ${project.customerShipment.reference} to complete this bounded flow.`, href: `/projects/${id}/overview#customer-shipment` };
+    if (!project.customerShipmentReviewedAt) return locale === "ar"
+      ? { label: "مراجعة تسليم الشحنة", detail: `راجع وأكد شحنة العميل المسجلة ${project.customerShipment.reference} للانتقال إلى بيانات المورد المالية.`, href: `/projects/${id}/overview#customer-shipment` }
+      : { label: "Review shipment handover", detail: `Review and confirm recorded customer shipment ${project.customerShipment.reference} before recording supplier finance.`, href: `/projects/${id}/overview#customer-shipment` };
+    if (!project.supplierInvoice) return locale === "ar"
+      ? { label: "تسجيل فاتورة المورد", detail: `أضف مرجع فاتورة ${project.supplier ?? "المورد"} وتاريخها وقيمتها.`, href: `/projects/${id}/overview#supplier-finance` }
+      : { label: "Record supplier invoice", detail: `Add the invoice reference, date, and amount for ${project.supplier ?? "the supplier"}.`, href: `/projects/${id}/overview#supplier-finance` };
+    if (!project.supplierPayment) return locale === "ar"
+      ? { label: "تسجيل دفعة المورد", detail: `سجل الدفعة الكاملة للفاتورة ${project.supplierInvoice.reference}. لا ينفذ ORB أي تحويل مالي.`, href: `/projects/${id}/overview#supplier-finance` }
+      : { label: "Record supplier payment", detail: `Record the full payment for invoice ${project.supplierInvoice.reference}. ORB does not execute a transfer.`, href: `/projects/${id}/overview#supplier-finance` };
+    return null;
   }
   const copy = {
     SETUP: { en: { label: "Complete project setup", detail: "Confirm the customer, supplier, sales contract, and purchase contract.", href: `/projects/${id}/overview#project-data` }, ar: { label: "إكمال إعداد المشروع", detail: "أكد العميل والمورد ومرجعي عقد البيع والشراء.", href: `/projects/${id}/overview#project-data` } },
