@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { open, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { TextDecoder } from "node:util";
@@ -172,6 +173,22 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
   return { ...evidence, evidenceSha256: evidenceSha256(evidence) };
 }
 
+export async function readOwnerUatReport(path) {
+  let handle;
+  try {
+    handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  } catch {
+    throw new Error("Playwright report must be a regular non-symlink file");
+  }
+  try {
+    const metadata = await handle.stat();
+    if (!metadata.isFile()) throw new Error("Playwright report must be a regular non-symlink file");
+    return await handle.readFile();
+  } finally {
+    await handle.close();
+  }
+}
+
 export async function writeOwnerUatEvidence(path, evidence) {
   await writeFile(path, `${JSON.stringify(evidence, null, 2)}\n`, { flag: "wx", mode: 0o600 });
 }
@@ -201,7 +218,7 @@ async function main(args) {
     throw new Error("Usage: owner-uat-evidence.mjs --report FILE --output FILE --git-commit SHA with ORB_TEST_BASE_URL and ORB_EXPECTED_RELEASE_COMMIT");
   if (gitCommit !== process.env.ORB_EXPECTED_RELEASE_COMMIT)
     throw new Error("owner UAT evidence commit does not match the commit tested by the browser journey");
-  const reportBytes = await readFile(reportPath);
+  const reportBytes = await readOwnerUatReport(reportPath);
   await writeOwnerUatEvidence(outputPath, createOwnerUatEvidence({ reportBytes, targetUrl: process.env.ORB_TEST_BASE_URL, gitCommit }));
 }
 

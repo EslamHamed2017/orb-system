@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, stat } from "node:fs/promises";
+import { mkdtemp, readFile, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { createOwnerUatEvidence, parseOwnerUatEvidenceArgs, writeOwnerUatEvidence } from "../../scripts/owner-uat-evidence.mjs";
+import { createOwnerUatEvidence, parseOwnerUatEvidenceArgs, readOwnerUatReport, writeOwnerUatEvidence } from "../../scripts/owner-uat-evidence.mjs";
 
 function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
@@ -652,6 +652,18 @@ test("owner UAT evidence rejects passing journeys that retain test-level errors"
       /test-level errors/i,
     );
   }
+});
+
+test("owner UAT evidence report reader rejects symlinks and non-regular inputs", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "orb-owner-uat-report-"));
+  const reportPath = join(directory, "report.json");
+  const symlinkPath = join(directory, "report-link.json");
+  await writeFile(reportPath, JSON.stringify(report()));
+  await symlink(reportPath, symlinkPath);
+
+  assert.deepEqual(await readOwnerUatReport(reportPath), await readFile(reportPath));
+  await assert.rejects(() => readOwnerUatReport(symlinkPath), /regular non-symlink file/i);
+  await assert.rejects(() => readOwnerUatReport(directory), /regular non-symlink file/i);
 });
 
 test("owner UAT evidence is written once with owner-only permissions", async () => {
