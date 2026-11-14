@@ -241,6 +241,23 @@ test("owner UAT evidence requires each bilingual journey to execute exactly once
   }
 });
 
+test("owner UAT evidence rejects annotated bilingual journeys", () => {
+  const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
+  const annotated = report();
+  Object.assign(annotated.suites[0].specs[0].tests[0], {
+    annotations: [{ type: "fixme", description: "conditionally altered review" }],
+  });
+  const malformed = report();
+  Object.assign(malformed.suites[0].specs[0].tests[0], { annotations: { type: "fixme" } });
+
+  for (const value of [annotated, malformed]) {
+    assert.throws(
+      () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
+      /annotations|annotated/i,
+    );
+  }
+});
+
 test("owner UAT evidence rejects journeys attributed to a non-approved browser project", () => {
   const value = report();
   value.suites[0].specs[0].tests[0].projectName = "firefox";

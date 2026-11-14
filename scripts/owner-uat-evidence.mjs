@@ -107,6 +107,8 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
       throw new Error(`owner UAT journey did not run in the approved Chromium project: ${spec.title}`);
     if (test.status !== "expected")
       throw new Error(`owner UAT journey has a contradictory test-level outcome: ${spec.title}`);
+    if (test.annotations !== undefined && (!Array.isArray(test.annotations) || test.annotations.length !== 0))
+      throw new Error(`owner UAT journey must not carry Playwright annotations: ${spec.title}`);
     if (test.expectedStatus !== "passed" || !Array.isArray(test.results) || test.results.length !== 1 || test.results[0]?.status !== "passed")
       throw new Error(`owner UAT journey did not pass: ${spec.title}`);
     const result = test.results[0];
