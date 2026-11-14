@@ -12,6 +12,7 @@ async function createProject(page: Page, locale: "en" | "ar" = "en"): Promise<st
 test("empty Today and Projects disclose browser-only storage and never show fixed projects", async ({ page }) => {
   await page.goto("/?locale=en");
   await expect(page.getByRole("heading", { name: "No actions yet" })).toBeVisible();
+  await expect(page.getByText("One next action for each saved project that needs work in this bounded flow.", { exact: true })).toBeVisible();
   await expect(page.locator("body")).toContainText("No sample project is inserted into your personal list");
   await page.goto("/projects?locale=en");
   await expect(page.getByRole("heading", { name: "No saved projects" })).toBeVisible();
@@ -101,7 +102,8 @@ test("stale setup form cannot overwrite a project closed in another session", as
   await page.evaluate(() => {
     const key = "orb.user-projects.owner-1.v1";
     const records = JSON.parse(localStorage.getItem(key) ?? "[]");
-    records[0] = { ...records[0], status: "CLOSED", customer: "Newer customer", updatedAt: "2026-11-14T12:00:00.000Z" };
+    const updatedAt = new Date(new Date(records[0].updatedAt).getTime() + 1_000).toISOString();
+    records[0] = { ...records[0], status: "CLOSED", customer: "Newer customer", updatedAt };
     localStorage.setItem(key, JSON.stringify(records));
   });
   await page.locator('[name="supplier"]').fill("Coast Exporters");
@@ -114,7 +116,7 @@ test("stale setup form cannot overwrite a project closed in another session", as
 });
 
 
-test("active project records a supplier shipment and Today advances to review it", async ({ page }) => {
+test("active project records supplier and customer shipments and Today advances truthfully", async ({ page }) => {
   const detailPath = await createProject(page);
   await page.getByRole("button", { name: "Complete project setup" }).click();
   await page.locator('[name="supplier"]').fill("Coast Exporters");
@@ -125,12 +127,23 @@ test("active project records a supplier shipment and Today advances to review it
   await page.locator('[name="expectedArrival"]').fill("2026-12-02");
   await page.locator('[name="shipmentQuantity"]').fill("12");
   await page.getByRole("button", { name: "Save supplier shipment" }).click();
+  await expect(page.locator("#supplier-shipment").getByText("Saved shipment", { exact: true })).toBeVisible();
+  await expect(page.locator("#supplier-shipment").getByText("Next operational step", { exact: true })).toHaveCount(0);
   await expect(page.locator("#supplier-shipment")).toContainText("SS-001");
   await expect(page.locator("#supplier-shipment")).toContainText("12 MT");
+  await expect(page.locator("#customer-shipment-title")).toHaveText("Record customer shipment");
+  await page.locator('[name="customerShipmentReference"]').fill("CS-001");
+  await page.locator('[name="plannedDispatchDate"]').fill("2026-12-05");
+  await page.locator('[name="customerShipmentQuantity"]').fill("10");
+  await page.getByRole("button", { name: "Save customer shipment" }).click();
+  await expect(page.locator("#customer-shipment")).toContainText("CS-001");
+  await expect(page.locator("#supplier-shipment")).toContainText("The supplier shipment is saved with the recorded customer shipment in this bounded flow.");
+  await expect(page.locator("#customer-shipment")).toContainText("10 MT");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
   await expect(page).toHaveURL(new RegExp(detailPath));
   await expect(page.locator("#supplier-shipment")).toContainText("SS-001");
+  await expect(page.locator("#customer-shipment")).toContainText("CS-001");
   const mobileGeometry = await page.evaluate(() => {
     const main = document.querySelector(".orb-main")!.getBoundingClientRect();
     const nav = document.querySelector('[data-navigation="bottom"]')!.getBoundingClientRect();
@@ -138,6 +151,112 @@ test("active project records a supplier shipment and Today advances to review it
   });
   expect(mobileGeometry.mainBottom).toBeLessThanOrEqual(mobileGeometry.navTop);
   await page.goto("/?locale=en");
-  await expect(page.getByRole("heading", { name: "Review supplier shipment" })).toBeVisible();
-  await expect(page.locator("body")).toContainText("SS-001");
+  await expect(page.getByRole("heading", { name: "Review shipment handover" })).toBeVisible();
+  await expect(page.locator("body")).toContainText("CS-001");
+  await page.getByRole("link", { name: "Open action" }).click();
+  await expect(page.locator("#customer-shipment")).toContainText("Data exists only in this browser. It is not synchronized or backed up. Clearing browser data removes it.");
+  await expect(page.locator("#customer-shipment").getByText("Review step", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Mark handover reviewed" }).click();
+  await expect(page.getByRole("heading", { name: "Bounded flow complete" })).toBeVisible();
+  await expect(page.locator("#customer-shipment").getByText("Bounded flow complete", { exact: true })).toBeVisible();
+  await expect(page.locator("#supplier-shipment")).toContainText("The recorded supplier shipment remains part of the completed bounded flow.");
+  await expect(page.locator("body")).not.toContainText(/next invoice|record payment/i);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Bounded flow complete" })).toBeVisible();
+  await page.goto("/?locale=en");
+  await expect(page.getByRole("heading", { name: "No actions due" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "No actions yet" })).toHaveCount(0);
+  await page.goto(`${detailPath}?locale=en`);
+  await page.evaluate(() => {
+    const key = "orb.user-projects.owner-1.v1";
+    const records = JSON.parse(localStorage.getItem(key) ?? "[]");
+    const updatedAt = new Date(new Date(records[0].updatedAt).getTime() + 1_000).toISOString();
+    records[0] = { ...records[0], status: "CLOSED", updatedAt };
+    localStorage.setItem(key, JSON.stringify(records));
+  });
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 1, name: "Atlas Foods" })).toBeVisible();
+  await expect(page.getByText("Closed", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Project could not be opened" })).toHaveCount(0);
+});
+
+test("stale customer shipment form cannot overwrite a newer stored shipment", async ({ page }) => {
+  await createProject(page);
+  await page.getByRole("button", { name: "Complete project setup" }).click();
+  await page.locator('[name="supplier"]').fill("Coast Exporters");
+  await page.locator('[name="purchaseContractReference"]').fill("PC-17");
+  await page.getByRole("button", { name: "Save setup" }).click();
+  await page.locator('[name="shipmentReference"]').fill("SS-001");
+  await page.locator('[name="expectedArrival"]').fill("2026-12-02");
+  await page.locator('[name="shipmentQuantity"]').fill("12");
+  await page.getByRole("button", { name: "Save supplier shipment" }).click();
+  await page.evaluate(() => {
+    const key = "orb.user-projects.owner-1.v1";
+    const records = JSON.parse(localStorage.getItem(key) ?? "[]");
+    const updatedAt = new Date(new Date(records[0].updatedAt).getTime() + 1_000).toISOString();
+    records[0] = { ...records[0], customerShipment: { reference: "CS-NEWER", plannedDispatchDate: "2026-12-06", quantity: "8" }, updatedAt };
+    localStorage.setItem(key, JSON.stringify(records));
+  });
+  await page.locator('[name="customerShipmentReference"]').fill("CS-STALE");
+  await page.locator('[name="plannedDispatchDate"]').fill("2026-12-05");
+  await page.locator('[name="customerShipmentQuantity"]').fill("10");
+  await page.getByRole("button", { name: "Save customer shipment" }).click();
+  await expect(page.locator("#customer-shipment").getByRole("alert")).toContainText("Customer shipment could not be saved");
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("orb.user-projects.owner-1.v1") ?? "[]")[0]);
+  expect(saved.customerShipment.reference).toBe("CS-NEWER");
+});
+
+
+test("stale handover review cannot overwrite a project changed in another session", async ({ page }) => {
+  await createProject(page);
+  await page.getByRole("button", { name: "Complete project setup" }).click();
+  await page.locator('[name="supplier"]').fill("Coast Exporters");
+  await page.locator('[name="purchaseContractReference"]').fill("PC-17");
+  await page.getByRole("button", { name: "Save setup" }).click();
+  await page.locator('[name="shipmentReference"]').fill("SS-001");
+  await page.locator('[name="expectedArrival"]').fill("2026-12-02");
+  await page.locator('[name="shipmentQuantity"]').fill("12");
+  await page.getByRole("button", { name: "Save supplier shipment" }).click();
+  await page.locator('[name="customerShipmentReference"]').fill("CS-001");
+  await page.locator('[name="plannedDispatchDate"]').fill("2026-12-05");
+  await page.locator('[name="customerShipmentQuantity"]').fill("10");
+  await page.getByRole("button", { name: "Save customer shipment" }).click();
+  await page.evaluate(() => {
+    const key = "orb.user-projects.owner-1.v1";
+    const records = JSON.parse(localStorage.getItem(key) ?? "[]");
+    const updatedAt = new Date(new Date(records[0].updatedAt).getTime() + 1_000).toISOString();
+    records[0] = { ...records[0], status: "CLOSED", updatedAt };
+    localStorage.setItem(key, JSON.stringify(records));
+  });
+  await page.getByRole("button", { name: "Mark handover reviewed" }).click();
+  await expect(page.locator("#customer-shipment").getByRole("alert")).toContainText("Handover review could not be saved");
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("orb.user-projects.owner-1.v1") ?? "[]")[0]);
+  expect(saved.status).toBe("CLOSED");
+  expect(saved.customerShipmentReviewedAt).toBeUndefined();
+});
+
+test("Arabic shipment actions disclose local-only risk and complete in RTL", async ({ page }) => {
+  await createProject(page, "ar");
+  await page.getByRole("button", { name: "إكمال إعداد المشروع" }).click();
+  await page.locator('[name="supplier"]').fill("Coast Exporters");
+  await page.locator('[name="purchaseContractReference"]').fill("PC-17");
+  await page.getByRole("button", { name: "حفظ الإعداد" }).click();
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+  await expect(page.locator("#supplier-shipment")).toContainText("البيانات موجودة في هذا المتصفح فقط، ولا تتم مزامنتها أو نسخها احتياطياً، ومسح بيانات المتصفح يحذفها.");
+  await page.locator('[name="shipmentReference"]').fill("SS-AR-001");
+  await page.locator('[name="expectedArrival"]').fill("2026-12-02");
+  await page.locator('[name="shipmentQuantity"]').fill("12");
+  await page.getByRole("button", { name: "حفظ شحنة المورد" }).click();
+  await expect(page.locator("#supplier-shipment").getByText("شحنة محفوظة", { exact: true })).toBeVisible();
+  await page.locator('[name="customerShipmentReference"]').fill("CS-AR-001");
+  await page.locator('[name="plannedDispatchDate"]').fill("2026-12-05");
+  await page.locator('[name="customerShipmentQuantity"]').fill("10");
+  await page.getByRole("button", { name: "حفظ شحنة العميل" }).click();
+  await expect(page.locator("#customer-shipment").getByText("خطوة المراجعة", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "تأكيد مراجعة التسليم" }).click();
+  await expect(page.getByRole("heading", { name: "اكتمل المسار المحدود" })).toBeVisible();
+  await page.goto("/?locale=ar");
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+  await expect(page.getByText("إجراء تالٍ واحد لكل مشروع محفوظ يحتاج إلى عمل ضمن هذا المسار المحدود.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "لا توجد إجراءات مستحقة" })).toBeVisible();
 });
