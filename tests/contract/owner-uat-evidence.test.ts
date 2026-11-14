@@ -29,7 +29,7 @@ function report(
     errors: [],
     suites: [{ title: "owner-uat.spec.ts", file: "owner-uat.spec.ts", specs: titles.map((title, index) => ({
       title, file: "owner-uat.spec.ts", ok: status === "passed", tests: [{ projectName: "chromium", expectedStatus: "passed", status: "expected", results: [{
-        status, retry: 0, duration: 10_000, startTime: new Date(Date.parse(startTime) + index * 10_000).toISOString(),
+        status, retry: 0, duration: 10_000, startTime: new Date(Date.parse(startTime) + index * 10_000).toISOString(), annotations: [],
       }] }],
     })) }],
   };
@@ -290,6 +290,21 @@ test("owner UAT evidence rejects annotated bilingual journeys", () => {
     assert.throws(
       () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
       /annotations|annotated/i,
+    );
+  }
+});
+
+test("owner UAT evidence rejects bilingual journey results with Playwright annotations", () => {
+  const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
+  const annotated = report();
+  annotated.suites[0].specs[0].tests[0].results[0].annotations = [{ type: "slow", description: "conditionally altered review" }];
+  const malformed = report();
+  (malformed.suites[0].specs[0].tests[0].results[0] as { annotations: unknown }).annotations = { type: "slow" };
+
+  for (const value of [annotated, malformed]) {
+    assert.throws(
+      () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
+      /result.*annotations|Playwright annotations/i,
     );
   }
 });

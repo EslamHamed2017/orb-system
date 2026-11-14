@@ -112,6 +112,8 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
     if (test.expectedStatus !== "passed" || !Array.isArray(test.results) || test.results.length !== 1 || test.results[0]?.status !== "passed")
       throw new Error(`owner UAT journey did not pass: ${spec.title}`);
     const result = test.results[0];
+    if (!Array.isArray(result?.annotations) || result.annotations.length !== 0)
+      throw new Error(`owner UAT journey result must not carry Playwright annotations: ${spec.title}`);
     if (result?.attachments !== undefined && (!Array.isArray(result.attachments) || result.attachments.length !== 0))
       throw new Error(`owner UAT journey must not retain attached artifacts: ${spec.title}`);
     if ((result?.stdout !== undefined && (!Array.isArray(result.stdout) || result.stdout.length !== 0)) ||
