@@ -37,10 +37,12 @@ assert_clean_checkout
 mkdir -m 700 -- "$ORB_OWNER_UAT_EVIDENCE_DIR"
 report="$ORB_OWNER_UAT_EVIDENCE_DIR/playwright-report.json"
 manifest="$ORB_OWNER_UAT_EVIDENCE_DIR/manifest.json"
-cleanup_sensitive_report() {
+playwright_output="$ORB_OWNER_UAT_EVIDENCE_DIR/playwright-output"
+cleanup_sensitive_artifacts() {
   rm -f -- "$report"
+  rm -rf -- "$playwright_output"
 }
-trap cleanup_sensitive_report EXIT
+trap cleanup_sensitive_artifacts EXIT
 
 readonly release_commit="$(git rev-parse HEAD)"
 [[ "$release_commit" =~ ^[a-f0-9]{40}$ ]] || {
@@ -53,7 +55,7 @@ readonly release_commit="$(git rev-parse HEAD)"
 }
 export ORB_EXPECTED_RELEASE_COMMIT="$release_commit"
 PLAYWRIGHT_JSON_OUTPUT_FILE="$report" corepack pnpm exec playwright test \
-  tests/acceptance/owner-uat.spec.ts --project=chromium --reporter=json
+  tests/acceptance/owner-uat.spec.ts --project=chromium --output="$playwright_output" --reporter=json
 assert_clean_checkout
 [[ -f "$report" && ! -L "$report" ]] || {
   echo "owner UAT JSON report was not produced safely" >&2
