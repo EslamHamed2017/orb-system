@@ -155,6 +155,21 @@ test("owner UAT evidence rejects a zero-duration browser report", () => {
   );
 });
 
+test("owner UAT evidence rejects fractional millisecond durations", () => {
+  const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
+  const fractionalReport = report();
+  fractionalReport.stats.duration = 30_000.5;
+  const fractionalJourney = report();
+  fractionalJourney.suites[0].specs[0].tests[0].results[0].duration = 10_000.5;
+
+  for (const value of [fractionalReport, fractionalJourney]) {
+    assert.throws(
+      () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
+      /integer milliseconds/i,
+    );
+  }
+});
+
 test("owner UAT evidence rejects missing, zero, or impossible journey durations", () => {
   const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
   for (const duration of [undefined, 0, 30_001]) {

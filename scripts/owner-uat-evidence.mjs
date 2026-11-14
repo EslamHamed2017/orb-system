@@ -47,6 +47,8 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
   if (!Number.isFinite(reportStarted.valueOf()) || reportStarted.toISOString() !== report?.stats?.startTime ||
       !Number.isFinite(reportDuration) || reportDuration <= 0)
     throw new Error("owner UAT report timing must include a positive duration");
+  if (!Number.isSafeInteger(reportDuration))
+    throw new Error("owner UAT report duration must use integer milliseconds");
   const maximumReportDurationMs = 30 * 60 * 1000;
   if (reportDuration > maximumReportDurationMs)
     throw new Error("owner UAT report duration must not exceed 30 minutes");
@@ -85,6 +87,8 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
     const resultDuration = result?.duration;
     if (!Number.isFinite(resultDuration) || resultDuration <= 0 || resultDuration > reportDuration)
       throw new Error(`owner UAT journey duration is invalid: ${spec.title}`);
+    if (!Number.isSafeInteger(resultDuration))
+      throw new Error(`owner UAT journey duration must use integer milliseconds: ${spec.title}`);
     const resultStarted = new Date(result?.startTime);
     const resultCompleted = new Date(resultStarted.valueOf() + resultDuration);
     if (!Number.isFinite(resultStarted.valueOf()) || resultStarted.toISOString() !== result?.startTime ||
