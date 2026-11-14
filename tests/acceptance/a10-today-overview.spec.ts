@@ -56,6 +56,12 @@ test("project search works and cards reflow above mobile navigation", async ({ p
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   const bottom = page.locator('[data-navigation="bottom"]');
   await expect(bottom).toBeVisible();
+  const shellGeometry = await page.evaluate(() => {
+    const main = document.querySelector(".orb-main")!.getBoundingClientRect();
+    const nav = document.querySelector('[data-navigation="bottom"]')!.getBoundingClientRect();
+    return { mainBottom: Math.round(main.bottom), navTop: Math.round(nav.top) };
+  });
+  expect(shellGeometry.mainBottom).toBeLessThanOrEqual(shellGeometry.navTop);
 });
 
 for (const locale of ["en", "ar"] as const) test(`${locale} bounded flow uses route direction and business copy`, async ({ page }) => {
@@ -85,7 +91,7 @@ test("project setup can be completed and advances the persisted Today action", a
   await expect(page).toHaveURL(new RegExp(detailPath));
   await expect(page.getByRole("heading", { name: "Atlas Coffee Trading" })).toBeVisible();
   await page.goto("/?locale=en");
-  await expect(page.getByRole("heading", { name: "Review saved project data" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Record supplier shipment" })).toBeVisible();
 });
 
 
@@ -105,4 +111,33 @@ test("stale setup form cannot overwrite a project closed in another session", as
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("orb.user-projects.owner-1.v1") ?? "[]")[0]);
   expect(saved.status).toBe("CLOSED");
   expect(saved.customer).toBe("Newer customer");
+});
+
+
+test("active project records a supplier shipment and Today advances to review it", async ({ page }) => {
+  const detailPath = await createProject(page);
+  await page.getByRole("button", { name: "Complete project setup" }).click();
+  await page.locator('[name="supplier"]').fill("Coast Exporters");
+  await page.locator('[name="purchaseContractReference"]').fill("PC-17");
+  await page.getByRole("button", { name: "Save setup" }).click();
+  await expect(page.locator("#supplier-shipment-title")).toHaveText("Record supplier shipment");
+  await page.locator('[name="shipmentReference"]').fill("SS-001");
+  await page.locator('[name="expectedArrival"]').fill("2026-12-02");
+  await page.locator('[name="shipmentQuantity"]').fill("12");
+  await page.getByRole("button", { name: "Save supplier shipment" }).click();
+  await expect(page.locator("#supplier-shipment")).toContainText("SS-001");
+  await expect(page.locator("#supplier-shipment")).toContainText("12 MT");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  await expect(page).toHaveURL(new RegExp(detailPath));
+  await expect(page.locator("#supplier-shipment")).toContainText("SS-001");
+  const mobileGeometry = await page.evaluate(() => {
+    const main = document.querySelector(".orb-main")!.getBoundingClientRect();
+    const nav = document.querySelector('[data-navigation="bottom"]')!.getBoundingClientRect();
+    return { mainBottom: Math.round(main.bottom), navTop: Math.round(nav.top) };
+  });
+  expect(mobileGeometry.mainBottom).toBeLessThanOrEqual(mobileGeometry.navTop);
+  await page.goto("/?locale=en");
+  await expect(page.getByRole("heading", { name: "Review supplier shipment" })).toBeVisible();
+  await expect(page.locator("body")).toContainText("SS-001");
 });
