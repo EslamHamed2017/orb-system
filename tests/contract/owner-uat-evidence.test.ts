@@ -19,7 +19,7 @@ function report(
     errors: [],
     suites: [{ title: "owner-uat.spec.ts", file: "owner-uat.spec.ts", specs: titles.map((title, index) => ({
       title, ok: status === "passed", tests: [{ projectName: "chromium", expectedStatus: "passed", status: "expected", results: [{
-        status, duration: 10_000, startTime: new Date(Date.parse(startTime) + index * 10_000).toISOString(),
+        status, retry: 0, duration: 10_000, startTime: new Date(Date.parse(startTime) + index * 10_000).toISOString(),
       }] }],
     })) }],
   };
@@ -259,6 +259,21 @@ test("owner UAT evidence rejects a journey that passed only after a failed retry
     }),
     /did not pass/,
   );
+});
+
+test("owner UAT evidence rejects missing or nonzero retry provenance", () => {
+  const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
+  const missingRetry = report();
+  delete (missingRetry.suites[0].specs[0].tests[0].results[0] as { retry?: number }).retry;
+  const retried = report();
+  retried.suites[0].specs[0].tests[0].results[0].retry = 1;
+
+  for (const value of [missingRetry, retried]) {
+    assert.throws(
+      () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
+      /clean first attempt|retry/i,
+    );
+  }
 });
 
 test("owner UAT evidence rejects contradictory test-level outcomes", () => {
