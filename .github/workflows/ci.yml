@@ -119,10 +119,7 @@ jobs:
       ORB_APPROVED_RELEASE_COMMIT: ${{ inputs.approved_release_commit }}
       ORB_RELEASE_CANDIDATE_MANIFEST_B64: ${{ inputs.release_candidate_manifest_base64 }}
       ORB_RELEASE_PUBLIC_KEY_B64: ${{ inputs.release_public_key_base64 }}
-      ORB_RELEASE_CANDIDATE_MANIFEST: ${{ runner.temp }}/approved-release-candidate.json
-      ORB_RELEASE_PUBLIC_KEY_PATH: ${{ runner.temp }}/approved-release-public.pem
       ORB_OWNER_UAT_AUTHORIZATION: OWNER_APPROVED
-      ORB_OWNER_UAT_EVIDENCE_DIR: ${{ runner.temp }}/owner-uat-evidence
     steps:
       - name: Validate approved release commit input
         shell: bash
@@ -146,6 +143,9 @@ jobs:
             exit 2
           }
       - name: Materialize approved signed release candidate
+        env:
+          ORB_RELEASE_CANDIDATE_MANIFEST: ${{ runner.temp }}/approved-release-candidate.json
+          ORB_RELEASE_PUBLIC_KEY_PATH: ${{ runner.temp }}/approved-release-public.pem
         shell: bash
         run: |
           umask 077
@@ -163,6 +163,10 @@ jobs:
       - run: pnpm install --frozen-lockfile --strict-peer-dependencies
       - run: pnpm exec playwright install --with-deps chromium
       - name: Bilingual owner-UAT technical gate
+        env:
+          ORB_RELEASE_CANDIDATE_MANIFEST: ${{ runner.temp }}/approved-release-candidate.json
+          ORB_RELEASE_PUBLIC_KEY_PATH: ${{ runner.temp }}/approved-release-public.pem
+          ORB_OWNER_UAT_EVIDENCE_DIR: ${{ runner.temp }}/owner-uat-evidence
         run: ops/acceptance/run-owner-uat-gate.sh
       - uses: actions/upload-artifact@v4
         if: success()

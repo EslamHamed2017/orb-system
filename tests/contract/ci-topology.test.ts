@@ -22,6 +22,16 @@ test("CI separates offline, local-browser, and manually dispatched deployed acce
   assert.doesNotMatch(deployed, /ORB_TEST_AUTH|ORB_APP_ORIGIN/);
 });
 
+test("job-level CI environments never reference the unavailable runner context", () => {
+  const jobs = workflow.split(/^  (?=[A-Za-z_][A-Za-z0-9_-]*:\s*$)/m).slice(1);
+  for (const job of jobs) {
+    const jobName = job.match(/^([A-Za-z_][A-Za-z0-9_-]*):/)?.[1] ?? "unknown";
+    const envMatch = job.match(/^    env:(?:[ \t]+([^\n]*)|\n([\s\S]*?)(?=^    \S))/m);
+    const jobEnv = envMatch?.[1] ?? envMatch?.[2] ?? "";
+    assert.doesNotMatch(jobEnv, /\$\{\{\s*runner\./, `${jobName} job-level env must not use runner context`);
+  }
+});
+
 test("deployed owner UAT is explicitly authorized and limited to the bilingual pilot journey", () => {
   const deployed = workflow.match(/^  deployed-acceptance:\n([\s\S]*?)(?=^  [a-z][a-z-]+:\n)/m)?.[1] ?? "";
   assert.match(workflow, /owner_uat_authorized:[\s\S]*?type: boolean/);
