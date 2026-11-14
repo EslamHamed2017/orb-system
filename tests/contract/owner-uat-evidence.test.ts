@@ -24,7 +24,7 @@ function report(
   duration = 30_000,
 ) {
   return {
-    config: { forbidOnly: true, fullyParallel: false, workers: 1, filteredProjects: [{ name: "chromium", use: { baseURL } }] },
+    config: { forbidOnly: true, fullyParallel: false, workers: 1, filteredProjects: [{ name: "chromium", retries: 0, use: { baseURL } }] },
     stats: { startTime, duration, expected: 2, skipped: 0, unexpected: 0, flaky: 0 },
     errors: [],
     suites: [{ title: "owner-uat.spec.ts", file: "owner-uat.spec.ts", specs: titles.map((title, index) => ({
@@ -207,6 +207,21 @@ test("owner UAT evidence requires exactly one Playwright worker", () => {
     assert.throws(
       () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
       /exactly one.*worker|workers/i,
+    );
+  }
+});
+
+test("owner UAT evidence requires Playwright retries to be disabled", () => {
+  const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
+  const enabled = report();
+  enabled.config.filteredProjects[0].retries = 2;
+  const missing = report();
+  delete (missing.config.filteredProjects[0] as { retries?: number }).retries;
+
+  for (const value of [enabled, missing]) {
+    assert.throws(
+      () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
+      /retries.*disabled|retries/i,
     );
   }
 });
