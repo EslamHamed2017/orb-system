@@ -18,7 +18,7 @@ function report(
     stats: { startTime, duration, expected: 2, skipped: 0, unexpected: 0, flaky: 0 },
     errors: [],
     suites: [{ title: "owner-uat.spec.ts", file: "owner-uat.spec.ts", specs: titles.map((title) => ({
-      title, ok: status === "passed", tests: [{ projectName: "chromium", expectedStatus: "passed", results: [{ status, duration: 10_000 }] }],
+      title, ok: status === "passed", tests: [{ projectName: "chromium", expectedStatus: "passed", results: [{ status, duration: 10_000, startTime }] }],
     })) }],
   };
 }
@@ -150,6 +150,23 @@ test("owner UAT evidence rejects missing, zero, or impossible journey durations"
     assert.throws(
       () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
       /journey duration/i,
+    );
+  }
+});
+
+test("owner UAT evidence rejects journey timing outside the certified report window", () => {
+  const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
+  const missingStart = report();
+  delete (missingStart.suites[0].specs[0].tests[0].results[0] as { startTime?: string }).startTime;
+  const startsBeforeReport = report();
+  startsBeforeReport.suites[0].specs[0].tests[0].results[0].startTime = "2026-11-12T09:58:59.999Z";
+  const completesAfterReport = report();
+  completesAfterReport.suites[0].specs[0].tests[0].results[0].startTime = "2026-11-12T09:59:25.000Z";
+
+  for (const value of [missingStart, startsBeforeReport, completesAfterReport]) {
+    assert.throws(
+      () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
+      /journey timing/i,
     );
   }
 });
