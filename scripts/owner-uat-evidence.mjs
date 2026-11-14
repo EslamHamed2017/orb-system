@@ -114,11 +114,11 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
     const result = test.results[0];
     if (!Array.isArray(result?.annotations) || result.annotations.length !== 0)
       throw new Error(`owner UAT journey result must not carry Playwright annotations: ${spec.title}`);
-    if (result?.attachments !== undefined && (!Array.isArray(result.attachments) || result.attachments.length !== 0))
-      throw new Error(`owner UAT journey must not retain attached artifacts: ${spec.title}`);
-    if ((result?.stdout !== undefined && (!Array.isArray(result.stdout) || result.stdout.length !== 0)) ||
-        (result?.stderr !== undefined && (!Array.isArray(result.stderr) || result.stderr.length !== 0)))
-      throw new Error(`owner UAT journey must not retain stdout or stderr console output: ${spec.title}`);
+    if (!Array.isArray(result?.attachments) || result.attachments.length !== 0)
+      throw new Error(`owner UAT journey must carry explicit empty attachment provenance; attached artifacts are not permitted: ${spec.title}`);
+    if (!Array.isArray(result?.stdout) || result.stdout.length !== 0 ||
+        !Array.isArray(result?.stderr) || result.stderr.length !== 0)
+      throw new Error(`owner UAT journey must carry explicit empty stdout and stderr provenance; console output is not permitted: ${spec.title}`);
     if (result?.retry !== 0)
       throw new Error(`owner UAT journey must pass on a clean first attempt with retry provenance: ${spec.title}`);
     if (!Array.isArray(result?.errors) || result.errors.length !== 0 || result?.error != null)

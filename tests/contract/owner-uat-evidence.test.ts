@@ -29,7 +29,8 @@ function report(
     errors: [],
     suites: [{ title: "owner-uat.spec.ts", file: "owner-uat.spec.ts", specs: titles.map((title, index) => ({
       title, file: "owner-uat.spec.ts", ok: status === "passed", tests: [{ projectName: "chromium", expectedStatus: "passed", status: "expected", results: [{
-        status, retry: 0, duration: 10_000, startTime: new Date(Date.parse(startTime) + index * 10_000).toISOString(), annotations: [], errors: [],
+        status, retry: 0, duration: 10_000, startTime: new Date(Date.parse(startTime) + index * 10_000).toISOString(),
+        annotations: [], attachments: [], stdout: [], stderr: [], errors: [],
       }] }],
     })) }],
   };
@@ -237,6 +238,19 @@ test("owner UAT evidence requires each bilingual journey to execute exactly once
     assert.throws(
       () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
       /execute exactly once|repeatEach/i,
+    );
+  }
+});
+
+test("owner UAT evidence requires explicit empty result artifact and output provenance", () => {
+  const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
+  for (const field of ["attachments", "stdout", "stderr"] as const) {
+    const missing = report();
+    delete (missing.suites[0].specs[0].tests[0].results[0] as Record<string, unknown>)[field];
+    assert.throws(
+      () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(missing)) }),
+      /artifact|output provenance|attachments|stdout|stderr/i,
+      `accepted missing ${field} provenance`,
     );
   }
 });
