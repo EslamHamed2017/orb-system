@@ -50,6 +50,8 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
   const stats = report?.stats;
   if (stats?.expected !== JOURNEYS.size || stats?.unexpected !== 0 || stats?.flaky !== 0 || stats?.skipped !== 0)
     throw new Error("owner UAT report aggregate outcomes are not exactly two expected passes");
+  if (report?.config?.forbidOnly !== true)
+    throw new Error("owner UAT report must forbid focused tests with Playwright forbidOnly");
   const filteredProjects = report?.config?.filteredProjects;
   if (!Array.isArray(filteredProjects) || filteredProjects.length !== 1 || filteredProjects[0]?.name !== "chromium")
     throw new Error("owner UAT report must contain exactly the approved Chromium project");

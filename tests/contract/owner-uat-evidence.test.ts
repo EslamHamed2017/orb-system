@@ -24,7 +24,7 @@ function report(
   duration = 30_000,
 ) {
   return {
-    config: { filteredProjects: [{ name: "chromium", use: { baseURL } }] },
+    config: { forbidOnly: true, filteredProjects: [{ name: "chromium", use: { baseURL } }] },
     stats: { startTime, duration, expected: 2, skipped: 0, unexpected: 0, flaky: 0 },
     errors: [],
     suites: [{ title: "owner-uat.spec.ts", file: "owner-uat.spec.ts", specs: titles.map((title, index) => ({
@@ -164,6 +164,21 @@ test("owner UAT evidence rejects a malformed nested suite envelope", () => {
     }),
     /approved owner UAT suite/i,
   );
+});
+
+test("owner UAT evidence requires Playwright to reject focused tests", () => {
+  const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
+  const disabled = report();
+  disabled.config.forbidOnly = false;
+  const missing = report();
+  delete (missing.config as { forbidOnly?: boolean }).forbidOnly;
+
+  for (const value of [disabled, missing]) {
+    assert.throws(
+      () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
+      /forbid focused tests|forbidOnly/i,
+    );
+  }
 });
 
 test("owner UAT evidence rejects journeys attributed to a non-approved browser project", () => {
