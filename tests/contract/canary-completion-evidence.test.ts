@@ -206,6 +206,32 @@ test("canary completion independently rejects a final sample with a mandatory st
   }
 });
 
+test("canary completion independently rejects weakened monitoring thresholds", () => {
+  for (const monitoringPatch of [
+    { maxErrorRatePercent: 1.01 },
+    { maxP95LatencyMs: 2001 },
+    { maxConsecutiveReadinessFailures: 3 },
+  ]) {
+    const original = monitoringEvidence();
+    const monitoring = {
+      ...original,
+      monitoring: { ...(original.monitoring as Record<string, unknown>), ...monitoringPatch },
+    };
+    const { monitoringEvidenceSha256: _digest, ...payload } = monitoring;
+    monitoring.monitoringEvidenceSha256 = sha256(payload);
+    assert.throws(
+      () => finalizeCanaryEvidence({
+        monitoringEvidence: monitoring,
+        completion: {
+          ...completion(),
+          finalMonitoringEvidenceSha256: monitoring.monitoringEvidenceSha256,
+        },
+      }),
+      /approved monitoring thresholds/i,
+    );
+  }
+});
+
 test("canary completion requires a valid approved UAT evidence binding", () => {
   const monitoring = { ...monitoringEvidence(), approvedUatEvidenceSha256: "not-a-digest" };
   const { monitoringEvidenceSha256: _digest, ...payload } = monitoring;

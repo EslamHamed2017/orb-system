@@ -120,12 +120,20 @@ export function finalizeCanaryEvidence({ monitoringEvidence, completion, now = n
   const failures = monitoringEvidence.consecutiveReadinessFailures;
   const securityEvents = monitoringEvidence.securityEvents;
   const finiteNonNegative = (value) => typeof value === "number" && Number.isFinite(value) && value >= 0;
+  const approvedThresholdsAreValid =
+    monitoring && typeof monitoring === "object" && !Array.isArray(monitoring) &&
+    typeof monitoring.maxErrorRatePercent === "number" &&
+    Number.isFinite(monitoring.maxErrorRatePercent) &&
+    monitoring.maxErrorRatePercent > 0 && monitoring.maxErrorRatePercent <= 1 &&
+    Number.isInteger(monitoring.maxP95LatencyMs) &&
+    monitoring.maxP95LatencyMs > 0 && monitoring.maxP95LatencyMs <= 2000 &&
+    Number.isInteger(monitoring.maxConsecutiveReadinessFailures) &&
+    monitoring.maxConsecutiveReadinessFailures >= 1 &&
+    monitoring.maxConsecutiveReadinessFailures <= 2;
+  if (!approvedThresholdsAreValid)
+    throw new Error("final monitoring evidence must preserve approved monitoring thresholds");
   const finalOutcomeIsSafe =
     monitoring && typeof monitoring === "object" && !Array.isArray(monitoring) &&
-    Number.isInteger(monitoring.maxConsecutiveReadinessFailures) &&
-    monitoring.maxConsecutiveReadinessFailures >= 0 &&
-    finiteNonNegative(monitoring.maxErrorRatePercent) &&
-    finiteNonNegative(monitoring.maxP95LatencyMs) &&
     Array.isArray(monitoringEvidence.stopConditions) &&
     monitoringEvidence.stopConditions.length === REQUIRED_STOPS.length &&
     REQUIRED_STOPS.every((name) => monitoringEvidence.stopConditions.includes(name)) &&
