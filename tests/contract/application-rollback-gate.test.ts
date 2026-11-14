@@ -33,6 +33,10 @@ test("application rollback gate is isolated, revision-pinned, and forward-schema
   assert.match(gate, /before_schema_digest=\$\(schema_digest\)/);
   assert.match(gate, /after_schema_digest=\$\(schema_digest\)/);
   assert.match(gate, /\[\[ "\$after_schema_digest" == "\$before_schema_digest" \]\]/);
+  assert.match(gate, /data_digest\(\)/);
+  assert.match(gate, /before_data_digest=\$\(data_digest\)/);
+  assert.match(gate, /after_data_digest=\$\(data_digest\)/);
+  assert.match(gate, /\[\[ "\$after_data_digest" == "\$before_data_digest" \]\]/);
   assert.doesNotMatch(gate, /migrate reset|DROP (?:DATABASE|SCHEMA|TABLE|COLUMN)/i);
 });
 

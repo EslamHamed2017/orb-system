@@ -119,8 +119,12 @@ migration_digest() {
 }
 schema_digest() {
   # PostgreSQL 18 emits random \restrict/\unrestrict tokens in otherwise
-  # deterministic schema-only dumps; exclude only those client guard lines.
+  # deterministic dumps; exclude only those client guard lines.
   docker exec "$container" pg_dump --schema-only --no-owner --no-privileges -U orb_migrator orb_rollback \
+    | python3 -c 'import hashlib, sys; data = b"".join(line for line in sys.stdin.buffer if not line.startswith((b"\\restrict ", b"\\unrestrict "))); print(hashlib.sha256(data).hexdigest())'
+}
+data_digest() {
+  docker exec "$container" pg_dump --no-owner --no-privileges -U orb_migrator orb_rollback \
     | python3 -c 'import hashlib, sys; data = b"".join(line for line in sys.stdin.buffer if not line.startswith((b"\\restrict ", b"\\unrestrict "))); print(hashlib.sha256(data).hexdigest())'
 }
 before=$(migration_state)
@@ -136,6 +140,8 @@ compatible=$(docker exec "$container" psql -X -U orb_migrator -d orb_rollback -A
 
 # The preceding client must still write and read a legacy model after expansion.
 (cd "$work/preceding-app" && DATABASE_URL="$database_url" node legacy_app_write.mjs RLA)
+before_data_digest=$(data_digest)
+[[ "$before_data_digest" =~ ^[a-f0-9]{64}$ ]] || { echo "expanded data digest is invalid" >&2; exit 2; }
 
 # Build and boot the actual preceding application revision against the expanded database.
 (
@@ -180,9 +186,11 @@ after_digest=$(migration_digest)
 [[ "$after_digest" == "$before_digest" ]] || { echo "application rollback mutated migration history" >&2; exit 2; }
 after_schema_digest=$(schema_digest)
 [[ "$after_schema_digest" == "$before_schema_digest" ]] || { echo "application rollback mutated the expanded database schema" >&2; exit 2; }
+after_data_digest=$(data_digest)
+[[ "$after_data_digest" == "$before_data_digest" ]] || { echo "application rollback mutated expanded database data while serving smoke checks" >&2; exit 2; }
 markers=$(docker exec "$container" psql -X -U orb_migrator -d orb_rollback -At -v ON_ERROR_STOP=1 -c \
   "SELECT string_agg(trim(code), ',' ORDER BY code) FROM \"Currency\" WHERE trim(code) IN ('RLA','RLB')")
 [[ "$markers" == "RLA,RLB" ]] || { echo "legacy write markers missing after rollback" >&2; exit 2; }
 
-printf 'application rollback gate passed: preceding=%s; migrations=%s; legacy_app_write=2; readiness=ready; schema=expanded\n' \
+printf 'application rollback gate passed: preceding=%s; migrations=%s; legacy_app_write=2; readiness=ready; schema=expanded; data=preserved\n' \
   "$ORB_ROLLBACK_APP_REVISION" "$expected"
