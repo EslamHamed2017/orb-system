@@ -73,12 +73,13 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
   if (!Number.isFinite(reportStarted.valueOf()) || reportStarted.toISOString() !== report?.stats?.startTime ||
       !Number.isFinite(reportDuration) || reportDuration <= 0)
     throw new Error("owner UAT report timing must include a positive duration");
-  if (!Number.isSafeInteger(reportDuration))
-    throw new Error("owner UAT report duration must use integer milliseconds");
   const maximumReportDurationMs = 30 * 60 * 1000;
   if (reportDuration > maximumReportDurationMs)
     throw new Error("owner UAT report duration must not exceed 30 minutes");
-  const reportCompleted = new Date(reportStarted.valueOf() + reportDuration);
+  // Playwright 1.64 reports aggregate duration from a high-resolution timer, so it
+  // can contain fractional milliseconds. Round up to avoid understating the
+  // completion boundary used by chronology and freshness checks.
+  const reportCompleted = new Date(reportStarted.valueOf() + Math.ceil(reportDuration));
   if (reportCompleted > generated) throw new Error("owner UAT report cannot be future-dated");
   if (generated.valueOf() - reportCompleted.valueOf() > 15 * 60 * 1000)
     throw new Error("owner UAT report must be fresh when evidence is generated");

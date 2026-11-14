@@ -376,19 +376,33 @@ test("owner UAT evidence rejects a zero-duration browser report", () => {
   );
 });
 
-test("owner UAT evidence rejects fractional millisecond durations", () => {
-  const base = { targetUrl: "https://uat.example.test", gitCommit: commit, generatedAtUtc: "2026-11-12T10:00:00.000Z" };
-  const fractionalReport = report();
-  fractionalReport.stats.duration = 30_000.5;
-  const fractionalJourney = report();
-  fractionalJourney.suites[0].specs[0].tests[0].results[0].duration = 10_000.5;
+test("owner UAT evidence accepts Playwright fractional aggregate timing", () => {
+  const value = report();
+  value.stats.duration = 30_000.5;
 
-  for (const value of [fractionalReport, fractionalJourney]) {
-    assert.throws(
-      () => createOwnerUatEvidence({ ...base, reportBytes: Buffer.from(JSON.stringify(value)) }),
-      /integer milliseconds/i,
-    );
-  }
+  const evidence = createOwnerUatEvidence({
+    reportBytes: Buffer.from(JSON.stringify(value)),
+    targetUrl: "https://uat.example.test",
+    gitCommit: commit,
+    generatedAtUtc: "2026-11-12T10:00:00.000Z",
+  });
+
+  assert.equal(evidence.reportCompletedAtUtc, "2026-11-12T09:59:30.001Z");
+});
+
+test("owner UAT evidence rejects fractional per-journey duration provenance", () => {
+  const value = report();
+  value.suites[0].specs[0].tests[0].results[0].duration = 10_000.5;
+
+  assert.throws(
+    () => createOwnerUatEvidence({
+      reportBytes: Buffer.from(JSON.stringify(value)),
+      targetUrl: "https://uat.example.test",
+      gitCommit: commit,
+      generatedAtUtc: "2026-11-12T10:00:00.000Z",
+    }),
+    /integer milliseconds/i,
+  );
 });
 
 test("owner UAT evidence rejects missing, zero, or impossible journey durations", () => {
