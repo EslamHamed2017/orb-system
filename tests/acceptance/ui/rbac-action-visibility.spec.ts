@@ -1,6 +1,7 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { operationIds, requiredRolesForOperation } from "../../../src/modules/access/roles";
 
 type Operation = { method: string; path: string; operationId: string; roles: readonly string[] };
 const source = readFileSync(resolve(process.cwd(), "specs/001-orb-trade-operations/contracts/openapi.yaml"), "utf8");
@@ -16,6 +17,12 @@ function operations(): Operation[] {
     if (methodMatch && methods.has(methodMatch[1])) { flush(); method = methodMatch[1]; continue; }
     const idMatch = line.match(/^      operationId: (\S+)$/);
     if (idMatch) { operationId = idMatch[1]; continue; }
+    const inlineRolesMatch = line.match(/^      x-required-roles: \[(.*)\]$/);
+    if (inlineRolesMatch) {
+      roles = inlineRolesMatch[1].trim() ? inlineRolesMatch[1].split(",").map((role) => role.trim()) : [];
+      if (roles.some((role) => !/^(OWNER_ADMIN|OPERATIONS|FINANCE_VIEWER)$/.test(role))) throw new Error(`Unknown fixed role: ${roles.join(", ")}`);
+      readingRoles = false; continue;
+    }
     if (/^      x-required-roles:$/.test(line)) { readingRoles = true; continue; }
     const roleMatch = readingRoles ? line.match(/^      - (OWNER_ADMIN|OPERATIONS|FINANCE_VIEWER)$/) : null;
     if (roleMatch) { roles.push(roleMatch[1]); continue; }
@@ -42,12 +49,18 @@ async function directCall(request: APIRequestContext, operation: Operation) {
   });
 }
 
-test("all 79 operations have a fixed role declaration, with sign-in as the only public operation", async () => {
-  expect(contractOperations).toHaveLength(79);
-  expect(new Set(contractOperations.map(({ operationId }) => operationId)).size).toBe(79);
+test("contract role parser reads flow and block role declarations", async () => {
+  expect(contractOperations.find(({ operationId }) => operationId === "getSettings")?.roles).toEqual(["OWNER_ADMIN"]);
+  expect(contractOperations.find(({ operationId }) => operationId === "listProjects")?.roles).toEqual(["OWNER_ADMIN", "OPERATIONS", "FINANCE_VIEWER"]);
+});
+
+test("every contracted operation mirrors the fixed runtime role declaration, with sign-in as the only public operation", async () => {
+  const runtimeIds = operationIds();
+  expect(contractOperations).toHaveLength(runtimeIds.length);
+  expect(new Set(contractOperations.map(({ operationId }) => operationId))).toEqual(new Set(runtimeIds));
   expect(contractOperations.filter(({ roles }) => roles.length === 0).map(({ operationId }) => operationId)).toEqual(["signIn"]);
-  for (const operation of contractOperations.filter(({ operationId }) => operationId !== "signIn"))
-    expect(operation.roles.length, `${operation.operationId} has no fixed role`).toBeGreaterThan(0);
+  for (const operation of contractOperations)
+    expect([...operation.roles].sort(), `${operation.operationId} role declaration drifted`).toEqual([...requiredRolesForOperation(operation.operationId)].sort());
 });
 
 test("anonymous direct calls to every protected operation fail closed with a safe problem response", async ({ request }) => {
