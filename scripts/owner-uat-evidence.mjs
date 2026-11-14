@@ -75,7 +75,8 @@ export function createOwnerUatEvidence({ reportBytes, targetUrl, gitCommit, gene
   const approvedSuites = report.suites;
   if (!Array.isArray(approvedSuites) || approvedSuites.length !== 1 ||
       approvedSuites[0]?.title !== "owner-uat.spec.ts" || approvedSuites[0]?.file !== "owner-uat.spec.ts" ||
-      (Array.isArray(approvedSuites[0]?.suites) && approvedSuites[0].suites.length !== 0))
+      (approvedSuites[0]?.suites !== undefined &&
+        (!Array.isArray(approvedSuites[0].suites) || approvedSuites[0].suites.length !== 0)))
     throw new Error("owner UAT report must contain exactly the approved owner UAT suite");
   const specs = allSpecs(approvedSuites);
   if (specs.length !== JOURNEYS.size) throw new Error("owner UAT report must contain exactly the approved bilingual journeys");

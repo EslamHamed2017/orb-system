@@ -138,6 +138,20 @@ test("owner UAT evidence rejects approved journey titles reported by an unrelate
   }
 });
 
+test("owner UAT evidence rejects a malformed nested suite envelope", () => {
+  const value = report();
+  Object.assign(value.suites[0], { suites: { specs: [] } });
+  assert.throws(
+    () => createOwnerUatEvidence({
+      reportBytes: Buffer.from(JSON.stringify(value)),
+      targetUrl: "https://uat.example.test",
+      gitCommit: commit,
+      generatedAtUtc: "2026-11-12T10:00:00.000Z",
+    }),
+    /approved owner UAT suite/i,
+  );
+});
+
 test("owner UAT evidence rejects journeys attributed to a non-approved browser project", () => {
   const value = report();
   value.suites[0].specs[0].tests[0].projectName = "firefox";
