@@ -1,31 +1,45 @@
 import { expect, test } from "@playwright/test";
 
 for (const locale of ["en", "ar"] as const) {
-  test(`${locale} customers directory opens a bilingual customer 360 detail`, async ({ page }) => {
+  test(`${locale} customer directory is honest, empty, and fixture-free`, async ({ page }) => {
     const ar = locale === "ar";
     await page.goto(`/masters/customers?locale=${locale}`);
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
     await expect(page.getByRole("heading", { level: 1, name: ar ? "العملاء" : "Customers" })).toBeVisible();
     await expect(page.locator("main > section")).toHaveAttribute("dir", ar ? "rtl" : "ltr");
-    await expect(page.getByRole("heading", { level: 2, name: ar ? "دليل العملاء" : "Customer directory" })).toBeVisible();
-    await expect(page.getByRole("table").getByRole("row")).toHaveCount(4);
-    const addCustomer = page.getByRole("button", { name: ar ? "إضافة عميل" : "Add customer" });
-    await expect(addCustomer).toHaveAttribute("data-operation-id", "createCustomer");
-    await expect(addCustomer).toHaveAttribute("aria-controls", "customer-registration");
-    await addCustomer.click();
-    await expect(page.locator("#customer-registration")).toHaveAttribute("open", "");
-    await expect(page.locator("#customer-registration input[name=reference]")).toBeFocused();
-    await page.getByRole("table").getByRole("link", { name: ar ? "عرض" : "View" }).first().click();
-    await expect.poll(() => { const url = new URL(page.url()); return url.pathname + url.search; }).toBe(`/customers/customer-northstar?locale=${locale}`);
-    await expect(page.getByText(ar ? "نظرة العميل ٣٦٠°" : "Customer 360", { exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { level: 2, name: ar ? "السجلات المرتبطة" : "Related records" })).toBeVisible();
-    await expect(page.getByRole("link", { name: ar ? "فواتير المبيعات" : "Sales invoices" })).toHaveAttribute("href", /customerId=customer-northstar/);
-    await expect(page.getByRole("link", { name: ar ? "تعديل العميل" : "Edit customer" })).toHaveAttribute("data-operation-id", "updateCustomer");
+    await expect(page.getByText(ar ? "محفوظ في ملف هذا المتصفح" : "Saved in this browser profile")).toBeVisible();
+    await expect(page.getByText(ar ? /لا تتم مزامنته أو نسخه احتياطياً/ : /not synchronized or backed up/)).toBeVisible();
+    await expect(page.getByRole("heading", { name: ar ? "لم يُسجل أي عميل بعد" : "No customers registered yet" })).toBeVisible();
+    await expect(page.locator("body")).not.toContainText("Northstar Roasters");
   });
 }
 
-test("customer directory filters by lifecycle and bilingual-searchable data", async ({ page }) => {
-  await page.goto("/masters/customers?locale=en&status=INACTIVE&q=Harbor");
-  await expect(page.getByRole("table").getByRole("row")).toHaveCount(2);
-  await expect(page.getByText("CUS-2025-014", { exact: false })).toBeVisible();
-  await expect(page.getByText("CUS-2026-001", { exact: false })).toHaveCount(0);
+test("customer filters preserve locale and optional role", async ({ page }) => {
+  await page.goto("/masters/customers?locale=ar&role=finance&q=Atlas&status=ACTIVE");
+  await expect(page.locator('input[name="locale"]')).toHaveValue("ar");
+  await expect(page.locator('input[name="role"]')).toHaveValue("finance");
+  await page.getByRole("button", { name: "تطبيق" }).click();
+  await expect(page).toHaveURL(/locale=ar/);
+  await expect(page).toHaveURL(/role=finance/);
+  await expect(page.getByRole("link", { name: "مسح المرشحات" })).toHaveAttribute("href", /locale=ar.*role=finance/);
+});
+
+test("every customer lifecycle mutation is permission-aware", async ({ page }) => {
+  const record = [
+    { id: "customer-permission-active", reference: "CUS-900", legalNameEn: "Permission Customer", legalNameAr: "عميل الصلاحيات", countryCode: "ET", contactName: "Hana", email: "hana@example.com", phone: "+251 900", active: true, projectCount: 0, openInvoiceCount: 0 },
+    { id: "customer-permission-archived", reference: "CUS-901", legalNameEn: "Archived Customer", legalNameAr: "عميل مؤرشف", countryCode: "AE", contactName: "Noor", email: "noor@example.com", phone: "+971 500", active: false, projectCount: 0, openInvoiceCount: 0 },
+  ];
+  await page.goto("/masters/customers?locale=en&role=finance");
+  await page.evaluate((items) => localStorage.setItem("orb.browser-customers.v1", JSON.stringify(items)), record);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Add customer" })).toBeDisabled();
+  const editButtons = page.getByRole("button", { name: "Edit" });
+  await expect(editButtons).toHaveCount(2);
+  await expect(editButtons.first()).toBeDisabled();
+  await expect(editButtons.last()).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Archive" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Reactivate" })).toBeDisabled();
+  await page.locator("#customer-registration > summary").click();
+  await expect(page.getByRole("button", { name: "Save customer" })).toBeDisabled();
 });

@@ -20,7 +20,7 @@ export default async function MasterPage({ params, searchParams }: { params: Pro
   const locale = query.locale === "ar" ? "ar" : "en";
   if (masterType === "customers") {
     const status: CustomerStatusFilter = query.status === "ACTIVE" || query.status === "INACTIVE" ? query.status : "ALL";
-    return <CustomersPage locale={locale} query={query.q ?? ""} status={status}/>;
+    return <CustomersPage locale={locale} query={query.q ?? ""} status={status} role={query.role}/>;
   }
   if (masterType === "suppliers") {
     const status: SupplierStatusFilter = query.status === "ACTIVE" || query.status === "INACTIVE" ? query.status : "ALL";

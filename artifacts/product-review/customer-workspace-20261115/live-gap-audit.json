@@ -1,0 +1,116 @@
+{
+  "capturedAt": "2026-11-15T09:01:07.654Z",
+  "base": "http://127.0.0.1:40655",
+  "commit": "f554356a09308b37ba2e491ea2e7ec136019365b",
+  "viewport": "390x844 clean localStorage",
+  "audit": [
+    {
+      "name": "Today",
+      "path": "/?locale=en",
+      "heading": "Today",
+      "text": "ORB-R1 DAILY WORKSPACE Today Start with the next required step for every project that needs work. November 15, 2026 Start with your first project Create a project from your own data and its required work will appear here. ORB will not add sample data. Create project O ع EB Today Projects Approvals More",
+      "rawTechnical": false,
+      "overflow": 0,
+      "mainBottom": 768,
+      "navTop": 768,
+      "visibleDemoLabel": false,
+      "mentionsNoDemoData": false
+    },
+    {
+      "name": "Projects",
+      "path": "/projects?locale=en",
+      "heading": "Projects",
+      "text": "ORB-R1 WORK REGISTER Projects Projects you enter are saved in this browser only. ＋ New project Search projects ⌕ No saved projects Create your first project from your own data. No demo data will be shown. Create project O ع EB Today Projects Approvals More",
+      "rawTechnical": false,
+      "overflow": 0,
+      "mainBottom": 768,
+      "navTop": 768,
+      "visibleDemoLabel": false,
+      "mentionsNoDemoData": true
+    },
+    {
+      "name": "Finance",
+      "path": "/accounts?locale=en",
+      "heading": "Finance work",
+      "text": "ORB-R1 DAILY WORKSPACE Finance work Choose a saved project, then open one focused finance task. Trade operations only — no general ledger or inventory valuation Statuses and amounts below come only from records you entered and saved in this browser. They are not synchronized or backed up. No project finance work yet Create a project from your own data to start recording invoices, payments, collections, and expenses. No placeholder amounts will be shown. Create a project O ع EB Today Projects Approvals More",
+      "rawTechnical": false,
+      "overflow": 0,
+      "mainBottom": 768,
+      "navTop": 768,
+      "visibleDemoLabel": false,
+      "mentionsNoDemoData": false
+    },
+    {
+      "name": "Approvals Arabic",
+      "path": "/approvals?locale=ar",
+      "heading": "طلبات الموافقة",
+      "text": "ORB-R1 مساحة القرار طلبات الموافقة راجع أثر الطلب والمستلمين والتغييرات قبل اتخاذ القرار. معاينة فقط مراجعة إرسال مستندات العميل إرسال مستندات الشحن إلى العميل خدمة الموافقات غير متصلة هذا الطلب للمعاينة فقط. لم يتم إرسال أي رسالة، ولن يظهر زر القرار حتى تتصل الخدمة الآمنة. الطلب إرسال حزمة مستندات شحن مرجع الحزمة ORB-MAN-0007 مقدم الطلب مستخدم العمليات الدور المطلوب مالك النظام الحالة بانتظار القرار تاريخ الطلب ٧ نوفمبر ٢٠٢٦، ١٠:٣٠ ص ما الذي تغير؟ قائمة المستلمين قبل: فريق العمليات بعد: فريق استيراد العميل تحقق قبل الموافقة تغير المستلم بعد المراجعة السابقة. تأكد من صحة الجهة المستلمة والمرفقات؛ ولا يجوز لمقدم الطلب اعتماد طلبه. المرفقات غير متاحة · ستظهر حزمة المستندات هنا بعد اتصال خدمة الموافقات. التفاصيل التقنية O EN EB اليوم المشاريع الموافقات المزيد",
+      "rawTechnical": false,
+      "overflow": 0,
+      "mainBottom": 768,
+      "navTop": 768,
+      "visibleDemoLabel": false,
+      "mentionsNoDemoData": false
+    },
+    {
+      "name": "Products",
+      "path": "/masters/coffee?locale=en",
+      "heading": "Products",
+      "text": "ORB-R1 ESSENTIAL MASTERS Products Register traded-product specifications for cross-project traceability, without free stock or inventory valuation. ＋ Register product ● Saved in this browser These products are available on this device only for now. They are not shared with other users or included in the project backup. Nothing is sent externally. All products 0 Active 0 Inactive 0 Search Status All statuses Active Inactive Apply Product directory 0 matching products Clear filters No products registered yet Register the first product to start your real working directory. Register first product Open product registration form O ع EB Today Projects Approvals More",
+      "rawTechnical": false,
+      "overflow": 0,
+      "mainBottom": 768,
+      "navTop": 768,
+      "visibleDemoLabel": false,
+      "mentionsNoDemoData": false
+    },
+    {
+      "name": "Suppliers",
+      "path": "/masters/suppliers?locale=en",
+      "heading": "Suppliers",
+      "text": "ORB-R1 ESSENTIAL MASTERS Suppliers Keep the supplier contacts you use in daily work, without sample records. ＋ Add supplier ● Saved in this browser This directory stays in this browser profile. Anyone using this profile can see it. It is not synchronized or backed up, and clearing site data deletes it. All suppliers 0 Active 0 Archived 0 Search Status All statuses Active Archived Apply Supplier directory 0 matching suppliers Clear filters No suppliers registered yet Add the first supplier to start your real working directory. Add first supplier Open supplier registration form O ع EB Today Projects Approvals More",
+      "rawTechnical": false,
+      "overflow": 0,
+      "mainBottom": 768,
+      "navTop": 768,
+      "visibleDemoLabel": false,
+      "mentionsNoDemoData": false
+    },
+    {
+      "name": "Customers",
+      "path": "/masters/customers?locale=en",
+      "heading": "Customers",
+      "text": "ORB-R1 ESSENTIAL MASTERS Customers Register the customer details needed by daily projects and invoices, without sample records. ＋ Add customer ● Saved in this browser profile This customer directory stays in this browser profile. Anyone using this profile can see it. It is not synchronized or backed up, and clearing site data deletes it. All customers 0 Active 0 Archived 0 Search Status All statuses Active Archived Apply Customer directory 0 matching customers Clear filters No customers registered yet Add the first customer to start your real working directory. Add first customer Open customer registration form O ع EB Today Projects Approvals More",
+      "rawTechnical": false,
+      "overflow": 0,
+      "mainBottom": 768,
+      "navTop": 768,
+      "visibleDemoLabel": false,
+      "mentionsNoDemoData": false
+    },
+    {
+      "name": "Roles",
+      "path": "/admin/roles?locale=en",
+      "heading": "Roles and permissions",
+      "text": "ORB-R1 ACCESS ADMINISTRATION Roles and permissions Create a clear role, then choose the minimum permissions it needs. Local evaluation setup — not enforced access Roles created here are saved only in this browser. They are not assigned to users, do not protect server data, and nothing is sent to ORB. Protected system role Owner administrator Keeps every catalog permission and cannot be edited on this evaluation page. 10 permissions Roles saved here 0 configurable roles No configurable roles yet Create the first role below, then grant only the permissions it needs. Role permissions Select a saved role or create one to configure permissions. Create a role The role starts with no permissions. Choose them after saving. Role code Letters, numbers, and underscores; saved in uppercase. English name Arabic name English description Arabic description Save role O ع EB Today Projects Approvals More",
+      "rawTechnical": false,
+      "overflow": 0,
+      "mainBottom": 768,
+      "navTop": 768,
+      "visibleDemoLabel": false,
+      "mentionsNoDemoData": false
+    },
+    {
+      "name": "Backup",
+      "path": "/admin/backup?locale=en",
+      "heading": "Project backup",
+      "text": "ORB-R1 THIS BROWSER’S DATA Project backup Download projects saved here or review and restore a previous copy. Local evaluation copy — not server recovery Data is saved in this browser only, and the file is unencrypted. This evaluation page does not enforce authenticated roles; anyone using this browser profile can access its projects. Nothing is sent to ORB. Download a copy 0 projects saved in this browser The file includes every saved lifecycle detail for these projects. Download backup Restore a copy Choose an ORB file. It is validated and summarized before every project in this browser is replaced. Choose backup file O ع EB Today Projects Approvals More",
+      "rawTechnical": false,
+      "overflow": 0,
+      "mainBottom": 768,
+      "navTop": 768,
+      "visibleDemoLabel": false,
+      "mentionsNoDemoData": false
+    }
+  ]
+}
