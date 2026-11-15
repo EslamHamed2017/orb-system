@@ -23,18 +23,13 @@ test("customer directory filters references, bilingual names, contacts and lifec
   assert.deepEqual(filterCustomers(customers, "maya", "ACTIVE").map((item) => item.id), ["customer-1"]);
 });
 
-test("customers expose bilingual directory and independent 360 detail navigation", () => {
+test("customers expose a bilingual server-backed directory", () => {
   const directory = readFileSync("src/ui/features/masters/CustomersPage.tsx", "utf8");
-  const detail = readFileSync("src/ui/features/masters/CustomerDetailPage.tsx", "utf8");
   const masterRoute = readFileSync("src/app/masters/[masterType]/page.tsx", "utf8");
-  const detailRoute = readFileSync("src/app/customers/[customerId]/page.tsx", "utf8");
   assert.match(masterRoute, /CustomersPage/);
-  assert.match(detailRoute, /CustomerDetailPage/);
   assert.match(directory, /Customer directory/);
   assert.match(directory, /دليل العملاء/);
   assert.match(directory, /data-operation-id="createCustomer"/);
-  assert.match(detail, /Customer 360/);
-  assert.match(detail, /نظرة العميل ٣٦٠°/);
-  assert.match(detail, /data-operation-id="updateCustomer"/);
-  for (const destination of ["projects", "sales contracts", "sales invoices", "collections"]) assert.match(detail.toLowerCase(), new RegExp(destination));
+  assert.match(directory, /\/api\/customers/);
+  assert.doesNotMatch(directory, /customer-fixtures|Customer 360/);
 });
