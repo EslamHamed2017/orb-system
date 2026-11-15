@@ -2,13 +2,7 @@ import styles from "./AccountsHubPage.module.css";
 import type { AccountsLocale } from "./accounts-hub";
 import { buildAccountDestinations } from "./accounts-hub";
 
-// Static fixture data sourced from each account sub-page
-const recentRecords = [
-  { id: "019a5f9b-7c00-7000-8000-000000001102", type: "Supplier invoice", reference: "PINV-2026-044", projectId: "project-2", occurredOn: "2026-11-12", currency: "AED", amount: "39000.000000" },
-  { id: "019a5f9b-7c00-7000-8000-000000001204", type: "Supplier payment", reference: "PAY-2026-044", projectId: "project-2", occurredOn: "2026-11-12", currency: "AED", amount: "30000.000000" },
-  { id: "expense-2", type: "Expense", reference: "EXP-2026-022", projectId: "project-2", occurredOn: "2026-11-12", currency: "AED", amount: "3200.000000" },
-  { id: "019a5f9b-7c00-7000-8000-000000001001", type: "Sales invoice", reference: "SINV-2026-014", projectId: "project-1", occurredOn: "2026-11-11", currency: "USD", amount: "28500.000000" },
-] as const;
+const recentRecords: readonly { id: string; type: string; reference: string; projectId: string; occurredOn: string; currency: string; amount: string }[] = [];
 
 const currencies = [
   { code: "USD", label: "USD" },

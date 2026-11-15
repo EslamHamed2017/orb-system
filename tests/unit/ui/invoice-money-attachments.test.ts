@@ -43,13 +43,11 @@ for (const [file, subjectType] of [
   });
 }
 
-test("browser finance registers preserve read-only role context without exposing upload controls", () => {
-  const register = readFileSync("src/ui/features/accounts/BrowserFinanceRegisterPage.tsx", "utf8");
-  assert.match(register, /localizeHref\(row.taskHref, locale, role\)/);
-  assert.doesNotMatch(register, /FinancialAttachmentPanel/);
+test("server-rendered finance registers are permission-shaped through canUpload and preserve role in query type", () => {
   for (const route of ["sales-invoices", "supplier-invoices", "collections", "supplier-payments"]) {
     const page = readFileSync(`src/app/accounts/${route}/page.tsx`, "utf8");
     assert.match(page, /role\?: string/);
-    assert.match(page, /role={query.role\?\.trim\(\) \|\| undefined}/);
+    assert.match(page, /canUpload={query\.role !== "finance-viewer"}/);
+    assert.doesNotMatch(page, /BrowserFinanceRegisterPage/);
   }
 });
