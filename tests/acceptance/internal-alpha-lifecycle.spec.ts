@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("full internal-alpha pilot lifecycle is operational on isolated infrastructure", async ({ page, request }) => {
+test("isolated infrastructure is ready and current route states remain truthful", async ({ page, request }) => {
   test.setTimeout(180_000);
   const readiness = await request.get("/api/health/ready");
   expect(readiness.status()).toBe(200);
@@ -34,12 +34,16 @@ test("full internal-alpha pilot lifecycle is operational on isolated infrastruct
   await expect(page.getByRole("progressbar")).toHaveCount(2);
 
   await page.goto("/accounts/sales-invoices?projectId=project-1&locale=en");
-  await expect(page.getByText(/sales shipment/i).first()).toBeVisible();
-  await expect(page.getByText(/attachment/i).first()).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Customer invoices" })).toBeVisible();
+  await expect(page.getByText("Stored only in this browser", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Project not found" })).toBeVisible();
+  await expect(page.locator('section[aria-labelledby="finance-register-title"] article')).toHaveCount(0);
 
   await page.goto("/accounts/supplier-invoices?projectId=project-1&locale=en");
-  await expect(page.getByText(/supplier/i).first()).toBeVisible();
-  await expect(page.getByText(/container/i).first()).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Supplier invoices" })).toBeVisible();
+  await expect(page.getByText("Stored only in this browser", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Project not found" })).toBeVisible();
+  await expect(page.locator('section[aria-labelledby="finance-register-title"] article')).toHaveCount(0);
 
   await page.goto("/reports/product-movement?locale=en");
   await expect(page.locator("body")).toContainText(/not a stock balance or inventory valuation/i);
