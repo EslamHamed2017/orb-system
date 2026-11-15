@@ -57,11 +57,23 @@ docker run --detach --name "$container" \
   --env POSTGRES_USER=orb_migrator \
   --env "POSTGRES_PASSWORD=$db_password" \
   "$POSTGRES_IMAGE" >/dev/null
+# PostgreSQL initialization can briefly pass a socket readiness check before its temporary
+# bootstrap server restarts. Require two consecutive real SQL probes instead.
+ready_probes=0
 for _ in $(seq 1 60); do
-  docker exec "$container" pg_isready -U orb_migrator -d orb_rollback >/dev/null 2>&1 && break
+  if [[ "$(docker exec "$container" psql -X -U orb_migrator -d orb_rollback -At -v ON_ERROR_STOP=1 -c "SELECT 1" 2>/dev/null || true)" == "1" ]]; then
+    ready_probes=$((ready_probes + 1))
+    [[ "$ready_probes" -ge 2 ]] && break
+  else
+    ready_probes=0
+  fi
   sleep 1
 done
-docker exec "$container" pg_isready -U orb_migrator -d orb_rollback >/dev/null
+if [[ "$ready_probes" -lt 2 ]]; then
+  docker logs "$container" >&2 || true
+  echo "rollback PostgreSQL did not become stably ready" >&2
+  exit 2
+fi
 
 # Materialize the actual preceding app independently; never mutate the main checkout.
 (

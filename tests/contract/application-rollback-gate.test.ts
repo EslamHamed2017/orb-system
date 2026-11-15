@@ -40,6 +40,17 @@ test("application rollback gate is isolated, revision-pinned, and forward-schema
   assert.doesNotMatch(gate, /migrate reset|DROP (?:DATABASE|SCHEMA|TABLE|COLUMN)/i);
 });
 
+test("rollback database readiness requires consecutive SQL probes rather than transient pg_isready", () => {
+  const gate = readFileSync(GATE, "utf8");
+  assert.match(gate, /ready_probes=0/);
+  assert.match(gate, /SELECT 1/);
+  assert.match(gate, /"\$ready_probes" -ge 2/);
+  assert.match(gate, /else\n    ready_probes=0\n  fi/);
+  assert.match(gate, /if \[\[ "\$ready_probes" -lt 2 \]\]; then[\s\S]*?exit 2\nfi/);
+  assert.match(gate, /docker logs "\$container"/);
+  assert.doesNotMatch(gate, /pg_isready/);
+});
+
 test("rollback rehearsal verifies a legacy write after expansion and is mandatory in isolated CI", () => {
   const gate = readFileSync(GATE, "utf8");
   assert.match(gate, /ORB-ROLLBACK-SMOKE/);
