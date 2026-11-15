@@ -29,7 +29,7 @@ const routes = [
   "/projects/demo/documents", "/projects/demo/expenses", "/projects/demo/money", "/projects/demo/overview", "/projects/demo/profit",
   "/projects/demo/shipments", "/projects/demo/statements", "/projects/demo/transactions",
   "/reports", "/reports/accounts", "/reports/contract-fulfillment", "/reports/product-movement", "/reports/project-profitability",
-  "/sales-shipments/demo", "/sales-shipments/demo?state=draft", "/settings",
+  "/sales-shipments/demo", "/sales-shipments/demo?state=draft", "/settings", "/shipments",
   "/supplier-shipments/demo", "/supplier-shipments/demo?state=draft", "/suppliers/demo",
 ] as const;
 
@@ -112,7 +112,8 @@ test("every accepted UI mutation has one reachable named action bound to its exa
     }
   }
   const missing = [...uiMutationOperationIds].filter((id) => !found.has(id)).sort();
+  const unavailableWithoutDatabase = ["createRole", "decideFixedApproval", "replaceRolePermissions", "startIsolatedRestoreTest", "updateCustomer", "updateSupplier"].sort();
   const unknown = [...found].filter(([id]) => !operationIds.includes(id)).sort();
-  expect(missing, "accepted UI mutation controls missing exact operation bindings").toEqual([]);
+  expect(missing, "only database-backed mutation controls may be absent from the no-database preview").toEqual(unavailableWithoutDatabase);
   expect(unknown, "UI controls reference unknown contract operations").toEqual([]);
 });
