@@ -19,5 +19,11 @@ for (const locale of ["en", "ar"] as const) {
       await expect(table.getByRole("link", { name: "ORB-R1-SAL-100MT" })).toHaveAttribute("href", `/sales-shipments/00000000-0000-7000-8000-000000000232?locale=${locale}`);
       await expect(page.getByText(ar ? "1 فاتورة نشطة" : "1 active invoice")).toBeVisible();
     }
+    const evidence = `artifacts/ui-review/persisted-sales-invoices/desktop-${locale}.png`;
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.screenshot({ path: evidence, fullPage: true });
+    await page.setViewportSize({ width: 390, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+    await page.screenshot({ path: `artifacts/ui-review/persisted-sales-invoices/mobile-${locale}.png`, fullPage: true });
   });
 }

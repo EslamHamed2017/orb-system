@@ -56,6 +56,7 @@ export ORB_AUDIT_CHAIN_HEALTHY=1
 corepack pnpm build
 ORB_TEST_MANAGED_SERVER=1 corepack pnpm exec playwright test \
   tests/acceptance/internal-alpha-lifecycle.spec.ts \
+  tests/acceptance/a17-project-sales-invoices.spec.ts \
   --project=chromium
 final_project_count=$("${compose[@]}" exec -T migration-postgres psql -U orb_migrator -d orb_migration -Atc 'SELECT count(*) FROM "Project"')
 [[ "$final_project_count" == "$project_count" ]]
