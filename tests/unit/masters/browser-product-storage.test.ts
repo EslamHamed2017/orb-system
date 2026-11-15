@@ -35,7 +35,9 @@ test("browser product storage rejects duplicate references and invalid weight wi
   await createBrowserProduct(storage, input, () => "product-004");
   await assert.rejects(() => createBrowserProduct(storage, { ...input, nameEn: "Duplicate" }, () => "product-005"), (error: unknown) => error instanceof ProductStorageError && error.code === "DUPLICATE_REFERENCE");
   await assert.rejects(() => createBrowserProduct(storage, { ...input, reference: "PROD-006", standardBagWeight: "0" }, () => "product-006"), (error: unknown) => error instanceof ProductStorageError && error.code === "INVALID_PRODUCT");
-  assert.equal(readBrowserProducts(storage).length, 1);
+  const recovered = await createBrowserProduct(storage, { ...input, reference: "PROD-007", nameEn: "Recovered write" }, () => "product-007");
+  assert.equal(recovered.reference, "PROD-007");
+  assert.equal(readBrowserProducts(storage).length, 2);
 });
 
 test("browser product storage fails visibly on corrupt saved data", () => {

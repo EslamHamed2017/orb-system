@@ -31,6 +31,12 @@ on:
 permissions:
   contents: read
 
+# Preserve exact-head evidence: newer pushes to the same ref queue instead of
+# cancelling a run that has already started. Different refs remain independent.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   offline:
     runs-on: ubuntu-24.04

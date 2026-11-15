@@ -59,7 +59,10 @@ async function withInPageLock<T>(action: () => T | Promise<T>): Promise<T> {
 
 async function withWriteLock<T>(action: () => T | Promise<T>): Promise<T> {
   const locks = typeof navigator === "undefined" ? undefined : navigator.locks;
-  if (locks) return locks.request(PRODUCT_STORAGE_KEY, { mode: "exclusive" }, action);
+  // Node 24's Web Locks implementation can retain a lock when a callback throws
+  // synchronously. The async boundary converts domain errors to rejected promises,
+  // matching browser behavior and guaranteeing that subsequent writes can proceed.
+  if (locks) return locks.request(PRODUCT_STORAGE_KEY, { mode: "exclusive" }, async () => action());
   return withInPageLock(action);
 }
 

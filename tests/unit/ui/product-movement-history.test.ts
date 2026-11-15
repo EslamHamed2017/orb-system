@@ -37,11 +37,11 @@ test("product movement page is bilingual, links source transactions and states i
 });
 
 
-test("product directory exposes movement history and navigation treats it as a product destination", () => {
+test("browser-only product records do not link to unrelated fixed movement history", () => {
   const products = readFileSync("src/ui/features/masters/ProductsMasterPage.tsx", "utf8");
+  const movementPage = readFileSync("src/ui/features/masters/ProductMovementHistoryPage.tsx", "utf8");
   const navigation = readFileSync("src/ui/navigation/AppNavigation.tsx", "utf8");
-  assert.match(products, /products\/\$\{product.id\}\/movements/);
-  assert.match(products, /Movements/);
-  assert.match(products, /الحركات/);
+  assert.doesNotMatch(products, /products\/\$\{product.id\}\/movements/);
+  assert.match(movementPage, /const MOVEMENTS:/);
   assert.match(navigation, /pathname.startsWith\("\/products\/"\)/);
 });
