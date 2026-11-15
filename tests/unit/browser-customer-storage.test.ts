@@ -60,3 +60,19 @@ test("customer can be archived and reactivated without deletion", async () => {
   assert.equal(readBrowserCustomers(storage).length, 1);
   assert.equal((await setBrowserCustomerStatus(storage, created.id, true)).active, true);
 });
+
+
+test("browser mutations fail closed when Web Locks are unsupported", async () => {
+  const windowDescriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
+  const navigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  const storage = new MemoryStorage();
+  try {
+    Object.defineProperty(globalThis, "window", { configurable: true, value: {} });
+    Object.defineProperty(globalThis, "navigator", { configurable: true, value: {} });
+    await assert.rejects(createBrowserCustomer(storage, input, () => "customer-unsupported-lock"), (error: unknown) => error instanceof CustomerStorageError && error.code === "STORAGE_UNAVAILABLE");
+    assert.equal(storage.value, null);
+  } finally {
+    if (windowDescriptor) Object.defineProperty(globalThis, "window", windowDescriptor); else delete (globalThis as { window?: unknown }).window;
+    if (navigatorDescriptor) Object.defineProperty(globalThis, "navigator", navigatorDescriptor); else delete (globalThis as { navigator?: unknown }).navigator;
+  }
+});

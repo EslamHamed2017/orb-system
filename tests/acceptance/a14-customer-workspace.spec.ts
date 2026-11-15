@@ -29,6 +29,10 @@ for (const locale of ["en", "ar"] as const) test(`mobile ${locale} customer card
   await page.goto(`/masters/customers?locale=${locale}`); await page.evaluate(() => localStorage.clear()); await page.reload();
   await register(page, locale);
   await expect(page.getByRole("table")).toContainText(customer.email);
+  await expect(page.getByRole("columnheader")).toHaveCount(5);
+  const headerState = await page.locator("thead").evaluate((header) => ({ display: getComputedStyle(header).display, hidden: (header as HTMLElement).hidden, ariaHidden: header.getAttribute("aria-hidden") }));
+  expect(headerState.display).not.toBe("none");
+  expect(headerState).toMatchObject({ hidden: false, ariaHidden: null });
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   const geometry = await page.evaluate(() => { const main = document.querySelector(".orb-main")!.getBoundingClientRect(); const nav = document.querySelector('[data-navigation="bottom"]')!.getBoundingClientRect(); return { mainBottom: Math.round(main.bottom), navTop: Math.round(nav.top) }; });
   expect(geometry.mainBottom).toBeLessThanOrEqual(geometry.navTop);
@@ -58,6 +62,21 @@ test("saved customer can be edited, archived, and reactivated without deletion",
   await page.getByLabel("Contact name").fill("Mona Saleh"); await page.getByRole("button", { name: "Save changes" }).click(); await expect(page.getByRole("table")).toContainText("Mona Saleh");
   await page.getByRole("button", { name: "Archive" }).click(); await expect(page.getByRole("table")).toContainText("Archived");
   await page.getByRole("button", { name: "Reactivate" }).click(); await expect(page.getByRole("table")).toContainText("Active");
+});
+
+test("failed lifecycle write is announced outside the closed registration details", async ({ page }) => {
+  await page.goto("/masters/customers?locale=en"); await page.evaluate(() => localStorage.clear()); await page.reload(); await register(page, "en");
+  const registration = page.locator("#customer-registration");
+  await registration.evaluate((details: HTMLDetailsElement) => { details.open = false; });
+  await page.evaluate(() => { Storage.prototype.setItem = () => { throw new Error("simulated lifecycle write failure"); }; });
+  await page.getByRole("button", { name: "Archive" }).click();
+  const feedback = page.getByText("Customer data could not be saved in this browser.", { exact: true });
+  await expect(feedback).toHaveAttribute("role", "alert");
+  await expect(feedback).toHaveText("Customer data could not be saved in this browser.");
+  await expect(feedback).toBeVisible();
+  await expect(registration).not.toHaveAttribute("open", "");
+  await expect(feedback).toBeFocused();
+  await expect(page.getByRole("table")).toContainText("Active");
 });
 
 test("customer directory synchronizes a save from another tab", async ({ context, page }) => {

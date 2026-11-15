@@ -43,8 +43,11 @@ function normalize(input: CustomerInput): CustomerInput {
   return result;
 }
 async function withLock<T>(action: () => T | Promise<T>): Promise<T> {
-  const locks = typeof window === "undefined" ? undefined : navigator.locks;
-  if (locks) return locks.request(CUSTOMER_STORAGE_KEY, { mode: "exclusive" }, action);
+  if (typeof window !== "undefined") {
+    const locks = navigator.locks;
+    if (!locks || typeof locks.request !== "function") throw new CustomerStorageError("STORAGE_UNAVAILABLE");
+    return locks.request(CUSTOMER_STORAGE_KEY, { mode: "exclusive" }, action);
+  }
   const previous = fallbackTail; let release!: () => void; fallbackTail = new Promise<void>((resolve) => { release = resolve; }); await previous;
   try { return await action(); } finally { release(); }
 }
