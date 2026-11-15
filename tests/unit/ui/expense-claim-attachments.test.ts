@@ -41,12 +41,15 @@ test("every displayed expense and claim exposes an exactly bound attachment pane
   assert.match(claims, /canUpload={canUpload}/);
 });
 
-test("expense and claim routes remove upload actions for read-only finance viewers", () => {
+test("expense register preserves role context without exposing attachment upload controls", () => {
   const expenseRoute = readFileSync("src/app/accounts/expenses/page.tsx", "utf8");
+  const register = readFileSync("src/ui/features/accounts/BrowserFinanceRegisterPage.tsx", "utf8");
   assert.match(expenseRoute, /role\?: string/);
-  assert.match(expenseRoute, /canUpload={query.role !== "finance-viewer"}/);
+  assert.match(expenseRoute, /role={query.role\?\.trim\(\) \|\| undefined}/);
+  assert.match(register, /localizeHref\(row.taskHref, locale, role\)/);
+  assert.doesNotMatch(register, /PilotTransactionAttachmentPanel/);
 
   const claimRoute = readFileSync("src/app/projects/[id]/claims/page.tsx", "utf8");
-  assert.match(claimRoute, /role\?:string/);
-  assert.match(claimRoute, /canUpload={query.role!=="finance-viewer"}/);
+  assert.match(claimRoute, /role\?: string/);
+  assert.match(claimRoute, /canUpload={query.role !== "finance-viewer"}/);
 });

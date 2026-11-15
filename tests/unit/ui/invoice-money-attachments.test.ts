@@ -43,10 +43,13 @@ for (const [file, subjectType] of [
   });
 }
 
-test("account routes remove attachment upload actions from finance-viewer screens", () => {
+test("browser finance registers preserve read-only role context without exposing upload controls", () => {
+  const register = readFileSync("src/ui/features/accounts/BrowserFinanceRegisterPage.tsx", "utf8");
+  assert.match(register, /localizeHref\(row.taskHref, locale, role\)/);
+  assert.doesNotMatch(register, /FinancialAttachmentPanel/);
   for (const route of ["sales-invoices", "supplier-invoices", "collections", "supplier-payments"]) {
     const page = readFileSync(`src/app/accounts/${route}/page.tsx`, "utf8");
     assert.match(page, /role\?: string/);
-    assert.match(page, /canUpload={query.role !== \"finance-viewer\"}/);
+    assert.match(page, /role={query.role\?\.trim\(\) \|\| undefined}/);
   }
 });

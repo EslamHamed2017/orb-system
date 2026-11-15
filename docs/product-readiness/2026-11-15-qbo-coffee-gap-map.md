@@ -1,15 +1,15 @@
 # ORB QuickBooks-like accounting + coffee trade gap map
 
 **Observed:** 2026-11-15  
-**Canonical code examined:** `origin/main` at `a97ba3298edaf44add4c11e3502f9aabf0f58115`  
+**Canonical code examined:** `origin/main` at `550d82c0b6c24f64eb7a4d5dba588084c1125ea5`
 **Owner direction:** Build a coherent daily-use accounting system plus international back-to-back coffee shipments. The prior “no accounting module” scope is obsolete.  
 **Readiness:** **Not owner-ready.** This map is a source-level baseline, not an acceptance claim.
 
 ## Truthful current-state summary
 
-ORB has a substantial PostgreSQL/Prisma operational trade schema (55 models), API contracts, and many workflow screens. It does **not** yet have the tenant/accounting foundation required by the owner direction. The canonical schema has no Tenant/Organization/Membership, chart-of-accounts, ledger/journal/posting, accounting-period, bank-account/transaction/reconciliation, estimate, credit memo, vendor credit, or bill models. Operational `SalesInvoice`, `SupplierInvoice`, `MoneyMovement`, and `DirectExpense` records therefore do not post into a double-entry ledger and cannot produce authoritative financial statements.
+ORB has a substantial PostgreSQL/Prisma operational trade schema (58 models), API contracts, and many workflow screens. Canonical main now includes additive `Tenant`, tenant-owned `Customer`, and append-only `CustomerAuditEvent` models plus a transactionally audited customer repository/service. It still has no tenant membership or session-to-tenant resolver, so production customer routes correctly remain fail-closed. The schema also has no chart-of-accounts, ledger/journal/posting, accounting-period, bank-account/transaction/reconciliation, estimate, credit memo, vendor credit, or bill models. Operational `SalesInvoice`, `SupplierInvoice`, `MoneyMovement`, and `DirectExpense` records therefore do not post into a double-entry ledger and cannot produce authoritative financial statements.
 
-The visible daily-work surface is fragmented. Fifteen UI modules read or write `localStorage`, including Today, Customers, Suppliers, Products, Projects, Shipments, Accounts, roles, and backup. At least 26 source modules still contain demo-oriented paths or copy; customer/supplier details and user administration reference fixtures. Browser-only records are single-device conveniences, not acceptable shared business persistence.
+The visible daily-work surface is fragmented. Many UI modules still read or write `localStorage`, including Today, Suppliers, Products, Projects, Shipments, Accounts, roles, and backup. Customer UI no longer falls back to browser business persistence, but it cannot complete operations until trusted server authentication/tenant context is wired. Demo-oriented paths and fixed presentation still remain elsewhere. Browser-only records are single-device conveniences, not acceptable shared business persistence.
 
 Authentication and tenancy remain blocking seams. Canonical customer routes deliberately inject `authenticate: async () => null`; there is no durable tenant membership model from which a server can derive scope. Existing `Party` and `CoffeeSpecification` records are global rather than tenant-owned. Current role concepts are not a substitute for server-derived tenant membership and record-level authorization.
 
@@ -17,9 +17,9 @@ Authentication and tenancy remain blocking seams. Canonical customer routes deli
 
 | Area | Existing evidence | Missing for target | Priority / acceptance boundary |
 | --- | --- | --- | --- |
-| Platform tenancy | `User`, `Role`, `Session` and permission services exist | Tenant/organization, memberships, tenant-scoped uniqueness, authenticated principal → tenant resolution, row-scope enforcement | **P0 foundation.** No caller-supplied tenant IDs trusted. |
+| Platform tenancy | `Tenant`, `User`, `Role`, `Session`, permission services, and tenant-scoped Customer exist | Memberships, authenticated principal → tenant resolution, broader tenant ownership, row-scope enforcement | **P0 foundation.** No caller-supplied tenant IDs trusted. |
 | Audit/control | Project-bound `AuditEvent`, approvals, evidence exist | Tenant-wide auditable mutations for masters/accounting; actor/session/correlation; optimistic versions; retention and searchable audit | **P0 foundation.** Create/edit/archive must write audit atomically. |
-| Customers | Browser workspace plus fail-closed API shells | PostgreSQL customer master, contacts/addresses/tax/payment terms, list/view/create/edit/archive, server validation, role control | **First vertical slice.** Must work across browsers/users and survive restart. |
+| Customers | PostgreSQL customer identity/contact/status, scoped repository/service, optimistic versions, atomic audit; UI/API shells fail closed | Membership/session-derived route activation, bilingual names, addresses/tax/payment terms, working list/view/create/edit/archive/reactivate UI | **First vertical slice.** Must work across browsers/users and survive restart. |
 | Suppliers/vendors | Browser workspace and legacy `Party` | Same durable lifecycle as Customers, supplier defaults and balances | Second slice after Customers. |
 | Products | Browser product register; `CoffeeSpecification` operational model | Tenant ownership, names, lifecycle, validated CRUD, no `localStorage` source of truth | Third slice. |
 | Projects/contracts | Rich operational project/contract schema; browser projects also exist | Tenant scope, durable UI binding, customer/supplier/product master links, remove demo/browser fork | Fourth slice. |
@@ -47,9 +47,9 @@ Authentication and tenancy remain blocking seams. Canonical customer routes deli
 ## Architectural sequence
 
 1. Stabilize CI so exact-head results finish: fix the hanging product-storage lock regression; serialize workflow runs without cancelling in-progress exact-head evidence.
-2. Establish tenant identity/membership, server-derived scope, tenant audit, and shared repository primitives.
-3. Deliver complete vertical slices in this order: Customers → Suppliers → Products → Projects/Contracts → Shipments → Invoices/Bills/Payments → Banking/Reconciliation → Reports.
-4. Add the accounting kernel before claiming any financial workflow authoritative: chart of accounts, balanced postings, posting policies, periods/locks, reversals, and ledger-derived reports.
+2. Complete tenant membership and server-derived request context, extending the landed `Tenant` and Customer repository/audit foundation.
+3. Finish Customers, then deliver complete vertical slices in this order: Suppliers → Products → Projects/Contracts → Shipments → Invoices/Bills/Payments → Banking/Reconciliation → Reports.
+4. Build the accounting kernel as the prerequisite portion of the Invoices/Bills/Payments tranche—before any financial event is called authoritative—and extend it through Banking and ledger-derived Reports.
 5. Delete or migrate each browser/demo persistence path only when its durable replacement is exercised and covered by migration/rollback tests.
 
 ## Immediate Customer slice definition of done
