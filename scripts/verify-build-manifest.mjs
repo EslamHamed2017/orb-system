@@ -14,9 +14,11 @@ function digest(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-async function existingFiles(root, entries) {
+async function existingFiles(root, entries, excludedPrefixes = []) {
   const files = [];
   async function visit(path) {
+    const name = relative(root, path).split(sep).join("/");
+    if (excludedPrefixes.some((prefix) => name === prefix || name.startsWith(`${prefix}/`))) return;
     let stat;
     try { stat = await lstat(path); } catch (error) {
       if (error.code === "ENOENT") return;
@@ -31,8 +33,8 @@ async function existingFiles(root, entries) {
   return files;
 }
 
-async function treeDigest(root, entries, label) {
-  const files = await existingFiles(root, entries);
+async function treeDigest(root, entries, label, excludedPrefixes = []) {
+  const files = await existingFiles(root, entries, excludedPrefixes);
   if (files.length === 0) throw new Error(`${label} has no files to hash`);
   const hash = createHash("sha256");
   for (const path of files.sort()) {
@@ -64,7 +66,7 @@ export async function createManifest({ root = process.cwd(), gitCommit } = {}) {
     sourceDigest: await treeDigest(root, [...SOURCE_ROOTS, ...SOURCE_FILES], "source set"),
     lockfileDigest: await fileDigest(root, "pnpm-lock.yaml", "lockfile"),
     openApiDigest: await fileDigest(root, OPENAPI, "OpenAPI contract"),
-    buildDigest: await treeDigest(root, [".next"], "Next.js build"),
+    buildDigest: await treeDigest(root, [".next"], "Next.js build", [".next/node_modules"]),
   };
   return { ...payload, artifactDigest: digest(JSON.stringify(payload)) };
 }

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -29,6 +29,19 @@ test("creates a deterministic manifest binding source, lock, OpenAPI and build b
   assert.deepEqual(one, two);
   for (const field of ["sourceDigest", "lockfileDigest", "openApiDigest", "buildDigest", "artifactDigest"])
     assert.match(one[field], /^[a-f0-9]{64}$/);
+});
+
+test("ignores Next.js dependency links while still rejecting source symlinks", async () => {
+  const { createManifest } = await import(pathToFileURL(SCRIPT).href);
+  const root = fixture();
+  const options = { root, gitCommit: "0123456789abcdef0123456789abcdef01234567" };
+  mkdirSync(join(root, "node_modules/pg"), { recursive: true });
+  writeFileSync(join(root, "node_modules/pg/index.js"), "module.exports = {};\n");
+  mkdirSync(join(root, ".next/node_modules"), { recursive: true });
+  symlinkSync("../../node_modules/pg", join(root, ".next/node_modules/pg"));
+  await assert.doesNotReject(createManifest(options));
+  symlinkSync("index.ts", join(root, "src/linked.ts"));
+  await assert.rejects(createManifest(options), /Symbolic links are not allowed/);
 });
 
 test("changes to bound bytes are detected by verification", async () => {
