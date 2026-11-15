@@ -1,8 +1,18 @@
 export type CustomerStatusFilter = "ACTIVE" | "INACTIVE" | "ALL";
 
-import type { CustomerDirectoryRecord } from "../../../modules/masters/browser-customer-storage";
-
-export type { CustomerDirectoryRecord };
+export interface CustomerDirectoryRecord {
+  readonly id: string;
+  readonly reference: string;
+  readonly legalNameEn: string;
+  readonly legalNameAr: string;
+  readonly countryCode: string;
+  readonly contactName: string;
+  readonly email: string;
+  readonly phone: string;
+  readonly active: boolean;
+  readonly projectCount: number;
+  readonly openInvoiceCount: number;
+}
 
 export function summarizeCustomers(customers: readonly CustomerDirectoryRecord[]) {
   return Object.freeze({
