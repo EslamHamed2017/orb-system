@@ -1,7 +1,7 @@
 # Product readiness gap inventory
 
 **Audit date:** 15 November 2026
-**Scope:** the ORB web UI on canonical `origin/main`, the browser-persisted Today/Projects flow, project setup, supplier and customer shipments, supplier invoice/payment, customer invoice/collection, direct project expenses, claims, and project closure/reopen slices delivered on 14 November 2026.
+**Scope:** the ORB web UI on canonical `origin/main`, the browser-persisted Today/Projects flow, project setup, supplier and customer shipments, supplier invoice/payment, customer invoice/collection, direct project expenses, claims, and project closure/reopen, local project backup, and browser role-administration slices delivered through 15 November 2026.
 
 ## Truthful status
 
@@ -14,7 +14,7 @@ This work **does not make ORB product-ready**. The bounded daily-use flow uses u
 - Some narrow-screen project views overflowed or competed with the bottom navigation.
 - Finance surfaces still expose fixed `DEMO` data.
 - The approval service remains unconfigured and the approval screen previously presented a fixed request, technical enums, hashes, test addresses, fabricated counts, and inert decision controls.
-- Roles and other administration views still rely on fixtures. The former recovery-status presentation was also fixture-backed; this slice replaces that page only for the browser-persisted project data described below.
+- The roles page used fixed role cards, invented user counts, and inert create/save forms. Other administration views still rely on fixtures. The former recovery-status presentation was also fixture-backed; the local project-backup slice replaces that page only for the browser-persisted project data described below.
 - Production database and authentication adapters are unavailable to this slice.
 
 ## What this slice closes
@@ -41,12 +41,13 @@ This work **does not make ORB product-ready**. The bounded daily-use flow uses u
 - The approval page no longer presents fabricated workload KPIs or inert approve/reject controls. It explicitly states that the secure approval service is not connected, that the fixed request is preview-only, and that no external message was sent.
 - The Finance landing page now uses only saved browser project records, exposes honest loading/empty/error states, and opens project-scoped supplier invoice/payment, customer invoice/collection, and expense tasks. Fixed currency totals, sample references, raw lifecycle enums, and the overlong all-in-one table were removed from this entry point.
 - The browser project-backup page now exports exact validated browser-persisted project records to a versioned local JSON file. Restore requires schema validation, a project-list preview, an explicit whole-register replacement acknowledgement, and an unchanged source snapshot; invalid or stale files preserve current data. The page states that the file is local and unencrypted, is not server recovery, and that this evaluation route does not enforce authenticated roles. It no longer presents fabricated RPO/RTO, encryption, restore evidence, or inert isolated-restore controls.
+- The roles page now lets an evaluation administrator create a bilingual configurable role, select catalog permissions, and reload the saved state from this browser. The protected owner role and permission catalog are identified separately from user-created roles; invented role-user counts and inert forms were removed. Loading, empty, malformed-storage, read-only, stale-write, duplicate-code, unsaved-change, and storage-write states are visible in English and Arabic. Role mutations use a browser-wide exclusive lock and reread current browser state so simultaneous tabs do not silently replace each other; browsers without safe locking fail visibly without writing. The page explicitly states that these roles are not assigned to users and do not enforce server access.
 
 ## Remaining work before readiness
 
 1. Replace browser-only persistence and local file backup with authenticated, tenant-scoped server persistence, concurrency control, authorization, audit history, encrypted backup, and tested recovery.
 2. Replace browser-only setup, shipment, supplier invoice/payment, customer invoice, collection, direct-expense, claim, and closure records with authoritative customer, supplier, contract, shipment, invoice, money-movement, claim, approval, and lifecycle services.
-3. Connect the approval inbox and decision controls to authenticated server persistence, then remove the remaining fixed preview request; also replace the remaining fixture-backed account detail lists, roles, recovery, and routes outside this slice.
+3. Connect the approval inbox and decision controls to authenticated server persistence, then remove the remaining fixed preview request; also replace the remaining fixture-backed account detail lists, recovery, and routes outside this slice. Replace browser-only role definitions with authenticated server role persistence, user assignment, authorization enforcement, protected audit history, and role correction/deactivation workflows.
 4. Complete end-to-end permissions, accessibility, localization, offline/error recovery, migration, security, observability, and multi-user acceptance testing.
 5. Validate operational calculations and compliance controls against production requirements and representative customer data.
 
