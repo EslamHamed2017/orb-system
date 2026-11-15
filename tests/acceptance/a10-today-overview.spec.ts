@@ -11,9 +11,9 @@ async function createProject(page: Page, locale: "en" | "ar" = "en"): Promise<st
 
 test("empty Today and Projects disclose browser-only storage and never show fixed projects", async ({ page }) => {
   await page.goto("/?locale=en");
-  await expect(page.getByRole("heading", { name: "No actions yet" })).toBeVisible();
-  await expect(page.getByText("One next action for each saved project that needs work in this bounded flow.", { exact: true })).toBeVisible();
-  await expect(page.locator("body")).toContainText("No sample project is inserted into your personal list");
+  await expect(page.getByRole("heading", { name: "Start with your first project" })).toBeVisible();
+  await expect(page.getByText("Start with the next required step for every project that needs work.", { exact: true })).toBeVisible();
+  await expect(page.locator("body")).toContainText("ORB will not add sample data");
   await page.goto("/projects?locale=en");
   await expect(page.getByRole("heading", { name: "No saved projects" })).toBeVisible();
   await expect(page.locator("body")).toContainText("saved in this browser only");
@@ -34,7 +34,7 @@ test("creation persists exact fields, opens the exact detail, and Today has one 
   await expect(page).toHaveURL(new RegExp(detailPath));
   await page.goto("/?locale=en");
   await expect(page.getByRole("heading", { name: "Complete project setup" })).toHaveCount(1);
-  await expect(page.getByRole("link", { name: "Open action" })).toHaveAttribute("href", /\/overview\?locale=en#project-data$/);
+  await expect(page.getByRole("link", { name: "Complete setup" })).toHaveAttribute("href", /\/overview\?locale=en#project-data$/);
   await page.goto(`${detailPath}?locale=en`);
   await expect(page.getByRole("button", { name: "Complete project setup" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Complete project setup" })).toHaveCount(0);
@@ -155,7 +155,7 @@ test("active project records supplier and customer shipments and Today advances 
   await page.goto("/?locale=en");
   await expect(page.getByRole("heading", { name: "Review shipment handover" })).toBeVisible();
   await expect(page.locator("body")).toContainText("CS-001");
-  await page.getByRole("link", { name: "Open action" }).click();
+  await page.getByRole("link", { name: "Review shipment handover" }).click();
   await expect(page.locator("#customer-shipment")).toContainText("Data exists only in this browser. It is not synchronized or backed up. Clearing browser data removes it.");
   await expect(page.locator("#customer-shipment").getByText("Review step", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Mark handover reviewed" }).click();
@@ -190,6 +190,7 @@ test("active project records supplier and customer shipments and Today advances 
   await page.screenshot({ path: "artifacts/product-customer-collection-20261114/desktop-en-partial.png", fullPage: true });
   await page.goto("/?locale=en");
   await expect(page.getByRole("heading", { name: "Record customer collection" })).toBeVisible();
+  await expect(page.getByText("Customer finance", { exact: true })).toBeVisible();
   await expect(page.locator("body")).toContainText("54,000 USD remains");
   await page.goto(`${detailPath}?locale=en#customer-finance`);
   await page.locator('[name="customerCollectionReference"]').fill("COL-002");
@@ -204,8 +205,8 @@ test("active project records supplier and customer shipments and Today advances 
   await expect(page.locator("#customer-finance-title").getByText("Customer invoice collected", { exact: true })).toBeVisible();
   await page.goto("/?locale=en");
   await expect(page.getByRole("heading", { name: "Record project expense" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open action" })).toHaveAttribute("href", /\/expenses\?locale=en$/);
-  await page.getByRole("link", { name: "Open action" }).click();
+  await expect(page.getByRole("link", { name: "Record project expense" })).toHaveAttribute("href", /\/expenses\?locale=en$/);
+  await page.getByRole("link", { name: "Record project expense" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Project expenses" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "No expenses recorded" })).toBeVisible();
   await expect(page.locator("body")).not.toContainText(/DEMO|Demo Freight|1,250\.00/);
@@ -366,9 +367,9 @@ test("Arabic shipment actions disclose local-only risk and complete in RTL", asy
   await page.screenshot({ path: "artifacts/product-customer-collection-20261114/mobile-ar-collected.png", fullPage: true });
   await page.goto("/?locale=ar");
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  await expect(page.getByText("إجراء تالٍ واحد لكل مشروع محفوظ يحتاج إلى عمل ضمن هذا المسار المحدود.", { exact: true })).toBeVisible();
+  await expect(page.getByText("ابدأ بالخطوة المطلوبة التالية لكل مشروع يحتاج إلى عمل.", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "تسجيل مصروف للمشروع" })).toBeVisible();
-  await page.getByRole("link", { name: "فتح الإجراء" }).click();
+  await page.getByRole("link", { name: "تسجيل مصروف للمشروع" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "مصروفات المشروع" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "لا توجد مصروفات مسجلة" })).toBeVisible();
   await page.setViewportSize({ width: 1280, height: 900 });

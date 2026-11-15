@@ -20,7 +20,7 @@ This work **does not make ORB product-ready**. The bounded daily-use flow uses u
 ## What this slice closes
 
 - User-entered project fields persist in an evaluation-user-scoped `localStorage` key. Supplier/customer save and review actions prominently warn in English and Arabic that data exists only in this browser, is not synchronized or backed up, and is removed when browser data is cleared. No project is seeded.
-- Today uses the browser's real current date and shows exactly one specific next action per saved project that needs work in the bounded flow, with loading, empty, and error states; that action opens the exact saved project data rather than a generic blocker or fixture route.
+- Today uses the browser's real current date and shows exactly one specific next action per saved project that needs work, with loading, empty, and error states. Each item now names the project and lifecycle stage, explains the required work in business language, provides an action-specific primary control plus direct project access, and opens the exact saved project data rather than a generic blocker or fixture route. The page no longer describes itself as a “bounded flow” or uses a generic “Open action” label.
 - The project register searches the user's records and uses responsive cards with mobile bottom-navigation clearance.
 - Creation saves one exact record and routes to that record's detail page.
 - Detail identifies the exact record and shows customer, supplier, contracts, shipments, invoices/payments, expenses, claims, and closure/reopen stages without invented totals or links to unrelated demo records.
