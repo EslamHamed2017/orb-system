@@ -1,0 +1,91 @@
+{
+  "capturedAt": "2026-11-15T09:00:36.997Z",
+  "base": "http://127.0.0.1:40655",
+  "commit": "f554356a09308b37ba2e491ea2e7ec136019365b",
+  "audits": [
+    {
+      "locale": "en",
+      "viewport": "desktop",
+      "route": "/masters/customers?locale=en",
+      "dir": "ltr",
+      "heading": "Customers",
+      "hasEnteredCustomer": true,
+      "hasFixture": false,
+      "hasDemo": false,
+      "hasRawTechnical": false,
+      "overflow": 0,
+      "mainBottom": 970,
+      "navTop": null,
+      "columnHeaders": [
+        "Customer",
+        "Country",
+        "Contact",
+        "Status",
+        "Action"
+      ]
+    },
+    {
+      "locale": "en",
+      "viewport": "mobile",
+      "route": "/masters/customers?locale=en",
+      "dir": "ltr",
+      "heading": "Customers",
+      "hasEnteredCustomer": true,
+      "hasFixture": false,
+      "hasDemo": false,
+      "hasRawTechnical": false,
+      "overflow": 0,
+      "mainBottom": 768,
+      "navTop": 768,
+      "columnHeaders": [
+        "Customer",
+        "Country",
+        "Contact",
+        "Status",
+        "Action"
+      ]
+    },
+    {
+      "locale": "ar",
+      "viewport": "desktop",
+      "route": "/masters/customers?locale=ar",
+      "dir": "rtl",
+      "heading": "العملاء",
+      "hasEnteredCustomer": true,
+      "hasFixture": false,
+      "hasDemo": false,
+      "hasRawTechnical": false,
+      "overflow": 0,
+      "mainBottom": 1005,
+      "navTop": null,
+      "columnHeaders": [
+        "العميل",
+        "الدولة",
+        "جهة الاتصال",
+        "الحالة",
+        "الإجراء"
+      ]
+    },
+    {
+      "locale": "ar",
+      "viewport": "mobile",
+      "route": "/masters/customers?locale=ar",
+      "dir": "rtl",
+      "heading": "العملاء",
+      "hasEnteredCustomer": true,
+      "hasFixture": false,
+      "hasDemo": false,
+      "hasRawTechnical": false,
+      "overflow": 0,
+      "mainBottom": 768,
+      "navTop": 768,
+      "columnHeaders": [
+        "العميل",
+        "الدولة",
+        "جهة الاتصال",
+        "الحالة",
+        "الإجراء"
+      ]
+    }
+  ]
+}
