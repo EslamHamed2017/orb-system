@@ -1,19 +1,7 @@
-export type ProductStatus = "ACTIVE" | "INACTIVE";
-export type ProductStatusFilter = ProductStatus | "ALL";
+import type { ProductDirectoryRecord, ProductStatus } from "../../../modules/masters/browser-product-storage";
 
-export interface ProductDirectoryRecord {
-  readonly id: string;
-  readonly reference: string;
-  readonly nameEn: string;
-  readonly nameAr: string;
-  readonly origin: string;
-  readonly type: string;
-  readonly grade: string;
-  readonly cropYear: string;
-  readonly bagType: string;
-  readonly standardBagWeight: string;
-  readonly status: ProductStatus;
-}
+export type { ProductDirectoryRecord, ProductStatus };
+export type ProductStatusFilter = ProductStatus | "ALL";
 
 export function summarizeProducts(products: readonly ProductDirectoryRecord[]) {
   return Object.freeze({
