@@ -45,7 +45,7 @@ test("expense register preserves role context without exposing attachment upload
   const expenseRoute = readFileSync("src/app/accounts/expenses/page.tsx", "utf8");
   const register = readFileSync("src/ui/features/accounts/BrowserFinanceRegisterPage.tsx", "utf8");
   assert.match(expenseRoute, /role\?: string/);
-  assert.match(expenseRoute, /role={query.role\?\.trim\(\) \|\| undefined}/);
+  assert.match(expenseRoute, /canUpload={query\.role !== "finance-viewer"}/);
   assert.match(register, /localizeHref\(row.taskHref, locale, role\)/);
   assert.doesNotMatch(register, /PilotTransactionAttachmentPanel/);
 

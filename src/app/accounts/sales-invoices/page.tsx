@@ -2,12 +2,12 @@ import { loadProjectSalesInvoices } from "../../../modules/invoices/load-project
 import { ProjectSalesInvoicesPage } from "../../../ui/features/accounts/ProjectSalesInvoicesPage";
 
 type Query = { readonly locale?: string; readonly projectId?: string; readonly role?: string };
-export default async function FinanceRegisterRoute({ searchParams }: { readonly searchParams: Promise<Query> }) {
+export default async function SalesInvoicesPage({ searchParams }: { readonly searchParams: Promise<Query> }) {
   const query = await searchParams;
-  const projectId = query.projectId?.trim();
+  const locale = query.locale === "ar" ? "ar" : "en";
+  const projectId = query.projectId?.trim() || undefined;
   const databaseAvailable = Boolean(process.env.DATABASE_URL);
-  if (!projectId || !databaseAvailable) return <ProjectSalesInvoicesPage locale={query.locale === "ar" ? "ar" : "en"} projectId={projectId} canUpload={false} invoices={[]} databaseAvailable={databaseAvailable} />;
+  if (!projectId || !databaseAvailable) return <ProjectSalesInvoicesPage locale={locale} projectId={projectId} canUpload={false} invoices={[]} databaseAvailable={databaseAvailable} />;
   const invoices = await loadProjectSalesInvoices(projectId);
-  const canUpload = query.role !== "finance-viewer";
-  return <ProjectSalesInvoicesPage locale={query.locale === "ar" ? "ar" : "en"} projectId={projectId} canUpload={canUpload} invoices={invoices} />;
+  return <ProjectSalesInvoicesPage locale={locale} projectId={projectId} canUpload={query.role !== "finance-viewer"} invoices={invoices} />;
 }

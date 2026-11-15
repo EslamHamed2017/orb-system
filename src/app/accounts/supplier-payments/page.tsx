@@ -1,7 +1,9 @@
-import { BrowserFinanceRegisterPage } from "../../../ui/features/accounts/BrowserFinanceRegisterPage";
+import { ProjectMoneyMovementsPage } from "../../../ui/features/accounts/ProjectMoneyMovementsPage";
 
 type Query = { readonly locale?: string; readonly projectId?: string; readonly role?: string };
-export default async function FinanceRegisterRoute({ searchParams }: { readonly searchParams: Promise<Query> }) {
+export default async function SupplierPaymentsPage({ searchParams }: { readonly searchParams: Promise<Query> }) {
   const query = await searchParams;
-  return <BrowserFinanceRegisterPage locale={query.locale === "ar" ? "ar" : "en"} kind="supplierPayments" projectId={query.projectId?.trim() || undefined} role={query.role?.trim() || undefined} />;
+  const locale = query.locale === "ar" ? "ar" : "en";
+  const projectId = query.projectId?.trim() || undefined;
+  return <ProjectMoneyMovementsPage locale={locale} projectId={projectId} type="SUPPLIER_PAYMENT" canUpload={query.role !== "finance-viewer"} />;
 }

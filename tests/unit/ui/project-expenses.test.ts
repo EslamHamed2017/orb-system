@@ -27,8 +27,8 @@ test("project-filtered expense register is bilingual and preserves transaction s
   const page = readFileSync("src/ui/features/accounts/ProjectExpensesPage.tsx", "utf8");
   const route = readFileSync("src/app/accounts/expenses/page.tsx", "utf8");
   const money = readFileSync("src/app/projects/[id]/money/page.tsx", "utf8");
-  assert.match(route, /BrowserFinanceRegisterPage/);
-  assert.match(route, /kind="expenses"/);
+  assert.match(route, /ProjectExpensesPage/);
+  assert.match(route, /canUpload/);
   assert.match(route, /projectId/);
   assert.match(page, /ProjectContextNavigation/);
   assert.match(page, /Expenses/);

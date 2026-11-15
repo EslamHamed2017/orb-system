@@ -29,6 +29,8 @@ test("project-filtered sales invoice page is bilingual and connected to project 
   assert.doesNotMatch(route, /BrowserFinanceRegisterPage|localStorage|PROJECT_STORAGE_KEY/);
   assert.match(route, /ProjectSalesInvoicesPage/);
   assert.match(route, /loadProjectSalesInvoices/);
+  assert.match(route, /ProjectSalesInvoicesPage/);
+  assert.match(route, /canUpload/);
   assert.match(route, /projectId/);
   assert.match(route, /DATABASE_URL/);
   assert.match(page, /no sample records are shown/);
