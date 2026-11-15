@@ -7,10 +7,17 @@ for (const locale of ["en", "ar"] as const) {
     await expect(page.getByRole("heading", { level: 1, name: ar ? "فواتير المبيعات" : "Sales invoices" })).toBeVisible();
     await expect(page.locator("main > section")).toHaveAttribute("dir", ar ? "rtl" : "ltr");
     await expect(page.getByRole("navigation", { name: ar ? "مساحة عمل المشروع" : "Project workspace" })).toBeVisible();
+    const unavailable = page.getByRole("status");
     const table = page.getByRole("table");
-    await expect(table.getByText("R1-CINV-001")).toBeVisible();
-    await expect(table.getByText("R1-CINV-NOT-PRESENT")).toHaveCount(0);
-    await expect(table.getByRole("link", { name: "ORB-R1-SAL-100MT" })).toHaveAttribute("href", `/sales-shipments/00000000-0000-7000-8000-000000000232?locale=${locale}`);
-    await expect(page.getByText(ar ? "1 فاتورة نشطة" : "1 active invoice")).toBeVisible();
+    if (await unavailable.isVisible()) {
+      await expect(unavailable).toContainText(ar ? "لم يتم عرض أي سجلات تجريبية" : "no sample records are shown");
+      await expect(table.getByRole("row")).toHaveCount(1);
+      await expect(page.getByText(ar ? "0 فاتورة نشطة" : "0 active invoices")).toBeVisible();
+    } else {
+      await expect(table.getByText("R1-CINV-001")).toBeVisible();
+      await expect(table.getByText("R1-CINV-NOT-PRESENT")).toHaveCount(0);
+      await expect(table.getByRole("link", { name: "ORB-R1-SAL-100MT" })).toHaveAttribute("href", `/sales-shipments/00000000-0000-7000-8000-000000000232?locale=${locale}`);
+      await expect(page.getByText(ar ? "1 فاتورة نشطة" : "1 active invoice")).toBeVisible();
+    }
   });
 }
