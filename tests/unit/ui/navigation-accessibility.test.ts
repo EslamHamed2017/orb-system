@@ -15,7 +15,8 @@ test("the public sign-in route renders without authenticated application navigat
 });
 
 test("main content precedes shell navigation in DOM order for finite keyboard entry", () => {
-  const shellStart = navigation.indexOf('return <div className="orb-shell">');
+  const shellMatch = /return <div className="orb-shell"(?:\s[^>]*)?>/.exec(navigation);
+  const shellStart = shellMatch?.index ?? -1;
   const main = navigation.indexOf('<main className="orb-main">', shellStart);
   const header = navigation.indexOf('<header className="orb-top-bar">', shellStart);
   const sideNavigation = navigation.indexOf('<nav className="orb-rail"', header);

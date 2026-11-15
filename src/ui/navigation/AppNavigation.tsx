@@ -126,7 +126,7 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
     <nav className="orb-rail" data-navigation="rail" data-variant="compact" aria-label={copy.primaryNavigation}>
       <div className="orb-nav-group"><span className="orb-nav-heading">{label("Workspace", "مساحة العمل")}</span>{primaryLinks}
         {canOpen("products") && <NavLink href={`/masters/coffee${suffix}`} label={label("Products", "المنتجات")} current={pathname === "/masters/coffee" || pathname.startsWith("/products/")} icon="products" />}
-        {canOpen("shipments") && <NavLink href={`/projects/demo/shipments${suffix}`} label={label("Shipments", "الشحنات")} current={pathname.includes("shipments")} icon="shipments" />}
+        {canOpen("shipments") && <NavLink href={`/shipments${suffix}`} label={label("Shipments", "الشحنات")} current={pathname.includes("shipments")} icon="shipments" />}
         {canOpen("accounts") && <NavLink href={`/accounts${suffix}`} label={label("Accounts", "الحسابات")} current={pathname.startsWith("/accounts") || pathname.includes("money") || pathname.includes("expenses") || pathname.includes("statements")} icon="finance" />}
         {canOpen("documents") && <NavLink href={`/attachments${suffix}`} label={label("Attachments", "المرفقات")} current={pathname.startsWith("/attachments") || pathname.startsWith("/evidence")} icon="documents" />}
         {canOpen("reports") && <NavLink href={`/reports${suffix}`} label={label("Reports", "التقارير")} current={pathname.startsWith("/reports") || pathname.includes("profit")} icon="reports" />}
@@ -141,7 +141,7 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
       <h2 id="orb-more-title">{copy.menuTitle}</h2><p>{copy.shellTitle}</p>
       <nav className="orb-dialog-links" aria-label={label("More destinations", "وجهات إضافية")}>
         {canOpen("products") && <a href={`/masters/coffee${suffix}`}><Icon name="products" />{label("Products", "المنتجات")}</a>}
-        {canOpen("shipments") && <a href={`/projects/demo/shipments${suffix}`}><Icon name="shipments" />{label("Shipments", "الشحنات")}</a>}
+        {canOpen("shipments") && <a href={`/shipments${suffix}`}><Icon name="shipments" />{label("Shipments", "الشحنات")}</a>}
         {canOpen("accounts") && <a href={`/accounts${suffix}`}><Icon name="finance" />{label("Accounts", "الحسابات")}</a>}
         {canOpen("documents") && <a href={`/attachments${suffix}`}><Icon name="documents" />{label("Attachments", "المرفقات")}</a>}
         {canOpen("reports") && <a href={`/reports${suffix}`}><Icon name="reports" />{label("Reports", "التقارير")}</a>}
