@@ -34,16 +34,16 @@ test("isolated infrastructure is ready and current route states remain truthful"
   await expect(page.getByRole("progressbar")).toHaveCount(2);
 
   await page.goto("/accounts/sales-invoices?projectId=project-1&locale=en");
-  await expect(page.getByRole("heading", { level: 1, name: "Customer invoices" })).toBeVisible();
-  await expect(page.getByText("Stored only in this browser", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Project not found" })).toBeVisible();
-  await expect(page.locator('section[aria-labelledby="finance-register-title"] article')).toHaveCount(0);
+  await expect(page.getByRole("heading", { level: 1, name: "Sales invoices" })).toBeVisible();
+  await expect(page.getByText("Sales shipment").first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "sales-shipment-1" })).toBeVisible();
+  await expect(page.getByText(/attachment/i).first()).toBeVisible();
 
   await page.goto("/accounts/supplier-invoices?projectId=project-1&locale=en");
   await expect(page.getByRole("heading", { level: 1, name: "Supplier invoices" })).toBeVisible();
-  await expect(page.getByText("Stored only in this browser", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Project not found" })).toBeVisible();
-  await expect(page.locator('section[aria-labelledby="finance-register-title"] article')).toHaveCount(0);
+  await expect(page.getByText("Supplier container").first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "supplier-container-1" })).toBeVisible();
+  await expect(page.getByText(/attachment/i).first()).toBeVisible();
 
   await page.goto("/reports/product-movement?locale=en");
   await expect(page.locator("body")).toContainText(/not a stock balance or inventory valuation/i);
