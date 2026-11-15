@@ -13,7 +13,7 @@ const NAMES = {
   "expense-categories": { en: "Expense categories", ar: "فئات المصروفات", singularEn: "category", singularAr: "فئة" },
 } as const;
 type MasterType = keyof typeof NAMES;
-type Query = { locale?: string; q?: string; status?: string };
+type Query = { locale?: string; q?: string; status?: string; role?: string };
 
 export default async function MasterPage({ params, searchParams }: { params: Promise<{ masterType: string }>; searchParams: Promise<Query> }) {
   const [{ masterType }, query] = await Promise.all([params, searchParams]);
@@ -24,7 +24,7 @@ export default async function MasterPage({ params, searchParams }: { params: Pro
   }
   if (masterType === "suppliers") {
     const status: SupplierStatusFilter = query.status === "ACTIVE" || query.status === "INACTIVE" ? query.status : "ALL";
-    return <SuppliersPage locale={locale} query={query.q ?? ""} status={status}/>;
+    return <SuppliersPage locale={locale} query={query.q ?? ""} status={status} role={query.role}/>;
   }
   if (masterType === "coffee") {
     const status: ProductStatusFilter = query.status === "ACTIVE" || query.status === "INACTIVE" ? query.status : "ALL";

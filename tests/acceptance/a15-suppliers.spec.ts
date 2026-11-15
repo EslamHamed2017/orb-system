@@ -1,26 +1,37 @@
 import { expect, test } from "@playwright/test";
 
 for (const locale of ["en", "ar"] as const) {
-  test(`${locale} suppliers directory opens a bilingual supplier 360 detail`, async ({ page }) => {
+  test(`${locale} supplier directory is honest and fixture-free`, async ({ page }) => {
     const ar = locale === "ar";
     await page.goto(`/masters/suppliers?locale=${locale}`);
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
     await expect(page.getByRole("heading", { level: 1, name: ar ? "الموردون" : "Suppliers" })).toBeVisible();
     await expect(page.locator("main > section")).toHaveAttribute("dir", ar ? "rtl" : "ltr");
-    await expect(page.getByRole("heading", { level: 2, name: ar ? "دليل الموردين" : "Supplier directory" })).toBeVisible();
-    await expect(page.getByRole("table").getByRole("row")).toHaveCount(4);
-    await expect(page.getByRole("link", { name: ar ? "إضافة مورد" : "Add supplier" })).toHaveAttribute("data-operation-id", "createSupplier");
-    await page.getByRole("table").getByRole("link", { name: ar ? "عرض" : "View" }).first().click();
-    await expect.poll(() => { const url = new URL(page.url()); return url.pathname + url.search; }).toBe(`/suppliers/supplier-cedar?locale=${locale}`);
-    await expect(page.getByText(ar ? "نظرة المورد ٣٦٠°" : "Supplier 360", { exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { level: 2, name: ar ? "السجلات المرتبطة" : "Related records" })).toBeVisible();
-    await expect(page.getByRole("link", { name: ar ? "فواتير الموردين" : "Supplier invoices" })).toHaveAttribute("href", /supplierId=supplier-cedar/);
-    await expect(page.getByRole("link", { name: ar ? "تعديل المورد" : "Edit supplier" })).toHaveAttribute("data-operation-id", "updateSupplier");
+    await expect(page.getByText(ar ? "محفوظ في هذا المتصفح" : "Saved in this browser")).toBeVisible();
+    await expect(page.getByRole("heading", { name: ar ? "لم يُسجل أي مورد بعد" : "No suppliers registered yet" })).toBeVisible();
+    await expect(page.locator("body")).not.toContainText("Cedar Coffee Exporters");
+    await expect(page.locator("body")).not.toContainText(ar ? "المشاريع المرتبطة" : "Linked projects");
+    await expect(page.locator("body")).not.toContainText(ar ? "فواتير مفتوحة" : "Open invoices");
   });
 }
 
-test("supplier directory filters by lifecycle and bilingual-searchable data", async ({ page }) => {
-  await page.goto("/masters/suppliers?locale=en&status=INACTIVE&q=Savanna");
-  await expect(page.getByRole("table").getByRole("row")).toHaveCount(2);
-  await expect(page.getByText("SUP-2025-014", { exact: false })).toBeVisible();
-  await expect(page.getByText("SUP-2026-001", { exact: false })).toHaveCount(0);
+test("legacy supplier 360 evaluation route remains directly reviewable but separate", async ({ page }) => {
+  await page.goto("/suppliers/supplier-cedar?locale=en");
+  await expect(page.getByText("Supplier 360", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Related records" })).toBeVisible();
+});
+
+
+test("supplier filters preserve role and every lifecycle mutation remains permission-aware", async ({ page }) => {
+  const record = [{ id: "supplier-permission", reference: "SUP-900", legalNameEn: "Permission Supplier", legalNameAr: "مورد الصلاحيات", countryCode: "ET", contactName: "Hana", email: "hana@example.com", phone: "+251 900", active: true, projectCount: 0, openInvoiceCount: 0 }];
+  await page.goto("/masters/suppliers?locale=en&role=finance");
+  await page.evaluate((items) => localStorage.setItem("orb.browser-suppliers.v1", JSON.stringify(items)), record);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Add supplier" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Edit" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Archive" })).toBeDisabled();
+  await page.getByRole("button", { name: "Apply" }).click();
+  await expect(page).toHaveURL(/role=finance/);
+  await expect(page.getByRole("button", { name: "Add supplier" })).toBeDisabled();
 });
