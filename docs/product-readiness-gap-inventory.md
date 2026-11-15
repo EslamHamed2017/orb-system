@@ -1,6 +1,6 @@
 # Product readiness gap inventory
 
-**Audit date:** 14 November 2026
+**Audit date:** 15 November 2026
 **Scope:** the ORB web UI on canonical `origin/main`, the browser-persisted Today/Projects flow, project setup, supplier and customer shipments, supplier invoice/payment, customer invoice/collection, direct project expenses, claims, and project closure/reopen slices delivered on 14 November 2026.
 
 ## Truthful status
@@ -13,7 +13,7 @@ This work **does not make ORB product-ready**. The bounded daily-use flow uses u
 - The Projects register contained fixed sample projects, inert filters, and project detail ignored the requested project identifier.
 - Some narrow-screen project views overflowed or competed with the bottom navigation.
 - Finance surfaces still expose fixed `DEMO` data.
-- Approval surfaces can expose implementation enums and opaque hashes instead of business language.
+- The approval service remains unconfigured and the approval screen previously presented a fixed request, technical enums, hashes, test addresses, fabricated counts, and inert decision controls.
 - Roles, backup/recovery, and other administration views still rely on fixtures.
 - Production database and authentication adapters are unavailable to this slice.
 
@@ -37,12 +37,14 @@ This work **does not make ORB product-ready**. The bounded daily-use flow uses u
 - Claims are recorded and resolved from user-entered project parties and business details on a dedicated bilingual task page; open claims become a direct blocker only after the core lifecycle work is complete.
 - Eligible projects now have a dedicated bilingual closure page backed by the saved record rather than fixed assessment identifiers. Readiness names shipment review, supplier payment, customer collection, open claims, and reopened-work review in business language. Close/reopen notes and dates persist, stale writes and impossible chronology are rejected, closed projects leave Today, and reopening creates a visible review step before another close. No external communication or payment occurs.
 - English and Arabic business copy and route-scoped RTL are provided for the bounded flow; technical status enums and hashes remain hidden.
+- The approval preview now uses English/Arabic business language, responsive RTL/LTR facts, and a business-readable change summary. Raw action/subject codes, source fields, recipient address, hash, and evidence metadata are collapsed under an explicit technical-details disclosure.
+- The approval page no longer presents fabricated workload KPIs or inert approve/reject controls. It explicitly states that the secure approval service is not connected, that the fixed request is preview-only, and that no external message was sent.
 
 ## Remaining work before readiness
 
 1. Replace browser-only persistence with authenticated, tenant-scoped server persistence, concurrency control, authorization, audit history, backup, and recovery.
 2. Replace browser-only setup, shipment, supplier invoice/payment, customer invoice, collection, direct-expense, claim, and closure records with authoritative customer, supplier, contract, shipment, invoice, money-movement, claim, approval, and lifecycle services.
-3. Remove remaining fixed/demo data throughout Finance, approvals, roles, recovery, and all routes outside this slice.
+3. Connect the approval inbox and decision controls to authenticated server persistence, then remove the remaining fixed preview request; also remove fixed/demo data throughout Finance, roles, recovery, and all routes outside this slice.
 4. Complete end-to-end permissions, accessibility, localization, offline/error recovery, migration, security, observability, and multi-user acceptance testing.
 5. Validate operational calculations and compliance controls against production requirements and representative customer data.
 

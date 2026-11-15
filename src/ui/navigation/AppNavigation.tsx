@@ -102,7 +102,7 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
     {canOpen("approvals") && <NavLink href={`/approvals${suffix}`} label={copy.approvals} current={pathname === "/approvals"} icon="approvals" />}
   </>;
 
-  return <div className="orb-shell">
+  return <div className="orb-shell" dir={direction}>
     <main className="orb-main">
       <span className="orb-reference orb-sr-only" data-orb-reference>ORB-R1</span>
       {state ? <AsyncState state={state} copy={copy} /> : children}

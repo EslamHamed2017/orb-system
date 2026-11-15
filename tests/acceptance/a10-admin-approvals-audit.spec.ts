@@ -1,30 +1,35 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const copy = {
-  en: { approvals: "Fixed approval inbox", users: "Users and access", backup: "Backup and isolated restore", decide: "Approval decision", revoke: "Revoke exact session", start: "Start isolated restore test" },
-  ar: { approvals: "صندوق الموافقات الثابت", users: "المستخدمون والوصول", backup: "النسخ الاحتياطي والاستعادة المعزولة", decide: "قرار الموافقة", revoke: "إلغاء الجلسة المحددة", start: "بدء اختبار استعادة معزول" },
+  en: { approvals: "Approval requests", users: "Users and access", backup: "Backup and isolated restore", decide: "Approval decision", revoke: "Revoke exact session", start: "Start isolated restore test" },
+  ar: { approvals: "طلبات الموافقة", users: "المستخدمون والوصول", backup: "النسخ الاحتياطي والاستعادة المعزولة", decide: "قرار الموافقة", revoke: "إلغاء الجلسة المحددة", start: "بدء اختبار استعادة معزول" },
 } as const;
 function region(page: Page, name: string | RegExp): Locator { return page.getByRole("region", { name }); }
 
 for (const locale of ["en", "ar"] as const) {
-  test(`${locale} approval inbox renders the complete typed exact decision item`, async ({ page }) => {
+  test(`${locale} approval request uses business copy and keeps technical values behind disclosure`, async ({ page }) => {
     const text = copy[locale];
     await page.goto(`/approvals?locale=${locale}`);
-    await expect(page.locator("html")).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
+    await expect(page.locator(".orb-shell")).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
     await expect(page.getByRole("heading", { level: 1, name: text.approvals })).toBeVisible();
-    const dialog = region(page, text.decide);
-    for (const value of ["EXTERNAL_SEND", "OUTBOUND_MANIFEST", "ORB-MAN-0007"]) await expect(dialog.getByText(value, { exact: true })).toBeVisible();
-    await expect(dialog.getByText(/version 3|الإصدار 3/i)).toBeVisible();
+    const dialog = region(page, locale === "ar" ? "مراجعة إرسال مستندات العميل" : "Review customer document delivery");
+    await expect(dialog).toContainText(locale === "ar" ? "إرسال مستندات الشحن إلى العميل" : "Send shipping documents to the customer");
+    await expect(dialog).toContainText(locale === "ar" ? "قائمة المستلمين" : "Recipient list");
+    await expect(dialog).toContainText(locale === "ar" ? "مالك النظام" : "System owner");
+    await expect(dialog).toContainText(locale === "ar" ? "بانتظار القرار" : "Awaiting decision");
+    await expect(dialog).toContainText(locale === "ar" ? "خدمة الموافقات غير متصلة" : "Approval service is not connected");
+    for (const value of ["EXTERNAL_SEND", "OUTBOUND_MANIFEST", "customer@example.test"]) {
+      await expect(dialog.getByText(value, { exact: true })).not.toBeVisible();
+    }
+    await expect(dialog.getByText(/[a-f0-9]{64}/)).not.toBeVisible();
+    await expect(dialog.getByRole("button", { name: /approve|reject|موافقة|رفض/i })).toHaveCount(0);
+    await expect(dialog.getByRole("link", { name: /shipping-document evidence|حزمة مستندات الشحن/i })).toHaveCount(0);
+    await expect(dialog).toContainText(locale === "ar" ? "المرفقات غير متاحة" : "Attachments are unavailable");
+
+    const details = dialog.getByText(locale === "ar" ? "التفاصيل التقنية" : "Technical details", { exact: true });
+    await details.click();
+    for (const value of ["EXTERNAL_SEND", "OUTBOUND_MANIFEST"]) await expect(dialog.getByText(value, { exact: true })).toBeVisible();
     await expect(dialog.getByText(/[a-f0-9]{64}/)).toBeVisible();
-    await expect(dialog.getByRole("table", { name: /changed fields|الحقول المتغيرة/i })).toContainText("orderedToRecipients");
-    await expect(dialog.getByRole("link", { name: /EVIDENCE-0007/i })).toBeVisible();
-    await expect(dialog.getByText(/blocking.*recipient changed|حظر.*تغير المستلم/i)).toBeVisible();
-    await expect(dialog.getByText(/requested by.*operations user|مقدم الطلب.*مستخدم العمليات/i)).toBeVisible();
-    await expect(dialog.getByText(/required role.*owner.admin|الدور المطلوب.*المالك/i)).toBeVisible();
-    await expect(dialog.getByText(/approval.*pending.*version 2|الموافقة.*قيد الانتظار.*الإصدار 2/i)).toBeVisible();
-    await expect(dialog.getByText(/self.approval.*forbidden|الموافقة الذاتية.*محظورة/i)).toBeVisible();
-    await expect(dialog.getByRole("button", { name: /approve|موافقة/i })).toBeDisabled();
-    await expect(dialog.getByRole("button", { name: /reject|رفض/i })).toBeVisible();
   });
 }
 
