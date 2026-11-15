@@ -1,19 +1,7 @@
 import type { AccountsLocale } from "./accounts-hub";
 
-export interface SalesInvoiceListItem {
-  readonly id: string;
-  readonly projectId: string;
-  readonly shipmentId: string;
-  readonly occurredOn: string;
-  readonly state: string;
-  readonly reference: string;
-  readonly currency: string;
-  readonly amount: string;
-  readonly outstandingAmount: string;
-  readonly partyName?: string;
-  readonly sourceReference?: string;
-  readonly lines?: readonly import("./InvoicePrintDocument").InvoicePrintLine[];
-}
+export type { SalesInvoiceListItem } from "../../../modules/invoices/load-project-sales-invoices";
+import type { SalesInvoiceListItem } from "../../../modules/invoices/load-project-sales-invoices";
 
 const inactiveStates = new Set(["CANCELLED", "REVERSED"]);
 

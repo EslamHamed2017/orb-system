@@ -26,12 +26,18 @@ test("sales invoice list links preserve project and locale filters", () => {
 test("project-filtered sales invoice page is bilingual and connected to project 360 navigation", () => {
   const page = readFileSync("src/ui/features/accounts/ProjectSalesInvoicesPage.tsx", "utf8");
   const route = readFileSync("src/app/accounts/sales-invoices/page.tsx", "utf8");
-  assert.match(route, /BrowserFinanceRegisterPage/);
-  assert.match(route, /kind="salesInvoices"/);
+  assert.doesNotMatch(route, /BrowserFinanceRegisterPage|localStorage|PROJECT_STORAGE_KEY/);
+  assert.match(route, /ProjectSalesInvoicesPage/);
+  assert.match(route, /loadProjectSalesInvoices/);
   assert.match(route, /projectId/);
+  assert.match(route, /DATABASE_URL/);
+  assert.match(page, /no sample records are shown/);
   assert.match(page, /ProjectContextNavigation/);
   assert.match(page, /Sales invoices/);
   assert.match(page, /فواتير المبيعات/);
+  assert.doesNotMatch(page, /const invoices|SINV-2026-014|sales-shipment-1/);
+  assert.match(page, /shipmentReference/);
+  assert.match(page, /projectReference/);
   assert.match(page, /sales-shipments/);
   assert.match(page, /outstandingAmount/);
 });

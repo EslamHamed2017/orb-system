@@ -5,9 +5,9 @@
     "enums": 40
   },
   "seed": {
-    "tables": 27,
-    "rows": 46,
-    "digest": "941b46fd4fb014dae1af3deb6151dc130f714f770ec55f2ead9ae40494ddb8ad",
+    "tables": 28,
+    "rows": 47,
+    "digest": "c9f868f22e081fec0a935ed03caed0f6ce8605b78c49440b5f78c18b03b86e6f",
     "rowCounts": {
       "user": 3,
       "userRole": 3,
@@ -27,6 +27,7 @@
       "evidenceObject": 1,
       "routeChecklist": 1,
       "routeChecklistItem": 1,
+      "salesInvoice": 1,
       "commercialDocument": 1,
       "documentRevision": 1,
       "outboundManifest": 1,

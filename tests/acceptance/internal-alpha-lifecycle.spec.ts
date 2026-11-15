@@ -9,9 +9,9 @@ test("isolated infrastructure is ready and current route states remain truthful"
   const lifecycle = [
     "/masters/customers", "/masters/suppliers", "/masters/products", "/projects/demo/overview",
     "/projects/demo/contracts", "/supplier-shipments/demo", "/sales-shipments/demo",
-    "/accounts/sales-invoices?projectId=project-1", "/accounts/supplier-invoices?projectId=project-1",
-    "/accounts/collections?projectId=project-1", "/accounts/supplier-payments?projectId=project-1",
-    "/accounts/expenses?projectId=project-1", "/attachments", "/reports/product-movement",
+    "/accounts/sales-invoices?projectId=00000000-0000-7000-8000-000000000201", "/accounts/supplier-invoices?projectId=00000000-0000-7000-8000-000000000201",
+    "/accounts/collections?projectId=00000000-0000-7000-8000-000000000201", "/accounts/supplier-payments?projectId=00000000-0000-7000-8000-000000000201",
+    "/accounts/expenses?projectId=00000000-0000-7000-8000-000000000201", "/attachments", "/reports/product-movement",
     "/projects/demo/closure",
   ] as const;
   for (const route of lifecycle) {
@@ -33,13 +33,13 @@ test("isolated infrastructure is ready and current route states remain truthful"
   await expect(page.getByText("Remaining quantity", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("progressbar")).toHaveCount(2);
 
-  await page.goto("/accounts/sales-invoices?projectId=project-1&locale=en");
+  await page.goto("/accounts/sales-invoices?projectId=00000000-0000-7000-8000-000000000201&locale=en");
   await expect(page.getByRole("heading", { level: 1, name: "Customer invoices" })).toBeVisible();
   await expect(page.getByText("Stored only in this browser", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Project not found" })).toBeVisible();
   await expect(page.locator('section[aria-labelledby="finance-register-title"] article')).toHaveCount(0);
 
-  await page.goto("/accounts/supplier-invoices?projectId=project-1&locale=en");
+  await page.goto("/accounts/supplier-invoices?projectId=00000000-0000-7000-8000-000000000201&locale=en");
   await expect(page.getByRole("heading", { level: 1, name: "Supplier invoices" })).toBeVisible();
   await expect(page.getByText("Stored only in this browser", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Project not found" })).toBeVisible();

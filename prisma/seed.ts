@@ -3,7 +3,7 @@ import { R1_CURRENCIES, R1_PARTIES, R1_COFFEE_SPECIFICATIONS, R1_EXPENSE_CATEGOR
 import { R1_USERS, R1_USER_ROLES, R1_PILOT_SESSIONS } from "../tests/fixtures/r1-security-users.ts";
 import {
  R1_APPROVALS,R1_PROJECTS,R1_CONTRACTS,R1_CONTRACT_VERSIONS,R1_SUPPLIER_SHIPMENTS,R1_SALES_SHIPMENTS,R1_SUPPLIER_DATASETS,R1_SALES_DATASETS,R1_EVIDENCE,
- R1_ROUTE_CHECKLISTS,R1_ROUTE_ITEMS,R1_SUPPLIER_INVOICES,R1_MONEY_MOVEMENTS,R1_DIRECT_EXPENSES,R1_CLAIMS,R1_CLOSURE_ASSESSMENTS,R1_CLOSURE_BLOCKERS,R1_INVALIDATOR_FIXTURE,stableHash,R1_CYCLE_IDS,
+ R1_ROUTE_CHECKLISTS,R1_ROUTE_ITEMS,R1_SALES_INVOICES,R1_SUPPLIER_INVOICES,R1_MONEY_MOVEMENTS,R1_DIRECT_EXPENSES,R1_CLAIMS,R1_CLOSURE_ASSESSMENTS,R1_CLOSURE_BLOCKERS,R1_INVALIDATOR_FIXTURE,stableHash,R1_CYCLE_IDS,
 } from "../tests/fixtures/r1-project-cycle.ts";
 import { R1_DOCUMENTS,R1_DOCUMENT_REVISIONS,R1_OUTBOUND_MANIFESTS,R1_OUTBOUND_IDS } from "../tests/fixtures/r1-outbound.ts";
 
@@ -13,7 +13,7 @@ const tables = Object.freeze([
  ["user",R1_USERS],["userRole",R1_USER_ROLES],["pilotSession",R1_PILOT_SESSIONS],["currency",R1_CURRENCIES],["party",R1_PARTIES],["coffeeSpecification",R1_COFFEE_SPECIFICATIONS],["expenseCategory",R1_EXPENSE_CATEGORIES],
  ["approval",R1_APPROVALS],["project",R1_PROJECTS],["contract",R1_CONTRACTS],["contractVersion",R1_CONTRACT_VERSIONS],["supplierShipment",R1_SUPPLIER_SHIPMENTS],["salesShipment",R1_SALES_SHIPMENTS],
  ["supplierShipmentDataset",R1_SUPPLIER_DATASETS],["salesShipmentDataset",R1_SALES_DATASETS],["evidenceObject",R1_EVIDENCE],["routeChecklist",R1_ROUTE_CHECKLISTS],["routeChecklistItem",R1_ROUTE_ITEMS],
- ["commercialDocument",R1_DOCUMENTS],["documentRevision",R1_DOCUMENT_REVISIONS],["outboundManifest",R1_OUTBOUND_MANIFESTS],["supplierInvoice",R1_SUPPLIER_INVOICES],["moneyMovement",R1_MONEY_MOVEMENTS],
+ ["salesInvoice",R1_SALES_INVOICES],["commercialDocument",R1_DOCUMENTS],["documentRevision",R1_DOCUMENT_REVISIONS],["outboundManifest",R1_OUTBOUND_MANIFESTS],["supplierInvoice",R1_SUPPLIER_INVOICES],["moneyMovement",R1_MONEY_MOVEMENTS],
  ["directExpense",R1_DIRECT_EXPENSES],["claim",R1_CLAIMS],["closureAssessment",R1_CLOSURE_ASSESSMENTS],["closureBlocker",R1_CLOSURE_BLOCKERS],
 ] as const);
 const DATE_KEYS=/(?:_at|_date|_on|_until|_departure|_arrival)$/;
@@ -39,7 +39,7 @@ export async function seedR1(client:SeedClient):Promise<{digest:string;rows:numb
   await (tx.commercialDocument as Delegate).update?.({where:{id:R1_OUTBOUND_IDS.document},data:{active_revision_id:R1_OUTBOUND_IDS.revision}});
   return {digest:R1_SEED_DIGEST,rows:tables.reduce((sum,[,items])=>sum+items.length,0)};
  }); }
-const SQL_TABLES:Readonly<Record<string,string>>=Object.freeze({user:"User",userRole:"UserRole",pilotSession:"PilotSession",currency:"Currency",party:"Party",coffeeSpecification:"CoffeeSpecification",expenseCategory:"ExpenseCategory",approval:"Approval",project:"Project",contract:"Contract",contractVersion:"ContractVersion",supplierShipment:"SupplierShipment",salesShipment:"SalesShipment",supplierShipmentDataset:"SupplierShipmentDataset",salesShipmentDataset:"SalesShipmentDataset",evidenceObject:"EvidenceObject",routeChecklist:"RouteChecklist",routeChecklistItem:"RouteChecklistItem",commercialDocument:"CommercialDocument",documentRevision:"DocumentRevision",outboundManifest:"OutboundManifest",supplierInvoice:"SupplierInvoice",moneyMovement:"MoneyMovement",directExpense:"DirectExpense",claim:"Claim",closureAssessment:"ClosureAssessment",closureBlocker:"ClosureBlocker"});
+const SQL_TABLES:Readonly<Record<string,string>>=Object.freeze({user:"User",userRole:"UserRole",pilotSession:"PilotSession",currency:"Currency",party:"Party",coffeeSpecification:"CoffeeSpecification",expenseCategory:"ExpenseCategory",approval:"Approval",project:"Project",contract:"Contract",contractVersion:"ContractVersion",supplierShipment:"SupplierShipment",salesShipment:"SalesShipment",supplierShipmentDataset:"SupplierShipmentDataset",salesShipmentDataset:"SalesShipmentDataset",evidenceObject:"EvidenceObject",routeChecklist:"RouteChecklist",routeChecklistItem:"RouteChecklistItem",salesInvoice:"SalesInvoice",commercialDocument:"CommercialDocument",documentRevision:"DocumentRevision",outboundManifest:"OutboundManifest",supplierInvoice:"SupplierInvoice",moneyMovement:"MoneyMovement",directExpense:"DirectExpense",claim:"Claim",closureAssessment:"ClosureAssessment",closureBlocker:"ClosureBlocker"});
 const JSON_COLUMNS=new Set(["attributes","ordered_to_recipients","ordered_cc_recipients","attachment_manifest"]);
 const quote=(value:string)=>`"${value.replaceAll('"','""')}"`;
 export async function seedR1Postgres(connectionString:string):Promise<{digest:string;rows:number}>{
