@@ -1213,6 +1213,57 @@ model SettingsAuditEvent {
   @@index([occurred_at])
 }
 
+/// Durable organization boundary. No legacy rows are assigned to a tenant by this additive increment.
+model Tenant {
+  id                 String               @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  slug               String               @unique
+  name               String
+  created_at         DateTime             @default(now()) @db.Timestamptz(6)
+  Customer           Customer[]
+  CustomerAuditEvent CustomerAuditEvent[]
+}
+
+/// Tenant-owned customer master with optimistic concurrency and tenant-scoped business reference.
+model Customer {
+  id                 String               @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  tenant_id          String               @db.Uuid
+  reference          String
+  legal_name         String
+  contact_name       String?
+  email              String?
+  phone              String?
+  status             CustomerStatus       @default(ACTIVE)
+  version            Int                  @default(1)
+  created_at         DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime             @updatedAt @db.Timestamptz(6)
+  Tenant             Tenant               @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  CustomerAuditEvent CustomerAuditEvent[]
+
+  @@unique([tenant_id, reference])
+  @@unique([id, tenant_id])
+  @@index([tenant_id, status, legal_name])
+}
+
+/// Append-only customer history written atomically with each customer mutation.
+model CustomerAuditEvent {
+  id                String   @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  tenant_id         String   @db.Uuid
+  customer_id       String   @db.Uuid
+  actor_id          String   @db.Uuid
+  action            String
+  aggregate_version Int
+  occurred_at       DateTime @default(now()) @db.Timestamptz(6)
+  before            Json?
+  after             Json
+  Tenant            Tenant   @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Customer          Customer @relation(fields: [customer_id, tenant_id], references: [id, tenant_id], onDelete: NoAction, onUpdate: NoAction)
+  User              User     @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([customer_id, aggregate_version])
+  @@index([tenant_id, occurred_at])
+  @@index([actor_id])
+}
+
 model User {
   id                                         String                    @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
   auth_subject                               String                    @unique
@@ -1228,6 +1279,7 @@ model User {
   AuditEvent                                 AuditEvent[]
   SystemSettings                             SystemSettings[]
   SettingsAuditEvent                         SettingsAuditEvent[]
+  CustomerAuditEvent                         CustomerAuditEvent[]
   IdempotencyRecord                          IdempotencyRecord[]
   OutboundSendAttempt                        OutboundSendAttempt[]
   PilotSession_PilotSession_user_idToUser    PilotSession[]            @relation("PilotSession_user_idToUser")
@@ -1256,6 +1308,11 @@ model UserRole {
   User    User      @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_1_UserRole")
 
   @@unique([user_id, role])
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
 }
 
 enum ProductStatus {
