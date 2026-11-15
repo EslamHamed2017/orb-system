@@ -58,3 +58,11 @@ test("shared project storage lock retains claim expectedUpdatedAt conflict behav
   const saved = parseProjectRecords(storage.getItem())[0];
   assert.deepEqual(saved.claims?.map((claim) => claim.reference), ["FIRST"]);
 });
+
+
+test("invalid mutation output is rejected before replacing valid project storage", async () => {
+  const initial = active("valid", 1);
+  const storage = new MemoryStorage([initial]);
+  await assert.rejects(() => mutateProjectStorage(storage, parseProjectRecords, (records) => ({ records: [{ ...records[0], origin: "" }], result: undefined })), /CORRUPT_PROJECT_STORAGE/);
+  assert.deepEqual(parseProjectRecords(storage.getItem()), [initial]);
+});

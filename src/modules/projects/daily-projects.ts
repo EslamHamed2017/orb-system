@@ -1,6 +1,7 @@
 export const PROJECT_STORAGE_KEY = "orb.user-projects.owner-1.v1";
 
 export type ProjectStatus = "SETUP" | "ACTIVE" | "CLOSED";
+export type ProjectClosure = Readonly<{ closedOn: string; note: string; closedAt: string; reopenedOn?: string; reopenReason?: string; reopenedAt?: string; reopenReviewedAt?: string }>;
 export type SupplierShipment = Readonly<{ reference: string; expectedArrival: string; quantity: string }>;
 export type CustomerShipment = Readonly<{ reference: string; plannedDispatchDate: string; quantity: string }>;
 export type SupplierInvoice = Readonly<{ reference: string; invoiceDate: string; amount: string }>;
@@ -16,7 +17,7 @@ export type ProjectRecord = Readonly<{
   id: string; code: string; customer: string; supplier?: string; reference: string; contractReference: string; purchaseContractReference?: string;
   startDate: string; commodity: string; quantity: string; unit: string; currency: string;
   unitPrice: string; value: number; origin: string; destination: string;
-  status: ProjectStatus; supplierShipment?: SupplierShipment; customerShipment?: CustomerShipment; customerShipmentReviewedAt?: string; supplierInvoice?: SupplierInvoice; supplierPayment?: SupplierPayment; customerInvoice?: CustomerInvoice; customerCollections?: readonly CustomerCollection[]; expenses?: readonly ProjectExpense[]; claims?: readonly ProjectClaim[]; createdAt: string; updatedAt: string;
+  status: ProjectStatus; supplierShipment?: SupplierShipment; customerShipment?: CustomerShipment; customerShipmentReviewedAt?: string; supplierInvoice?: SupplierInvoice; supplierPayment?: SupplierPayment; customerInvoice?: CustomerInvoice; customerCollections?: readonly CustomerCollection[]; expenses?: readonly ProjectExpense[]; claims?: readonly ProjectClaim[]; closure?: ProjectClosure; createdAt: string; updatedAt: string;
 }>;
 export type ProjectInput = Readonly<Omit<ProjectRecord, "id" | "code" | "value" | "status" | "createdAt" | "updatedAt">>;
 
@@ -160,6 +161,29 @@ function isValidProjectClaims(value: unknown, status: unknown, customer: unknown
   return true;
 }
 
+function latestProjectBusinessDate(project: Pick<ProjectRecord, "startDate" | "supplierShipment" | "customerShipment" | "supplierInvoice" | "supplierPayment" | "customerInvoice" | "customerCollections" | "expenses" | "claims">): string {
+  const dates = [project.startDate, project.supplierShipment?.expectedArrival, project.customerShipment?.plannedDispatchDate, project.supplierInvoice?.invoiceDate,
+    project.supplierPayment?.paymentDate, project.customerInvoice?.invoiceDate, ...(project.customerCollections ?? []).map((item) => item.collectionDate),
+    ...(project.expenses ?? []).map((item) => item.occurredOn), ...(project.claims ?? []).flatMap((item) => [item.claimDate, item.resolutionDate].filter((date): date is string => Boolean(date)))];
+  return dates.filter((date): date is string => typeof date === "string" && isStrictDate(date)).sort().at(-1) ?? project.startDate;
+}
+
+function isValidProjectClosure(value: unknown, status: unknown, startDate: unknown, createdAt: unknown, updatedAt: unknown): value is ProjectClosure | undefined {
+  if (value === undefined) return true;
+  if (!value || typeof value !== "object" || !["ACTIVE", "CLOSED"].includes(String(status)) || typeof startDate !== "string" || typeof createdAt !== "string" || typeof updatedAt !== "string") return false;
+  const closure = value as Record<string, unknown>;
+  const baseValid = typeof closure.closedOn === "string" && isStrictDate(closure.closedOn) && closure.closedOn >= startDate &&
+    typeof closure.note === "string" && closure.note.trim() === closure.note && closure.note.length >= 3 &&
+    isStrictTimestamp(closure.closedAt) && closure.closedAt >= createdAt && closure.closedAt <= updatedAt;
+  const reopenFields = [closure.reopenedOn, closure.reopenReason, closure.reopenedAt, closure.reopenReviewedAt];
+  if (!baseValid || (closure.closedOn as string) > (closure.closedAt as string).slice(0, 10)) return false;
+  if (status === "CLOSED") return reopenFields.every((field) => field === undefined);
+  return typeof closure.reopenedOn === "string" && isStrictDate(closure.reopenedOn) && closure.reopenedOn >= (closure.closedOn as string) &&
+    typeof closure.reopenReason === "string" && closure.reopenReason.trim() === closure.reopenReason && closure.reopenReason.length >= 3 &&
+    isStrictTimestamp(closure.reopenedAt) && closure.reopenedAt >= (closure.closedAt as string) && closure.reopenedAt <= updatedAt && closure.reopenedOn <= closure.reopenedAt.slice(0, 10) &&
+    (closure.reopenReviewedAt === undefined || (isStrictTimestamp(closure.reopenReviewedAt) && closure.reopenReviewedAt >= closure.reopenedAt && closure.reopenReviewedAt <= updatedAt));
+}
+
 function isValidProjectExpenses(value: unknown, status: unknown, startDate: unknown): value is readonly ProjectExpense[] {
   if (value === undefined) return true;
   if (!Array.isArray(value) || !["ACTIVE", "CLOSED"].includes(String(status))) return false;
@@ -208,7 +232,9 @@ function isProjectRecord(value: unknown): value is ProjectRecord {
     isValidCustomerInvoice(item.customerInvoice, item.status, item.value, item.customerShipment, item.supplierPayment) &&
     isValidCustomerCollections(item.customerCollections, item.status, item.customerInvoice) &&
     isValidProjectExpenses(item.expenses, item.status, item.startDate) &&
-    isValidProjectClaims(item.claims, item.status, item.customer, item.supplier, item.startDate, item.createdAt, item.updatedAt);
+    isValidProjectClaims(item.claims, item.status, item.customer, item.supplier, item.startDate, item.createdAt, item.updatedAt) &&
+    isValidProjectClosure(item.closure, item.status, item.startDate, item.createdAt, item.updatedAt) &&
+    (item.closure === undefined || item.status !== "CLOSED" || (item.closure as ProjectClosure).closedOn >= latestProjectBusinessDate(item as unknown as ProjectRecord));
 }
 
 export function parseProjectRecords(raw: string | null): ProjectRecord[] {
@@ -405,6 +431,40 @@ export function customerReceivableSummary(project: ProjectRecord): Readonly<{ co
   return { collected: formatMoneyUnits(collected), remaining: formatMoneyUnits(remaining), complete: invoiceAmount !== null && collected === invoiceAmount };
 }
 
+export type ProjectClosureBlocker = "SHIPMENT_HANDOVER" | "SUPPLIER_PAYMENT" | "CUSTOMER_COLLECTION" | "OPEN_CLAIMS" | "REOPEN_REVIEW";
+export function assessProjectClosure(project: ProjectRecord): Readonly<{ ready: boolean; blockers: ProjectClosureBlocker[] }> {
+  const blockers: ProjectClosureBlocker[] = [];
+  if (!project.customerShipmentReviewedAt) blockers.push("SHIPMENT_HANDOVER");
+  if (!project.supplierPayment) blockers.push("SUPPLIER_PAYMENT");
+  if (!customerReceivableSummary(project).complete) blockers.push("CUSTOMER_COLLECTION");
+  if ((project.claims ?? []).some((claim) => claim.status === "OPEN")) blockers.push("OPEN_CLAIMS");
+  if (project.closure?.reopenedAt && !project.closure.reopenReviewedAt) blockers.push("REOPEN_REVIEW");
+  return { ready: blockers.length === 0, blockers };
+}
+
+export type CloseProjectInput = Readonly<{ closedOn: string; note: string }>;
+export function closeProject(project: ProjectRecord, input: CloseProjectInput, now: string, expectedUpdatedAt = project.updatedAt): ProjectRecord {
+  if (project.status !== "ACTIVE" || project.updatedAt !== expectedUpdatedAt) throw new Error("INVALID_PROJECT_CLOSE_STATE");
+  if (!assessProjectClosure(project).ready) throw new Error("PROJECT_NOT_READY_TO_CLOSE");
+  const closedOn = input.closedOn.trim(), note = input.note.trim();
+  const latestCloseDate = [latestProjectBusinessDate(project), project.closure?.reopenedOn, project.closure?.reopenReviewedAt?.slice(0, 10)].filter((date): date is string => Boolean(date)).sort().at(-1) ?? project.startDate;
+  if (!isStrictDate(closedOn) || closedOn < latestCloseDate || closedOn > now.slice(0, 10) || note !== input.note || note.length < 3 || !isValidMutationTimestamp(now, project)) throw new Error("INVALID_PROJECT_CLOSE");
+  return { ...project, status: "CLOSED", closure: { closedOn, note, closedAt: now }, updatedAt: now };
+}
+
+export type ReopenProjectInput = Readonly<{ reopenedOn: string; reason: string }>;
+export function reopenProject(project: ProjectRecord, input: ReopenProjectInput, now: string, expectedUpdatedAt = project.updatedAt): ProjectRecord {
+  if (project.status !== "CLOSED" || !project.closure || project.updatedAt !== expectedUpdatedAt) throw new Error("INVALID_PROJECT_REOPEN_STATE");
+  const reopenedOn = input.reopenedOn.trim(), reason = input.reason.trim();
+  if (!isStrictDate(reopenedOn) || reopenedOn < project.closure.closedOn || reopenedOn > now.slice(0, 10) || reason !== input.reason || reason.length < 3 || !isValidMutationTimestamp(now, project)) throw new Error("INVALID_PROJECT_REOPEN");
+  return { ...project, status: "ACTIVE", closure: { ...project.closure, reopenedOn, reopenReason: reason, reopenedAt: now }, updatedAt: now };
+}
+
+export function reviewReopenedProject(project: ProjectRecord, now: string, expectedUpdatedAt = project.updatedAt): ProjectRecord {
+  if (project.status !== "ACTIVE" || !project.closure?.reopenedAt || project.closure.reopenReviewedAt || project.updatedAt !== expectedUpdatedAt || !isValidMutationTimestamp(now, project)) throw new Error("INVALID_REOPEN_REVIEW_STATE");
+  return { ...project, closure: { ...project.closure, reopenReviewedAt: now }, updatedAt: now };
+}
+
 export type ProjectAction = Readonly<{ label: string; detail: string; href: string }>;
 export function projectNextAction(project: ProjectRecord, locale: "ar" | "en"): ProjectAction | null;
 export function projectNextAction(status: ProjectStatus, locale: "ar" | "en", projectId: string): ProjectAction;
@@ -412,8 +472,11 @@ export function projectNextAction(projectOrStatus: ProjectRecord | ProjectStatus
   const project = typeof projectOrStatus === "string" ? null : projectOrStatus;
   const status = typeof projectOrStatus === "string" ? projectOrStatus : projectOrStatus.status;
   const id = encodeURIComponent(project?.id ?? projectId ?? "");
-  if (project?.customerShipmentReviewedAt && status !== "ACTIVE") return null;
+  if (status === "CLOSED" && project) return null;
   if (status === "ACTIVE" && project) {
+    if (project.closure?.reopenedAt && !project.closure.reopenReviewedAt) return locale === "ar"
+      ? { label: "مراجعة العمل بعد إعادة الفتح", detail: `راجع سبب إعادة الفتح: ${project.closure.reopenReason}. سجل أي تعديلات لازمة ثم أكد المراجعة.`, href: `/projects/${id}/closure` }
+      : { label: "Review reopened work", detail: `Review the reopen reason: ${project.closure.reopenReason}. Record any required changes, then confirm the review.`, href: `/projects/${id}/closure` };
     if (!project.supplierShipment) return locale === "ar"
       ? { label: "تسجيل شحنة المورد", detail: "أضف مرجع شحنة المورد وموعد الوصول المتوقع والكمية المخططة.", href: `/projects/${id}/overview#supplier-shipment` }
       : { label: "Record supplier shipment", detail: "Add the supplier shipment reference, expected arrival, and planned quantity.", href: `/projects/${id}/overview#supplier-shipment` };
@@ -446,7 +509,9 @@ export function projectNextAction(projectOrStatus: ProjectRecord | ProjectStatus
     if (openClaim) return locale === "ar"
       ? { label: "حل المطالبة المفتوحة", detail: `راجع المطالبة المفتوحة ${openClaim.reference} وحلها.`, href: `/projects/${id}/claims` }
       : { label: "Resolve open claim", detail: `Review and resolve the open project claim ${openClaim.reference}.`, href: `/projects/${id}/claims` };
-    return null;
+    return locale === "ar"
+      ? { label: "إغلاق المشروع", detail: "راجع الجاهزية وسجل سبب الإغلاق وتاريخه. لا يرسل ORB أي بيانات خارجية.", href: `/projects/${id}/closure` }
+      : { label: "Close project", detail: "Review readiness and record the closure date and note. ORB sends nothing externally.", href: `/projects/${id}/closure` };
   }
   const copy = {
     SETUP: { en: { label: "Complete project setup", detail: "Confirm the customer, supplier, sales contract, and purchase contract.", href: `/projects/${id}/overview#project-data` }, ar: { label: "إكمال إعداد المشروع", detail: "أكد العميل والمورد ومرجعي عقد البيع والشراء.", href: `/projects/${id}/overview#project-data` } },

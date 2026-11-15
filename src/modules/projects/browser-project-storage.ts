@@ -33,7 +33,9 @@ export async function mutateProjectStorage<TRecord, TResult>(
   return withProjectStorageWriteLock(async () => {
     const records = parse(storage.getItem(PROJECT_STORAGE_KEY));
     const mutation = await mutate(records);
-    storage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(mutation.records));
+    const serialized = JSON.stringify(mutation.records);
+    parse(serialized);
+    storage.setItem(PROJECT_STORAGE_KEY, serialized);
     return mutation.result;
   });
 }

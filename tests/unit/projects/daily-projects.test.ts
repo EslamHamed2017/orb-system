@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { completeProjectSetup, createProjectRecord, markCustomerShipmentReviewed, parseProjectRecords, projectNextAction, customerReceivableSummary, recordCustomerCollection, recordCustomerInvoice, recordCustomerShipment, recordProjectExpense, removeProjectExpense, projectExpenseSummary, recordProjectClaim, resolveProjectClaim, projectClaimSummary, recordSupplierInvoice, recordSupplierPayment, recordSupplierShipment, resetCustomerFinance, resetSupplierFinance } from "../../../src/modules/projects/daily-projects.ts";
+import { completeProjectSetup, createProjectRecord, markCustomerShipmentReviewed, parseProjectRecords, projectNextAction, customerReceivableSummary, recordCustomerCollection, recordCustomerInvoice, recordCustomerShipment, recordProjectExpense, removeProjectExpense, projectExpenseSummary, recordProjectClaim, resolveProjectClaim, projectClaimSummary, recordSupplierInvoice, recordSupplierPayment, recordSupplierShipment, resetCustomerFinance, resetSupplierFinance, assessProjectClosure, closeProject, reopenProject, reviewReopenedProject } from "../../../src/modules/projects/daily-projects.ts";
 
 test("creates a project record from user-entered data without sample defaults", () => {
   const project = createProjectRecord({ customer: "Atlas Foods", reference: "AF-101", contractReference: "SC-44", startDate: "2026-11-14", commodity: "Coffee", quantity: "20", unit: "MT", currency: "USD", unitPrice: "4200", origin: "Mombasa", destination: "Dubai" }, { id: "project-user-1", now: "2026-11-14T10:00:00.000Z", sequence: 1 });
@@ -409,7 +409,7 @@ test("records user-entered project expenses after collection and advances Today 
   const first = recordProjectExpense(collected, { reference: "EXP-001", occurredOn: "2026-11-18", category: "Freight", vendor: "Harbour Services", amount: "12.50" }, "2026-11-14T19:00:00.000Z", collected.updatedAt);
   const second = recordProjectExpense(first, { reference: "EXP-002", occurredOn: "2026-11-19", category: "Inspection", vendor: "Quality Lab", amount: "0.1" }, "2026-11-14T20:00:00.000Z", first.updatedAt);
   assert.deepEqual(projectExpenseSummary(second), { count: 2, total: "12.6" });
-  assert.equal(projectNextAction(second, "en"), null);
+  assert.equal(projectNextAction(second, "en")?.label, "Close project");
   assert.deepEqual(parseProjectRecords(JSON.stringify([second])), [second]);
 
   const corrected = removeProjectExpense(second, "EXP-001", second.updatedAt, "2026-11-14T21:00:00.000Z");
@@ -520,15 +520,65 @@ test("claims do not become mandatory Today work, while an open claim is direct o
   const active = completeProjectSetup(draft, { customer: "Atlas", supplier: "Coast", salesContractReference: "SC-T", purchaseContractReference: "PC-T" }, "2026-11-14T11:00:00.000Z");
   assert.equal(projectNextAction(active, "en")?.label, "Record supplier shipment");
   const noLifecycle = { ...active, supplierShipment: { reference: "SS", expectedArrival: "2026-11-14", quantity: "1" }, customerShipment: { reference: "CS", plannedDispatchDate: "2026-11-14", quantity: "1" }, customerShipmentReviewedAt: "2026-11-14T12:00:00.000Z", supplierInvoice: { reference: "SI", invoiceDate: "2026-11-14", amount: "1" }, supplierPayment: { reference: "SP", paymentDate: "2026-11-14", amount: "1" }, customerInvoice: { reference: "CI", invoiceDate: "2026-11-14", amount: "1" }, customerCollections: [{ reference: "CC", collectionDate: "2026-11-14", amount: "1" }], expenses: [{ reference: "E", occurredOn: "2026-11-14", category: "C", vendor: "V", amount: "1" }], updatedAt: "2026-11-14T12:00:00.000Z" };
-  assert.equal(projectNextAction(noLifecycle, "en"), null);
+  assert.equal(projectNextAction(noLifecycle, "en")?.label, "Close project");
   const open = recordProjectClaim(noLifecycle, { reference: "C", type: "QUALITY", claimDate: "2026-11-14", claimant: "Atlas", respondent: "Coast", description: "Quality issue" }, "2026-11-14T13:00:00.000Z");
   assert.deepEqual(projectNextAction(open, "en"), { label: "Resolve open claim", detail: "Review and resolve the open project claim C.", href: "/projects/project-today/claims" });
   const resolved = resolveProjectClaim(open, { reference: "C", resolutionNote: "Accepted", resolutionDate: "2026-11-14" }, "2026-11-14T14:00:00.000Z");
-  assert.equal(projectNextAction(resolved, "en"), null);
+  assert.equal(projectNextAction(resolved, "en")?.label, "Close project");
 });
 
 test("old project records without claims remain valid", () => {
   const project = createProjectRecord({ customer: "Atlas", reference: "AF-OLD", contractReference: "SC-OLD", startDate: "2026-11-14", commodity: "Coffee", quantity: "1", unit: "MT", currency: "USD", unitPrice: "100", origin: "Mombasa", destination: "Dubai" }, { id: "project-old", now: "2026-11-14T10:00:00.000Z", sequence: 1 });
   assert.deepEqual(parseProjectRecords(JSON.stringify([project])), [project]);
   assert.deepEqual(projectClaimSummary(project), { count: 0, open: 0, resolved: 0, amountTotal: "0" });
+});
+
+
+test("assesses persisted readiness, closes an eligible project, and reopens it with a reason", () => {
+  const eligible = {
+    id: "project-close-1", code: "ORB-P-0099", customer: "Atlas Foods", supplier: "Coast Exporters", reference: "AF-101", contractReference: "SC-44", purchaseContractReference: "PC-17",
+    startDate: "2026-11-14", commodity: "Coffee", quantity: "20", unit: "MT", currency: "USD", unitPrice: "4200", value: 84000, origin: "Mombasa", destination: "Dubai", status: "ACTIVE" as const,
+    supplierShipment: { reference: "SS-001", expectedArrival: "2026-12-02", quantity: "20" }, customerShipment: { reference: "CS-001", plannedDispatchDate: "2026-12-05", quantity: "20" }, customerShipmentReviewedAt: "2026-12-05T10:00:00.000Z",
+    supplierInvoice: { reference: "SI-001", invoiceDate: "2026-12-05", amount: "80000" }, supplierPayment: { reference: "SP-001", paymentDate: "2026-12-06", amount: "80000" },
+    customerInvoice: { reference: "CI-001", invoiceDate: "2026-12-06", amount: "84000" }, customerCollections: [{ reference: "COL-001", collectionDate: "2026-12-07", amount: "84000" }], expenses: [{ reference: "EXP-001", occurredOn: "2026-12-07", category: "Freight", vendor: "Port Services", amount: "1200" }], claims: [],
+    createdAt: "2026-11-14T10:00:00.000Z", updatedAt: "2026-12-07T12:00:00.000Z",
+  };
+  assert.deepEqual(assessProjectClosure(eligible), { ready: true, blockers: [] });
+  assert.equal(projectNextAction(eligible, "en")?.label, "Close project");
+  const closed = closeProject(eligible, { closedOn: "2026-12-08", note: "All recorded obligations reviewed" }, "2026-12-08T10:00:00.000Z", eligible.updatedAt);
+  assert.equal(closed.status, "CLOSED");
+  assert.equal(closed.closure?.note, "All recorded obligations reviewed");
+  assert.equal(projectNextAction(closed, "en"), null);
+  assert.deepEqual(parseProjectRecords(JSON.stringify([closed])), [closed]);
+  const reopened = reopenProject(closed, { reopenedOn: "2026-12-09", reason: "Customer requested a documented adjustment" }, "2026-12-09T10:00:00.000Z", closed.updatedAt);
+  assert.equal(reopened.status, "ACTIVE");
+  assert.equal(reopened.closure?.reopenReason, "Customer requested a documented adjustment");
+  assert.equal(projectNextAction(reopened, "en")?.label, "Review reopened work");
+  const changed = recordProjectExpense(reopened, { reference: "EXP-REOPEN", occurredOn: "2026-12-10", category: "Adjustment", vendor: "Port Services", amount: "50" }, "2026-12-10T10:00:00.000Z", reopened.updatedAt);
+  assert.deepEqual(parseProjectRecords(JSON.stringify([changed])), [changed]);
+  const reviewed = reviewReopenedProject(changed, "2026-12-10T11:00:00.000Z", changed.updatedAt);
+  assert.equal(projectNextAction(reviewed, "en")?.label, "Close project");
+  const reclosed = closeProject(reviewed, { closedOn: "2026-12-10", note: "Reopened work reviewed and completed" }, "2026-12-10T12:00:00.000Z", reviewed.updatedAt);
+  assert.equal(reclosed.status, "CLOSED");
+  assert.deepEqual(parseProjectRecords(JSON.stringify([reclosed])), [reclosed]);
+});
+
+test("closure assessment names business blockers and close/reopen reject stale or incomplete changes", () => {
+  const incomplete = {
+    id: "project-close-2", code: "ORB-P-0100", customer: "Atlas", supplier: "Coast", reference: "A", contractReference: "S", purchaseContractReference: "P", startDate: "2026-11-14", commodity: "Coffee", quantity: "1", unit: "MT", currency: "USD", unitPrice: "1", value: 1, origin: "Mombasa", destination: "Dubai", status: "ACTIVE" as const, createdAt: "2026-11-14T10:00:00.000Z", updatedAt: "2026-11-14T11:00:00.000Z",
+  };
+  assert.deepEqual(assessProjectClosure(incomplete).blockers, ["SHIPMENT_HANDOVER", "SUPPLIER_PAYMENT", "CUSTOMER_COLLECTION"]);
+  assert.throws(() => closeProject(incomplete, { closedOn: "2026-11-15", note: "Done" }, "2026-11-15T10:00:00.000Z"), /PROJECT_NOT_READY_TO_CLOSE/);
+  assert.throws(() => closeProject({ ...incomplete, updatedAt: "2026-11-14T12:00:00.000Z" }, { closedOn: "2026-11-15", note: "Done" }, "2026-11-15T10:00:00.000Z", incomplete.updatedAt), /INVALID_PROJECT_CLOSE_STATE/);
+  assert.throws(() => reopenProject(incomplete, { reopenedOn: "2026-11-15", reason: "Correction" }, "2026-11-15T10:00:00.000Z"), /INVALID_PROJECT_REOPEN_STATE/);
+});
+
+
+test("closure and reopen business dates cannot predate recorded work or exceed their mutation day", () => {
+  const eligible = { id: "chronology", code: "ORB-P-0200", customer: "Atlas", supplier: "Coast", reference: "A", contractReference: "S", purchaseContractReference: "P", startDate: "2026-11-01", commodity: "Coffee", quantity: "1", unit: "MT", currency: "USD", unitPrice: "1", value: 1, origin: "Mombasa", destination: "Dubai", status: "ACTIVE" as const, supplierShipment: { reference: "S", expectedArrival: "2026-11-02", quantity: "1" }, customerShipment: { reference: "C", plannedDispatchDate: "2026-11-03", quantity: "1" }, customerShipmentReviewedAt: "2026-11-03T10:00:00.000Z", supplierInvoice: { reference: "I", invoiceDate: "2026-11-04", amount: "1" }, supplierPayment: { reference: "P", paymentDate: "2026-11-05", amount: "1" }, customerInvoice: { reference: "CI", invoiceDate: "2026-11-05", amount: "1" }, customerCollections: [{ reference: "COL", collectionDate: "2026-11-07", amount: "1" }], claims: [], createdAt: "2026-11-01T10:00:00.000Z", updatedAt: "2026-11-07T12:00:00.000Z" };
+  assert.throws(() => closeProject(eligible, { closedOn: "2026-11-06", note: "Reviewed" }, "2026-11-08T10:00:00.000Z"), /INVALID_PROJECT_CLOSE/);
+  assert.throws(() => closeProject(eligible, { closedOn: "2026-11-09", note: "Reviewed" }, "2026-11-08T10:00:00.000Z"), /INVALID_PROJECT_CLOSE/);
+  const closed = closeProject(eligible, { closedOn: "2026-11-08", note: "Reviewed" }, "2026-11-08T10:00:00.000Z");
+  assert.throws(() => reopenProject(closed, { reopenedOn: "2026-11-10", reason: "Adjustment" }, "2026-11-09T10:00:00.000Z"), /INVALID_PROJECT_REOPEN/);
+  assert.throws(() => parseProjectRecords(JSON.stringify([{ ...closed, closure: { ...closed.closure, closedOn: "2026-11-06" } }])), /CORRUPT_PROJECT_STORAGE/);
 });
