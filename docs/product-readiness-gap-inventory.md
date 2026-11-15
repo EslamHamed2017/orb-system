@@ -39,12 +39,13 @@ This work **does not make ORB product-ready**. The bounded daily-use flow uses u
 - English and Arabic business copy and route-scoped RTL are provided for the bounded flow; technical status enums and hashes remain hidden.
 - The approval preview now uses English/Arabic business language, responsive RTL/LTR facts, and a business-readable change summary. Raw action/subject codes, source fields, recipient address, hash, and evidence metadata are collapsed under an explicit technical-details disclosure.
 - The approval page no longer presents fabricated workload KPIs or inert approve/reject controls. It explicitly states that the secure approval service is not connected, that the fixed request is preview-only, and that no external message was sent.
+- The Finance landing page now uses only saved browser project records, exposes honest loading/empty/error states, and opens project-scoped supplier invoice/payment, customer invoice/collection, and expense tasks. Fixed currency totals, sample references, raw lifecycle enums, and the overlong all-in-one table were removed from this entry point.
 
 ## Remaining work before readiness
 
 1. Replace browser-only persistence with authenticated, tenant-scoped server persistence, concurrency control, authorization, audit history, backup, and recovery.
 2. Replace browser-only setup, shipment, supplier invoice/payment, customer invoice, collection, direct-expense, claim, and closure records with authoritative customer, supplier, contract, shipment, invoice, money-movement, claim, approval, and lifecycle services.
-3. Connect the approval inbox and decision controls to authenticated server persistence, then remove the remaining fixed preview request; also remove fixed/demo data throughout Finance, roles, recovery, and all routes outside this slice.
+3. Connect the approval inbox and decision controls to authenticated server persistence, then remove the remaining fixed preview request; also replace the remaining fixture-backed account detail lists, roles, recovery, and routes outside this slice.
 4. Complete end-to-end permissions, accessibility, localization, offline/error recovery, migration, security, observability, and multi-user acceptance testing.
 5. Validate operational calculations and compliance controls against production requirements and representative customer data.
 

@@ -30,15 +30,16 @@ test("global Accounts hub exposes every approved account destination in both loc
   assert.deepEqual(buildAccountDestinations("ar").map(({ label }) => label), ["فواتير المبيعات", "فواتير الموردين", "التحصيلات", "دفعات الموردين", "المصروفات"]);
 });
 
-test("Accounts is an independent bilingual primary destination with operational-only copy", () => {
+test("Finance work is an independent bilingual primary destination with truthful task-oriented copy", () => {
   const page = readFileSync("src/ui/features/accounts/AccountsHubPage.tsx", "utf8");
   const route = readFileSync("src/app/accounts/page.tsx", "utf8");
   const navigation = readFileSync("src/ui/navigation/AppNavigation.tsx", "utf8");
   assert.match(route, /AccountsHubPage/);
-  assert.match(page, /Accounts hub/);
-  assert.match(page, /مركز الحسابات/);
-  assert.match(page, /Operational commercial tracking/);
-  assert.match(page, /تتبع تجاري تشغيلي/);
+  assert.match(page, /Finance work/);
+  assert.match(page, /العمل المالي/);
+  assert.match(page, /Choose a saved project, then open one focused finance task/);
+  assert.match(page, /اختر مشروعاً محفوظاً ثم افتح مهمة مالية واحدة واضحة/);
+  assert.doesNotMatch(page, /185,000|SINV-2026-014|Independent totals/);
   assert.match(navigation, /href={`\/accounts\$\{suffix}`}/);
   assert.match(navigation, /label={label\("Accounts", "الحسابات"\)}/);
 });
