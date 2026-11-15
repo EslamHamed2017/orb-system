@@ -13,9 +13,9 @@ const data: Record<string, unknown> = {
   marginAndCash: { currencySections: [{ currency: "USD", measures: { expectedMargin: { amount: "300.000000" }, committedMargin: { amount: "275.000000" }, actualOperationalMargin: { amount: "250.000000" }, cashPosition: { amount: "100.000000" } } }] },
 };
 const adapters = Object.fromEntries(REQUIRED_PROJECT_OVERVIEW_ADAPTERS.map((name) => [name, async () => structuredClone(data[name])]));
-export default async function OverviewPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ locale?: string }> }) {
+export default async function OverviewPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ locale?: string; role?: string }> }) {
   const [{ id }, query] = await Promise.all([params, searchParams]), locale = query.locale === "ar" ? "ar" : "en", ar = locale === "ar";
-  if (id !== "demo") return <SavedProjectDetail id={decodeURIComponent(id)} locale={locale} />;
+  if (id !== "demo") return <SavedProjectDetail id={decodeURIComponent(id)} locale={locale} role={query.role?.trim() || undefined} canMutate={query.role !== "finance-viewer"} />;
   const overview = await createInMemoryProjectOverviewQuery({ adapters }).getProjectOverview({ projectId: id, principal: { userId: "owner-1", roles: ["OWNER_ADMIN"] } });
   return <div dir={ar ? "rtl" : "ltr"}><ProjectOverviewSummary locale={locale} overview={overview} /></div>;
 }

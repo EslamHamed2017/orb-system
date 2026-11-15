@@ -27,7 +27,8 @@ test("project-filtered supplier invoice page preserves supplier attribution and 
   const page = readFileSync("src/ui/features/accounts/ProjectSupplierInvoicesPage.tsx", "utf8");
   const route = readFileSync("src/app/accounts/supplier-invoices/page.tsx", "utf8");
   const money = readFileSync("src/app/projects/[id]/money/page.tsx", "utf8");
-  assert.match(route, /ProjectSupplierInvoicesPage/);
+  assert.match(route, /BrowserFinanceRegisterPage/);
+  assert.match(route, /kind="supplierInvoices"/);
   assert.match(route, /projectId/);
   assert.match(page, /ProjectContextNavigation/);
   assert.match(page, /Supplier invoices/);

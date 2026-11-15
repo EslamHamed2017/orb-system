@@ -7,8 +7,9 @@ import styles from "./ProjectExpenses.module.css";
 
 type LoadState = "loading" | "ready" | "missing" | "error";
 
-export function SavedProjectExpenses({ id, locale, canMutate = true }: Readonly<{ id: string; locale: "ar" | "en"; canMutate?: boolean }>) {
+export function SavedProjectExpenses({ id, locale, role, canMutate = true }: Readonly<{ id: string; locale: "ar" | "en"; role?: string; canMutate?: boolean }>) {
   const ar = locale === "ar";
+  const contextQuery = queryFor(locale, role);
   const [state, setState] = useState<LoadState>("loading");
   const [project, setProject] = useState<ProjectRecord | null>(null);
   const [message, setMessage] = useState("");
@@ -62,10 +63,10 @@ export function SavedProjectExpenses({ id, locale, canMutate = true }: Readonly<
     }
   }
 
-  const route = `/projects/${encodeURIComponent(id)}/overview?locale=${locale}`;
+  const route = `/projects/${encodeURIComponent(id)}/overview${contextQuery}`;
   if (state === "loading") return <main className={styles.page} dir={ar ? "rtl" : "ltr"}><div className={styles.state} role="status">{ar ? "جارٍ تحميل مصروفات المشروع…" : "Loading project expenses…"}</div></main>;
   if (state === "error") return <main className={styles.page} dir={ar ? "rtl" : "ltr"}><div className={styles.state} role="alert"><h1>{ar ? "تعذر فتح المصروفات" : "Expenses could not be opened"}</h1><p>{ar ? "بيانات المشروع المحفوظة في هذا المتصفح غير قابلة للقراءة. ارجع إلى المشاريع ولا تدخل بيانات جديدة قبل التحقق منها." : "The project data saved in this browser cannot be read. Return to Projects and do not enter new data until it is checked."}</p></div></main>;
-  if (state === "missing" || !project) return <main className={styles.page} dir={ar ? "rtl" : "ltr"}><div className={styles.state}><h1>{ar ? "المشروع غير موجود" : "Project not found"}</h1><p>{ar ? "لا يوجد مشروع محفوظ بهذا الرابط في هذا المتصفح." : "No project saved for this link exists in this browser."}</p><a className={styles.outlined} href={`/projects?locale=${locale}`}>{ar ? "العودة إلى المشاريع" : "Back to projects"}</a></div></main>;
+  if (state === "missing" || !project) return <main className={styles.page} dir={ar ? "rtl" : "ltr"}><div className={styles.state}><h1>{ar ? "المشروع غير موجود" : "Project not found"}</h1><p>{ar ? "لا يوجد مشروع محفوظ بهذا الرابط في هذا المتصفح." : "No project saved for this link exists in this browser."}</p><a className={styles.outlined} href={`/projects${contextQuery}`}>{ar ? "العودة إلى المشاريع" : "Back to projects"}</a></div></main>;
 
   const eligible = project.status === "ACTIVE";
   const summary = projectExpenseSummary(project);
@@ -73,7 +74,7 @@ export function SavedProjectExpenses({ id, locale, canMutate = true }: Readonly<
   const amountFormatter = new Intl.NumberFormat(ar ? "ar-EG" : "en-US", { maximumFractionDigits: 6 });
 
   return <main className={styles.page} dir={ar ? "rtl" : "ltr"} aria-labelledby="expenses-title">
-    <nav className={styles.breadcrumb} aria-label={ar ? "مسار التنقل" : "Breadcrumb"}><a href={`/projects?locale=${locale}`}>{ar ? "المشاريع" : "Projects"}</a><span>/</span><a href={route}>{project.code}</a><span>/</span><strong>{ar ? "المصروفات" : "Expenses"}</strong></nav>
+    <nav className={styles.breadcrumb} aria-label={ar ? "مسار التنقل" : "Breadcrumb"}><a href={`/projects${contextQuery}`}>{ar ? "المشاريع" : "Projects"}</a><span>/</span><a href={route}>{project.code}</a><span>/</span><strong>{ar ? "المصروفات" : "Expenses"}</strong></nav>
     <header className={styles.header}><div><p className={styles.eyebrow}>{project.code} · {project.customer}</p><h1 id="expenses-title">{ar ? "مصروفات المشروع" : "Project expenses"}</h1><p>{ar ? "سجل التكاليف المباشرة التي دُفعت فعلياً لهذا المشروع، ثم راجع السجل الواضح أدناه." : "Record direct costs actually paid for this project, then review the clear register below."}</p></div><a className={styles.outlined} href={route}>{ar ? "نظرة عامة على المشروع" : "Project overview"}</a></header>
 
     <aside className={styles.truth} aria-label={ar ? "حدود حفظ البيانات" : "Data storage limits"}><strong>{ar ? "محفوظ في هذا المتصفح فقط" : "Saved in this browser only"}</strong><span>{ar ? "لا تتم المزامنة أو النسخ الاحتياطي، ومسح بيانات المتصفح يحذف السجل. تسجيل المصروف لا ينفذ دفعة ولا يرسل رسالة أو مستنداً." : "There is no sync or backup, and clearing browser data removes the record. Recording an expense does not make a payment or send a message or document."}</span></aside>
@@ -99,3 +100,5 @@ export function SavedProjectExpenses({ id, locale, canMutate = true }: Readonly<
     </>}
   </main>;
 }
+
+function queryFor(locale: "ar" | "en", role?: string): string { const query = new URLSearchParams({ locale }); if (role) query.set("role", role); return `?${query.toString()}`; }

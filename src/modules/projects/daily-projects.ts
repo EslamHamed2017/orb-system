@@ -242,6 +242,8 @@ export function parseProjectRecords(raw: string | null): ProjectRecord[] {
   let value: unknown;
   try { value = JSON.parse(raw); } catch { throw new Error("CORRUPT_PROJECT_STORAGE"); }
   if (!Array.isArray(value) || !value.every(isProjectRecord)) throw new Error("CORRUPT_PROJECT_STORAGE");
+  const ids = new Set(value.map((project) => project.id));
+  if (ids.size !== value.length) throw new Error("CORRUPT_PROJECT_STORAGE");
   return value;
 }
 

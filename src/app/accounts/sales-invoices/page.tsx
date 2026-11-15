@@ -1,9 +1,7 @@
-import { ProjectSalesInvoicesPage } from "../../../ui/features/accounts/ProjectSalesInvoicesPage";
+import { BrowserFinanceRegisterPage } from "../../../ui/features/accounts/BrowserFinanceRegisterPage";
 
 type Query = { readonly locale?: string; readonly projectId?: string; readonly role?: string };
-export default async function SalesInvoicesPage({ searchParams }: { readonly searchParams: Promise<Query> }) {
+export default async function FinanceRegisterRoute({ searchParams }: { readonly searchParams: Promise<Query> }) {
   const query = await searchParams;
-  const locale = query.locale === "ar" ? "ar" : "en";
-  const projectId = query.projectId?.trim() || undefined;
-  return <ProjectSalesInvoicesPage locale={locale} projectId={projectId} canUpload={query.role !== "finance-viewer"} />;
+  return <BrowserFinanceRegisterPage locale={query.locale === "ar" ? "ar" : "en"} kind="salesInvoices" projectId={query.projectId?.trim() || undefined} role={query.role?.trim() || undefined} />;
 }

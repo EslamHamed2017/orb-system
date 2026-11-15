@@ -31,10 +31,10 @@ test("project money movement registers are bilingual, party-attributable, and co
   const collectionsRoute = readFileSync("src/app/accounts/collections/page.tsx", "utf8");
   const paymentsRoute = readFileSync("src/app/accounts/supplier-payments/page.tsx", "utf8");
   const money = readFileSync("src/app/projects/[id]/money/page.tsx", "utf8");
-  assert.match(collectionsRoute, /ProjectMoneyMovementsPage/);
-  assert.match(collectionsRoute, /COLLECTION/);
-  assert.match(paymentsRoute, /ProjectMoneyMovementsPage/);
-  assert.match(paymentsRoute, /SUPPLIER_PAYMENT/);
+  assert.match(collectionsRoute, /BrowserFinanceRegisterPage/);
+  assert.match(collectionsRoute, /kind="collections"/);
+  assert.match(paymentsRoute, /BrowserFinanceRegisterPage/);
+  assert.match(paymentsRoute, /kind="supplierPayments"/);
   assert.match(page, /ProjectContextNavigation/);
   assert.match(page, /Collections/);
   assert.match(page, /التحصيلات/);

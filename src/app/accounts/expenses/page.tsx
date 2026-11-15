@@ -1,7 +1,7 @@
-import { ProjectExpensesPage } from "../../../ui/features/accounts/ProjectExpensesPage";
+import { BrowserFinanceRegisterPage } from "../../../ui/features/accounts/BrowserFinanceRegisterPage";
 
 type Query = { readonly locale?: string; readonly projectId?: string; readonly role?: string };
-export default async function ExpensesRegisterRoute({ searchParams }: { readonly searchParams: Promise<Query> }) {
+export default async function FinanceRegisterRoute({ searchParams }: { readonly searchParams: Promise<Query> }) {
   const query = await searchParams;
-  return <ProjectExpensesPage locale={query.locale === "ar" ? "ar" : "en"} projectId={query.projectId} canUpload={query.role !== "finance-viewer"}/>;
+  return <BrowserFinanceRegisterPage locale={query.locale === "ar" ? "ar" : "en"} kind="expenses" projectId={query.projectId?.trim() || undefined} role={query.role?.trim() || undefined} />;
 }
