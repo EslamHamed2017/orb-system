@@ -1,8 +1,8 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const copy = {
-  en: { approvals: "Approval requests", users: "Users and access", backup: "Backup and isolated restore", decide: "Approval decision", revoke: "Revoke exact session", start: "Start isolated restore test" },
-  ar: { approvals: "طلبات الموافقة", users: "المستخدمون والوصول", backup: "النسخ الاحتياطي والاستعادة المعزولة", decide: "قرار الموافقة", revoke: "إلغاء الجلسة المحددة", start: "بدء اختبار استعادة معزول" },
+  en: { approvals: "Approval requests", users: "Users and access", backup: "Project backup", decide: "Approval decision", revoke: "Revoke exact session" },
+  ar: { approvals: "طلبات الموافقة", users: "المستخدمون والوصول", backup: "نسخة احتياطية للمشاريع", decide: "قرار الموافقة", revoke: "إلغاء الجلسة المحددة" },
 } as const;
 function region(page: Page, name: string | RegExp): Locator { return page.getByRole("region", { name }); }
 
@@ -62,17 +62,15 @@ test("fixed-role administration shows exact session versions and complete active
   await expect(active.getByRole("button", { name: copy.en.revoke })).toBeVisible();
 });
 
-test("backup page is Owner-only and reports encrypted separate-copy recovery evidence without secrets", async ({ page }) => {
-  await page.goto("/admin/backup?locale=en");
+test("project backup is truthful about browser-local access and exposes usable actions without fabricated recovery evidence", async ({ page }) => {
+  await page.goto("/admin/backup?locale=en&role=operations");
   await expect(page.getByRole("heading", { level: 1, name: copy.en.backup })).toBeVisible();
-  const status = region(page, /recovery status/i);
-  await expect(status).toContainText(/owner.admin only.*encrypted.*yes.*separate copy.*yes.*RPO.*12 minutes.*RTO.*38 minutes.*PASSED.*zero missing sampled links/i);
-  await expect(status.getByRole("link", { name: /EVIDENCE-RESTORE-0007/i })).toBeVisible();
-  await expect(status).not.toContainText(/password|secret|access key|credential/i);
-  const restore = region(page, /isolated restore command/i);
-  await expect(restore.getByLabel(/isolated environment/i)).toHaveValue("orb-restore-test-0008");
-  await expect(restore.getByRole("button", { name: copy.en.start })).toBeVisible();
-  await expect(restore).toContainText(/production target prohibited/i);
+  await expect(page.getByText("0 projects saved in this browser", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Download backup" })).toBeVisible();
+  await expect(page.getByLabel("Choose backup file")).toBeAttached();
+  await expect(page.locator("body")).toContainText("the file is unencrypted");
+  await expect(page.locator("body")).toContainText("This evaluation page does not enforce authenticated roles");
+  await expect(page.locator("body")).not.toContainText(/RPO|RTO|AES-256|PASSED|EVIDENCE-RESTORE|password|secret|access key|credential/i);
 });
 
 test("admin pages remain contained and expose no deferred controls", async ({ page }) => {
