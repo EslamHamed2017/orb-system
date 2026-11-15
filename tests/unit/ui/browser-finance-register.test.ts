@@ -54,11 +54,11 @@ test("duplicate persisted project IDs fail closed", () => {
   assert.throws(() => parseProjectRecords(JSON.stringify([project, { ...project, code: "ORB-P-DUPLICATE" }])), /CORRUPT_PROJECT_STORAGE/);
 });
 
-test("all finance routes preserve role context", () => {
+test("all finance routes preserve role context in query type and permission-shape through canUpload", () => {
   for (const route of ["supplier-invoices", "supplier-payments", "sales-invoices", "collections", "expenses"]) {
     const source = readFileSync(`src/app/accounts/${route}/page.tsx`, "utf8");
     assert.match(source, /readonly role\?: string/);
-    assert.match(source, /role=\{query\.role/);
+    assert.match(source, /canUpload={query\.role !== "finance-viewer"}/);
   }
   const component = readFileSync("src/ui/features/accounts/BrowserFinanceRegisterPage.tsx", "utf8");
   assert.match(component, /queryFor\(locale, role\)/);
@@ -71,7 +71,7 @@ test("finance hub and saved project destination preserve viewer role and fail cl
   const overview = readFileSync("src/app/projects/[id]/overview/page.tsx", "utf8");
   const detail = readFileSync("src/ui/features/projects/SavedProjectDetail.tsx", "utf8");
   assert.match(accountsRoute, /role=\{query\.role/);
-  assert.match(hub, /queryFor\(locale, role\)/);
+  assert.match(hub, /role\?: string/);
   assert.match(overview, /canMutate=\{query\.role !== "finance-viewer"\}/);
   assert.match(detail, /if \(!canMutate\) throw new Error\("READ_ONLY_ROLE"\)/);
   assert.match(detail, /canMutate \? project\.supplierPayment/);
