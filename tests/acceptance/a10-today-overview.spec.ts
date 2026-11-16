@@ -272,6 +272,7 @@ test("stale customer shipment form cannot overwrite a newer stored shipment", as
   await page.locator('[name="expectedArrival"]').fill("2026-12-02");
   await page.locator('[name="shipmentQuantity"]').fill("12");
   await page.getByRole("button", { name: "Save supplier shipment" }).click();
+  await expect(page.locator('[name="customerShipmentReference"]')).toBeVisible();
   await page.evaluate(() => {
     const key = "orb.user-projects.owner-1.v1";
     const records = JSON.parse(localStorage.getItem(key) ?? "[]");
