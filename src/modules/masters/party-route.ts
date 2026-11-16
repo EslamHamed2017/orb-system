@@ -26,6 +26,7 @@ async function respond(work: () => Promise<unknown>, status = 200) {
       RESOURCE_NOT_FOUND: { status: 404, detail: "The requested record was not found." },
       DUPLICATE_REFERENCE: { status: 409, detail: "That reference is already in use." },
       STALE_VERSION: { status: 412, detail: "The record changed since it was loaded. Refresh and try again." },
+      IDEMPOTENCY_CONFLICT: { status: 409, detail: "That idempotency key was already used for a different request." },
     });
     const mapped = typeof candidate.code === "string" ? publicProblems[candidate.code] : undefined;
     if (mapped && candidate.status === mapped.status) return problem(mapped.status, candidate.code as string, mapped.detail);

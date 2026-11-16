@@ -9,7 +9,7 @@ export interface CustomerRepository {
   update(input: { tenantId: string; actorId: string; id: string; expectedVersion: number; values: Partial<CustomerValues> }): Promise<CustomerRecord | null>;
 }
 export class CustomerProblem extends Error {
-  readonly code: "VALIDATION_FAILED" | "PERMISSION_DENIED" | "RESOURCE_NOT_FOUND" | "DUPLICATE_REFERENCE" | "STALE_VERSION";
+  readonly code: "VALIDATION_FAILED" | "PERMISSION_DENIED" | "RESOURCE_NOT_FOUND" | "DUPLICATE_REFERENCE" | "STALE_VERSION" | "IDEMPOTENCY_CONFLICT";
   readonly status: number;
   constructor(code: CustomerProblem["code"], status: number, message: string = code) { super(message); this.name = "CustomerProblem"; this.code = code; this.status = status; }
 }

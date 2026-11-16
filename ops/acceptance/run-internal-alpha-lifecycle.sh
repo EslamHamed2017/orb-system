@@ -61,7 +61,7 @@ ORB_TEST_MANAGED_SERVER=1 corepack pnpm exec playwright test \
   tests/acceptance/a32-browser-finance-registers.spec.ts \
   tests/acceptance/a29-invoice-print-output.spec.ts \
   tests/acceptance/a30-financial-attachments.spec.ts \
-  --project=chromium
+  --project=chromium --retries=0
 final_project_count=$("${compose[@]}" exec -T migration-postgres psql -U orb_migrator -d orb_migration -Atc 'SELECT count(*) FROM "Project"')
 [[ "$final_project_count" == "$project_count" ]]
 mc stat alpha/orb-evidence/internal-alpha/lifecycle.txt >/dev/null

@@ -16,6 +16,7 @@ test("finance navigation exposes operational accounts but not trade mutation or 
   const rail = page.locator('[data-navigation="rail"]');
   await expect(rail.getByRole("link", { name: "الحسابات" })).toBeVisible();
   await expect(rail.getByRole("link", { name: "التقارير" })).toBeVisible();
+  await expect(rail.getByRole("link", { name: "العملاء" })).toHaveAttribute("href", "/masters/customers?locale=ar&role=finance");
   await expect(rail.getByRole("link", { name: "المنتجات" })).toHaveCount(0);
   await expect(rail.getByRole("link", { name: "الإدارة" })).toHaveCount(0);
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
@@ -27,4 +28,17 @@ test("unknown role fails closed to Today and denied actions", async ({ page }) =
   await expect(rail.getByRole("link", { name: "Today" })).toBeVisible();
   await expect(rail.getByRole("link", { name: "Projects" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Add purchase contract" })).toBeDisabled();
+});
+
+
+test("finance customer access is discoverable and read-only", async ({ page }) => {
+  const customer = { id: "11111111-1111-7111-8111-111111111111", reference: "CUS-FIN-1", legalName: "Finance-visible buyer", contactName: null, email: "buyer@example.test", phone: null, status: "ACTIVE", version: 1 };
+  await page.route("**/api/customers", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [customer], nextCursor: null }) }));
+  await page.goto("/masters/customers?locale=en&role=finance");
+  await expect(page.getByRole("heading", { name: "Customers" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add customer" })).toBeDisabled();
+  await page.route("**/api/customers/*", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(customer) }));
+  await page.goto(`/customers/${customer.id}?locale=en&role=finance`);
+  await expect(page.getByRole("button", { name: "Save changes" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Archive customer" })).toBeDisabled();
 });

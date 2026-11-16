@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import styles from "./ProductsMasterPage.module.css";
+import { customerMutationHeaders } from "../../security/customer-mutation-headers";
 import { isServerCustomer, type ServerCustomer } from "./customer-response-validation";
 
 type Locale = "en" | "ar";
@@ -15,7 +16,7 @@ function stateFor(status: number): Exclude<State, "loading" | "ready"> {
   return "server";
 }
 
-export function CustomerDetailPage({ customerId, locale }: { readonly customerId: string; readonly locale: Locale }) {
+export function CustomerDetailPage({ customerId, locale, role }: { readonly customerId: string; readonly locale: Locale; readonly role?: string }) {
   const ar = locale === "ar";
   const endpoint = `/api/customers/${encodeURIComponent(customerId)}`;
   const [customer, setCustomer] = useState<ServerCustomer | null>(null);
@@ -41,7 +42,7 @@ export function CustomerDetailPage({ customerId, locale }: { readonly customerId
     try {
       const response = await fetch(endpoint, {
         method: "PATCH",
-        headers: { Accept: "application/json", "Content-Type": "application/json", "If-Match": `"${customer.version}"` },
+        headers: { Accept: "application/json", "Content-Type": "application/json", "If-Match": `"${customer.version}"`, ...customerMutationHeaders() },
         body: JSON.stringify(body),
       });
       if (!response.ok) {
@@ -75,20 +76,20 @@ export function CustomerDetailPage({ customerId, locale }: { readonly customerId
         : (ar ? "خدمة العملاء غير متاحة." : "Customer service is unavailable.");
 
   return <section className={styles.page} dir={ar ? "rtl" : "ltr"} aria-labelledby="customer-title">
-    <header className={styles.header}><div><p className={styles.eyebrow}>{ar ? "سجل العميل" : "Customer record"}</p><h1 id="customer-title">{customer?.legalName ?? (ar ? "العميل" : "Customer")}</h1><p className={styles.subtitle}>{ar ? "هوية وتواصل وحالة محفوظة على الخادم." : "Server-persisted identity, contact, and lifecycle status."}</p></div><a href={`/masters/customers?locale=${locale}`}>{ar ? "العودة إلى العملاء" : "Back to customers"}</a></header>
+    <header className={styles.header}><div><p className={styles.eyebrow}>{ar ? "سجل العميل" : "Customer record"}</p><h1 id="customer-title">{customer?.legalName ?? (ar ? "العميل" : "Customer")}</h1><p className={styles.subtitle}>{ar ? "هوية وتواصل وحالة محفوظة على الخادم." : "Server-persisted identity, contact, and lifecycle status."}</p></div><a href={`/masters/customers?locale=${locale}${role ? `&role=${encodeURIComponent(role)}` : ""}`}>{ar ? "العودة إلى العملاء" : "Back to customers"}</a></header>
     {state === "loading" ? <div className={styles.empty} role="status">{ar ? "جارٍ تحميل العميل من الخادم…" : "Loading customer from the server…"}</div>
       : state !== "ready" || !customer ? <div className={styles.errorState} role="alert"><h2>{unavailable}</h2><p>{ar ? "لم نعرض أي سجل نموذجي أو مخزن في المتصفح." : "No sample or browser-stored record was substituted."}</p><button type="button" onClick={() => void load()}>{ar ? "إعادة المحاولة" : "Try again"}</button></div>
       : <>
         <div className={styles.summary} aria-label={ar ? "ملخص العميل" : "Customer summary"}><div className={styles.kpi}><span>{ar ? "المرجع" : "Reference"}</span><strong><bdi>{customer.reference}</bdi></strong></div><div className={styles.kpi}><span>{ar ? "الحالة" : "Status"}</span><strong>{ar ? (customer.status === "ACTIVE" ? "نشط" : "مؤرشف") : (customer.status === "ACTIVE" ? "Active" : "Archived")}</strong></div><div className={styles.kpi}><span>{ar ? "الإصدار" : "Version"}</span><strong>{customer.version}</strong></div></div>
         {notice && <div className={notice.kind === "error" ? styles.errorNotice : styles.successNotice} role={notice.kind === "error" ? "alert" : "status"}>{notice.text}</div>}
-        <form className={`${styles.card} ${styles.formGrid}`} onSubmit={save} aria-busy={submitting} key={customer.version}>
+        <form className={`${styles.card} ${styles.formGrid}`} data-operation-id="updateCustomer" onSubmit={save} aria-busy={submitting} key={customer.version}>
           <label>{ar ? "الاسم القانوني" : "Legal name"}<input name="legalName" defaultValue={customer.legalName} required maxLength={200} disabled={submitting}/></label>
           <label>{ar ? "اسم جهة الاتصال" : "Contact name"}<input name="contactName" defaultValue={customer.contactName ?? ""} maxLength={160} disabled={submitting}/></label>
           <label>{ar ? "البريد الإلكتروني" : "Email"}<input name="email" type="email" defaultValue={customer.email ?? ""} maxLength={254} disabled={submitting}/></label>
           <label>{ar ? "الهاتف الدولي" : "International phone"}<input name="phone" type="tel" dir="ltr" defaultValue={customer.phone ?? ""} maxLength={32} disabled={submitting}/></label>
           <div className={styles.formActions}><button type="submit" disabled={submitting}>{ar ? "حفظ التغييرات" : "Save changes"}</button></div>
         </form>
-        <section className={styles.card} aria-labelledby="customer-lifecycle-title"><h2 id="customer-lifecycle-title">{ar ? "دورة حياة العميل" : "Customer lifecycle"}</h2><p className={styles.muted}>{customer.status === "ACTIVE" ? (ar ? "أرشفة العميل تبقي سجله وتدقيقه محفوظين." : "Archiving keeps the customer record and audit history intact.") : (ar ? "يمكن إعادة تفعيل العميل المؤرشف عند استئناف التعامل." : "Reactivate the archived customer when trading resumes.")}</p><button type="button" disabled={submitting} onClick={() => {
+        <section className={styles.card} aria-labelledby="customer-lifecycle-title"><h2 id="customer-lifecycle-title">{ar ? "دورة حياة العميل" : "Customer lifecycle"}</h2><p className={styles.muted}>{customer.status === "ACTIVE" ? (ar ? "أرشفة العميل تبقي سجله وتدقيقه محفوظين." : "Archiving keeps the customer record and audit history intact.") : (ar ? "يمكن إعادة تفعيل العميل المؤرشف عند استئناف التعامل." : "Reactivate the archived customer when trading resumes.")}</p><button type="button" data-operation-id="updateCustomer" disabled={submitting} onClick={() => {
           const archiving = customer.status === "ACTIVE";
           const confirmation = archiving
             ? (ar ? "أرشفة هذا العميل؟ ستُفقد أي تغييرات غير محفوظة في النموذج." : "Archive this customer? Any unsaved form changes will be lost.")

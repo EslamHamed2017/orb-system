@@ -87,7 +87,7 @@ export class PrismaCustomerRepository implements CustomerRepository {
         const row = await transaction.customer.create({ data: { tenant_id: input.tenantId, ...data(input.values) } });
         const after = record(row);
         await transaction.customerAuditEvent.create({
-          data: { tenant_id: input.tenantId, customer_id: row.id, actor_id: input.actorId, action: "CUSTOMER_CREATED", aggregate_version: row.version, before: null, after },
+          data: { tenant_id: input.tenantId, customer_id: row.id, actor_id: input.actorId, action: "CUSTOMER_CREATED", aggregate_version: row.version, after },
         });
         return after;
       });
