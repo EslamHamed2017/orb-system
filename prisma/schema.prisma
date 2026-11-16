@@ -1222,6 +1222,8 @@ model Tenant {
   created_at         DateTime             @default(now()) @db.Timestamptz(6)
   Customer           Customer[]
   CustomerAuditEvent CustomerAuditEvent[]
+  Supplier           Supplier[]
+  SupplierAuditEvent SupplierAuditEvent[]
   TenantMembership   TenantMembership[]
 }
 
@@ -1271,6 +1273,48 @@ model CustomerAuditEvent {
   @@index([actor_id])
 }
 
+/// Tenant-owned supplier master. Legacy global Party rows are intentionally not inferred.
+model Supplier {
+  id String @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  tenant_id String @db.Uuid
+  reference String
+  registered_name String
+  display_name_ar String?
+  country_code String @db.Char(2)
+  contact_name String?
+  email String?
+  phone String?
+  payment_currency String @db.Char(3)
+  payment_terms_days Int @default(0)
+  status SupplierStatus @default(ACTIVE)
+  version Int @default(1)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+  Tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  SupplierAuditEvent SupplierAuditEvent[]
+  @@unique([tenant_id, reference])
+  @@unique([id, tenant_id])
+  @@index([tenant_id, status, registered_name])
+}
+model SupplierAuditEvent {
+  id String @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  tenant_id String @db.Uuid
+  supplier_id String @db.Uuid
+  actor_id String @db.Uuid
+  action String
+  aggregate_version Int
+  occurred_at DateTime @default(now()) @db.Timestamptz(6)
+  before Json?
+  after Json
+  Tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Supplier Supplier @relation(fields: [supplier_id, tenant_id], references: [id, tenant_id], onDelete: NoAction, onUpdate: NoAction)
+  User User @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  TenantMembership TenantMembership @relation(fields: [tenant_id, actor_id], references: [tenant_id, user_id], onDelete: NoAction, onUpdate: NoAction)
+  @@unique([supplier_id, aggregate_version])
+  @@index([tenant_id, occurred_at])
+  @@index([actor_id])
+}
+
 model TenantMembership {
   id         String   @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
   tenant_id  String   @db.Uuid
@@ -1280,6 +1324,7 @@ model TenantMembership {
   updated_at DateTime @updatedAt @db.Timestamptz(6)
   Tenant     Tenant   @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   User       User     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  SupplierAuditEvent SupplierAuditEvent[]
 
   @@unique([tenant_id, user_id])
   @@index([user_id, status])
@@ -1301,6 +1346,7 @@ model User {
   SystemSettings                             SystemSettings[]
   SettingsAuditEvent                         SettingsAuditEvent[]
   CustomerAuditEvent                         CustomerAuditEvent[]
+  SupplierAuditEvent                         SupplierAuditEvent[]
   TenantMembership                           TenantMembership[]
   IdempotencyRecord                          IdempotencyRecord[]
   OutboundSendAttempt                        OutboundSendAttempt[]
@@ -1333,6 +1379,11 @@ model UserRole {
 }
 
 enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SupplierStatus {
   ACTIVE
   INACTIVE
 }
