@@ -21,3 +21,11 @@ export function buildSalesInvoiceListHref(projectId: string, locale: AccountsLoc
   if (!selectedProject) throw new TypeError("Project ID is required");
   return `/accounts/sales-invoices?projectId=${encodeURIComponent(selectedProject)}&locale=${locale}`;
 }
+
+
+export function localizeInvoiceState(state: string, locale: AccountsLocale): string {
+  if (state === "ISSUED") return locale === "ar" ? "صادرة" : "Issued";
+  if (state === "DRAFT") return locale === "ar" ? "مسودة" : "Draft";
+  if (state === "PENDING_APPROVAL") return locale === "ar" ? "بانتظار الموافقة" : "Pending approval";
+  return state;
+}

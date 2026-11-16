@@ -5,12 +5,13 @@ import test from "node:test";
 import {
   buildSalesInvoiceListHref,
   filterProjectSalesInvoices,
+  localizeInvoiceState,
   type SalesInvoiceListItem,
 } from "../../../src/ui/features/accounts/project-sales-invoices.ts";
 
 const invoices: readonly SalesInvoiceListItem[] = [
   { id: "invoice-2", projectId: "project-2", shipmentId: "shipment-2", occurredOn: "2026-11-12", state: "ISSUED", reference: "SINV-002", currency: "AED", amount: "700.000000", outstandingAmount: "200.000000" },
-  { id: "invoice-1", projectId: "project-1", shipmentId: "shipment-1", occurredOn: "2026-11-11", state: "PARTIALLY_PAID", reference: "SINV-001", currency: "USD", amount: "1000.000000", outstandingAmount: "400.000000" },
+  { id: "invoice-1", projectId: "project-1", shipmentId: "shipment-1", occurredOn: "2026-11-11", state: "PENDING_APPROVAL", reference: "SINV-001", currency: "USD", amount: "1000.000000", outstandingAmount: "400.000000" },
   { id: "invoice-3", projectId: "project-1", shipmentId: "shipment-3", occurredOn: "2026-11-13", state: "CANCELLED", reference: "SINV-VOID", currency: "USD", amount: "50.000000", outstandingAmount: "50.000000" },
 ];
 
@@ -42,4 +43,44 @@ test("project-filtered sales invoice page is bilingual and connected to project 
   assert.match(page, /projectReference/);
   assert.match(page, /sales-shipments/);
   assert.match(page, /outstandingAmount/);
+});
+
+
+test("persisted sales invoice register uses the database allocation contract and loads traced lines", () => {
+  const loader = readFileSync("src/modules/invoices/load-project-sales-invoices.ts", "utf8");
+  assert.match(loader, /target_type::text = 'CINV'/);
+  assert.doesNotMatch(loader, /target_type::text = 'SALES_INVOICE'/);
+  assert.match(loader, /SalesShipmentDatasetLine/);
+  assert.match(loader, /source_reference/);
+  assert.match(loader, /lines:/);
+  const fixture = readFileSync("tests/fixtures/r1-project-cycle.ts", "utf8");
+  const seed = readFileSync("prisma/seed.ts", "utf8");
+  assert.match(fixture, /R1_SALES_DATASET_LINES/);
+  assert.match(fixture, /R1_SALES_INVOICE_LINES/);
+  assert.match(seed, /salesShipmentDatasetLine/);
+  assert.match(seed, /salesInvoiceLine/);
+});
+
+test("sales invoice lifecycle labels remain truthful in both locales", () => {
+  const page = readFileSync("src/ui/features/accounts/ProjectSalesInvoicesPage.tsx", "utf8");
+  const model = readFileSync("src/ui/features/accounts/project-sales-invoices.ts", "utf8");
+  const print = readFileSync("src/ui/features/accounts/InvoicePrintDocument.tsx", "utf8");
+  assert.match(model, /PENDING_APPROVAL/);
+  assert.match(model, /Pending approval/);
+  assert.match(model, /بانتظار الموافقة/);
+  assert.doesNotMatch(page, /Partially paid|مدفوعة جزئياً/);
+  assert.match(print, /localizeInvoiceState/);
+  assert.equal(localizeInvoiceState("PENDING_APPROVAL", "en"), "Pending approval");
+  assert.equal(localizeInvoiceState("PENDING_APPROVAL", "ar"), "بانتظار الموافقة");
+  assert.equal(localizeInvoiceState("ISSUED", "en"), "Issued");
+  assert.equal(localizeInvoiceState("ISSUED", "ar"), "صادرة");
+});
+
+test("mobile invoice register exposes an explicit horizontal scroll region", () => {
+  const styles = readFileSync("src/ui/features/accounts/AccountsHubPage.module.css", "utf8");
+  const page = readFileSync("src/ui/features/accounts/ProjectSalesInvoicesPage.tsx", "utf8");
+  assert.match(styles, /\.tableWrap\{[^}]*overflow-x:auto/);
+  assert.match(styles, /\.table\{[^}]*min-inline-size:/);
+  assert.match(page, /tabIndex=\{0\}/);
+  assert.match(page, /aria-label=\{ar \? "تمرير جدول فواتير المبيعات" : "Scroll sales invoice register"\}/);
 });

@@ -18,6 +18,10 @@ for (const locale of ["en", "ar"] as const) {
       await expect(table.getByText("R1-CINV-NOT-PRESENT")).toHaveCount(0);
       await expect(table.getByRole("link", { name: "ORB-R1-SAL-100MT" })).toHaveAttribute("href", `/sales-shipments/00000000-0000-7000-8000-000000000232?locale=${locale}`);
       await expect(page.getByText(ar ? "1 فاتورة نشطة" : "1 active invoice")).toBeVisible();
+      const printTable = page.getByRole("table", { name: ar ? "بنود الفاتورة وتتبع المصدر" : "Invoice lines and source traceability" });
+      await expect(printTable).toContainText("100MT Ethiopian Arabica");
+      await expect(printTable).toContainText("ORB-R1-SAL-100MT · 1");
+      await expect(printTable).toContainText("USD 850.000000");
     }
     const evidence = `artifacts/ui-review/persisted-sales-invoices/desktop-${locale}.png`;
     await page.setViewportSize({ width: 1280, height: 900 });
@@ -25,5 +29,10 @@ for (const locale of ["en", "ar"] as const) {
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
     await page.screenshot({ path: `artifacts/ui-review/persisted-sales-invoices/mobile-${locale}.png`, fullPage: true });
+    if (!(await unavailable.isVisible())) {
+      const mobilePrintTable = page.getByRole("table", { name: ar ? "بنود الفاتورة وتتبع المصدر" : "Invoice lines and source traceability" });
+      await mobilePrintTable.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `artifacts/ui-review/persisted-sales-invoices/mobile-detail-${locale}.png` });
+    }
   });
 }
