@@ -2,6 +2,7 @@ export const R1_SECURITY_IDS = Object.freeze({
   owner: "00000000-0000-7000-8000-000000000001", operations: "00000000-0000-7000-8000-000000000002", finance: "00000000-0000-7000-8000-000000000003",
   ownerRole: "00000000-0000-7000-8000-000000000011", operationsRole: "00000000-0000-7000-8000-000000000012", financeRole: "00000000-0000-7000-8000-000000000013",
   ownerSession: "00000000-0000-7000-8000-000000000021", operationsSession: "00000000-0000-7000-8000-000000000022", financeSession: "00000000-0000-7000-8000-000000000023",
+  tenant: "00000000-0000-7000-8000-000000000031", ownerMembership: "00000000-0000-7000-8000-000000000032", operationsMembership: "00000000-0000-7000-8000-000000000033", financeMembership: "00000000-0000-7000-8000-000000000034",
 });
 const updated_at = "2026-11-07T00:00:00.000Z";
 export const R1_USERS = Object.freeze([
@@ -19,3 +20,6 @@ export const R1_PILOT_SESSIONS = Object.freeze(R1_USERS.map((user,index)=>({
   created_at:updated_at,last_seen_at:"2026-11-07T09:15:00.000Z",idle_expires_at:"2026-11-07T09:45:00.000Z",absolute_expires_at:"2026-11-07T12:00:00.000Z",
   revoked_at:null,revoked_by:null,revocation_reason:null,current:index===0,version:1,
 })));
+
+export const R1_TENANTS=Object.freeze([{id:R1_SECURITY_IDS.tenant,slug:"r1-pilot",name:"R1 Pilot"}]);
+export const R1_TENANT_MEMBERSHIPS=Object.freeze(R1_USERS.map((user,index)=>({id:[R1_SECURITY_IDS.ownerMembership,R1_SECURITY_IDS.operationsMembership,R1_SECURITY_IDS.financeMembership][index],tenant_id:R1_SECURITY_IDS.tenant,user_id:user.id,status:"ACTIVE"})));

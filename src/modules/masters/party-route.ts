@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server.js";
 
-export type PartyType = "customers" | "suppliers";
+export type PartyType = "customers" | "suppliers" | "products";
 export interface PartyPrincipal { readonly userId: string; readonly tenantId?: string; readonly roles: readonly string[] }
 export interface PartyCollectionDependencies {
   readonly authenticate: (request: Request) => Promise<PartyPrincipal | null>;

@@ -1,0 +1,1 @@
+import type { ProductRecord } from "./product-service.ts"; export type PublicProduct=Omit<ProductRecord,"tenantId"|"createdAt"|"updatedAt">; export function toPublicProduct(r:ProductRecord):PublicProduct {const {tenantId:_,createdAt:__,updatedAt:___,...value}=r;return Object.freeze(value)}

@@ -367,6 +367,59 @@ paths:
       - OWNER_ADMIN
       - OPERATIONS
       summary: Update master record
+  /products:
+    get:
+      tags: [Masters]
+      operationId: listProducts
+      responses:
+        '200': { $ref: '#/components/responses/EntityPage' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS, FINANCE_VIEWER]
+      summary: List tenant products
+    post:
+      tags: [Masters]
+      operationId: createProduct
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductInput' }
+      responses:
+        '201': { $ref: '#/components/responses/Entity' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS]
+      summary: Create tenant product
+  /products/{productId}:
+    parameters:
+    - $ref: '#/components/parameters/ProductId'
+    get:
+      tags: [Masters]
+      operationId: getProduct
+      responses:
+        '200': { $ref: '#/components/responses/Entity' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS, FINANCE_VIEWER]
+      summary: Get tenant product
+    patch:
+      tags: [Masters]
+      operationId: updateProduct
+      parameters:
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductUpdate' }
+      responses:
+        '200': { $ref: '#/components/responses/Entity' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS]
+      summary: Update product specification or lifecycle status
   /products/{productId}/movements:
     get:
       tags: [Masters]
@@ -3176,6 +3229,34 @@ components:
         sourceAllocations:
           type: array
           items: { $ref: '#/components/schemas/ProductMovementSourceAllocation' }
+    ProductInput:
+      type: object
+      additionalProperties: false
+      required: [reference, nameEn, nameAr, origin, type, grade, cropYear, bagType, standardBagWeight]
+      properties:
+        reference: { type: string, minLength: 1, maxLength: 64 }
+        nameEn: { type: string, minLength: 1, maxLength: 200 }
+        nameAr: { type: string, minLength: 1, maxLength: 200 }
+        origin: { type: string, pattern: '^[A-Z]{2}$' }
+        type: { type: string, minLength: 1, maxLength: 100 }
+        grade: { type: string, minLength: 1, maxLength: 100 }
+        cropYear: { type: string, minLength: 1, maxLength: 100 }
+        bagType: { type: string, minLength: 1, maxLength: 100 }
+        standardBagWeight: { $ref: '#/components/schemas/Decimal' }
+    ProductUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        nameEn: { type: string, minLength: 1, maxLength: 200 }
+        nameAr: { type: string, minLength: 1, maxLength: 200 }
+        origin: { type: string, pattern: '^[A-Z]{2}$' }
+        type: { type: string, minLength: 1, maxLength: 100 }
+        grade: { type: string, minLength: 1, maxLength: 100 }
+        cropYear: { type: string, minLength: 1, maxLength: 100 }
+        bagType: { type: string, minLength: 1, maxLength: 100 }
+        standardBagWeight: { $ref: '#/components/schemas/Decimal' }
+        status: { type: string, enum: [ACTIVE, INACTIVE] }
     ProductMovementPage:
       type: object
       additionalProperties: false

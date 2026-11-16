@@ -1,13 +1,9 @@
 import styles from "./ProductMovementReportPage.module.css";
 import { buildProductMovementReport, type ProductMovementReportDirectionFilter, type ProductMovementReportRecord } from "./product-movement-report";
 
-const MOVEMENTS: readonly ProductMovementReportRecord[] = Object.freeze([
-  { id:"movement-1", occurredOn:"2026-11-03", direction:"INBOUND", productId:"product-1", productReference:"PROD-001", productName:"Ethiopia Yirgacheffe", projectId:"project-orion", projectReference:"PRJ-2026-014", quantity:"6000.000000", unit:"kg", transactionType:"SUPPLIER_CONTAINER", transactionId:"container-81", transactionReference:"SCN-2026-0081", counterpartyName:"Arbor Export", contractLineReference:"PUR-2026-011 · 1" },
-  { id:"movement-2", occurredOn:"2026-11-08", direction:"OUTBOUND", productId:"product-1", productReference:"PROD-001", productName:"Ethiopia Yirgacheffe", projectId:"project-orion", projectReference:"PRJ-2026-014", quantity:"1250.500000", unit:"kg", transactionType:"SALES_SHIPMENT", transactionId:"shipment-42", transactionReference:"SSH-2026-0042", counterpartyName:"Northstar Roasters", contractLineReference:"SAL-2026-004 · 1" },
-  { id:"movement-3", occurredOn:"2026-11-09", direction:"OUTBOUND", productId:"product-2", productReference:"PROD-002", productName:"Brazil Santos", projectId:"project-atlas", projectReference:"PRJ-2026-019", quantity:"749.500000", unit:"kg", transactionType:"SALES_SHIPMENT", transactionId:"shipment-45", transactionReference:"SSH-2026-0045", counterpartyName:"Atlas Retail", contractLineReference:"SAL-2026-009 · 2" },
-]);
-const PROJECTS = Object.freeze([{ id:"project-orion", label:"PRJ-2026-014 · Orion Coffee" }, { id:"project-atlas", label:"PRJ-2026-019 · Atlas Trading" }]);
-const PRODUCTS = Object.freeze([{ id:"product-1", en:"PROD-001 · Ethiopia Yirgacheffe", ar:"PROD-001 · إثيوبيا يرغاشيف" }, { id:"product-2", en:"PROD-002 · Brazil Santos", ar:"PROD-002 · برازيل سانتوس" }]);
+const MOVEMENTS: readonly ProductMovementReportRecord[] = Object.freeze([]);
+const PROJECTS: readonly {id:string;label:string}[] = Object.freeze([]);
+const PRODUCTS: readonly {id:string;en:string;ar:string}[] = Object.freeze([]);
 
 type Locale = "en" | "ar";
 export interface ProductMovementReportPageProps { readonly locale:Locale; readonly role?:string; readonly projectId?:string; readonly productId?:string; readonly direction:ProductMovementReportDirectionFilter; readonly from?:string; readonly to?:string; readonly query:string }

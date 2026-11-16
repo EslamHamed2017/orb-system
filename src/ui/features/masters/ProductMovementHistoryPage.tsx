@@ -1,12 +1,8 @@
 import styles from "./ProductMovementHistoryPage.module.css";
 import { filterProductMovements, summarizeProductMovements, type ProductMovementDirectionFilter, type ProductMovementHistoryRecord } from "./product-movement-history";
 
-const MOVEMENTS: readonly ProductMovementHistoryRecord[] = Object.freeze([
-  { id:"movement-1", occurredAt:"2026-11-03T08:00:00.000Z", direction:"INBOUND", projectId:"project-orion", projectReference:"PRJ-2026-014", projectName:"Orion Coffee", quantity:"6000.000000", unit:"kg", transactionType:"SUPPLIER_CONTAINER", transactionId:"container-81", transactionReference:"SCN-2026-0081", counterpartyName:"Arbor Export", contractLineReference:"PUR-2026-011 · 1", sourceAllocationCount:0 },
-  { id:"movement-2", occurredAt:"2026-11-08T10:30:00.000Z", direction:"OUTBOUND", projectId:"project-orion", projectReference:"PRJ-2026-014", projectName:"Orion Coffee", quantity:"1250.500000", unit:"kg", transactionType:"SALES_SHIPMENT", transactionId:"shipment-42", transactionReference:"SSH-2026-0042", counterpartyName:"Northstar Roasters", contractLineReference:"SAL-2026-004 · 1", sourceAllocationCount:2 },
-  { id:"movement-3", occurredAt:"2026-11-09T12:00:00.000Z", direction:"OUTBOUND", projectId:"project-atlas", projectReference:"PRJ-2026-019", projectName:"Atlas Trading", quantity:"749.500000", unit:"kg", transactionType:"SALES_SHIPMENT", transactionId:"shipment-45", transactionReference:"SSH-2026-0045", counterpartyName:"Atlas Retail", contractLineReference:"SAL-2026-009 · 2", sourceAllocationCount:1 },
-]);
-const PROJECTS = Object.freeze([{ id:"project-orion", reference:"PRJ-2026-014", name:"Orion Coffee" }, { id:"project-atlas", reference:"PRJ-2026-019", name:"Atlas Trading" }]);
+const MOVEMENTS: readonly ProductMovementHistoryRecord[] = Object.freeze([]);
+const PROJECTS: readonly {id:string;reference:string;name:string}[] = Object.freeze([]);
 
 type Locale = "en" | "ar";
 export function ProductMovementHistoryPage({ productId, locale, projectId, direction = "ALL", query = "" }: { readonly productId:string; readonly locale:Locale; readonly projectId?:string; readonly direction?:ProductMovementDirectionFilter; readonly query?:string }) {
@@ -14,8 +10,8 @@ export function ProductMovementHistoryPage({ productId, locale, projectId, direc
   const movements = filterProductMovements(MOVEMENTS, { projectId, direction, query });
   const summary = summarizeProductMovements(movements);
   const suffix = `locale=${locale}`;
-  const productReference = productId === "product-2" ? "PROD-002" : "PROD-001";
-  const productName = productId === "product-2" ? (ar ? "برازيل سانتوس" : "Brazil Santos") : (ar ? "إثيوبيا يرغاشيف" : "Ethiopia Yirgacheffe");
+  const productReference = productId;
+  const productName = ar ? "بيانات الحركة غير متاحة بعد" : "Movement data is not available yet";
   const transactionHref = (movement:ProductMovementHistoryRecord) => movement.transactionType === "SALES_SHIPMENT" ? `/sales-shipments/${movement.transactionId}?${suffix}&projectId=${movement.projectId}` : `/supplier-shipments/${movement.transactionId}?${suffix}&projectId=${movement.projectId}`;
   return <section className={styles.page} dir={ar ? "rtl" : "ltr"} aria-labelledby="movement-title">
     <nav className={styles.breadcrumbs} aria-label={ar ? "مسار التنقل" : "Breadcrumb"}><a href={`/masters/coffee?${suffix}`}>{ar ? "المنتجات" : "Products"}</a><span aria-hidden="true">/</span><span aria-current="page">{ar ? "حركة المنتج" : "Product movement"}</span></nav>

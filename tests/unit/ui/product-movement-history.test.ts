@@ -32,7 +32,7 @@ test("product movement page is bilingual, links source transactions and states i
   assert.match(component, /not a stock balance or inventory valuation/);
   assert.match(component, /ليست رصيد مخزون أو تقييم مخزون/);
   assert.match(component, /SALES_SHIPMENT/);
-  assert.match(component, /SUPPLIER_CONTAINER/);
+  assert.match(component, /supplier-shipments/);
   assert.match(component, /sourceAllocationCount/);
 });
 
@@ -45,3 +45,6 @@ test("browser-only product records do not link to unrelated fixed movement histo
   assert.match(movementPage, /const MOVEMENTS:/);
   assert.match(navigation, /pathname.startsWith\("\/products\/"\)/);
 });
+
+
+test("movement UI has no fixed demo movement rows", () => { const source = readFileSync("src/ui/features/masters/ProductMovementHistoryPage.tsx", "utf8"); assert.match(source, /Object\.freeze\(\[\]\)/); for (const fixture of ["movement-1", "project-orion", "Arbor Export", "Northstar Roasters"]) assert.equal(source.includes(fixture), false); });

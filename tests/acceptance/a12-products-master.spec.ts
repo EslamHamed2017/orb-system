@@ -20,11 +20,8 @@ for (const locale of ["en", "ar"] as const) {
   test(`${locale} product registration persists and supports lifecycle`, async ({ page }, testInfo) => {
     const ar = locale === "ar";
     await page.goto(`/masters/coffee?locale=${locale}`);
-    await page.evaluate(() => localStorage.clear());
-    await page.reload();
     await expect(page.locator("main > section")).toHaveAttribute("dir", ar ? "rtl" : "ltr");
     await expect(page.getByText(ar ? "لم تُسجل منتجات بعد" : "No products registered yet")).toBeVisible();
-    await expect(page.getByText(ar ? "محفوظ في هذا المتصفح" : "Saved in this browser")).toBeVisible();
     await registerProduct(page, ar);
     await expect(page.getByText(ar ? "تم حفظ المنتج" : "Product saved")).toBeVisible();
     await expect(page.getByText(product.reference, { exact: false })).toBeVisible();
@@ -47,8 +44,6 @@ for (const locale of ["en", "ar"] as const) {
     const ar = locale === "ar";
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`/masters/coffee?locale=${locale}`);
-    await page.evaluate(() => localStorage.clear());
-    await page.reload();
     await registerProduct(page, ar);
     const feedback = page.getByText(ar ? "تم حفظ المنتج" : "Product saved");
     await expect(feedback).toBeVisible();
@@ -62,10 +57,9 @@ for (const locale of ["en", "ar"] as const) {
   });
 }
 
-test("corrupt saved product data shows an error instead of fixtures", async ({ page }) => {
+test("invalid product API data shows an unavailable state instead of fixtures", async ({ page }) => {
+  await page.route("**/api/products", route => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [{ id: "invalid" }] }) }));
   await page.goto("/masters/coffee?locale=en");
-  await page.evaluate(() => localStorage.setItem("orb.user-products.owner-1.v1", "not-json"));
-  await page.reload();
-  await expect(page.getByText("Saved product data could not be read")).toBeVisible();
+  await expect(page.getByText("Product service is unavailable.")).toBeVisible();
   await expect(page.getByText("PROD-001", { exact: false })).toHaveCount(0);
 });

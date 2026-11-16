@@ -1,17 +1,19 @@
 {
   "version": 1,
   "schema": {
-    "models": 61,
+    "models": 63,
     "enums": 41
   },
   "seed": {
-    "tables": 32,
-    "rows": 51,
-    "digest": "49bc6b79b0a4875abbc78be2aca946228362bc7de1701532d95615e55798b29c",
+    "tables": 34,
+    "rows": 55,
+    "digest": "199cee552b94241029d0a718bd15c88b6c23a4a1b5099e9b79555c006a2bb0d5",
     "rowCounts": {
       "user": 3,
       "userRole": 3,
       "pilotSession": 3,
+      "tenant": 1,
+      "tenantMembership": 3,
       "currency": 2,
       "party": 3,
       "coffeeSpecification": 1,

@@ -163,7 +163,10 @@ model ClosureBlocker {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model CoffeeSpecification {
   id                      String                    @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
-  reference               String                    @unique
+  tenant_id               String?                   @db.Uuid
+  reference               String
+  name_en                 String?
+  name_ar                 String?
   origin                  String
   type                    String
   grade                   String
@@ -173,10 +176,48 @@ model CoffeeSpecification {
   attributes              Json
   status                  ProductStatus             @default(ACTIVE)
   version                 Int                       @default(1)
+  created_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime                  @updatedAt @db.Timestamptz(6)
+  Tenant                  Tenant?                   @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ProductAuditEvent       ProductAuditEvent[]
+  LegacyProductQuarantine LegacyProductQuarantine?
   ContractVersion         ContractVersion[]
   ContractLineVersion     ContractLineVersion[]
   SalesShipmentDataset    SalesShipmentDataset[]
   SupplierShipmentDataset SupplierShipmentDataset[]
+
+  @@unique([tenant_id, reference])
+  @@unique([id, tenant_id])
+  @@index([tenant_id, status, name_en])
+}
+
+/// Immutable inventory of pre-tenancy product rows. These rows remain operationally linked until Projects/contracts gain tenant ownership.
+model LegacyProductQuarantine {
+  product_id                 String              @id @db.Uuid
+  snapshot                   Json
+  operational_reference_count Int
+  reason                     String              @default("TENANT_OWNERSHIP_UNKNOWN")
+  quarantined_at             DateTime            @default(now()) @db.Timestamptz(6)
+  CoffeeSpecification        CoffeeSpecification @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "LegacyProductQuarantine_product_id_fkey")
+}
+
+model ProductAuditEvent {
+  id                String              @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  tenant_id         String              @db.Uuid
+  product_id        String              @db.Uuid
+  actor_id          String              @db.Uuid
+  action            String
+  aggregate_version Int
+  occurred_at       DateTime            @default(now()) @db.Timestamptz(6)
+  before            Json?
+  after             Json
+  Tenant            Tenant              @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  CoffeeSpecification CoffeeSpecification @relation(fields: [product_id, tenant_id], references: [id, tenant_id], onDelete: NoAction, onUpdate: NoAction)
+  User              User                @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  TenantMembership  TenantMembership    @relation(fields: [tenant_id, actor_id], references: [tenant_id, user_id], onDelete: NoAction, onUpdate: NoAction)
+  @@unique([product_id, aggregate_version])
+  @@index([tenant_id, occurred_at])
+  @@index([actor_id])
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1224,6 +1265,8 @@ model Tenant {
   CustomerAuditEvent CustomerAuditEvent[]
   Supplier           Supplier[]
   SupplierAuditEvent SupplierAuditEvent[]
+  ProductAuditEvent ProductAuditEvent[]
+  CoffeeSpecification CoffeeSpecification[]
   TenantMembership   TenantMembership[]
 }
 
@@ -1325,6 +1368,7 @@ model TenantMembership {
   Tenant     Tenant   @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   User       User     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   SupplierAuditEvent SupplierAuditEvent[]
+  ProductAuditEvent ProductAuditEvent[]
 
   @@unique([tenant_id, user_id])
   @@index([user_id, status])
@@ -1347,6 +1391,7 @@ model User {
   SettingsAuditEvent                         SettingsAuditEvent[]
   CustomerAuditEvent                         CustomerAuditEvent[]
   SupplierAuditEvent                         SupplierAuditEvent[]
+  ProductAuditEvent                          ProductAuditEvent[]
   TenantMembership                           TenantMembership[]
   IdempotencyRecord                          IdempotencyRecord[]
   OutboundSendAttempt                        OutboundSendAttempt[]

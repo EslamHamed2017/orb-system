@@ -670,6 +670,10 @@ These tables are validation input, not additional tasks. Every mapped task carri
 | `createSupplier` | `ORB-R1-0301`, `ORB-R1-0302` |
 | `getSupplier` | `ORB-R1-0301`, `ORB-R1-0302` |
 | `updateSupplier` | `ORB-R1-0301`, `ORB-R1-0302` |
+| `listProducts` | `ORB-R1-0301`, `ORB-R1-0302` |
+| `createProduct` | `ORB-R1-0301`, `ORB-R1-0302` |
+| `getProduct` | `ORB-R1-0301`, `ORB-R1-0302` |
+| `updateProduct` | `ORB-R1-0301`, `ORB-R1-0302` |
 | `listMasterRecords` | `ORB-R1-0001`, `ORB-R1-0002`, `ORB-R1-0105`, `ORB-R1-0203`, `ORB-R1-0204`, `ORB-R1-0301`, `ORB-R1-0302`, `ORB-R1-0305`, `ORB-R1-1204`, `ORB-R1-1205`, `ORB-R1-1206`, `ORB-R1-1301`, `ORB-R1-1302`, `ORB-R1-1303`, `ORB-R1-1304`, `ORB-R1-1305`, `ORB-R1-1309`, `ORB-R1-1315` |
 | `createMasterRecord` | `ORB-R1-0001`, `ORB-R1-0002`, `ORB-R1-0105`, `ORB-R1-0203`, `ORB-R1-0204`, `ORB-R1-0301`, `ORB-R1-0302`, `ORB-R1-0305`, `ORB-R1-1204`, `ORB-R1-1205`, `ORB-R1-1206`, `ORB-R1-1301`, `ORB-R1-1302`, `ORB-R1-1303`, `ORB-R1-1304`, `ORB-R1-1305`, `ORB-R1-1309`, `ORB-R1-1315` |
 | `updateMasterRecord` | `ORB-R1-0001`, `ORB-R1-0002`, `ORB-R1-0105`, `ORB-R1-0203`, `ORB-R1-0204`, `ORB-R1-0301`, `ORB-R1-0302`, `ORB-R1-0305`, `ORB-R1-1204`, `ORB-R1-1205`, `ORB-R1-1206`, `ORB-R1-1301`, `ORB-R1-1302`, `ORB-R1-1303`, `ORB-R1-1304`, `ORB-R1-1305`, `ORB-R1-1309`, `ORB-R1-1315` |

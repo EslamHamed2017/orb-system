@@ -38,10 +38,13 @@ test("dedicated product movement report is bilingual, filterable, and links prod
   assert.match(page, /reports-product-movement-title/);
   assert.match(page, /\/products\/\$\{movement.productId\}\/movements/);
   assert.match(page, /SALES_SHIPMENT/);
-  assert.match(page, /SUPPLIER_CONTAINER/);
+  assert.match(page, /supplier-shipments/);
 });
 
 test("reports hub routes product movement filters to the dedicated report", () => {
   const hub = readFileSync("src/ui/features/reports/reports-hub.ts", "utf8");
   assert.match(hub, /\/reports\/product-movement/);
 });
+
+
+test("movement UI has no fixed demo movement rows", () => { const source = readFileSync("src/ui/features/reports/ProductMovementReportPage.tsx", "utf8"); assert.match(source, /Object\.freeze\(\[\]\)/); for (const fixture of ["movement-1", "project-orion", "Arbor Export", "Northstar Roasters"]) assert.equal(source.includes(fixture), false); });
