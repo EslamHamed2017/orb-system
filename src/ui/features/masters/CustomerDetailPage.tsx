@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import styles from "./ProductsMasterPage.module.css";
+import { ISO_COUNTRY_CODES } from "../../../modules/customers/country-codes";
+import { CUSTOMER_V2_MEDIA_TYPE } from "../../../modules/customers/customer-response";
 import { customerMutationHeaders } from "../../security/customer-mutation-headers";
 import { isServerCustomer, type ServerCustomer } from "./customer-response-validation";
 
@@ -23,11 +25,12 @@ export function CustomerDetailPage({ customerId, locale, role }: { readonly cust
   const [state, setState] = useState<State>("loading");
   const [notice, setNotice] = useState<Notice>(null);
   const [submitting, setSubmitting] = useState(false);
+  const profileApi = customer ? Object.prototype.hasOwnProperty.call(customer, "legalNameAr") : false;
 
   const load = useCallback(async () => {
     setState("loading"); setCustomer(null); setNotice(null);
     try {
-      const response = await fetch(endpoint, { cache: "no-store", headers: { Accept: "application/json" } });
+      const response = await fetch(endpoint, { cache: "no-store", headers: { Accept: CUSTOMER_V2_MEDIA_TYPE } });
       if (!response.ok) { setState(stateFor(response.status)); return; }
       const body: unknown = await response.json();
       if (!isServerCustomer(body)) { setState("server"); return; }
@@ -42,7 +45,7 @@ export function CustomerDetailPage({ customerId, locale, role }: { readonly cust
     try {
       const response = await fetch(endpoint, {
         method: "PATCH",
-        headers: { Accept: "application/json", "Content-Type": "application/json", "If-Match": `"${customer.version}"`, ...customerMutationHeaders() },
+        headers: { Accept: CUSTOMER_V2_MEDIA_TYPE, "Content-Type": "application/json", "If-Match": `"${customer.version}"`, ...customerMutationHeaders() },
         body: JSON.stringify(body),
       });
       if (!response.ok) {
@@ -61,11 +64,15 @@ export function CustomerDetailPage({ customerId, locale, role }: { readonly cust
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    const address = { line1: String(data.get("billingAddressLine1") ?? "").trim(), line2: String(data.get("billingAddressLine2") ?? "").trim() || null, city: String(data.get("billingAddressCity") ?? "").trim(), region: String(data.get("billingAddressRegion") ?? "").trim() || null, postalCode: String(data.get("billingAddressPostalCode") ?? "").trim() || null };
+    const hasAddress = Object.values(address).some(Boolean);
+    if (profileApi && hasAddress && (!address.line1 || !address.city)) { setNotice({ kind: "error", text: ar ? "أدخل سطر عنوان الفوترة والمدينة معاً، أو اترك جميع حقول العنوان فارغة." : "Enter both billing address line 1 and city, or leave all address fields blank." }); return; }
     await patch({
       legalName: String(data.get("legalName") ?? "").trim(),
       contactName: String(data.get("contactName") ?? "").trim() || null,
       email: String(data.get("email") ?? "").trim().toLowerCase() || null,
       phone: String(data.get("phone") ?? "").trim() || null,
+      ...(profileApi ? { legalNameAr: String(data.get("legalNameAr") ?? "").trim() || null, countryCode: String(data.get("countryCode") ?? "").trim().toUpperCase() || null, taxRegistrationNumber: String(data.get("taxRegistrationNumber") ?? "").trim() || null, paymentTermsDays: Number(data.get("paymentTermsDays") ?? 0), billingAddress: hasAddress ? address : null } : {}),
     }, ar ? "حفظ الخادم تغييرات العميل." : "Customer changes saved by the server.");
   }
 
@@ -76,7 +83,7 @@ export function CustomerDetailPage({ customerId, locale, role }: { readonly cust
         : (ar ? "خدمة العملاء غير متاحة." : "Customer service is unavailable.");
 
   return <section className={styles.page} dir={ar ? "rtl" : "ltr"} aria-labelledby="customer-title">
-    <header className={styles.header}><div><p className={styles.eyebrow}>{ar ? "سجل العميل" : "Customer record"}</p><h1 id="customer-title">{customer?.legalName ?? (ar ? "العميل" : "Customer")}</h1><p className={styles.subtitle}>{ar ? "هوية وتواصل وحالة محفوظة على الخادم." : "Server-persisted identity, contact, and lifecycle status."}</p></div><a href={`/masters/customers?locale=${locale}${role ? `&role=${encodeURIComponent(role)}` : ""}`}>{ar ? "العودة إلى العملاء" : "Back to customers"}</a></header>
+    <header className={styles.header}><div><p className={styles.eyebrow}>{ar ? "سجل العميل" : "Customer record"}</p><h1 id="customer-title">{(ar && customer?.legalNameAr ? customer.legalNameAr : customer?.legalName) ?? (ar ? "العميل" : "Customer")}</h1><p className={styles.subtitle}>{ar ? "هوية وتواصل وحالة محفوظة على الخادم." : "Server-persisted identity, contact, and lifecycle status."}</p></div><a href={`/masters/customers?locale=${locale}${role ? `&role=${encodeURIComponent(role)}` : ""}`}>{ar ? "العودة إلى العملاء" : "Back to customers"}</a></header>
     {state === "loading" ? <div className={styles.empty} role="status">{ar ? "جارٍ تحميل العميل من الخادم…" : "Loading customer from the server…"}</div>
       : state !== "ready" || !customer ? <div className={styles.errorState} role="alert"><h2>{unavailable}</h2><p>{ar ? "لم نعرض أي سجل نموذجي أو مخزن في المتصفح." : "No sample or browser-stored record was substituted."}</p><button type="button" onClick={() => void load()}>{ar ? "إعادة المحاولة" : "Try again"}</button></div>
       : <>
@@ -87,7 +94,7 @@ export function CustomerDetailPage({ customerId, locale, role }: { readonly cust
           <label>{ar ? "اسم جهة الاتصال" : "Contact name"}<input name="contactName" defaultValue={customer.contactName ?? ""} maxLength={160} disabled={submitting}/></label>
           <label>{ar ? "البريد الإلكتروني" : "Email"}<input name="email" type="email" defaultValue={customer.email ?? ""} maxLength={254} disabled={submitting}/></label>
           <label>{ar ? "الهاتف الدولي" : "International phone"}<input name="phone" type="tel" dir="ltr" defaultValue={customer.phone ?? ""} maxLength={32} disabled={submitting}/></label>
-          <div className={styles.formActions}><button type="submit" disabled={submitting}>{ar ? "حفظ التغييرات" : "Save changes"}</button></div>
+          {profileApi && <><label>{ar ? "الاسم القانوني بالعربية" : "Arabic legal name"}<input name="legalNameAr" dir="rtl" defaultValue={customer.legalNameAr ?? ""} maxLength={200} disabled={submitting}/></label><label>{ar ? "الدولة" : "Country"}<select name="countryCode" defaultValue={customer.countryCode ?? ""} disabled={submitting}><option value="">{ar ? "اختر الدولة" : "Select country"}</option>{ISO_COUNTRY_CODES.map((code) => <option key={code} value={code}>{new Intl.DisplayNames([locale], { type: "region" }).of(code)}</option>)}</select></label><label>{ar ? "الرقم الضريبي" : "Tax registration number"}<input name="taxRegistrationNumber" dir="ltr" defaultValue={customer.taxRegistrationNumber ?? ""} maxLength={64} disabled={submitting}/></label><label>{ar ? "أجل السداد بالأيام" : "Payment terms (days)"}<input name="paymentTermsDays" type="number" min={0} max={3650} defaultValue={customer.paymentTermsDays ?? 0} disabled={submitting}/></label><label>{ar ? "العنوان" : "Address"}<input name="billingAddressLine1" defaultValue={customer.billingAddress?.line1 ?? ""} maxLength={200} disabled={submitting}/></label><label>{ar ? "المدينة" : "City"}<input name="billingAddressCity" defaultValue={customer.billingAddress?.city ?? ""} maxLength={120} disabled={submitting}/></label><label>{ar ? "المنطقة" : "Region"}<input name="billingAddressRegion" defaultValue={customer.billingAddress?.region ?? ""} maxLength={120} disabled={submitting}/></label><label>{ar ? "الرمز البريدي" : "Postal code"}<input name="billingAddressPostalCode" defaultValue={customer.billingAddress?.postalCode ?? ""} maxLength={32} disabled={submitting}/></label><label>{ar ? "تفاصيل العنوان" : "Address line 2"}<input name="billingAddressLine2" defaultValue={customer.billingAddress?.line2 ?? ""} maxLength={200} disabled={submitting}/></label></>}<div className={styles.formActions}><button type="submit" disabled={submitting}>{ar ? "حفظ التغييرات" : "Save changes"}</button></div>
         </form>
         <section className={styles.card} aria-labelledby="customer-lifecycle-title"><h2 id="customer-lifecycle-title">{ar ? "دورة حياة العميل" : "Customer lifecycle"}</h2><p className={styles.muted}>{customer.status === "ACTIVE" ? (ar ? "أرشفة العميل تبقي سجله وتدقيقه محفوظين." : "Archiving keeps the customer record and audit history intact.") : (ar ? "يمكن إعادة تفعيل العميل المؤرشف عند استئناف التعامل." : "Reactivate the archived customer when trading resumes.")}</p><button type="button" data-operation-id="updateCustomer" disabled={submitting} onClick={() => {
           const archiving = customer.status === "ACTIVE";

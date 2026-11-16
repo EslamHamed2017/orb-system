@@ -3,7 +3,7 @@ import { partyCreateHandler, partyListHandler, type PartyPrincipal } from "../..
 // @ts-expect-error Native Node TypeScript tests require the source extension.
 import { CustomerProblem, type CustomerPrincipal as CustomerServicePrincipal, type CustomerRecord } from "../../../modules/customers/customer-service.ts";
 // @ts-expect-error Native Node TypeScript tests require the source extension.
-import { toPublicCustomer } from "../../../modules/customers/customer-response.ts";
+import { customerResponseVersion, toPublicCustomer } from "../../../modules/customers/customer-response.ts";
 // @ts-expect-error Native Node TypeScript tests require the source extension.
 import { customerRuntime } from "../../../modules/customers/customer-runtime.ts";
 // @ts-expect-error Native Node TypeScript tests require the source extension.
@@ -23,16 +23,17 @@ export interface CustomerCollectionDependencies {
 }
 export const createPartyListHandler = (dependencies: CustomerCollectionDependencies) => partyListHandler("customers", {
   authenticate: dependencies.authenticate,
-  ...(dependencies.list ? { list: async (input) => (await dependencies.list!({ ...input, principal: requireTenantPrincipal(input.principal) } as Parameters<NonNullable<CustomerCollectionDependencies["list"]>>[0])).map(toPublicCustomer) } : {}),
+  ...(dependencies.list ? { list: async (input) => (await dependencies.list!({ ...input, principal: requireTenantPrincipal(input.principal) } as Parameters<NonNullable<CustomerCollectionDependencies["list"]>>[0])).map((record) => toPublicCustomer(record, customerResponseVersion(input.request))) } : {}),
 });
 export const createPartyCreateHandler = (dependencies: CustomerCollectionDependencies) => partyCreateHandler("customers", {
   authenticate: dependencies.authenticate,
-  ...(dependencies.create ? { create: async (input) => toPublicCustomer(await dependencies.create!({ ...input, principal: requireTenantPrincipal(input.principal) } as Parameters<NonNullable<CustomerCollectionDependencies["create"]>>[0])) } : {}),
+  ...(dependencies.create ? { create: async (input) => toPublicCustomer(await dependencies.create!({ ...input, principal: requireTenantPrincipal(input.principal) } as Parameters<NonNullable<CustomerCollectionDependencies["create"]>>[0]), customerResponseVersion(input.request)) } : {}),
 });
 const production: CustomerCollectionDependencies = {
   authenticate: (request) => customerRuntime().authenticate(request),
   list: ({ principal }) => customerRuntime().service.list({ principal }),
   create: async ({ request, principal }) => { const key = validateCustomerMutationRequest(request), body = await json(request); return customerRuntime().create({ principal, body, key }); },
 };
-export const GET = createPartyListHandler(production);
+const listCustomers = createPartyListHandler(production);
+export async function GET(request: Request) { const response = await listCustomers(request); if (customerResponseVersion(request) === 2) response.headers.set("x-orb-customer-schema-version", "2"); return response; }
 export const POST = createPartyCreateHandler(production);

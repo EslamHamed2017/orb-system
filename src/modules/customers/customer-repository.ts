@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { CustomerProblem, type CustomerRecord, type CustomerRepository, type CustomerValues } from "./customer-service.ts";
 
@@ -6,9 +7,14 @@ interface CustomerRow {
   tenant_id: string;
   reference: string;
   legal_name: string;
+  legal_name_ar: string | null;
   contact_name: string | null;
   email: string | null;
   phone: string | null;
+  country_code: string | null;
+  tax_registration_number: string | null;
+  payment_terms_days: number;
+  billing_address: import("./customer-service.ts").BillingAddress | null;
   status: "ACTIVE" | "INACTIVE";
   version: number;
   created_at: Date;
@@ -38,8 +44,8 @@ export interface CustomerPrismaClient extends CustomerPrismaTransaction {
 
 function record(row: CustomerRow): CustomerRecord {
   return Object.freeze({
-    id: row.id, tenantId: row.tenant_id, reference: row.reference, legalName: row.legal_name,
-    contactName: row.contact_name, email: row.email, phone: row.phone, status: row.status,
+    id: row.id, tenantId: row.tenant_id, reference: row.reference, legalName: row.legal_name, legalNameAr: row.legal_name_ar,
+    contactName: row.contact_name, email: row.email, phone: row.phone, countryCode: row.country_code, taxRegistrationNumber: row.tax_registration_number, paymentTermsDays: row.payment_terms_days, billingAddress: row.billing_address, status: row.status,
     version: row.version, createdAt: row.created_at.toISOString(), updatedAt: row.updated_at.toISOString(),
   });
 }
@@ -48,9 +54,14 @@ function data(values: Partial<CustomerValues>): Record<string, unknown> {
   return {
     ...(values.reference === undefined ? {} : { reference: values.reference }),
     ...(values.legalName === undefined ? {} : { legal_name: values.legalName }),
+    ...(values.legalNameAr === undefined ? {} : { legal_name_ar: values.legalNameAr }),
     ...(values.contactName === undefined ? {} : { contact_name: values.contactName }),
     ...(values.email === undefined ? {} : { email: values.email }),
     ...(values.phone === undefined ? {} : { phone: values.phone }),
+    ...(values.countryCode === undefined ? {} : { country_code: values.countryCode }),
+    ...(values.taxRegistrationNumber === undefined ? {} : { tax_registration_number: values.taxRegistrationNumber }),
+    ...(values.paymentTermsDays === undefined ? {} : { payment_terms_days: values.paymentTermsDays }),
+    ...(values.billingAddress === undefined ? {} : { billing_address: values.billingAddress === null ? Prisma.DbNull : values.billingAddress }),
     ...(values.status === undefined ? {} : { status: values.status }),
   };
 }
@@ -102,8 +113,8 @@ export class PrismaCustomerRepository implements CustomerRepository {
         // The tagged-template API binds both UUIDs as parameters. FOR UPDATE makes the
         // snapshot returned after a lock wait the exact row this transaction will mutate.
         const rows = await transaction.$queryRaw<CustomerRow[]>`
-          SELECT "id", "tenant_id", "reference", "legal_name", "contact_name", "email", "phone",
-                 "status", "version", "created_at", "updated_at"
+          SELECT "id", "tenant_id", "reference", "legal_name", "legal_name_ar", "contact_name", "email", "phone",
+                 "country_code", "tax_registration_number", "payment_terms_days", "billing_address", "status", "version", "created_at", "updated_at"
           FROM "Customer"
           WHERE "id" = ${input.id}::uuid AND "tenant_id" = ${input.tenantId}::uuid
           FOR UPDATE

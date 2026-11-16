@@ -10,6 +10,11 @@ const customer = {
   contactName: "Mona Ali",
   email: "accounts@atlas.example",
   phone: "+971 50 123 4567",
+  legalNameAr: null,
+  countryCode: null,
+  taxRegistrationNumber: null,
+  paymentTermsDays: 0,
+  billingAddress: null,
   status: "ACTIVE",
   version: 1,
 };
@@ -53,4 +58,12 @@ test("customer success validation rejects invalid lifecycle, contact, and versio
     { ...customer, version: 1.5 },
     { ...customer, version: Number.MAX_SAFE_INTEGER + 1 },
   ]) assert.equal(isServerCustomer(malformed), false, JSON.stringify(malformed));
+});
+
+
+test("customer wire shape includes the persisted business profile", () => {
+  const profiled = { ...customer, legalNameAr: "شركة أطلس", countryCode: "AE", taxRegistrationNumber: "100200300", paymentTermsDays: 30, billingAddress: { line1: "Coffee District", line2: null, city: "Dubai", region: "Dubai", postalCode: null } };
+  assert.equal(isServerCustomer(profiled), true);
+  assert.equal(isServerCustomer({ ...profiled, countryCode: "UAE" }), false);
+  assert.equal(isServerCustomer({ ...profiled, paymentTermsDays: -1 }), false);
 });
