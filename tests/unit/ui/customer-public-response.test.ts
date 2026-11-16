@@ -27,7 +27,7 @@ test("customer response projects persisted records to a closed public DTO", () =
 test("customer collection route projects service records before JSON serialization", async () => {
   const { createPartyListHandler } = await import("../../../src/app/api/customers/route.ts");
   const handler = createPartyListHandler({
-    authenticate: async () => ({ userId: record.id, roles: ["OWNER_ADMIN"] }),
+    authenticate: async () => ({ userId: record.id, tenantId: record.tenantId, roles: ["OWNER_ADMIN"] }),
     list: async () => [record],
   });
   const response = await handler(new Request("https://orb.example/api/customers"));
@@ -41,7 +41,7 @@ test("customer collection route projects service records before JSON serializati
 test("customer record route projects service records before JSON serialization", async () => {
   const { createPartyGetHandler } = await import("../../../src/app/api/customers/[customerId]/route.ts");
   const handler = createPartyGetHandler({
-    authenticate: async () => ({ userId: record.id, roles: ["OWNER_ADMIN"] }),
+    authenticate: async () => ({ userId: record.id, tenantId: record.tenantId, roles: ["OWNER_ADMIN"] }),
     get: async () => record,
   });
   const response = await handler(new Request(`https://orb.example/api/customers/${record.id}`), { params: Promise.resolve({ customerId: record.id }) });
@@ -49,4 +49,28 @@ test("customer record route projects service records before JSON serialization",
   const body = await response.json();
   assert.equal(isServerCustomer(body), true);
   assert.equal("tenantId" in body, false);
+});
+
+
+test("customer route maps domain validation failures to stable problem details", async () => {
+  const { createPartyListHandler } = await import("../../../src/app/api/customers/route.ts");
+  const { CustomerProblem } = await import("../../../src/modules/customers/customer-service.ts");
+  const get = createPartyListHandler({
+    authenticate: async () => ({ userId: record.id, tenantId: record.tenantId, roles: ["OWNER_ADMIN"] }),
+    list: async () => { throw new CustomerProblem("VALIDATION_FAILED", 400, "Invalid customer filter"); },
+  });
+  const response = await get(new Request("https://orb.example/api/customers"));
+  assert.equal(response.status, 400);
+  assert.equal(response.headers.get("content-type"), "application/problem+json");
+  assert.deepEqual(await response.json().then(({ correlationId: _correlationId, ...body }) => body), {
+    type: "https://orb.example/problems/validation-failed", title: "VALIDATION_FAILED", status: 400, detail: "The request is invalid.", code: "VALIDATION_FAILED",
+  });
+});
+
+
+test("customer route does not expose unknown dependency errors as public problem details", async () => {
+  const { createPartyListHandler } = await import("../../../src/app/api/customers/route.ts");
+  const injected = { code: "INJECTED_ERROR", status: 418, message: "database secret" };
+  const get = createPartyListHandler({ authenticate: async () => ({ userId: record.id, tenantId: record.tenantId, roles: ["OWNER_ADMIN"] }), list: async () => { throw injected; } });
+  await assert.rejects(() => get(new Request("https://orb.example/api/customers")), (error) => error === injected);
 });

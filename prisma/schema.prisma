@@ -880,6 +880,7 @@ model Session {
   expires_at       DateTime  @db.Timestamptz(6)
   mfa_satisfied_at DateTime? @db.Timestamptz(6)
   revoked_at       DateTime? @db.Timestamptz(6)
+  token_hash      String?   @unique @db.Char(64)
   version          Int       @default(1)
   User             User      @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_2_Session")
 }
@@ -1221,6 +1222,7 @@ model Tenant {
   created_at         DateTime             @default(now()) @db.Timestamptz(6)
   Customer           Customer[]
   CustomerAuditEvent CustomerAuditEvent[]
+  TenantMembership   TenantMembership[]
 }
 
 /// Tenant-owned customer master with optimistic concurrency and tenant-scoped business reference.
@@ -1264,6 +1266,20 @@ model CustomerAuditEvent {
   @@index([actor_id])
 }
 
+model TenantMembership {
+  id         String   @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  tenant_id  String   @db.Uuid
+  user_id    String   @db.Uuid
+  status     String   @default("ACTIVE")
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+  Tenant     Tenant   @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User       User     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([tenant_id, user_id])
+  @@index([user_id, status])
+}
+
 model User {
   id                                         String                    @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
   auth_subject                               String                    @unique
@@ -1280,6 +1296,7 @@ model User {
   SystemSettings                             SystemSettings[]
   SettingsAuditEvent                         SettingsAuditEvent[]
   CustomerAuditEvent                         CustomerAuditEvent[]
+  TenantMembership                           TenantMembership[]
   IdempotencyRecord                          IdempotencyRecord[]
   OutboundSendAttempt                        OutboundSendAttempt[]
   PilotSession_PilotSession_user_idToUser    PilotSession[]            @relation("PilotSession_user_idToUser")

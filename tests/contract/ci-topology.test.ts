@@ -190,6 +190,6 @@ test("recorded Prisma schema and deterministic seed baseline verifies against so
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const baseline = JSON.parse(readFileSync(resolve(ROOT, "docs/baselines/r1-schema-seed.json"), "utf8"));
   assert.deepEqual({ models: baseline.schema.models, enums: baseline.schema.enums, tables: baseline.seed.tables, rows: baseline.seed.rows },
-    { models: 58, enums: 40, tables: 32, rows: 51 });
+    { models: 59, enums: 40, tables: 32, rows: 51 });
   assert.match(baseline.seed.digest, /^[a-f0-9]{64}$/);
 });

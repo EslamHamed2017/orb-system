@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server.js";
 
 export type PartyType = "customers" | "suppliers";
-export interface PartyPrincipal { readonly userId: string; readonly roles: readonly string[] }
+export interface PartyPrincipal { readonly userId: string; readonly tenantId?: string; readonly roles: readonly string[] }
 export interface PartyCollectionDependencies {
   readonly authenticate: (request: Request) => Promise<PartyPrincipal | null>;
   readonly list?: (input: { request: Request; masterType: PartyType; principal: PartyPrincipal }) => Promise<unknown>;
@@ -13,8 +13,24 @@ export interface PartyRecordDependencies {
   readonly update?: (input: { request: Request; masterType: PartyType; recordId: string; principal: PartyPrincipal }) => Promise<unknown>;
 }
 
-function problem(status: number, code: string) {
-  return NextResponse.json({ type: `https://orb.example/problems/${code.toLowerCase().replaceAll("_", "-")}`, title: code, status, detail: "The request could not be authorized safely.", code, correlationId: crypto.randomUUID() }, { status, headers: { "content-type": "application/problem+json", "Cache-Control": "no-store" } });
+function problem(status: number, code: string, detail = "The request could not be authorized safely.") {
+  return NextResponse.json({ type: `https://orb.example/problems/${code.toLowerCase().replaceAll("_", "-")}`, title: code, status, detail, code, correlationId: crypto.randomUUID() }, { status, headers: { "content-type": "application/problem+json", "Cache-Control": "no-store" } });
+}
+async function respond(work: () => Promise<unknown>, status = 200) {
+  try { return NextResponse.json(await work(), { status, headers: { "Cache-Control": "no-store" } }); }
+  catch (error) {
+    const candidate = error as { code?: unknown; status?: unknown };
+    const publicProblems: Readonly<Record<string, { status: number; detail: string }>> = Object.freeze({
+      VALIDATION_FAILED: { status: 400, detail: "The request is invalid." },
+      PERMISSION_DENIED: { status: 403, detail: "The requested action is not permitted." },
+      RESOURCE_NOT_FOUND: { status: 404, detail: "The requested record was not found." },
+      DUPLICATE_REFERENCE: { status: 409, detail: "That reference is already in use." },
+      STALE_VERSION: { status: 412, detail: "The record changed since it was loaded. Refresh and try again." },
+    });
+    const mapped = typeof candidate.code === "string" ? publicProblems[candidate.code] : undefined;
+    if (mapped && candidate.status === mapped.status) return problem(mapped.status, candidate.code as string, mapped.detail);
+    throw error;
+  }
 }
 async function authorize(authenticate: PartyCollectionDependencies["authenticate"], request: Request, mutation: boolean) {
   const principal = await authenticate(request);
@@ -28,7 +44,7 @@ export function partyListHandler(masterType: PartyType, dependencies: PartyColle
     const auth = await authorize(dependencies.authenticate, request, false);
     if (auth.response) return auth.response;
     if (!dependencies.list) return problem(503, "DEPENDENCY_UNAVAILABLE");
-    return NextResponse.json({ items: await dependencies.list({ request, masterType, principal: auth.principal! }), nextCursor: null }, { headers: { "Cache-Control": "no-store" } });
+    return respond(async () => ({ items: await dependencies.list!({ request, masterType, principal: auth.principal! }), nextCursor: null }));
   };
 }
 export function partyCreateHandler(masterType: PartyType, dependencies: PartyCollectionDependencies) {
@@ -36,7 +52,7 @@ export function partyCreateHandler(masterType: PartyType, dependencies: PartyCol
     const auth = await authorize(dependencies.authenticate, request, true);
     if (auth.response) return auth.response;
     if (!dependencies.create) return problem(503, "DEPENDENCY_UNAVAILABLE");
-    return NextResponse.json(await dependencies.create({ request, masterType, principal: auth.principal! }), { status: 201, headers: { "Cache-Control": "no-store" } });
+    return respond(() => dependencies.create!({ request, masterType, principal: auth.principal! }), 201);
   };
 }
 export function partyGetHandler(masterType: PartyType, idParameter: string, dependencies: PartyRecordDependencies) {
@@ -45,7 +61,7 @@ export function partyGetHandler(masterType: PartyType, idParameter: string, depe
     if (auth.response) return auth.response;
     if (!dependencies.get) return problem(503, "DEPENDENCY_UNAVAILABLE");
     const recordId = (await context.params)[idParameter];
-    return NextResponse.json(await dependencies.get({ request, masterType, recordId, principal: auth.principal! }), { headers: { "Cache-Control": "no-store" } });
+    return respond(() => dependencies.get!({ request, masterType, recordId, principal: auth.principal! }));
   };
 }
 export function partyPatchHandler(masterType: PartyType, idParameter: string, dependencies: PartyRecordDependencies) {
@@ -54,6 +70,6 @@ export function partyPatchHandler(masterType: PartyType, idParameter: string, de
     if (auth.response) return auth.response;
     if (!dependencies.update) return problem(503, "DEPENDENCY_UNAVAILABLE");
     const recordId = (await context.params)[idParameter];
-    return NextResponse.json(await dependencies.update({ request, masterType, recordId, principal: auth.principal! }), { headers: { "Cache-Control": "no-store" } });
+    return respond(() => dependencies.update!({ request, masterType, recordId, principal: auth.principal! }));
   };
 }
