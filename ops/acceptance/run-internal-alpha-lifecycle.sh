@@ -57,6 +57,8 @@ corepack pnpm build
 ORB_TEST_MANAGED_SERVER=1 corepack pnpm exec playwright test \
   tests/acceptance/internal-alpha-lifecycle.spec.ts \
   tests/acceptance/a17-project-sales-invoices.spec.ts \
+  tests/acceptance/a21-accounts-daily-hub.spec.ts \
+  tests/acceptance/a32-browser-finance-registers.spec.ts \
   tests/acceptance/a29-invoice-print-output.spec.ts \
   tests/acceptance/a30-financial-attachments.spec.ts \
   --project=chromium

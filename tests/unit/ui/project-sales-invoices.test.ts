@@ -46,6 +46,26 @@ test("project-filtered sales invoice page is bilingual and connected to project 
 });
 
 
+test("global sales invoice route loads persisted records without requiring a project filter", () => {
+  const route = readFileSync("src/app/accounts/sales-invoices/page.tsx", "utf8");
+  const loader = readFileSync("src/modules/invoices/load-project-sales-invoices.ts", "utf8");
+  assert.doesNotMatch(route, /if \(!projectId \|\| !databaseAvailable\)/);
+  assert.match(route, /loadProjectSalesInvoices\(projectId\)/);
+  assert.match(loader, /projectId\?: string/);
+  assert.match(loader, /\$1::text IS NULL OR i\.project_id::text = \$1/);
+});
+
+test("persisted invoice lines expose a source-derived unit and allocations match invoice currency, project, and customer", () => {
+  const loader = readFileSync("src/modules/invoices/load-project-sales-invoices.ts", "utf8");
+  assert.doesNotMatch(loader, /'unit', ''/);
+  assert.match(loader, /'unit', CASE/);
+  assert.match(loader, /JOIN "MoneyMovement" movement/);
+  assert.match(loader, /allocation\.currency = i\.currency/);
+  assert.match(loader, /movement\.project_id = i\.project_id/);
+  assert.match(loader, /movement\.party_id = i\.customer_id/);
+  assert.doesNotMatch(loader, /movement\.state/);
+});
+
 test("persisted sales invoice register uses the database allocation contract and loads traced lines", () => {
   const loader = readFileSync("src/modules/invoices/load-project-sales-invoices.ts", "utf8");
   assert.match(loader, /target_type::text = 'CINV'/);

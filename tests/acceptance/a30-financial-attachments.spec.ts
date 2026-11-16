@@ -18,15 +18,17 @@ for (const item of cases) {
     } else {
       await expect(panel).toHaveCount(1);
       await expect(panel.getByRole("heading", { name: item.title })).toBeVisible();
-      await expect(panel.locator(`input[name=\"subjectType\"][value=\"${item.subject}\"]`)).toHaveCount(1);
-      await expect(panel.locator(`input[name=\"subjectId\"][value=\"${item.id}\"]`)).toHaveCount(1);
-      await expect(panel.getByRole("button", { name: /Upload and verify|رفع والتحقق/ })).toBeVisible();
+      const expectedUploadControls = item.subject === "SALES_INVOICE" ? 0 : 1;
+      await expect(panel.locator(`input[name=\"subjectType\"][value=\"${item.subject}\"]`)).toHaveCount(expectedUploadControls);
+      await expect(panel.locator(`input[name=\"subjectId\"][value=\"${item.id}\"]`)).toHaveCount(expectedUploadControls);
+      await expect(panel.getByRole("button", { name: /Upload and verify|رفع والتحقق/ })).toHaveCount(expectedUploadControls);
+      if (item.subject === "SALES_INVOICE") await expect(panel.getByText(/Read-only attachments/)).toBeVisible();
     }
   });
 }
 
-test("finance viewer receives read-only financial attachments", async ({ page }) => {
-  await page.goto("/accounts/sales-invoices?projectId=00000000-0000-7000-8000-000000000201&locale=en&role=finance-viewer");
+test("role query parameters cannot grant sales invoice attachment uploads", async ({ page }) => {
+  await page.goto("/accounts/sales-invoices?projectId=00000000-0000-7000-8000-000000000201&locale=en&role=operations");
   const panel = page.locator("section[data-backend-endpoint*=\"subjectType=SALES_INVOICE\"]");
   const unavailable = page.getByRole("status").filter({ hasText: "no sample records are shown" });
   await expect(panel.or(unavailable)).toBeVisible();

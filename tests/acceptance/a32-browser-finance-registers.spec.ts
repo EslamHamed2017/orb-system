@@ -12,25 +12,30 @@ test("finance task routes show server-rendered records with correct headings", a
   for (const [route, title, reference] of routes) {
     await page.goto(`/accounts/${route}?locale=en`);
     await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
-    const table = page.getByRole("table");
-    if (route === "sales-invoices" && await page.getByRole("status").isVisible()) {
-      await expect(page.getByRole("status")).toContainText("no sample records are shown");
-      await expect(table.getByRole("row")).toHaveCount(1);
+    const table = page.getByRole("table").first();
+    if (route === "sales-invoices") {
+      const unavailable = page.getByRole("status").filter({ hasText: "no sample records are shown" });
+      if (await unavailable.isVisible()) await expect(table.getByRole("row")).toHaveCount(1);
+      else {
+        await expect(table.getByText("R1-CINV-001")).toBeVisible();
+        await expect(table).not.toContainText("SINV-2026-014");
+      }
     } else await expect(table.getByText(reference)).toBeVisible();
     await expect(page.locator("body")).not.toContainText(/DEMO|PLACEHOLDER/i);
   }
 });
 
 test("finance task routes with projectId filter show only project-scoped records", async ({ page }) => {
-  await page.goto("/accounts/sales-invoices?locale=en&projectId=project-1");
+  await page.goto("/accounts/sales-invoices?locale=en&projectId=00000000-0000-7000-8000-000000000201");
   await expect(page.getByRole("heading", { level: 1, name: "Sales invoices" })).toBeVisible();
   const table = page.getByRole("table");
-  await expect(page.getByRole("status")).toContainText("no sample records are shown");
-  await expect(table.getByRole("row")).toHaveCount(1);
+  const unavailable = page.getByRole("status").filter({ hasText: "no sample records are shown" });
+  if (await unavailable.isVisible()) await expect(table.getByRole("row")).toHaveCount(1);
+  else await expect(table.getByText("R1-CINV-001")).toBeVisible();
 });
 
-test("finance viewer receives read-only view on server-rendered pages", async ({ page }) => {
-  await page.goto("/accounts/sales-invoices?locale=en&role=finance-viewer&projectId=project-1");
+test("role query cannot grant write authority on server-rendered sales invoices", async ({ page }) => {
+  await page.goto("/accounts/sales-invoices?locale=en&role=operations&projectId=00000000-0000-7000-8000-000000000201");
   await expect(page.getByRole("heading", { level: 1, name: "Sales invoices" })).toBeVisible();
   await expect(page.locator("body")).not.toContainText(/DEMO/i);
 });

@@ -7,9 +7,8 @@ export interface SalesInvoiceListItem {
 }
 interface LineRow { id: string; description: string; source_reference: string; quantity: string; unit: string; unit_price: string; amount: string }
 interface Row { id: string; project_id: string; project_reference: string; shipment_id: string; shipment_reference: string; invoice_date: string | Date; state: string; reference: string; currency: string; amount: string; outstanding_amount: string; party_name: string; party_name_ar: string; lines: LineRow[] | null }
-export async function loadProjectSalesInvoices(projectId: string): Promise<readonly SalesInvoiceListItem[]> {
-  const selected = projectId.trim();
-  if (!selected) throw new TypeError("Project ID is required");
+export async function loadProjectSalesInvoices(projectId?: string): Promise<readonly SalesInvoiceListItem[]> {
+  const selected = projectId?.trim() || null;
   if (!process.env.DATABASE_URL) throw new Error("Sales invoice database is unavailable");
   // @ts-expect-error pg is an accepted runtime dependency; optional declarations are intentionally absent.
   const { Client } = await import("pg");
@@ -35,7 +34,11 @@ export async function loadProjectSalesInvoices(projectId: string): Promise<reado
                  'description', line.description,
                  'source_reference', s.reference || ' · ' || source_line.line_no::text,
                  'quantity', line.quantity::text,
-                 'unit', '',
+                 'unit', CASE
+                   WHEN source_line.quantity * 1000 = source_line.net_weight THEN 'MT'
+                   WHEN source_line.quantity = source_line.net_weight THEN 'kg'
+                   ELSE 'unit'
+                 END,
                  'unit_price', line.unit_price::text,
                  'amount', line.line_amount::text
                ) ORDER BY line.line_no) AS items
@@ -45,8 +48,19 @@ export async function loadProjectSalesInvoices(projectId: string): Promise<reado
          AND source_line.sales_shipment_dataset_id = line.sales_shipment_dataset_id
         WHERE line.sales_invoice_id = i.id
       ) lines ON true
-      LEFT JOIN LATERAL (SELECT SUM(amount) AS amount FROM "SettlementAllocation" WHERE target_type::text = 'CINV' AND target_id = i.id AND state::text = 'ACTIVE') allocations ON true
-      WHERE i.project_id::text = $1 AND i.state::text <> 'CANCELLED'
+      LEFT JOIN LATERAL (
+        SELECT SUM(allocation.amount) AS amount
+        FROM "SettlementAllocation" allocation
+        JOIN "MoneyMovement" movement ON movement.id = allocation.movement_id
+        WHERE allocation.target_type::text = 'CINV'
+          AND allocation.target_id = i.id
+          AND allocation.state::text = 'ACTIVE'
+          AND allocation.currency = i.currency
+          AND movement.currency = i.currency
+          AND movement.project_id = i.project_id
+          AND movement.party_id = i.customer_id
+      ) allocations ON true
+      WHERE ($1::text IS NULL OR i.project_id::text = $1) AND i.state::text <> 'CANCELLED'
       ORDER BY i.invoice_date DESC, i.id ASC
     `, [selected]) as { rows: Row[] };
     return Object.freeze(result.rows.map((row: Row) => Object.freeze({

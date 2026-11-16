@@ -43,11 +43,15 @@ for (const [file, subjectType] of [
   });
 }
 
-test("server-rendered finance registers are permission-shaped through canUpload and preserve role in query type", () => {
-  for (const route of ["sales-invoices", "supplier-invoices", "collections", "supplier-payments"]) {
+test("server-rendered finance registers are permission-shaped and sales invoices fail closed without server authorization", () => {
+  for (const route of ["supplier-invoices", "collections", "supplier-payments"]) {
     const page = readFileSync(`src/app/accounts/${route}/page.tsx`, "utf8");
     assert.match(page, /role\?: string/);
     assert.match(page, /canUpload={query\.role !== "finance-viewer"}/);
     assert.doesNotMatch(page, /BrowserFinanceRegisterPage/);
   }
+  const salesInvoices = readFileSync("src/app/accounts/sales-invoices/page.tsx", "utf8");
+  assert.doesNotMatch(salesInvoices, /role\?: string|query\.role/);
+  assert.match(salesInvoices, /canUpload={false}/);
+  assert.doesNotMatch(salesInvoices, /BrowserFinanceRegisterPage/);
 });

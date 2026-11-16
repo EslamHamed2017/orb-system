@@ -33,6 +33,9 @@ test("browser finance register scopes to the requested project and exposes busin
 });
 
 test("browser finance register has bilingual truthful states and no known fixture presentation", () => {
+  const salesInvoices = readFileSync("src/app/accounts/sales-invoices/page.tsx", "utf8");
+  assert.doesNotMatch(salesInvoices, /readonly role\?: string|query\.role/);
+  assert.match(salesInvoices, /canUpload={false}/);
   const component = readFileSync("src/ui/features/accounts/BrowserFinanceRegisterPage.tsx", "utf8");
   assert.match(component, /Loading saved records/);
   assert.match(component, /جارٍ تحميل السجلات المحفوظة/);
@@ -54,24 +57,27 @@ test("duplicate persisted project IDs fail closed", () => {
   assert.throws(() => parseProjectRecords(JSON.stringify([project, { ...project, code: "ORB-P-DUPLICATE" }])), /CORRUPT_PROJECT_STORAGE/);
 });
 
-test("all finance routes preserve role context in query type and permission-shape through canUpload", () => {
-  for (const route of ["supplier-invoices", "supplier-payments", "sales-invoices", "collections", "expenses"]) {
+test("legacy finance routes preserve role context while persisted sales invoices reject query-role authority", () => {
+  for (const route of ["supplier-invoices", "supplier-payments", "collections", "expenses"]) {
     const source = readFileSync(`src/app/accounts/${route}/page.tsx`, "utf8");
     assert.match(source, /readonly role\?: string/);
     assert.match(source, /canUpload={query\.role !== "finance-viewer"}/);
   }
+  const salesInvoices = readFileSync("src/app/accounts/sales-invoices/page.tsx", "utf8");
+  assert.doesNotMatch(salesInvoices, /readonly role\?: string|query\.role/);
+  assert.match(salesInvoices, /canUpload={false}/);
   const component = readFileSync("src/ui/features/accounts/BrowserFinanceRegisterPage.tsx", "utf8");
   assert.match(component, /queryFor\(locale, role\)/);
 });
 
 
-test("finance hub and saved project destination preserve viewer role and fail closed", () => {
+test("finance hub ignores caller roles while legacy saved project destinations remain fail closed", () => {
   const accountsRoute = readFileSync("src/app/accounts/page.tsx", "utf8");
   const hub = readFileSync("src/ui/features/accounts/AccountsHubPage.tsx", "utf8");
   const overview = readFileSync("src/app/projects/[id]/overview/page.tsx", "utf8");
   const detail = readFileSync("src/ui/features/projects/SavedProjectDetail.tsx", "utf8");
-  assert.match(accountsRoute, /role=\{query\.role/);
-  assert.match(hub, /role\?: string/);
+  assert.doesNotMatch(accountsRoute, /role|query\.role/);
+  assert.doesNotMatch(hub, /role\?: string/);
   assert.match(overview, /canMutate=\{query\.role !== "finance-viewer"\}/);
   assert.match(detail, /if \(!canMutate\) throw new Error\("READ_ONLY_ROLE"\)/);
   assert.match(detail, /canMutate \? project\.supplierPayment/);

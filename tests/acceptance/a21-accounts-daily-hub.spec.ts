@@ -29,10 +29,17 @@ async function createActiveProject(page: Page, locale: "en" | "ar" = "en"): Prom
 test("accounts hub exposes operational summary with currency sections and account destinations", async ({ page }) => {
   await page.goto("/accounts?locale=en");
   await expect(page.getByRole("heading", { level: 1, name: "Accounts hub" })).toBeVisible();
-  await expect(page.getByLabel("Accounts summary by currency").getByRole("heading", { level: 2 })).toHaveCount(2);
-  const sections = page.getByRole("navigation", { name: "Accounts sections" });
-  await expect(sections.getByRole("link")).toHaveCount(5);
-  await expect(page.getByRole("table").getByRole("row")).toHaveCount(5);
+  const unavailable = page.getByRole("status").filter({ hasText: "no sample records are shown" });
+  const sections = page.getByRole("navigation", { name: "Available persisted accounts sections" });
+  await expect(sections.getByRole("link")).toHaveCount(1);
+  if (await unavailable.isVisible()) {
+    await expect(page.getByRole("table")).toHaveCount(0);
+    await expect(page.getByLabel("Persisted sales invoice activity by currency")).toHaveCount(0);
+  } else {
+    await expect(page.getByLabel("Persisted sales invoice activity by currency").getByRole("heading", { level: 2, name: "USD" })).toBeVisible();
+    await expect(page.getByRole("table").getByText("R1-CINV-001")).toBeVisible();
+    await expect(page.getByRole("table")).not.toContainText(/PINV-2026-044|PAY-2026-044|COL-2026-014/);
+  }
   await expect(page.locator("body")).not.toContainText(/SETUP|ACTIVE|CLOSED|EXTERNAL_SEND|OUTBOUND_MANIFEST|[a-f0-9]{32}/);
 });
 

@@ -44,6 +44,31 @@ test("Accounts hub is an independent bilingual primary destination with direct s
   assert.match(navigation, /label={label\("Accounts", "الحسابات"\)}/);
 });
 
+test("Accounts hub renders supplied persisted activity and contains no fixed transaction fixture", () => {
+  const page = readFileSync("src/ui/features/accounts/AccountsHubPage.tsx", "utf8");
+  const route = readFileSync("src/app/accounts/page.tsx", "utf8");
+  assert.doesNotMatch(page, /const recentRecords\s*=\s*\[|PINV-2026-044|PAY-2026-044|COL-2026-014/);
+  assert.match(page, /records: readonly AccountHubRecord\[\]/);
+  assert.match(page, /selectRecentAccountRecords\(records/);
+  assert.match(route, /loadProjectSalesInvoices/);
+  assert.match(route, /records=/);
+});
+
+test("Accounts hub exposes only persisted destinations and wraps them as responsive cards", () => {
+  const page = readFileSync("src/ui/features/accounts/AccountsHubPage.tsx", "utf8");
+  const styles = readFileSync("src/ui/features/accounts/AccountsHubPage.module.css", "utf8");
+  assert.match(page, /filter\(\(destination\) => destination\.key === "salesInvoices"\)/);
+  assert.match(page, /className=\{styles\.destinationGrid\}/);
+  assert.match(page, /className=\{styles\.destinationCard\}/);
+  assert.match(styles, /\.page>\*\{min-inline-size:0\}/);
+  assert.match(styles, /\.destinationGrid\{/);
+  assert.match(styles, /grid-template-columns:repeat\(auto-fit,minmax\(min\(100%,14rem\),1fr\)\)/);
+  assert.match(page, /const activeRecords = selectRecentAccountRecords\(records, records\.length\)/);
+  assert.match(page, /new Set\(activeRecords\.map/);
+  assert.match(page, /Recent persisted sales invoices/);
+  assert.match(page, /آخر فواتير المبيعات المحفوظة/);
+});
+
 test("account activity links resolve to canonical typed list routes", () => {
   assert.equal(accountRecordHref("SALES_INVOICE", "en"), "/accounts/sales-invoices?locale=en");
   assert.equal(accountRecordHref("SUPPLIER_PAYMENT", "ar"), "/accounts/supplier-payments?locale=ar");
