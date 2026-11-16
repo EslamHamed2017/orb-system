@@ -98,11 +98,14 @@ test("server-declared read-only customer access hides mutation actions", async (
   await page.route("**/api/customers", async (route) => route.fulfill({ status: 200, contentType: "application/json", headers: { "x-orb-customer-schema-version": "2", "x-orb-customer-write-permitted": "false" }, body: JSON.stringify({ items: [customer], nextCursor: null }) }));
   await page.route(`**/api/customers/${id}`, async (route) => route.fulfill({ status: 200, contentType: "application/json", headers: { "x-orb-customer-write-permitted": "false" }, body: JSON.stringify(customer) }));
   await page.goto("/masters/customers?locale=en");
-  await expect(page.getByRole("button", { name: "Add customer" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Add customer" })).toHaveCount(0);
   await expect(page.getByText("You can view customers, but your current role cannot change them.", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Viewer Customer" }).click();
   await expect(page.getByRole("button", { name: "Save changes" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Archive customer" })).toHaveCount(0);
+  await expect(page.locator('form[data-operation-id="updateCustomer"]')).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Customer details" })).toBeVisible();
+  await expect(page.getByText("viewer@example.test", { exact: true })).toBeVisible();
   await expect(page.getByText("You can view this customer, but your current role cannot change it.", { exact: true })).toBeVisible();
 });
 
