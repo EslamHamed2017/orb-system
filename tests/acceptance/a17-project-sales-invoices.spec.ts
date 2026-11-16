@@ -16,12 +16,24 @@ for (const locale of ["en", "ar"] as const) {
     } else {
       await expect(table.getByText("R1-CINV-001")).toBeVisible();
       await expect(table.getByText("R1-CINV-NOT-PRESENT")).toHaveCount(0);
-      await expect(table.getByRole("link", { name: "ORB-R1-SAL-100MT" })).toHaveAttribute("href", `/sales-shipments/00000000-0000-7000-8000-000000000232?locale=${locale}`);
+      const shipmentLink = table.getByRole("link", { name: "ORB-R1-SAL-100MT" });
+      await expect(shipmentLink).toHaveAttribute("href", `/sales-shipments/00000000-0000-7000-8000-000000000232?locale=${locale}&projectId=00000000-0000-7000-8000-000000000201`);
       await expect(page.getByText(ar ? "1 فاتورة نشطة" : "1 active invoice")).toBeVisible();
       const printTable = page.getByRole("table", { name: ar ? "بنود الفاتورة وتتبع المصدر" : "Invoice lines and source traceability" });
       await expect(printTable).toContainText("100MT Ethiopian Arabica");
       await expect(printTable).toContainText("ORB-R1-SAL-100MT · 1");
       await expect(printTable).toContainText("USD 850.000000");
+      await shipmentLink.click();
+      await expect(page.getByRole("heading", { level: 1, name: ar ? "مساحة شحنة البيع" : "Sales shipment workspace" })).toBeVisible();
+      await expect(page.getByText("ORB-R1-SAL-100MT", { exact: true }).first()).toBeVisible();
+      await expect(page.getByText("ORB-R1-PROJECT-A", { exact: true }).first()).toBeVisible();
+      await expect(page.getByText("ORB-SAL-0007", { exact: true })).toHaveCount(0);
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.screenshot({ path: `artifacts/ui-review/persisted-sales-invoices/shipment-desktop-${locale}.png`, fullPage: true });
+      await page.setViewportSize({ width: 390, height: 844 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+      await page.screenshot({ path: `artifacts/ui-review/persisted-sales-invoices/shipment-mobile-${locale}.png`, fullPage: true });
+      await page.goBack();
     }
     const evidence = `artifacts/ui-review/persisted-sales-invoices/desktop-${locale}.png`;
     await page.setViewportSize({ width: 1280, height: 900 });
