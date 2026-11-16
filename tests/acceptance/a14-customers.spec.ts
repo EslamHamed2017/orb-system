@@ -15,10 +15,11 @@ for (const locale of ["en", "ar"] as const) {
 }
 
 test("an authenticated server response is rendered without fixture fallback", async ({ page }) => {
-  await page.route("**/api/customers", async (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [{ id: "11111111-1111-4111-8111-111111111111", reference: "CUS-101", legalNameAr: "شركة أطلس", legalNameEn: "Atlas Trading", countryCode: "AE", active: true, version: 1 }], nextCursor: null }) }));
+  await page.route("**/api/customers", async (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [{ id: "11111111-1111-4111-8111-111111111111", reference: "CUS-101", legalName: "Atlas Trading", contactName: "Mona Ali", email: "accounts@atlas.example", phone: "+971 50 123 4567", status: "ACTIVE", version: 1 }], nextCursor: null }) }));
   await page.goto("/masters/customers?locale=en");
   await expect(page.getByRole("table")).toContainText("Atlas Trading");
-  await expect(page.getByRole("table")).toContainText("شركة أطلس");
+  await expect(page.getByRole("table")).toContainText("Mona Ali");
+  await expect(page.getByRole("table")).toContainText("accounts@atlas.example");
   await expect(page.locator("body")).not.toContainText("Northstar Roasters");
 });
 
@@ -27,19 +28,34 @@ test("customer creation posts only the strict server payload and trusts only a v
   await page.route("**/api/customers", async (route) => {
     if (route.request().method() === "GET") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [], nextCursor: null }) });
     requests.push(route.request().postDataJSON());
-    return route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ id: "22222222-2222-4222-8222-222222222222", reference: "CUS-102", legalNameAr: "شركة البن", legalNameEn: "Coffee Company", countryCode: "SA", active: true, version: 1 }) });
+    return route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ id: "22222222-2222-4222-8222-222222222222", reference: "CUS-102", legalName: "Coffee Company", contactName: "Sara Saleh", email: "accounts@coffee.example", phone: null, status: "ACTIVE", version: 1 }) });
   });
   await page.goto("/masters/customers?locale=en");
   await expect(page.getByRole("heading", { name: "No customers registered yet" })).toBeVisible();
   await page.getByRole("button", { name: "Add customer" }).click();
   await page.getByLabel("Reference").fill(" cus-102 ");
-  await page.getByLabel("English legal name").fill(" Coffee Company ");
-  await page.getByLabel("Arabic legal name").fill(" شركة البن ");
-  await page.getByLabel("Country code").fill("sa");
+  await page.getByLabel("Legal name").fill(" Coffee Company ");
+  await page.getByLabel("Contact name").fill(" Sara Saleh ");
+  await page.getByLabel("Email").fill(" Accounts@Coffee.Example ");
   await page.getByRole("button", { name: "Save customer on server" }).click();
   await expect(page.getByRole("status")).toHaveText("Customer saved by the server.");
-  expect(requests).toEqual([{ reference: "CUS-102", legalNameEn: "Coffee Company", legalNameAr: "شركة البن", countryCode: "SA" }]);
+  expect(requests).toEqual([{ reference: "CUS-102", legalName: "Coffee Company", contactName: "Sara Saleh", email: "accounts@coffee.example", phone: null }]);
   await expect(page.getByRole("table")).toContainText("CUS-102");
+});
+
+test("customer creation requires email or international phone before contacting the server", async ({ page }) => {
+  let postCount = 0;
+  await page.route("**/api/customers", async (route) => {
+    if (route.request().method() === "POST") postCount += 1;
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [], nextCursor: null }) });
+  });
+  await page.goto("/masters/customers?locale=en");
+  await page.getByRole("button", { name: "Add customer" }).click();
+  await page.getByLabel("Reference").fill("CUS-NO-CONTACT");
+  await page.getByLabel("Legal name").fill("No Contact Customer");
+  await page.getByRole("button", { name: "Save customer on server" }).click();
+  await expect(page.getByText("Enter an email or international phone number before saving.", { exact: true })).toBeVisible();
+  expect(postCount).toBe(0);
 });
 
 test("invalid success response never fabricates a saved customer", async ({ page }) => {
@@ -49,8 +65,8 @@ test("invalid success response never fabricates a saved customer", async ({ page
   });
   await page.goto("/masters/customers?locale=en");
   await page.getByRole("button", { name: "Add customer" }).click();
-  await page.getByLabel("Reference").fill("CUS-103"); await page.getByLabel("English legal name").fill("Not Saved");
-  await page.getByLabel("Arabic legal name").fill("غير محفوظ"); await page.getByLabel("Country code").fill("AE");
+  await page.getByLabel("Reference").fill("CUS-103"); await page.getByLabel("Legal name").fill("Not Saved");
+  await page.getByLabel("Email").fill("not-saved@example.test");
   await page.getByRole("button", { name: "Save customer on server" }).click();
   await expect(page.getByText("The server returned an invalid response. No saved record was shown.", { exact: true })).toBeVisible();
   await expect(page.getByRole("table")).toHaveCount(0);
@@ -66,16 +82,26 @@ test("mobile Arabic fail-closed state remains responsive above bottom navigation
 });
 
 
+test("mobile Arabic persisted customer state keeps the primary action visible without overflow", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/api/customers", async (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [{ id: "55555555-5555-4555-8555-555555555555", reference: "CUS-AR", legalName: "شركة أطلس", contactName: "منى علي", email: "accounts@atlas.example", phone: null, status: "ACTIVE", version: 1 }], nextCursor: null }) }));
+  await page.goto("/masters/customers?locale=ar");
+  await expect(page.getByRole("button", { name: "إضافة عميل" })).toBeVisible();
+  await expect(page.getByRole("table")).toContainText("شركة أطلس");
+  await expect(page.locator("main > section")).toHaveAttribute("dir", "rtl");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+});
+
 test("a create 403 is a form error and preserves the authorized read-only directory", async ({ page }) => {
   await page.route("**/api/customers", async (route) => {
-    if (route.request().method() === "GET") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [{ id: "33333333-3333-4333-8333-333333333333", reference: "CUS-403", legalNameAr: "عميل المالية", legalNameEn: "Finance Customer", countryCode: "AE", active: true, version: 1 }], nextCursor: null }) });
+    if (route.request().method() === "GET") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [{ id: "33333333-3333-4333-8333-333333333333", reference: "CUS-403", legalName: "Finance Customer", contactName: null, email: "finance@example.test", phone: null, status: "ACTIVE", version: 1 }], nextCursor: null }) });
     return route.fulfill({ status: 403, contentType: "application/problem+json", body: JSON.stringify({ code: "PERMISSION_DENIED" }) });
   });
   await page.goto("/masters/customers?locale=en");
   await expect(page.getByRole("table")).toContainText("Finance Customer");
   await page.getByRole("button", { name: "Add customer" }).click();
-  await page.getByLabel("Reference").fill("CUS-404"); await page.getByLabel("English legal name").fill("Denied Customer");
-  await page.getByLabel("Arabic legal name").fill("عميل مرفوض"); await page.getByLabel("Country code").fill("AE");
+  await page.getByLabel("Reference").fill("CUS-404"); await page.getByLabel("Legal name").fill("Denied Customer");
+  await page.getByLabel("Email").fill("denied@example.test");
   await page.getByRole("button", { name: "Save customer on server" }).click();
   await expect(page.getByText("You do not have permission to save customers.", { exact: true })).toBeVisible();
   await expect(page.getByRole("table")).toContainText("Finance Customer");
@@ -85,14 +111,14 @@ test("a create 403 is a form error and preserves the authorized read-only direct
 
 test("a create 401 clears prior tenant rows and aggregates before showing sign-in state", async ({ page }) => {
   await page.route("**/api/customers", async (route) => {
-    if (route.request().method() === "GET") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [{ id: "44444444-4444-4444-8444-444444444444", reference: "CUS-401", legalNameAr: "عميل سابق", legalNameEn: "Prior Tenant Customer", countryCode: "SA", active: true, version: 2 }], nextCursor: null }) });
+    if (route.request().method() === "GET") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [{ id: "44444444-4444-4444-8444-444444444444", reference: "CUS-401", legalName: "Prior Tenant Customer", contactName: null, email: null, phone: "+966 50 123 4567", status: "ACTIVE", version: 2 }], nextCursor: null }) });
     return route.fulfill({ status: 401, contentType: "application/problem+json", body: JSON.stringify({ code: "AUTHENTICATION_REQUIRED" }) });
   });
   await page.goto("/masters/customers?locale=en");
   await expect(page.getByRole("table")).toContainText("Prior Tenant Customer");
   await page.getByRole("button", { name: "Add customer" }).click();
-  await page.getByLabel("Reference").fill("CUS-NEW"); await page.getByLabel("English legal name").fill("New Customer");
-  await page.getByLabel("Arabic legal name").fill("عميل جديد"); await page.getByLabel("Country code").fill("SA");
+  await page.getByLabel("Reference").fill("CUS-NEW"); await page.getByLabel("Legal name").fill("New Customer");
+  await page.getByLabel("Email").fill("new@example.test");
   await page.getByRole("button", { name: "Save customer on server" }).click();
   await expect(page.getByRole("heading", { name: "Sign-in required" })).toBeVisible();
   await expect(page.getByText("Prior Tenant Customer", { exact: true })).toHaveCount(0);

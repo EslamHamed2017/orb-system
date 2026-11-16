@@ -6,10 +6,11 @@ import { isCustomerCollection, isServerCustomer } from "../../../src/ui/features
 const customer = {
   id: "11111111-1111-4111-8111-111111111111",
   reference: "CUS-101",
-  legalNameAr: "شركة أطلس",
-  legalNameEn: "Atlas Trading",
-  countryCode: "AE",
-  active: true,
+  legalName: "Atlas Trading",
+  contactName: "Mona Ali",
+  email: "accounts@atlas.example",
+  phone: "+971 50 123 4567",
+  status: "ACTIVE",
   version: 1,
 };
 
@@ -26,17 +27,26 @@ test("customer success validation rejects malformed identities and required valu
   for (const malformed of [
     { ...customer, id: "not-a-uuid" },
     { ...customer, reference: "   " },
-    { ...customer, legalNameAr: "\t" },
-    { ...customer, legalNameEn: "" },
+    { ...customer, reference: "cus-101" },
+    { ...customer, reference: "CUS 101" },
+    { ...customer, legalName: "\t" },
+    { ...customer, contactName: "" },
+    { ...customer, email: "not-an-email" },
+    { ...customer, email: "Accounts@Atlas.Example" },
+    { ...customer, legalName: " Atlas Trading" },
+    { ...customer, contactName: "Mona  Ali" },
+    { ...customer, legalName: "Atlas\tTrading" },
+    { ...customer, contactName: "Mona\nAli" },
+    { ...customer, phone: "050123" },
   ]) assert.equal(isServerCustomer(malformed), false, JSON.stringify(malformed));
 });
 
-test("customer success validation rejects invalid country, status, and version values", () => {
+test("customer success validation rejects invalid lifecycle, contact, and version values", () => {
   for (const malformed of [
-    { ...customer, countryCode: "ae" },
-    { ...customer, countryCode: "ARE" },
-    { ...customer, countryCode: 12 },
-    { ...customer, active: "true" },
+    { ...customer, status: "ARCHIVED" },
+    { ...customer, status: true },
+    { ...customer, contactName: 12 },
+    { ...customer, email: null, phone: null },
     { ...customer, version: "1" },
     { ...customer, version: 0 },
     { ...customer, version: -1 },
