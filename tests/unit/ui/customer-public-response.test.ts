@@ -38,6 +38,20 @@ test("customer collection route projects service records before JSON serializati
 });
 
 
+test("customer read responses expose server-derived write capability", async () => {
+  const { createPartyListHandler } = await import("../../../src/app/api/customers/route.ts");
+  const readOnly = createPartyListHandler({
+    authenticate: async () => ({ userId: record.id, tenantId: record.tenantId, roles: ["FINANCE_VIEWER"] }),
+    list: async () => [record],
+  });
+  const writable = createPartyListHandler({
+    authenticate: async () => ({ userId: record.id, tenantId: record.tenantId, roles: ["OPERATIONS"] }),
+    list: async () => [record],
+  });
+  assert.equal((await readOnly(new Request("https://orb.example/api/customers"))).headers.get("x-orb-customer-write-permitted"), "false");
+  assert.equal((await writable(new Request("https://orb.example/api/customers"))).headers.get("x-orb-customer-write-permitted"), "true");
+});
+
 test("customer record route projects service records before JSON serialization", async () => {
   const { createPartyGetHandler } = await import("../../../src/app/api/customers/[customerId]/route.ts");
   const handler = createPartyGetHandler({

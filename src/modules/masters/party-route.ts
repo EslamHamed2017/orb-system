@@ -6,18 +6,20 @@ export interface PartyCollectionDependencies {
   readonly authenticate: (request: Request) => Promise<PartyPrincipal | null>;
   readonly list?: (input: { request: Request; masterType: PartyType; principal: PartyPrincipal }) => Promise<unknown>;
   readonly create?: (input: { request: Request; masterType: PartyType; principal: PartyPrincipal }) => Promise<unknown>;
+  readonly responseHeaders?: (input: { request: Request; masterType: PartyType; principal: PartyPrincipal }) => HeadersInit;
 }
 export interface PartyRecordDependencies {
   readonly authenticate: (request: Request) => Promise<PartyPrincipal | null>;
   readonly get?: (input: { request: Request; masterType: PartyType; recordId: string; principal: PartyPrincipal }) => Promise<unknown>;
   readonly update?: (input: { request: Request; masterType: PartyType; recordId: string; principal: PartyPrincipal }) => Promise<unknown>;
+  readonly responseHeaders?: (input: { request: Request; masterType: PartyType; recordId: string; principal: PartyPrincipal }) => HeadersInit;
 }
 
 function problem(status: number, code: string, detail = "The request could not be authorized safely.") {
   return NextResponse.json({ type: `https://orb.example/problems/${code.toLowerCase().replaceAll("_", "-")}`, title: code, status, detail, code, correlationId: crypto.randomUUID() }, { status, headers: { "content-type": "application/problem+json", "Cache-Control": "no-store" } });
 }
-async function respond(work: () => Promise<unknown>, status = 200) {
-  try { return NextResponse.json(await work(), { status, headers: { "Cache-Control": "no-store" } }); }
+async function respond(work: () => Promise<unknown>, status = 200, additionalHeaders?: HeadersInit) {
+  try { const headers = new Headers(additionalHeaders); headers.set("Cache-Control", "no-store"); return NextResponse.json(await work(), { status, headers }); }
   catch (error) {
     const candidate = error as { code?: unknown; status?: unknown };
     const publicProblems: Readonly<Record<string, { status: number; detail: string }>> = Object.freeze({
@@ -45,7 +47,8 @@ export function partyListHandler(masterType: PartyType, dependencies: PartyColle
     const auth = await authorize(dependencies.authenticate, request, false);
     if (auth.response) return auth.response;
     if (!dependencies.list) return problem(503, "DEPENDENCY_UNAVAILABLE");
-    return respond(async () => ({ items: await dependencies.list!({ request, masterType, principal: auth.principal! }), nextCursor: null }));
+    const input = { request, masterType, principal: auth.principal! };
+    return respond(async () => ({ items: await dependencies.list!(input), nextCursor: null }), 200, dependencies.responseHeaders?.(input));
   };
 }
 export function partyCreateHandler(masterType: PartyType, dependencies: PartyCollectionDependencies) {
@@ -62,7 +65,8 @@ export function partyGetHandler(masterType: PartyType, idParameter: string, depe
     if (auth.response) return auth.response;
     if (!dependencies.get) return problem(503, "DEPENDENCY_UNAVAILABLE");
     const recordId = (await context.params)[idParameter];
-    return respond(() => dependencies.get!({ request, masterType, recordId, principal: auth.principal! }));
+    const input = { request, masterType, recordId, principal: auth.principal! };
+    return respond(() => dependencies.get!(input), 200, dependencies.responseHeaders?.(input));
   };
 }
 export function partyPatchHandler(masterType: PartyType, idParameter: string, dependencies: PartyRecordDependencies) {

@@ -9,6 +9,9 @@ import { customerRuntime } from "../../../modules/customers/customer-runtime.ts"
 // @ts-expect-error Native Node TypeScript tests require the source extension.
 import { validateCustomerMutationRequest } from "../../../modules/customers/customer-mutation-security.ts";
 
+function writeCapability(principal: PartyPrincipal): HeadersInit {
+  return { "x-orb-customer-write-permitted": String(principal.roles.some((role) => role === "OWNER_ADMIN" || role === "OPERATIONS")) };
+}
 function requireTenantPrincipal(principal: PartyPrincipal): CustomerServicePrincipal {
   if (typeof principal.tenantId !== "string") throw new CustomerProblem("PERMISSION_DENIED", 403);
   return { tenantId: principal.tenantId, userId: principal.userId, roles: principal.roles };
@@ -24,6 +27,7 @@ export interface CustomerCollectionDependencies {
 export const createPartyListHandler = (dependencies: CustomerCollectionDependencies) => partyListHandler("customers", {
   authenticate: dependencies.authenticate,
   ...(dependencies.list ? { list: async (input) => (await dependencies.list!({ ...input, principal: requireTenantPrincipal(input.principal) } as Parameters<NonNullable<CustomerCollectionDependencies["list"]>>[0])).map((record) => toPublicCustomer(record, customerResponseVersion(input.request))) } : {}),
+  responseHeaders: ({ principal }) => writeCapability(principal),
 });
 export const createPartyCreateHandler = (dependencies: CustomerCollectionDependencies) => partyCreateHandler("customers", {
   authenticate: dependencies.authenticate,

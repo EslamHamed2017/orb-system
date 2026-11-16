@@ -27,17 +27,18 @@ export function CustomersPage({ locale, query = "", status = "ALL", role }: { re
   const [notice, setNotice] = useState<Notice>(null);
   const [submitting, setSubmitting] = useState(false);
   const [profileApi, setProfileApi] = useState(false);
+  const [writePermitted, setWritePermitted] = useState(false);
   const registrationRef = useRef<HTMLDetailsElement>(null);
   const feedbackRef = useRef<HTMLDivElement>(null);
 
   const loadCustomers = useCallback(async () => {
-    setLoadState("loading"); setCustomers([]);
+    setLoadState("loading"); setCustomers([]); setWritePermitted(false);
     try {
       const response = await fetch(CUSTOMERS_ENDPOINT, { cache: "no-store", headers: { Accept: CUSTOMER_V2_MEDIA_TYPE } });
       if (!response.ok) { setLoadState(responseState(response.status)); return; }
       const body: unknown = await response.json();
       if (!isCustomerCollection(body)) { setLoadState("server"); return; }
-      setCustomers(body.items); setProfileApi(response.headers.get("x-orb-customer-schema-version") === "2"); setLoadState("ready");
+      setCustomers(body.items); setProfileApi(response.headers.get("x-orb-customer-schema-version") === "2"); setWritePermitted(response.headers.get("x-orb-customer-write-permitted") === "true"); setLoadState("ready");
     } catch { setLoadState("server"); }
   }, []);
   useEffect(() => { void loadCustomers(); }, [loadCustomers]);
@@ -88,11 +89,12 @@ export function CustomersPage({ locale, query = "", status = "ALL", role }: { re
     : loadState === "forbidden"
       ? { title: ar ? "الوصول إلى العملاء غير مسموح" : "Customer access is not permitted", detail: ar ? "لا تمنحك جلستك الحالية صلاحية عرض العملاء أو حفظهم." : "Your current session does not permit viewing or saving customers." }
       : { title: ar ? "خدمة العملاء غير متاحة." : "Customer service is unavailable.", detail: ar ? "لم نعرض بيانات نموذجية أو بيانات متصفح بدلاً من سجلات الخادم." : "No sample or browser-stored data was substituted for server records." };
-  const canCreate = loadState === "ready";
+  const canCreate = loadState === "ready" && writePermitted;
 
   return <section className={styles.page} dir={ar ? "rtl" : "ltr"} aria-labelledby="customers-title">
     <header className={styles.header}><div><p className={styles.eyebrow}>{ar ? "السجلات الأساسية" : "Essential masters"}</p><h1 id="customers-title">{ar ? "العملاء" : "Customers"}</h1><p className={styles.subtitle}>{ar ? "دليل عملاء يعتمد على سجلات الخادم المصرح بها فقط.":"A customer directory backed only by authorized server records."}</p></div><button className={styles.primary} type="button" aria-controls="customer-registration" data-operation-id="createCustomer" disabled={!canCreate} onClick={() => { if (registrationRef.current) { registrationRef.current.open = true; registrationRef.current.querySelector<HTMLInputElement>("input")?.focus(); } }}><span aria-hidden="true">＋</span>{ar ? "إضافة عميل" : "Add customer"}</button></header>
     <aside className={styles.localScope}><span aria-hidden="true">●</span><div><strong>{ar ? "سجلات الخادم فقط" : "Server records only"}</strong><p>{ar ? "لا يحفظ ORB العملاء في مساحة تخزين المتصفح؛ ويصرح الخادم بكل عملية من الجلسة النشطة.":"ORB does not save customers in browser storage; the server authorizes every operation from the active session."}</p></div></aside>
+    {loadState === "ready" && !writePermitted && <div className={styles.errorNotice} role="status">{ar ? "يمكنك عرض العملاء، لكن دورك الحالي لا يسمح بتغييرهم." : "You can view customers, but your current role cannot change them."}</div>}
     <div className={styles.summary} aria-label={ar ? "ملخص العملاء" : "Customer summary"}><div className={styles.kpi}><span>{ar ? "كل العملاء" : "All customers"}</span><strong>{customers.length}</strong></div><div className={styles.kpi}><span>{ar ? "نشطون" : "Active"}</span><strong>{active}</strong></div><div className={styles.kpi}><span>{ar ? "مؤرشفون" : "Archived"}</span><strong>{customers.length - active}</strong></div></div>
     <form className={`${styles.card} ${styles.toolbar}`} method="get"><input type="hidden" name="locale" value={locale}/>{role && <input type="hidden" name="role" value={role}/>}<label>{ar ? "بحث" : "Search"}<input type="search" name="q" defaultValue={query} placeholder={ar ? "المرجع أو الاسم" : "Reference or name"}/></label><label>{ar ? "الحالة" : "Status"}<select name="status" defaultValue={status}><option value="ALL">{ar ? "كل الحالات" : "All statuses"}</option><option value="ACTIVE">{ar ? "نشط" : "Active"}</option><option value="INACTIVE">{ar ? "مؤرشف" : "Archived"}</option></select></label><button type="submit">{ar ? "تطبيق" : "Apply"}</button></form>
     <section className={`${styles.card} ${styles.mobileDirectory}`} aria-labelledby="customer-directory-title"><header className={styles.tableHeader}><div><h2 id="customer-directory-title">{ar ? "دليل العملاء" : "Customer directory"}</h2><p className={styles.muted}>{ar ? `${visibleCustomers.length} عميل مطابق` : `${visibleCustomers.length} matching customers`}</p></div><a href={`/masters/customers?locale=${locale}${roleSuffix}`}>{ar ? "مسح المرشحات" : "Clear filters"}</a></header>
