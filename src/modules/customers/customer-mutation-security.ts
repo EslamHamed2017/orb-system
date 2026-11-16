@@ -1,4 +1,6 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { timingSafeEqual } from "node:crypto";
+// @ts-expect-error Native Node TypeScript tests require the source extension.
+import { sessionCsrfToken } from "../access/session-csrf.ts";
 // @ts-expect-error Native Node TypeScript tests require the source extension.
 import { CustomerProblem } from "./customer-service.ts";
 
@@ -13,7 +15,7 @@ function cookie(request: Request, name: string): string | null {
   return null;
 }
 export function customerCsrfToken(sessionToken: string): string {
-  return createHash("sha256").update(`orb-customer-csrf\0${sessionToken}`).digest("hex");
+  return sessionCsrfToken(sessionToken);
 }
 
 function equal(left: string | null, right: string | null): boolean {

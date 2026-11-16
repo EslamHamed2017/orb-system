@@ -7,7 +7,7 @@ import { hashSessionToken } from "../../../modules/tenancy/customer-request-cont
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { getPrismaClient } from "../../../platform/database/prisma-client.ts";
 // @ts-expect-error Native Node TypeScript tests require source extensions.
-import { customerCsrfToken } from "../../../modules/customers/customer-mutation-security.ts";
+import { sessionCsrfToken } from "../../../modules/access/session-csrf.ts";
 
 export interface SessionsRouteDependencies {
   readonly verify: CredentialVerifier;
@@ -28,7 +28,7 @@ export function createSessionsPostHandler(dependencies: SessionsRouteDependencie
     if (typeof login !== "string" || typeof credential !== "string") return problem(400, "VALIDATION_FAILED", "The sign-in request is invalid.");
     const verified = await verifyCredentialsWithoutIdentityLeak({ login, credential, verify: dependencies.verify });
     if (!verified) return problem(401, "AUTHENTICATION_REQUIRED", "Unable to sign in with the supplied credentials.");
-    const sessionToken = newSessionSecret(), csrfToken = customerCsrfToken(sessionToken);
+    const sessionToken = newSessionSecret(), csrfToken = sessionCsrfToken(sessionToken);
     const created = await dependencies.createSession({ userId: verified.userId, roles: verified.roles, now: new Date().toISOString(), tokenHash: hashSessionToken(sessionToken) });
     const response = NextResponse.json({ sessionId: created.sessionId, userId: verified.userId, roles: verified.roles, version: created.version, mfaRequired: verified.mfaRequired }, { status: 201 });
     response.cookies.set("__Host-orb_session", sessionToken, { secure: true, httpOnly: true, sameSite: "strict", path: "/", maxAge: 12 * 60 * 60 });

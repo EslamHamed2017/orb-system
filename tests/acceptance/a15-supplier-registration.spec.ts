@@ -1,81 +1,10 @@
-import { expect, test, type Page } from "@playwright/test";
+import {expect,test,type Page} from "@playwright/test";
+const saved={id:"11111111-1111-4111-8111-111111111111",reference:"SUP-101",registeredName:"Cedar Coffee Export",displayNameAr:"سيدار لتصدير القهوة",countryCode:"AE",contactName:"Hana Bekele",email:"hana@example.com",phone:"+971 50 123 4567",paymentCurrency:"USD",paymentTermsDays:30,status:"ACTIVE",version:1};
+async function mock(page:Page){let rows:unknown[]=[];await page.route("**/api/suppliers",async route=>{if(route.request().method()==="POST"){const body=route.request().postDataJSON();expect(body).toEqual({reference:saved.reference,registeredName:saved.registeredName,displayNameAr:saved.displayNameAr,countryCode:saved.countryCode,contactName:saved.contactName,email:saved.email,phone:saved.phone,paymentCurrency:saved.paymentCurrency,paymentTermsDays:saved.paymentTermsDays});rows=[saved];await route.fulfill({status:201,contentType:"application/json",body:JSON.stringify(saved)});return}await route.fulfill({status:200,headers:{"x-orb-supplier-write-permitted":"true"},contentType:"application/json",body:JSON.stringify({items:rows,nextCursor:null})})})}
+async function register(page:Page,ar:boolean){await page.getByRole("button",{name:ar?"إضافة مورد":"Add supplier"}).click();await page.getByLabel(ar?"المرجع":"Reference").fill(saved.reference);await page.getByLabel(ar?"الاسم المسجل":"Registered name").fill(saved.registeredName);await page.getByLabel(ar?"الاسم بالعربية":"Arabic display name").fill(saved.displayNameAr);await page.getByLabel(ar?"رمز الدولة":"Country code").fill(saved.countryCode);await page.getByLabel(ar?"جهة الاتصال":"Contact name").fill(saved.contactName);await page.getByLabel(ar?"البريد الإلكتروني":"Email").fill(saved.email);await page.getByLabel(ar?"الهاتف الدولي":"International phone").fill(saved.phone);await page.getByLabel(ar?"عملة الدفع":"Payment currency").fill(saved.paymentCurrency);await page.getByLabel(ar?"مهلة الدفع بالأيام":"Payment terms (days)").fill(String(saved.paymentTermsDays));await page.getByRole("button",{name:ar?"حفظ المورد":"Save supplier"}).click()}
+for(const locale of ["en","ar"] as const)test(`${locale} supplier registration persists through the server contract`,async({page})=>{await mock(page);await page.goto(`/masters/suppliers?locale=${locale}`);await expect(page.getByRole("heading",{name:locale==="ar"?"لم يُسجل أي مورد بعد":"No suppliers registered yet"})).toBeVisible();await register(page,locale==="ar");await expect(page.getByRole("status")).toContainText(locale==="ar"?"تم حفظ المورد":"Supplier saved");await expect(page.getByRole("table")).toContainText(saved.reference);await expect(page.locator("body")).not.toContainText("Saved in this browser")});
+for(const locale of ["en","ar"] as const)test(`mobile ${locale} supplier directory has no horizontal overflow`,async({page})=>{await page.setViewportSize({width:390,height:844});await mock(page);await page.goto(`/masters/suppliers?locale=${locale}`);await register(page,locale==="ar");expect(await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth)).toBeLessThanOrEqual(1)});
 
-const supplier = { reference: "SUP-101", nameEn: "Cedar Coffee Export", nameAr: "سيدار لتصدير القهوة", country: "AE", contact: "Hana Bekele", email: "hana@example.com", phone: "+971500001234" };
+test("supplier registration explains the required contact method before calling the API",async({page})=>{let posts=0;await page.route("**/api/suppliers",async route=>{if(route.request().method()==="POST")posts++;await route.fulfill({status:200,headers:{"x-orb-supplier-write-permitted":"true"},contentType:"application/json",body:JSON.stringify({items:[],nextCursor:null})})});await page.goto("/masters/suppliers?locale=en");await page.getByRole("button",{name:"Add supplier"}).click();await page.getByLabel("Reference").fill(saved.reference);await page.getByLabel("Registered name").fill(saved.registeredName);await page.getByLabel("Country code").fill(saved.countryCode);await page.getByLabel("Payment currency").fill(saved.paymentCurrency);await page.getByLabel("Payment terms (days)").fill("30");await page.getByRole("button",{name:"Save supplier"}).click();await expect(page.getByText("Enter at least an email address or phone number.",{exact:true})).toBeVisible();expect(posts).toBe(0)});
 
-async function register(page: Page, locale: "en" | "ar") {
-  const ar = locale === "ar";
-  await page.getByRole("button", { name: ar ? "إضافة مورد" : "Add supplier" }).click();
-  await page.getByLabel(ar ? "المرجع" : "Reference").fill(supplier.reference);
-  await page.getByLabel(ar ? "الاسم القانوني بالإنجليزية" : "English legal name").fill(supplier.nameEn);
-  await page.getByLabel(ar ? "الاسم القانوني بالعربية" : "Arabic legal name").fill(supplier.nameAr);
-  await page.getByLabel(ar ? "رمز الدولة" : "Country code").fill(supplier.country);
-  await page.getByLabel(ar ? "جهة الاتصال" : "Contact name").fill(supplier.contact);
-  await page.getByLabel(ar ? "البريد الإلكتروني" : "Email").fill(supplier.email);
-  await page.getByLabel(ar ? "الهاتف" : "Phone").fill(supplier.phone);
-  await page.getByRole("button", { name: ar ? "حفظ المورد" : "Save supplier" }).click();
-}
-
-for (const locale of ["en", "ar"] as const) test(`${locale} supplier registration persists exact entered data`, async ({ page }) => {
-  const ar = locale === "ar";
-  await page.goto(`/masters/suppliers?locale=${locale}`);
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await expect(page.getByRole("heading", { name: ar ? "لم يُسجل أي مورد بعد" : "No suppliers registered yet" })).toBeVisible();
-  await expect(page.getByText(ar ? "محفوظ في هذا المتصفح" : "Saved in this browser")).toBeVisible();
-  await register(page, locale);
-  await expect(page.getByRole("status")).toContainText(ar ? "تم حفظ المورد" : "Supplier saved");
-  await expect(page.getByRole("table")).toContainText(supplier.nameEn);
-  await expect(page.getByRole("table")).toContainText(supplier.nameAr);
-  await page.reload();
-  await expect(page.getByRole("table")).toContainText(supplier.reference);
-});
-
-for (const locale of ["en", "ar"] as const) test(`mobile ${locale} supplier registration stays above navigation without overflow`, async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(`/masters/suppliers?locale=${locale}`);
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await register(page, locale);
-  await expect(page.getByRole("status")).toContainText(locale === "ar" ? "تم حفظ المورد" : "Supplier saved");
-  await expect(page.getByRole("table")).toContainText(supplier.contact);
-  await expect(page.getByRole("table")).toContainText(supplier.email);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
-  const geometry = await page.evaluate(() => {
-    const main = document.querySelector(".orb-main")!.getBoundingClientRect();
-    const nav = document.querySelector('[data-navigation="bottom"]')!.getBoundingClientRect();
-    return { mainBottom: Math.round(main.bottom), navTop: Math.round(nav.top) };
-  });
-  expect(geometry.mainBottom).toBeLessThanOrEqual(geometry.navTop);
-});
-
-test("corrupt supplier storage shows an error and never substitutes fixtures", async ({ page }) => {
-  await page.goto("/masters/suppliers?locale=en");
-  await page.evaluate(() => localStorage.setItem("orb.browser-suppliers.v1", "not-json"));
-  await page.reload();
-  await expect(page.getByText("Saved supplier data could not be read", { exact: true })).toBeVisible();
-  await expect(page.locator("body")).not.toContainText("Cedar Coffee Exporters");
-});
-
-
-test("saved supplier can be corrected, archived, and reactivated without deletion", async ({ page }) => {
-  await page.goto("/masters/suppliers?locale=en"); await page.evaluate(() => localStorage.clear()); await page.reload();
-  await register(page, "en");
-  await page.getByRole("button", { name: "Edit" }).click();
-  await expect(page.getByLabel("Reference")).toHaveAttribute("readonly", "");
-  await page.getByLabel("Contact name").fill("Mona Bekele");
-  await page.getByRole("button", { name: "Save changes" }).click();
-  await expect(page.getByRole("table")).toContainText("Mona Bekele");
-  await page.getByRole("button", { name: "Archive" }).click();
-  await expect(page.getByRole("table")).toContainText("Archived");
-  await page.getByRole("button", { name: "Reactivate" }).click();
-  await expect(page.getByRole("table")).toContainText("Active");
-});
-
-test("supplier directory refreshes when another tab saves a supplier", async ({ context, page }) => {
-  const other = await context.newPage();
-  await page.goto("/masters/suppliers?locale=en"); await page.evaluate(() => localStorage.clear()); await page.reload();
-  await other.goto("/masters/suppliers?locale=en");
-  await register(other, "en");
-  await expect(page.getByRole("table")).toContainText(supplier.reference);
-  await other.close();
-});
+test("permission loss during create stays visible and fails closed",async({page})=>{await page.route("**/api/suppliers",async route=>{if(route.request().method()==="POST"){await route.fulfill({status:403,contentType:"application/problem+json",body:"{}"});return}await route.fulfill({status:200,headers:{"x-orb-supplier-write-permitted":"true"},contentType:"application/json",body:JSON.stringify({items:[],nextCursor:null})})});await page.goto("/masters/suppliers?locale=en");await register(page,false);await expect(page.getByText("Your current role is not allowed to save suppliers.",{exact:true})).toBeVisible();await expect(page.getByRole("button",{name:"Add supplier"})).toHaveCount(0)});

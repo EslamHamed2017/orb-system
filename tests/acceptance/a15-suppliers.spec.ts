@@ -1,37 +1,6 @@
-import { expect, test } from "@playwright/test";
-
-for (const locale of ["en", "ar"] as const) {
-  test(`${locale} supplier directory is honest and fixture-free`, async ({ page }) => {
-    const ar = locale === "ar";
-    await page.goto(`/masters/suppliers?locale=${locale}`);
-    await page.evaluate(() => localStorage.clear());
-    await page.reload();
-    await expect(page.getByRole("heading", { level: 1, name: ar ? "الموردون" : "Suppliers" })).toBeVisible();
-    await expect(page.locator("main > section")).toHaveAttribute("dir", ar ? "rtl" : "ltr");
-    await expect(page.getByText(ar ? "محفوظ في هذا المتصفح" : "Saved in this browser")).toBeVisible();
-    await expect(page.getByRole("heading", { name: ar ? "لم يُسجل أي مورد بعد" : "No suppliers registered yet" })).toBeVisible();
-    await expect(page.locator("body")).not.toContainText("Cedar Coffee Exporters");
-    await expect(page.locator("body")).not.toContainText(ar ? "المشاريع المرتبطة" : "Linked projects");
-    await expect(page.locator("body")).not.toContainText(ar ? "فواتير مفتوحة" : "Open invoices");
-  });
-}
-
-test("legacy supplier 360 evaluation route remains directly reviewable but separate", async ({ page }) => {
-  await page.goto("/suppliers/supplier-cedar?locale=en");
-  await expect(page.getByText("Supplier 360", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { level: 2, name: "Related records" })).toBeVisible();
-});
-
-
-test("supplier filters preserve role and every lifecycle mutation remains permission-aware", async ({ page }) => {
-  const record = [{ id: "supplier-permission", reference: "SUP-900", legalNameEn: "Permission Supplier", legalNameAr: "مورد الصلاحيات", countryCode: "ET", contactName: "Hana", email: "hana@example.com", phone: "+251 900", active: true, projectCount: 0, openInvoiceCount: 0 }];
-  await page.goto("/masters/suppliers?locale=en&role=finance");
-  await page.evaluate((items) => localStorage.setItem("orb.browser-suppliers.v1", JSON.stringify(items)), record);
-  await page.reload();
-  await expect(page.getByRole("button", { name: "Add supplier" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Edit" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Archive" })).toBeDisabled();
-  await page.getByRole("button", { name: "Apply" }).click();
-  await expect(page).toHaveURL(/role=finance/);
-  await expect(page.getByRole("button", { name: "Add supplier" })).toBeDisabled();
-});
+import {expect,test} from "@playwright/test";
+const supplier={id:"11111111-1111-4111-8111-111111111111",reference:"SUP-101",registeredName:"Cedar Coffee Export",displayNameAr:"سيدار لتصدير القهوة",countryCode:"AE",contactName:"Hana Bekele",email:"hana@example.com",phone:"+971 50 123 4567",paymentCurrency:"USD",paymentTermsDays:30,status:"ACTIVE",version:1};
+test("supplier directory fails closed on authentication loss",async({page})=>{await page.route("**/api/suppliers",r=>r.fulfill({status:401,contentType:"application/problem+json",body:"{}"}));await page.goto("/masters/suppliers?locale=en");await expect(page.getByText("Sign in to load and save suppliers.",{exact:true})).toBeVisible();await expect(page.locator("body")).not.toContainText(supplier.registeredName)});
+test("finance viewer receives a useful read-only supplier directory",async({page})=>{await page.route("**/api/suppliers",r=>r.fulfill({status:200,headers:{"x-orb-supplier-write-permitted":"false"},contentType:"application/json",body:JSON.stringify({items:[supplier],nextCursor:null})}));await page.goto("/masters/suppliers?locale=en&role=finance");await expect(page.getByRole("table")).toContainText(supplier.registeredName);await expect(page.getByRole("button",{name:"Add supplier"})).toHaveCount(0);await expect(page.locator("body")).not.toContainText("Saved in this browser")});
+test("persisted supplier detail edits with version and reports stale writes",async({page})=>{let patches=0;await page.route("**/api/suppliers/11111111-1111-4111-8111-111111111111",async route=>{if(route.request().method()==="PATCH"){patches++;expect(route.request().headers()["if-match"]).toBe('"1"');await route.fulfill({status:412,contentType:"application/problem+json",body:"{}"});return}await route.fulfill({status:200,headers:{"x-orb-supplier-write-permitted":"true"},contentType:"application/json",body:JSON.stringify(supplier)})});await page.goto(`/suppliers/${supplier.id}?locale=en`);await expect(page.getByRole("heading",{level:1})).toHaveText(supplier.registeredName);await page.getByText("Edit supplier details").click();await page.getByLabel("Registered name").fill("Cedar Coffee Export Ltd");await page.getByRole("button",{name:"Save changes"}).click();await expect(page.getByText(/Another user saved newer changes/)).toBeVisible();expect(patches).toBe(1)});
+test("Arabic supplier detail is RTL and uses business labels",async({page})=>{await page.route("**/api/suppliers/11111111-1111-4111-8111-111111111111",r=>r.fulfill({status:200,headers:{"x-orb-supplier-write-permitted":"false"},contentType:"application/json",body:JSON.stringify(supplier)}));await page.goto(`/suppliers/${supplier.id}?locale=ar`);await expect(page.locator("main > section")).toHaveAttribute("dir","rtl");await expect(page.getByRole("heading",{level:1})).toHaveText(supplier.displayNameAr);await expect(page.getByText("مهلة الدفع",{exact:true})).toBeVisible()});

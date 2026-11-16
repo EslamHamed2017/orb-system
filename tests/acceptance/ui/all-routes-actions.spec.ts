@@ -112,7 +112,7 @@ test("every accepted UI mutation has one reachable named action bound to its exa
     }
   }
   const missing = [...uiMutationOperationIds].filter((id) => !found.has(id)).sort();
-  const unavailableWithoutDatabase = ["createRole", "decideFixedApproval", "replaceRolePermissions", "startIsolatedRestoreTest", "updateCustomer", "updateSupplier"].sort();
+  const unavailableWithoutDatabase = ["createRole", "createSupplier", "decideFixedApproval", "replaceRolePermissions", "startIsolatedRestoreTest", "updateCustomer", "updateSupplier"].sort();
   const unknown = [...found].filter(([id]) => !operationIds.includes(id)).sort();
   expect(missing, "only database-backed mutation controls may be absent from the no-database preview").toEqual(unavailableWithoutDatabase);
   expect(unknown, "UI controls reference unknown contract operations").toEqual([]);
