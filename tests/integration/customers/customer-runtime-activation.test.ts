@@ -80,3 +80,12 @@ test("customer session context rejects Owner access until MFA is satisfied", asy
   const satisfied = new PrismaCustomerSessionContextRepository({ async $queryRaw<T>(): Promise<T> { return [{ ...owner, mfa_satisfied_at: new Date() }] as T; } });
   assert.deepEqual((await satisfied.findActiveContext("a".repeat(64), new Date()))?.roles, ["OWNER_ADMIN"]);
 });
+
+
+test("isolated infrastructure generates Prisma before exercising the production customer runtime", async () => {
+  const gate = await readFile(new URL("../../../ops/acceptance/run-isolated-infrastructure-gate.sh", import.meta.url), "utf8");
+  const generatedAt = gate.indexOf("corepack pnpm prisma generate");
+  const customerRuntimeAt = gate.indexOf("tests/integration/customers/customer-api-postgres.test.ts");
+  assert.ok(generatedAt >= 0);
+  assert.ok(customerRuntimeAt > generatedAt);
+});

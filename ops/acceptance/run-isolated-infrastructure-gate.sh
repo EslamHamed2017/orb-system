@@ -42,6 +42,7 @@ for port in "$ORB_MIGRATION_OBJECT_PORT" "$ORB_RESTORE_OBJECT_PORT"; do
 done
 
 export ORB_TEST_DATABASE_URL="postgresql://orb_migrator:${ORB_ISOLATED_DB_PASSWORD}@127.0.0.1:${ORB_MIGRATION_DB_PORT}/orb_migration?sslmode=disable"
+DATABASE_URL="$ORB_TEST_DATABASE_URL" corepack pnpm prisma generate
 node --test tests/integration/database/migrations.test.ts
 DATABASE_URL="$ORB_TEST_DATABASE_URL" node --test tests/integration/customers/customer-api-postgres.test.ts
 DATABASE_URL="$ORB_TEST_DATABASE_URL" node --test tests/integration/customers/customer-signin-postgres.test.ts
