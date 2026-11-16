@@ -125,3 +125,54 @@ test("a create 401 clears prior tenant rows and aggregates before showing sign-i
   await expect(page.getByRole("table")).toHaveCount(0);
   await expect(page.getByLabel("Customer summary").locator("strong")).toHaveText(["0", "0", "0"]);
 });
+
+
+test("persisted customer detail edits and archives with optimistic server updates", async ({ page }) => {
+  const id = "66666666-6666-4666-8666-666666666666";
+  let customer = { id, reference: "CUS-DETAIL", legalName: "Atlas Trading", contactName: "Mona Ali", email: "accounts@atlas.example", phone: null, status: "ACTIVE", version: 3 } as const;
+  const patches: Array<{ body: unknown; ifMatch: string | undefined }> = [];
+  await page.route("**/api/customers", async (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [customer], nextCursor: null }) }));
+  await page.route(`**/api/customers/${id}`, async (route) => {
+    if (route.request().method() === "GET") return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(customer) });
+    patches.push({ body: route.request().postDataJSON(), ifMatch: route.request().headers()["if-match"] });
+    const patch = route.request().postDataJSON() as Partial<typeof customer>;
+    customer = { ...customer, ...patch, version: customer.version + 1 };
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(customer) });
+  });
+
+  await page.goto("/masters/customers?locale=en");
+  await page.getByRole("link", { name: "Atlas Trading" }).click();
+  await expect(page).toHaveURL(`/customers/${id}?locale=en`);
+  await expect(page.getByRole("heading", { level: 1, name: "Atlas Trading" })).toBeVisible();
+  await page.getByLabel("Legal name").fill("Atlas Coffee Trading");
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByRole("status")).toHaveText("Customer changes saved by the server.");
+  page.once("dialog", async (dialog) => {
+    expect(dialog.message()).toBe("Archive this customer? Any unsaved form changes will be lost.");
+    await dialog.accept();
+  });
+  await page.getByRole("button", { name: "Archive customer" }).click();
+  await expect(page.getByText("Archived", { exact: true })).toBeVisible();
+  page.once("dialog", async (dialog) => {
+    expect(dialog.message()).toBe("Reactivate this customer? Any unsaved form changes will be lost.");
+    await dialog.accept();
+  });
+  await page.getByRole("button", { name: "Reactivate customer" }).click();
+  await expect(page.getByText("Active", { exact: true })).toBeVisible();
+  expect(patches).toEqual([
+    { body: { legalName: "Atlas Coffee Trading", contactName: "Mona Ali", email: "accounts@atlas.example", phone: null }, ifMatch: '"3"' },
+    { body: { status: "INACTIVE" }, ifMatch: '"4"' },
+    { body: { status: "ACTIVE" }, ifMatch: '"5"' },
+  ]);
+});
+
+test("Arabic customer link preserves locale into the server-backed detail", async ({ page }) => {
+  const customer = { id: "77777777-7777-4777-8777-777777777777", reference: "CUS-AR-DETAIL", legalName: "شركة أطلس", contactName: null, email: null, phone: "+971 50 123 4567", status: "ACTIVE", version: 1 };
+  await page.route("**/api/customers", async (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [customer], nextCursor: null }) }));
+  await page.route(`**/api/customers/${customer.id}`, async (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(customer) }));
+  await page.goto("/masters/customers?locale=ar");
+  await page.getByRole("link", { name: "شركة أطلس" }).click();
+  await expect(page).toHaveURL(`/customers/${customer.id}?locale=ar`);
+  await expect(page.locator("main > section")).toHaveAttribute("dir", "rtl");
+  await expect(page.getByRole("button", { name: "حفظ التغييرات" })).toBeVisible();
+});

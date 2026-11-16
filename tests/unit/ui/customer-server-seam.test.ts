@@ -24,8 +24,12 @@ test("customer UI has explicit bilingual fail-closed feedback", () => {
   assert.doesNotMatch(page, /Northstar Roasters|Atlas Retail|Harbor Coffee/);
 });
 
-test("customer detail route cannot present fixed records as authoritative", () => {
+test("customer detail uses only the fail-closed record endpoint", () => {
   const detailRoute = readFileSync("src/app/customers/[customerId]/page.tsx", "utf8");
-  assert.doesNotMatch(detailRoute, /customer-fixtures|CUSTOMERS|CustomerDetailPage/);
-  assert.match(detailRoute, /redirect/);
+  const detailPage = readFileSync("src/ui/features/masters/CustomerDetailPage.tsx", "utf8");
+  assert.match(detailRoute, /CustomerDetailPage/);
+  assert.match(detailPage, /`\/api\/customers\/\$\{encodeURIComponent\(customerId\)\}`/);
+  assert.match(detailPage, /method: "PATCH"/);
+  assert.match(detailPage, /"If-Match": `"\$\{customer.version\}"`/);
+  assert.doesNotMatch(detailRoute + detailPage, /localStorage|sessionStorage|customer-fixtures|x-tenant|tenant-id|x-role|x-user/i);
 });
