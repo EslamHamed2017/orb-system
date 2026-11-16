@@ -3,12 +3,15 @@ import { partyGetHandler, partyPatchHandler, type PartyPrincipal } from "../../.
 // @ts-expect-error Native Node TypeScript tests require the source extension.
 import { CustomerProblem, type CustomerPrincipal as CustomerServicePrincipal, type CustomerRecord } from "../../../../modules/customers/customer-service.ts";
 // @ts-expect-error Native Node TypeScript tests require the source extension.
-import { toPublicCustomer } from "../../../../modules/customers/customer-response.ts";
+import { customerResponseVersion, toPublicCustomer } from "../../../../modules/customers/customer-response.ts";
 // @ts-expect-error Native Node TypeScript tests require the source extension.
 import { customerRuntime } from "../../../../modules/customers/customer-runtime.ts";
 // @ts-expect-error Native Node TypeScript tests require the source extension.
 import { validateCustomerMutationRequest } from "../../../../modules/customers/customer-mutation-security.ts";
 
+function writeCapability(principal: PartyPrincipal): HeadersInit {
+  return { "x-orb-customer-write-permitted": String(principal.roles.some((role) => role === "OWNER_ADMIN" || role === "OPERATIONS")) };
+}
 function requireTenantPrincipal(principal: PartyPrincipal): CustomerServicePrincipal {
   if (typeof principal.tenantId !== "string") throw new CustomerProblem("PERMISSION_DENIED", 403);
   return { tenantId: principal.tenantId, userId: principal.userId, roles: principal.roles };
@@ -29,11 +32,12 @@ export interface CustomerRecordDependencies {
 }
 export const createPartyGetHandler = (dependencies: CustomerRecordDependencies) => partyGetHandler("customers", "customerId", {
   authenticate: dependencies.authenticate,
-  ...(dependencies.get ? { get: async (input) => toPublicCustomer(await dependencies.get!({ ...input, principal: requireTenantPrincipal(input.principal) } as Parameters<NonNullable<CustomerRecordDependencies["get"]>>[0])) } : {}),
+  ...(dependencies.get ? { get: async (input) => toPublicCustomer(await dependencies.get!({ ...input, principal: requireTenantPrincipal(input.principal) } as Parameters<NonNullable<CustomerRecordDependencies["get"]>>[0]), customerResponseVersion(input.request)) } : {}),
+  responseHeaders: ({ principal }) => writeCapability(principal),
 });
 export const createPartyPatchHandler = (dependencies: CustomerRecordDependencies) => partyPatchHandler("customers", "customerId", {
   authenticate: dependencies.authenticate,
-  ...(dependencies.update ? { update: async (input) => toPublicCustomer(await dependencies.update!({ ...input, principal: requireTenantPrincipal(input.principal) } as Parameters<NonNullable<CustomerRecordDependencies["update"]>>[0])) } : {}),
+  ...(dependencies.update ? { update: async (input) => toPublicCustomer(await dependencies.update!({ ...input, principal: requireTenantPrincipal(input.principal) } as Parameters<NonNullable<CustomerRecordDependencies["update"]>>[0]), customerResponseVersion(input.request)) } : {}),
 });
 const production: CustomerRecordDependencies = {
   authenticate: (request) => customerRuntime().authenticate(request),

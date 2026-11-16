@@ -27,7 +27,8 @@ interface RuntimePrismaClient extends CustomerPrismaClient {
 function digest(value: unknown): string { return createHash("sha256").update(JSON.stringify(value)).digest("hex"); }
 function replayRecord(value: unknown): CustomerRecord {
   if (!value || typeof value !== "object") throw new Error("Persisted customer idempotency snapshot is invalid.");
-  return value as CustomerRecord;
+  const record = value as Partial<CustomerRecord>;
+  return { ...record, legalNameAr: record.legalNameAr ?? null, countryCode: record.countryCode ?? null, taxRegistrationNumber: record.taxRegistrationNumber ?? null, paymentTermsDays: record.paymentTermsDays ?? 0, billingAddress: record.billingAddress ?? null } as CustomerRecord;
 }
 function transactionClient(transaction: IdempotencyTransaction): CustomerPrismaClient {
   return {

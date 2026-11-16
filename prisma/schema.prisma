@@ -1231,9 +1231,14 @@ model Customer {
   tenant_id          String               @db.Uuid
   reference          String
   legal_name         String
+  legal_name_ar      String?
   contact_name       String?
   email              String?
   phone              String?
+  country_code       String?                @db.Char(2)
+  tax_registration_number String?
+  payment_terms_days Int                   @default(0)
+  billing_address    Json?
   status             CustomerStatus       @default(ACTIVE)
   version            Int                  @default(1)
   created_at         DateTime             @default(now()) @db.Timestamptz(6)

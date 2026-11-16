@@ -167,3 +167,29 @@ test("Prisma update locks and re-reads the tenant row before checking the expect
   assert.equal((audits[0].before as CustomerRecord).legalName, "Winner");
   assert.equal((audits[0].after as CustomerRecord).legalName, "After");
 });
+
+
+test("customer business profile validates and normalizes bilingual identity, tax, terms, and billing address", async () => {
+  const repository = new MemoryRepository();
+  const service = createCustomerService(repository);
+  const created = await service.create({ principal: admin, input: {
+    reference: "C-PROFILE", legalName: "Atlas Trading", legalNameAr: " شركة أطلس للتجارة ",
+    email: "atlas@example.test", countryCode: " ae ", taxRegistrationNumber: " 100 200 300 ",
+    paymentTermsDays: 30, billingAddress: { line1: " Dubai Coffee District ", line2: null, city: " Dubai ", region: "Dubai", postalCode: null },
+  } });
+  assert.equal(created.legalNameAr, "شركة أطلس للتجارة");
+  assert.equal(created.countryCode, "AE");
+  assert.equal(created.taxRegistrationNumber, "100 200 300");
+  assert.equal(created.paymentTermsDays, 30);
+  assert.deepEqual(created.billingAddress, { line1: "Dubai Coffee District", line2: null, city: "Dubai", region: "Dubai", postalCode: null });
+  await assert.rejects(() => service.update({ principal: admin, id: created.id, expectedVersion: 1, input: { countryCode: "UAE" } }), (error: unknown) => error instanceof CustomerProblem && error.code === "VALIDATION_FAILED");
+  await assert.rejects(() => service.update({ principal: admin, id: created.id, expectedVersion: 1, input: { countryCode: "ZZ" } }), (error: unknown) => error instanceof CustomerProblem && error.code === "VALIDATION_FAILED");
+  await assert.rejects(() => service.update({ principal: admin, id: created.id, expectedVersion: 1, input: { paymentTermsDays: -1 } }), (error: unknown) => error instanceof CustomerProblem && error.code === "VALIDATION_FAILED");
+});
+
+test("customer profile migration is additive and database-constrained", () => {
+  const migration = readFileSync("prisma/migrations/202611160002_customer_business_profile/migration.sql", "utf8");
+  for (const column of ["legal_name_ar", "country_code", "tax_registration_number", "payment_terms_days", "billing_address"]) assert.match(migration, new RegExp(column));
+  assert.match(migration, /Customer_country_code_format/);
+  assert.match(migration, /Customer_payment_terms_days_range/);
+});

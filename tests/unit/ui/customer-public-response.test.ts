@@ -7,7 +7,7 @@ import { isServerCustomer } from "../../../src/ui/features/masters/customer-resp
 const record = {
   id: "11111111-1111-4111-8111-111111111111", tenantId: "22222222-2222-4222-8222-222222222222",
   reference: "CUS-101", legalName: "Atlas Trading", contactName: "Mona Ali", email: "accounts@atlas.example",
-  phone: "+971 50 123 4567", status: "ACTIVE" as const, version: 1,
+  phone: "+971 50 123 4567", legalNameAr: "شركة أطلس", countryCode: "AE", taxRegistrationNumber: "100200300", paymentTermsDays: 30, billingAddress: { line1: "Coffee District", line2: null, city: "Dubai", region: "Dubai", postalCode: null }, status: "ACTIVE" as const, version: 1,
   createdAt: "2026-11-16T10:00:00.000Z", updatedAt: "2026-11-16T10:00:00.000Z",
 };
 
@@ -15,7 +15,7 @@ test("customer response projects persisted records to a closed public DTO", () =
   const response = toPublicCustomer(record);
   assert.deepEqual(response, {
     id: record.id, reference: "CUS-101", legalName: "Atlas Trading", contactName: "Mona Ali",
-    email: "accounts@atlas.example", phone: "+971 50 123 4567", status: "ACTIVE", version: 1,
+    email: "accounts@atlas.example", phone: "+971 50 123 4567", legalNameAr: "شركة أطلس", countryCode: "AE", taxRegistrationNumber: "100200300", paymentTermsDays: 30, billingAddress: { line1: "Coffee District", line2: null, city: "Dubai", region: "Dubai", postalCode: null }, status: "ACTIVE", version: 1,
   });
   assert.equal(isServerCustomer(response), true);
   assert.equal("tenantId" in response, false);
@@ -30,7 +30,7 @@ test("customer collection route projects service records before JSON serializati
     authenticate: async () => ({ userId: record.id, tenantId: record.tenantId, roles: ["OWNER_ADMIN"] }),
     list: async () => [record],
   });
-  const response = await handler(new Request("https://orb.example/api/customers"));
+  const response = await handler(new Request("https://orb.example/api/customers", { headers: { accept: "application/vnd.orb.customer+json;version=2" } }));
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.equal(isServerCustomer(body.items[0]), true);
@@ -38,13 +38,27 @@ test("customer collection route projects service records before JSON serializati
 });
 
 
+test("customer read responses expose server-derived write capability", async () => {
+  const { createPartyListHandler } = await import("../../../src/app/api/customers/route.ts");
+  const readOnly = createPartyListHandler({
+    authenticate: async () => ({ userId: record.id, tenantId: record.tenantId, roles: ["FINANCE_VIEWER"] }),
+    list: async () => [record],
+  });
+  const writable = createPartyListHandler({
+    authenticate: async () => ({ userId: record.id, tenantId: record.tenantId, roles: ["OPERATIONS"] }),
+    list: async () => [record],
+  });
+  assert.equal((await readOnly(new Request("https://orb.example/api/customers"))).headers.get("x-orb-customer-write-permitted"), "false");
+  assert.equal((await writable(new Request("https://orb.example/api/customers"))).headers.get("x-orb-customer-write-permitted"), "true");
+});
+
 test("customer record route projects service records before JSON serialization", async () => {
   const { createPartyGetHandler } = await import("../../../src/app/api/customers/[customerId]/route.ts");
   const handler = createPartyGetHandler({
     authenticate: async () => ({ userId: record.id, tenantId: record.tenantId, roles: ["OWNER_ADMIN"] }),
     get: async () => record,
   });
-  const response = await handler(new Request(`https://orb.example/api/customers/${record.id}`), { params: Promise.resolve({ customerId: record.id }) });
+  const response = await handler(new Request(`https://orb.example/api/customers/${record.id}`, { headers: { accept: "application/vnd.orb.customer+json;version=2" } }), { params: Promise.resolve({ customerId: record.id }) });
   assert.equal(response.status, 200);
   const body = await response.json();
   assert.equal(isServerCustomer(body), true);
@@ -59,7 +73,7 @@ test("customer route maps domain validation failures to stable problem details",
     authenticate: async () => ({ userId: record.id, tenantId: record.tenantId, roles: ["OWNER_ADMIN"] }),
     list: async () => { throw new CustomerProblem("VALIDATION_FAILED", 400, "Invalid customer filter"); },
   });
-  const response = await get(new Request("https://orb.example/api/customers"));
+  const response = await get(new Request("https://orb.example/api/customers", { headers: { accept: "application/vnd.orb.customer+json;version=2" } }));
   assert.equal(response.status, 400);
   assert.equal(response.headers.get("content-type"), "application/problem+json");
   assert.deepEqual(await response.json().then(({ correlationId: _correlationId, ...body }) => body), {
@@ -72,5 +86,14 @@ test("customer route does not expose unknown dependency errors as public problem
   const { createPartyListHandler } = await import("../../../src/app/api/customers/route.ts");
   const injected = { code: "INJECTED_ERROR", status: 418, message: "database secret" };
   const get = createPartyListHandler({ authenticate: async () => ({ userId: record.id, tenantId: record.tenantId, roles: ["OWNER_ADMIN"] }), list: async () => { throw injected; } });
-  await assert.rejects(() => get(new Request("https://orb.example/api/customers")), (error) => error === injected);
+  await assert.rejects(() => get(new Request("https://orb.example/api/customers", { headers: { accept: "application/vnd.orb.customer+json;version=2" } })), (error) => error === injected);
+});
+
+
+test("customer DTO negotiation preserves v1 clients while v2 exposes the business profile", () => {
+  const legacy = toPublicCustomer(record, 1);
+  assert.deepEqual(Object.keys(legacy).sort(), ["contactName", "email", "id", "legalName", "phone", "reference", "status", "version"]);
+  const current = toPublicCustomer(record, 2);
+  assert.equal(current.legalNameAr, "شركة أطلس");
+  assert.equal(current.countryCode, "AE");
 });

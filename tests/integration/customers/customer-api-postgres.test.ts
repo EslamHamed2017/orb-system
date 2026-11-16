@@ -27,13 +27,18 @@ integration("production customer handlers persist a tenant-isolated audited life
     const record = await import("../../../src/app/api/customers/[customerId]/route.ts");
     const createKey = uuid7(), updateKey = uuid7();
     const csrfToken = createHash("sha256").update(`orb-customer-csrf\0${token}`).digest("hex");
-    const headers = { cookie: `__Host-orb_session=${token}; __Host-orb_csrf=${csrfToken}`, "content-type": "application/json", origin: "https://orb.example", "x-csrf-token": csrfToken };
-    const createRequest = () => collection.POST(new Request("https://orb.example/api/customers", { method: "POST", headers: { ...headers, "idempotency-key": createKey }, body: JSON.stringify({ reference: "CUS-DB-1", legalName: "Persisted Coffee Buyer", email: "buyer@example.test" }) }));
+    const headers = { accept: "application/vnd.orb.customer+json;version=2", cookie: `__Host-orb_session=${token}; __Host-orb_csrf=${csrfToken}`, "content-type": "application/json", origin: "https://orb.example", "x-csrf-token": csrfToken };
+    const createRequest = () => collection.POST(new Request("https://orb.example/api/customers", { method: "POST", headers: { ...headers, "idempotency-key": createKey }, body: JSON.stringify({ reference: "CUS-DB-1", legalName: "Persisted Coffee Buyer", legalNameAr: "مشتري القهوة", email: "buyer@example.test", countryCode: "AE", taxRegistrationNumber: "100200300", paymentTermsDays: 30, billingAddress: { line1: "Coffee District", line2: null, city: "Dubai", region: "Dubai", postalCode: null } }) }));
     const [createdResponse, replayedCreate] = await Promise.all([createRequest(), createRequest()]);
     assert.equal(createdResponse.status, 201);
     assert.equal(replayedCreate.status, 201);
-    const created = await createdResponse.json() as { id: string; version: number; legalName: string };
+    const created = await createdResponse.json() as { id: string; version: number; legalName: string; legalNameAr: string; countryCode: string; taxRegistrationNumber: string; paymentTermsDays: number; billingAddress: { city: string } };
     assert.equal(created.legalName, "Persisted Coffee Buyer");
+    assert.equal(created.legalNameAr, "مشتري القهوة");
+    assert.equal(created.countryCode, "AE");
+    assert.equal(created.taxRegistrationNumber, "100200300");
+    assert.equal(created.paymentTermsDays, 30);
+    assert.equal(created.billingAddress.city, "Dubai");
     assert.deepEqual(await replayedCreate.json(), created);
 
     const listedResponse = await collection.GET(new Request("https://orb.example/api/customers", { headers }));
@@ -58,7 +63,7 @@ integration("production customer handlers persist a tenant-isolated audited life
     const audit = await sql.query('SELECT "action","aggregate_version","actor_id" FROM "CustomerAuditEvent" WHERE "customer_id"=$1 ORDER BY "aggregate_version"', [created.id]);
     assert.deepEqual(audit.rows.map((row: Record<string, unknown>) => [row.action, row.aggregate_version, row.actor_id]), [["CUSTOMER_CREATED", 1, userId], ["CUSTOMER_UPDATED", 2, userId], ["CUSTOMER_UPDATED", 3, userId]]);
     await sql.query('UPDATE "TenantMembership" SET tenant_id=$1 WHERE user_id=$2', [otherTenantId, userId]);
-    const crossTenantReplay = await collection.POST(new Request("https://orb.example/api/customers", { method: "POST", headers: { ...headers, "idempotency-key": createKey }, body: JSON.stringify({ reference: "CUS-DB-1", legalName: "Persisted Coffee Buyer", email: "buyer@example.test" }) }));
+    const crossTenantReplay = await collection.POST(new Request("https://orb.example/api/customers", { method: "POST", headers: { ...headers, "idempotency-key": createKey }, body: JSON.stringify({ reference: "CUS-DB-1", legalName: "Persisted Coffee Buyer", legalNameAr: "مشتري القهوة", email: "buyer@example.test", countryCode: "AE", taxRegistrationNumber: "100200300", paymentTermsDays: 30, billingAddress: { line1: "Coffee District", line2: null, city: "Dubai", region: "Dubai", postalCode: null } }) }));
     assert.equal(crossTenantReplay.status, 409);
     await sql.query('UPDATE "TenantMembership" SET tenant_id=$1 WHERE user_id=$2', [tenantId, userId]);
     const otherTenantRows = await sql.query('SELECT count(*)::int AS count FROM "Customer" WHERE "tenant_id"=$1', [otherTenantId]);
