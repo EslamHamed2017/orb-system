@@ -158,6 +158,19 @@ test("deployed owner UAT is explicitly authorized and limited to the bilingual p
   assert.match(journey, /reports\/product-movement/);
 });
 
+
+
+test("managed loopback browser tests avoid WebKit TLS upgrades without weakening production CSP", async () => {
+  const { buildContentSecurityPolicy } = await import("../../next.config.ts");
+  const production = buildContentSecurityPolicy(false, undefined);
+  const loopback = buildContentSecurityPolicy(true, "http://127.0.0.1:47323");
+  assert.match(production, /(?:^|; )upgrade-insecure-requests(?:;|$)/);
+  assert.doesNotMatch(loopback, /upgrade-insecure-requests/);
+  assert.match(loopback, /default-src 'self'/);
+  assert.match(buildContentSecurityPolicy(true, "https://orb.example"), /upgrade-insecure-requests/);
+  assert.match(buildContentSecurityPolicy(true, "http://localhost:3000"), /upgrade-insecure-requests/);
+});
+
 test("production responses expose global browser security and privacy headers on every route", async () => {
   const config = (await import("../../next.config.ts")).default;
   const routes = await config.headers?.();

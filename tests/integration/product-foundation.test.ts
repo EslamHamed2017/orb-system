@@ -28,3 +28,13 @@ test("product tenant invariants bind audit rows while legacy operational links r
  assert.match(migration,/ProductAuditEvent_tenant_actor_fkey/);
  assert.match(migration,/LegacyProductQuarantine[\s\S]*operational_reference_count/);
 });
+
+
+test("product bag weights preserve exact decimal precision and reject database overflow",async()=>{
+ const r=new Memory(),s=createProductService(r);
+ const exact=await s.create({principal:admin,input:{reference:"PROD-PRECISE",nameEn:"Precise lot",nameAr:"دفعة دقيقة",origin:"ET",type:"Arabica",grade:"G1",cropYear:"2026",bagType:"Jute",standardBagWeight:"9007199254740.123456"}});
+ assert.equal(exact.standardBagWeight,"9007199254740.123456");
+ const smallest=await s.create({principal:admin,input:{reference:"PROD-SMALL",nameEn:"Small lot",nameAr:"دفعة صغيرة",origin:"KE",type:"Arabica",grade:"AA",cropYear:"2026",bagType:"Jute",standardBagWeight:"0.000001"}});
+ assert.equal(smallest.standardBagWeight,"0.000001");
+ await assert.rejects(()=>s.create({principal:admin,input:{reference:"PROD-OVERFLOW",nameEn:"Overflow lot",nameAr:"دفعة كبيرة",origin:"CO",type:"Arabica",grade:"Excelso",cropYear:"2026",bagType:"Jute",standardBagWeight:"123456789012345.000001"}}),(error:any)=>error.code==="VALIDATION_FAILED");
+});

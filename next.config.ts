@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
-const contentSecurityPolicy = [
+export function buildContentSecurityPolicy(managedServer: boolean, baseUrl: string | undefined) {
+  const loopbackHttpTest = managedServer && /^http:\/\/127\.0\.0\.1:\d+$/.test(baseUrl ?? "");
+  return [
   "default-src 'self'",
   "base-uri 'self'",
   "connect-src 'self'",
@@ -10,8 +12,14 @@ const contentSecurityPolicy = [
   "object-src 'none'",
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
-  "upgrade-insecure-requests",
-].join("; ");
+  ...(loopbackHttpTest ? [] : ["upgrade-insecure-requests"]),
+  ].join("; ");
+}
+
+const contentSecurityPolicy = buildContentSecurityPolicy(
+  process.env.ORB_TEST_MANAGED_SERVER === "1",
+  process.env.ORB_TEST_BASE_URL,
+);
 
 const globalSecurityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },

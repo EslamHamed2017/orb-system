@@ -98,3 +98,47 @@ test("invalid product API data shows an unavailable state instead of fixtures", 
   await expect(page.getByText("Product service is unavailable.")).toBeVisible();
   await expect(page.getByText("PROD-001", { exact: false })).toHaveCount(0);
 });
+
+
+test("stale product edit reloads current data and keeps the user's draft", async ({ page }, testInfo) => {
+  const initial: ProductRecord = { id: "44444444-4444-4444-8444-444444444444", reference: product.reference, nameEn: product.nameEn, nameAr: product.nameAr, origin: product.origin, type: product.type, grade: product.grade, cropYear: product.cropYear, bagType: product.bagType, standardBagWeight: "60.000000", attributes: {}, status: "ACTIVE", version: 1 };
+  const current = { ...initial, grade: "AAA", standardBagWeight: "9007199254740.123456", version: 2 };
+  let recordGets = 0;
+  await page.route(/\/api\/products(?:\/[^/?]+)?(?:\?.*)?$/, async (route) => {
+    const request = route.request();
+    const isRecord = new URL(request.url()).pathname !== "/api/products";
+    if (request.method() === "GET" && isRecord) { recordGets += 1; await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(current) }); return; }
+    if (request.method() === "GET") { await route.fulfill({ status: 200, headers: { "x-orb-product-write-permitted": "true" }, contentType: "application/json", body: JSON.stringify({ items: [initial], nextCursor: null }) }); return; }
+    await route.fulfill({ status: 412, contentType: "application/json", body: JSON.stringify({ code: "STALE_VERSION" }) });
+  });
+  await page.goto("/masters/coffee?locale=en");
+  await page.getByRole("button", { name: "Edit" }).click();
+  await page.getByLabel("Grade").fill("AB");
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText("This product changed. Current server data was loaded; your entries are still in the form.")).toBeVisible();
+  await expect(page.getByRole("table").getByText(/Arabica · AAA/)).toBeVisible();
+  await expect(page.getByRole("table").getByText("9007199254740.123456 kg · Jute", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Grade")).toHaveValue("AB");
+  expect(recordGets).toBe(1);
+  await page.screenshot({ path: testInfo.outputPath("stale-edit-recovery-en-desktop.png"), fullPage: true });
+});
+
+test("product status action is disabled while its request is pending", async ({ page }) => {
+  const initial: ProductRecord = { id: "44444444-4444-4444-8444-444444444444", reference: product.reference, nameEn: product.nameEn, nameAr: product.nameAr, origin: product.origin, type: product.type, grade: product.grade, cropYear: product.cropYear, bagType: product.bagType, standardBagWeight: "60.000000", attributes: {}, status: "ACTIVE", version: 1 };
+  const second: ProductRecord = { ...initial, id: "55555555-5555-4555-8555-555555555555", reference: "PROD-005", nameEn: "Ethiopia Guji", nameAr: "إثيوبيا قوجي" };
+  let release!: () => void; const gate = new Promise<void>(resolve => { release = resolve; }); let patches = 0;
+  await page.route(/\/api\/products(?:\/[^/?]+)?(?:\?.*)?$/, async (route) => {
+    const request = route.request();
+    if (request.method() === "GET") { await route.fulfill({ status: 200, headers: { "x-orb-product-write-permitted": "true" }, contentType: "application/json", body: JSON.stringify({ items: [initial, second], nextCursor: null }) }); return; }
+    patches += 1; await gate; await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ...initial, status: "INACTIVE", version: 2 }) });
+  });
+  await page.goto("/masters/coffee?locale=en");
+  const buttons = page.getByRole("button", { name: "Deactivate" });
+  await buttons.first().click();
+  await expect(page.getByRole("button", { name: "Updating…" })).toBeDisabled();
+  await expect(buttons).toHaveCount(1);
+  await expect(buttons.first()).toBeDisabled();
+  expect(patches).toBe(1);
+  release();
+  await expect(page.getByRole("button", { name: "Reactivate" })).toBeVisible();
+});
