@@ -1,3 +1,4 @@
+import { ProjectWorkspacePage } from "../../../../ui/features/projects/ProjectWorkspacePage";
 import { ContractVersionDiff } from "../../../../ui/features/contracts/ContractVersionDiff";
 import { SalesContractLines } from "../../../../ui/features/contracts/SalesContractLines";
 import { PurchaseContractLines } from "../../../../ui/features/contracts/PurchaseContractLines";
@@ -22,6 +23,8 @@ const DRAFT_PURCHASE_LINES = [
 import s from "../../../../ui/features/shipments/operations.module.css";
 export default async function ContractsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ locale?: string; demoState?: string; role?: string }> }) {
   const [{ id }, query] = await Promise.all([params, searchParams]); const ar = query.locale === "ar", canMutate = query.role !== "finance-viewer";
+  const decodedId = decodeURIComponent(id);
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(decodedId)) return <ProjectWorkspacePage id={decodedId} locale={ar ? "ar" : "en"} view="contracts" />;
   if (query.demoState === "forbidden") return <section role="alert" className={`${s.notice} ${s.noticeError}`}><h1>{ar ? "الصلاحية مطلوبة" : "Permission required"}</h1><p>{ar ? "دورك الثابت لا يسمح بهذا الإجراء." : "Your fixed role does not permit this action."}</p><a className={s.secondary} href={`/projects?locale=${ar ? "ar" : "en"}`}>{ar ? "العودة إلى المشاريع" : "Return to projects"}</a></section>;
   return <section aria-labelledby="contracts-title" className={s.page}><ProjectContextNavigation locale={ar ? "ar" : "en"} projectId={id} current="contracts" />
     <header className={s.pageHeader}><div><p className={s.eyebrow}>{ar ? "إدارة المشروع" : "Project operations"}</p><h1 id="contracts-title">{ar ? "العقود" : "Contracts"}</h1><p>{ar ? "تحكم في إصدارات البيع والشراء وسجل الموافقات من مساحة واحدة." : "Manage sales and purchase versions with a complete approval trail."}</p></div>{canMutate && <button className={s.primary} type="button" data-operation-id="createPurchaseContract">{ar ? "إضافة عقد شراء" : "Add purchase contract"}</button>}</header>

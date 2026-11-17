@@ -48,6 +48,7 @@ DATABASE_URL="$ORB_TEST_DATABASE_URL" node --test tests/integration/customers/cu
 DATABASE_URL="$ORB_TEST_DATABASE_URL" node --test tests/integration/suppliers/supplier-api-postgres.test.ts
 DATABASE_URL="$ORB_TEST_DATABASE_URL" node --test tests/integration/products/product-api-postgres.test.ts
 ORB_TEST_DATABASE_URL="$ORB_TEST_DATABASE_URL" node --test tests/integration/projects/project-foundation-postgres.test.ts
+ORB_TEST_DATABASE_URL="$ORB_TEST_DATABASE_URL" DATABASE_URL="$ORB_TEST_DATABASE_URL" node --test tests/integration/projects/project-api-postgres.test.ts
 DATABASE_URL="$ORB_TEST_DATABASE_URL" node --test tests/integration/customers/customer-signin-postgres.test.ts
 node --test tests/integration/suppliers/supplier-signin-postgres.test.ts
 node --test tests/integration/concurrency/transaction-reference-postgres.test.ts

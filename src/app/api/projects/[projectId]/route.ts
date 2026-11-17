@@ -1,5 +1,10 @@
-import { NextResponse } from "next/server";
-import type { ProjectPrincipal } from "../route";
-export interface ProjectRouteDependencies { readonly authenticate: (request: Request) => Promise<ProjectPrincipal | null>; readonly get?: (input: { request: Request; projectId: string; principal: ProjectPrincipal }) => Promise<unknown> }
-export function createProjectGetHandler(dependencies: ProjectRouteDependencies) { return async (request: Request, context: { params: Promise<{ projectId: string }> }) => { const principal = await dependencies.authenticate(request); if (!principal) return NextResponse.json({ code: "AUTHENTICATION_REQUIRED" }, { status: 401 }); if (!principal.roles.some((role) => ["OWNER_ADMIN", "OPERATIONS", "FINANCE_VIEWER"].includes(role))) return NextResponse.json({ code: "PERMISSION_DENIED" }, { status: 403 }); if (!dependencies.get) return NextResponse.json({ code: "DEPENDENCY_UNAVAILABLE" }, { status: 503 }); const { projectId } = await context.params; return NextResponse.json(await dependencies.get({ request, projectId, principal }), { headers: { "Cache-Control": "no-store" } }); }; }
-export const GET = createProjectGetHandler({ authenticate: async () => null });
+import { NextResponse } from "next/server.js";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { ProjectDailyProblem } from "../../../../modules/projects/project-daily-service.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { projectRuntime } from "../../../../modules/projects/project-runtime.ts";
+import type { ProjectPrincipal } from "../route.ts";
+export interface ProjectRouteDependencies{readonly authenticate:(request:Request)=>Promise<ProjectPrincipal|null>;readonly get?:(input:{request:Request;projectId:string;principal:ProjectPrincipal})=>Promise<unknown>}
+const issue=(status:number,code:string)=>NextResponse.json({code,status},{status,headers:{"Cache-Control":"no-store"}});
+export function createProjectGetHandler(d:ProjectRouteDependencies){return async(r:Request,c:{params:Promise<{projectId:string}>})=>{try{const p=await d.authenticate(r);if(!p)return issue(401,"AUTHENTICATION_REQUIRED");if(!p.roles.some(role=>["OWNER_ADMIN","OPERATIONS","FINANCE_VIEWER"].includes(role)))return issue(403,"PERMISSION_DENIED");if(!d.get)return issue(503,"DEPENDENCY_UNAVAILABLE");const {projectId}=await c.params;return NextResponse.json(await d.get({request:r,projectId,principal:p}),{headers:{"Cache-Control":"no-store"}})}catch(e){return e instanceof ProjectDailyProblem?issue(e.status,e.code):issue(500,"DEPENDENCY_UNAVAILABLE")}}}
+export const GET=createProjectGetHandler({authenticate:r=>projectRuntime().authenticate(r),get:({projectId,principal})=>projectRuntime().service.get({id:projectId,principal})});

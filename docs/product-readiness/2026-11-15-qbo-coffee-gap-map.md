@@ -66,3 +66,25 @@ Authentication and tenancy remain blocking seams. Canonical customer routes deli
 ## Evidence limitations
 
 No screenshots were captured for this planning/CI increment. Existing screenshots do not prove the target architecture. The shared Obsidian vault was inaccessible to this scheduled session (`PermissionError`), so this map is grounded in live repository and GitHub Actions inspection only.
+
+
+## Live vertical-slice update — 2026-11-17
+
+**Base examined:** `origin/main` at `5d1806d` before this candidate change.
+**Status:** project register/create/read is now server-backed; the overall product remains **not owner-ready**.
+
+Delivered and exercised in this increment:
+
+- `/projects` lists and searches tenant-scoped PostgreSQL projects and exposes create only when the authenticated session has `createProject` permission.
+- `/projects/new` selects active persisted Customers and Products, then atomically creates one UUIDv7 Project, one SALES Contract, one immutable ContractVersion, and one append-only ProjectAuditEvent.
+- The write path derives tenant/user/roles from the authenticated session, validates exact origin + session-bound CSRF, requires UUID idempotency, serializes reference allocation, and returns a replay for the same completed logical submission.
+- UUIDv7 project overview and contract routes show persisted customer, product, quantity, price/currency, trade route, Incoterm/named place, six tolerance values, payment terms, and document terms. Existing non-UUID saved-project and mature demo/KPI branches remain available so this increment does not remove covered operational behavior.
+- PostgreSQL acceptance proves atomic counts, tenant isolation, idempotent concurrent replay, and audit persistence. Browser acceptance proves English/Arabic desktop/mobile rendering, reload-safe API state, a committed-response-loss retry, fail-closed malformed payloads, and read-only permission shaping.
+- Captured mock-data visual evidence: `docs/product-readiness/evidence/2026-11-17-project-persistence/{en-desktop,ar-desktop,en-mobile,ar-mobile}.png`.
+
+Remaining Projects/Contracts gaps before this tranche is complete:
+
+- Contract create/amend/submit/approve/cancel operations and purchase-contract entry are not yet wired to this new daily-use PostgreSQL screen. The UUID contract route is currently a persisted read view only.
+- The legacy `demo` operational overview and non-UUID browser-saved compatibility path still contain fixed/browser state and must be retired only after their complete durable replacements exist.
+- Project edit/lifecycle transitions, pagination, contract attachment mutations, and the canonical tamper-evident aggregate audit view remain future work.
+- Shipments must not begin until these Projects/Contracts gaps are closed and exact-head CI is successful. Eslam approval is still required for product readiness.
