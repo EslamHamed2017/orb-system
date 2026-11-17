@@ -119,6 +119,10 @@ const OPERATION_ROLES = Object.freeze({
     "OWNER_ADMIN",
     "OPERATIONS"
   ],
+  "activateProject": [
+    "OWNER_ADMIN",
+    "OPERATIONS"
+  ],
   "createContractAmendment": [
     "OWNER_ADMIN",
     "OPERATIONS"

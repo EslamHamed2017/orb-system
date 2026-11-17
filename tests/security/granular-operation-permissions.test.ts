@@ -338,7 +338,7 @@ test("permission catalog is collision-free and every wrong operation grant is de
   const operations = operationIds();
   const codes = operations.map(operationPermissionCode);
 
-  assert.equal(operations.length, 121);
+  assert.equal(operations.length, 122);
   assert.equal(new Set(codes).size, codes.length, "operation permission codes must not collide");
 
   for (let index = 0; index < operations.length; index += 1) {

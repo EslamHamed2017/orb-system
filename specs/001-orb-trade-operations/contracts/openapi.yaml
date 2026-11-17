@@ -496,6 +496,20 @@ paths:
       - OPERATIONS
       - FINANCE_VIEWER
       summary: Get project
+  /projects/{projectId}/activate:
+    post:
+      tags: [Projects]
+      operationId: activateProject
+      parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      - $ref: '#/components/parameters/IfMatch'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '200': { $ref: '#/components/responses/Entity' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS]
+      summary: Start active project planning after saving a purchase contract; approvals remain required before execution
   /projects/{projectId}/purchase-contracts:
     post:
       tags:

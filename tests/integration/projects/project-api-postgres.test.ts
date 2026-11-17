@@ -41,6 +41,7 @@ integration("production project handlers persist one tenant-isolated audited pro
     const collection = await import("../../../src/app/api/projects/route.ts");
     const record = await import("../../../src/app/api/projects/[projectId]/route.ts");
     const purchaseRoute = await import("../../../src/app/api/projects/[projectId]/purchase-contracts/route.ts");
+    const activationRoute = await import("../../../src/app/api/projects/[projectId]/activate/route.ts");
     const headers = (token: string) => {
       const csrf = createHash("sha256").update(`orb-customer-csrf\0${token}`).digest("hex");
       return { cookie: `__Host-orb_session=${token}; __Host-orb_csrf=${csrf}`, origin: "https://orb.example", "x-csrf-token": csrf, "content-type": "application/json" };
@@ -77,6 +78,17 @@ integration("production project handlers persist one tenant-isolated audited pro
     assert.deepEqual(await replayA.json(), withPurchase, "retrying A after B must replay A's exact committed response, not the current aggregate");
     const isolated = await purchaseRoute.POST(purchaseRequest(supplierB, uuid7(), 3), { params: Promise.resolve({ projectId: saved.id }) });
     assert.equal(isolated.status, 400, "a supplier owned by another tenant must not be linkable");
+    const activateRequest = (token: string, idempotencyKey: string, expectedVersion = 3) => new Request(`https://orb.example/api/projects/${saved.id}/activate`, { method: "POST", headers: { ...headers(token), "if-match": `"${expectedVersion}"`, "idempotency-key": idempotencyKey } });
+    const otherTenantActivation = await activationRoute.POST(activateRequest(tokenB, uuid7()), { params: Promise.resolve({ projectId: saved.id }) });
+    assert.equal(otherTenantActivation.status, 404, "another tenant cannot activate the project");
+    const activationKeys = [uuid7(), uuid7()];
+    const concurrentActivations = await Promise.all(activationKeys.map((key) => activationRoute.POST(activateRequest(tokenA, key), { params: Promise.resolve({ projectId: saved.id }) })));
+    assert.deepEqual(concurrentActivations.map((response) => response.status).sort(), [200, 412], "the project row lock allows exactly one activation for one expected version");
+    const winner = concurrentActivations.findIndex((response) => response.status === 200);
+    const active = await concurrentActivations[winner].json() as { lifecycleState: string; version: number };
+    assert.equal(active.lifecycleState, "ACTIVE");assert.equal(active.version, 4);
+    const activationReplay = await activationRoute.POST(activateRequest(tokenA, activationKeys[winner]), { params: Promise.resolve({ projectId: saved.id }) });
+    assert.equal(activationReplay.status, 200);assert.deepEqual(await activationReplay.json(), active);
 
     const listed = await collection.GET(new Request("https://orb.example/api/projects", { headers: headers(tokenA) }));
     assert.equal(listed.status, 200);
@@ -91,7 +103,7 @@ integration("production project handlers persist one tenant-isolated audited pro
       (SELECT count(*)::int FROM "Contract" WHERE "project_id"=$1) contracts,
       (SELECT count(*)::int FROM "ContractVersion" cv JOIN "Contract" c ON c."id"=cv."contract_id" WHERE c."project_id"=$1) versions,
       (SELECT count(*)::int FROM "ProjectAuditEvent" WHERE "project_id"=$1 AND "actor_id"=$2) audit`, [saved.id, userA]);
-    assert.deepEqual(counts.rows[0], { projects: 1, contracts: 3, versions: 3, audit: 3 });
+    assert.deepEqual(counts.rows[0], { projects: 1, contracts: 3, versions: 3, audit: 4 });
   } finally {
     await sql.end();
     const { getPrismaClient } = await import("../../../src/platform/database/prisma-client.ts");
