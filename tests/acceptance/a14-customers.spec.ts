@@ -43,6 +43,63 @@ test("customer creation posts only the strict server payload and trusts only a v
   await expect(page.getByRole("table")).toContainText("CUS-102");
 });
 
+for (const scenario of [
+  { locale: "en" as const, viewport: { width: 1280, height: 900 }, message: "This customer reference is already in use. Enter a different reference." },
+  { locale: "ar" as const, viewport: { width: 390, height: 844 }, message: "مرجع العميل مستخدم بالفعل. أدخل مرجعاً مختلفاً." },
+]) {
+  test(`${scenario.locale} duplicate customer reference keeps the form actionable`, async ({ page }) => {
+    await page.setViewportSize(scenario.viewport);
+    let postCount = 0;
+    await page.route("**/api/customers", async (route) => {
+      if (route.request().method() === "GET") return route.fulfill({ status: 200, contentType: "application/json", headers: { "x-orb-customer-schema-version": "2", "x-orb-customer-write-permitted": "true" }, body: JSON.stringify({ items: [], nextCursor: null }) });
+      postCount += 1;
+      return route.fulfill({ status: 409, contentType: "application/problem+json", body: JSON.stringify({ code: "DUPLICATE_REFERENCE", detail: "That reference is already in use" }) });
+    });
+    const ar = scenario.locale === "ar";
+    await page.goto(`/masters/customers?locale=${scenario.locale}`);
+    await page.getByRole("button", { name: ar ? "إضافة عميل" : "Add customer" }).click();
+    const reference = page.getByLabel(ar ? "المرجع" : "Reference");
+    const legalName = page.getByLabel(ar ? "الاسم القانوني" : "Legal name", { exact: true });
+    const email = page.getByLabel(ar ? "البريد الإلكتروني" : "Email");
+    await reference.fill("CUS-DUPLICATE");
+    await legalName.fill(ar ? "عميل محفوظ مسبقاً" : "Existing Customer");
+    await email.fill("existing@example.test");
+    await page.getByRole("button", { name: ar ? "حفظ العميل على الخادم" : "Save customer on server" }).click();
+    const conflictMessage = page.getByText(scenario.message, { exact: true });
+    await expect(conflictMessage).toBeVisible();
+    await expect(conflictMessage).toBeInViewport();
+    await expect(reference).toBeFocused();
+    await expect(reference).toHaveAttribute("aria-invalid", "true");
+    await expect(reference).toHaveAttribute("aria-describedby", "customer-reference-error");
+    await expect(conflictMessage).toHaveAttribute("id", "customer-reference-error");
+    await expect(reference).toHaveValue("CUS-DUPLICATE");
+    await expect(legalName).toHaveValue(ar ? "عميل محفوظ مسبقاً" : "Existing Customer");
+    await expect(email).toHaveValue("existing@example.test");
+    await expect(page.getByRole("table")).toHaveCount(0);
+    expect(postCount).toBe(1);
+    if (ar) expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  });
+}
+
+test("unknown customer conflict remains generic and does not mark the reference as duplicate", async ({ page }) => {
+  await page.route("**/api/customers", async (route) => {
+    if (route.request().method() === "GET") return route.fulfill({ status: 200, contentType: "application/json", headers: { "x-orb-customer-schema-version": "2", "x-orb-customer-write-permitted": "true" }, body: JSON.stringify({ items: [], nextCursor: null }) });
+    return route.fulfill({ status: 409, contentType: "application/problem+json", body: JSON.stringify({ code: "IDEMPOTENCY_CONFLICT", detail: "Technical detail must not be displayed" }) });
+  });
+  await page.goto("/masters/customers?locale=en");
+  await page.getByRole("button", { name: "Add customer" }).click();
+  const reference = page.getByLabel("Reference");
+  await reference.fill("CUS-RETRY");
+  await page.getByLabel("Legal name", { exact: true }).fill("Retry Customer");
+  await page.getByLabel("Email").fill("retry@example.test");
+  await page.getByRole("button", { name: "Save customer on server" }).click();
+  const feedback = page.getByText("The server could not save the customer.", { exact: true });
+  await expect(feedback).toBeVisible();
+  await expect(feedback).toBeFocused();
+  await expect(reference).not.toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByText("Technical detail must not be displayed", { exact: true })).toHaveCount(0);
+});
+
 test("customer creation requires email or international phone before contacting the server", async ({ page }) => {
   let postCount = 0;
   await page.route("**/api/customers", async (route) => {

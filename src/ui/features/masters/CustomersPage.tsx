@@ -25,10 +25,12 @@ export function CustomersPage({ locale, query = "", status = "ALL", role }: { re
   const [customers, setCustomers] = useState<readonly ServerCustomer[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [notice, setNotice] = useState<Notice>(null);
+  const [noticeTarget, setNoticeTarget] = useState<"feedback" | "reference">("feedback");
   const [submitting, setSubmitting] = useState(false);
   const [profileApi, setProfileApi] = useState(false);
   const [writePermitted, setWritePermitted] = useState(false);
   const registrationRef = useRef<HTMLDetailsElement>(null);
+  const referenceRef = useRef<HTMLInputElement>(null);
   const feedbackRef = useRef<HTMLDivElement>(null);
 
   const loadCustomers = useCallback(async () => {
@@ -42,7 +44,11 @@ export function CustomersPage({ locale, query = "", status = "ALL", role }: { re
     } catch { setLoadState("server"); }
   }, []);
   useEffect(() => { void loadCustomers(); }, [loadCustomers]);
-  useEffect(() => { if (notice && feedbackRef.current) { feedbackRef.current.focus({ preventScroll: true }); feedbackRef.current.scrollIntoView({ behavior: "smooth", block: "center" }); } }, [notice]);
+  useEffect(() => {
+    if (!notice) return;
+    if (noticeTarget === "reference" && referenceRef.current) { referenceRef.current.scrollIntoView({ block: "center" }); referenceRef.current.focus({ preventScroll: true }); referenceRef.current.select(); return; }
+    if (feedbackRef.current) { feedbackRef.current.focus({ preventScroll: true }); feedbackRef.current.scrollIntoView({ behavior: "smooth", block: "center" }); }
+  }, [notice, noticeTarget]);
 
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const visibleCustomers = customers.filter((customer) => (status === "ALL" || (status === "ACTIVE") === (customer.status === "ACTIVE"))
@@ -50,7 +56,7 @@ export function CustomersPage({ locale, query = "", status = "ALL", role }: { re
   const active = customers.filter((customer) => customer.status === "ACTIVE").length;
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setNotice(null); setSubmitting(true);
+    event.preventDefault(); setNotice(null); setNoticeTarget("feedback"); setSubmitting(true);
     const form = event.currentTarget, data = new FormData(form);
     const address = { line1: String(data.get("billingAddressLine1") ?? "").trim(), line2: String(data.get("billingAddressLine2") ?? "").trim() || null, city: String(data.get("billingAddressCity") ?? "").trim(), region: String(data.get("billingAddressRegion") ?? "").trim() || null, postalCode: String(data.get("billingAddressPostalCode") ?? "").trim() || null };
     const hasAddress = Object.values(address).some(Boolean);
@@ -72,8 +78,20 @@ export function CustomersPage({ locale, query = "", status = "ALL", role }: { re
       const response = await fetch(CUSTOMERS_ENDPOINT, { method: "POST", headers: { Accept: CUSTOMER_V2_MEDIA_TYPE, "Content-Type": "application/json", ...customerMutationHeaders() }, body: JSON.stringify(payload) });
       if (!response.ok) {
         const state = responseState(response.status);
+        let duplicateReference = false;
+        if (response.status === 409) {
+          try {
+            const problem: unknown = await response.json();
+            duplicateReference = Boolean(problem && typeof problem === "object" && "code" in problem && problem.code === "DUPLICATE_REFERENCE");
+          } catch { /* Invalid problem bodies remain generic. */ }
+        }
         if (state === "authentication") { setCustomers([]); setLoadState(state); }
-        setNotice({ kind: "error", text: state === "authentication" ? (ar ? "انتهت جلسة الدخول. لم يتم حفظ العميل." : "Your session is unavailable. The customer was not saved.") : state === "forbidden" ? (ar ? "ليست لديك صلاحية حفظ العملاء." : "You do not have permission to save customers.") : (ar ? "تعذر على الخادم حفظ العميل." : "The server could not save the customer.") });
+        if (duplicateReference) setNoticeTarget("reference");
+        setNotice({ kind: "error", text: duplicateReference
+          ? (ar ? "مرجع العميل مستخدم بالفعل. أدخل مرجعاً مختلفاً." : "This customer reference is already in use. Enter a different reference.")
+          : state === "authentication" ? (ar ? "انتهت جلسة الدخول. لم يتم حفظ العميل." : "Your session is unavailable. The customer was not saved.")
+            : state === "forbidden" ? (ar ? "ليست لديك صلاحية حفظ العملاء." : "You do not have permission to save customers.")
+              : (ar ? "تعذر على الخادم حفظ العميل." : "The server could not save the customer.") });
         return;
       }
       const created: unknown = await response.json();
@@ -90,6 +108,7 @@ export function CustomersPage({ locale, query = "", status = "ALL", role }: { re
       ? { title: ar ? "الوصول إلى العملاء غير مسموح" : "Customer access is not permitted", detail: ar ? "لا تمنحك جلستك الحالية صلاحية عرض العملاء أو حفظهم." : "Your current session does not permit viewing or saving customers." }
       : { title: ar ? "خدمة العملاء غير متاحة." : "Customer service is unavailable.", detail: ar ? "لم نعرض بيانات نموذجية أو بيانات متصفح بدلاً من سجلات الخادم." : "No sample or browser-stored data was substituted for server records." };
   const canCreate = loadState === "ready" && writePermitted;
+  const referenceConflict = notice !== null && noticeTarget === "reference";
 
   return <section className={styles.page} dir={ar ? "rtl" : "ltr"} aria-labelledby="customers-title">
     <header className={styles.header}><div><p className={styles.eyebrow}>{ar ? "السجلات الأساسية" : "Essential masters"}</p><h1 id="customers-title">{ar ? "العملاء" : "Customers"}</h1><p className={styles.subtitle}>{ar ? "دليل عملاء يعتمد على سجلات الخادم المصرح بها فقط.":"A customer directory backed only by authorized server records."}</p></div>{(loadState !== "ready" || canCreate) && <button className={styles.primary} type="button" aria-controls="customer-registration" data-operation-id="createCustomer" disabled={!canCreate} onClick={() => { if (registrationRef.current) { registrationRef.current.open = true; registrationRef.current.querySelector<HTMLInputElement>("input")?.focus(); } }}><span aria-hidden="true">＋</span>{ar ? "إضافة عميل" : "Add customer"}</button>}</header>
@@ -103,7 +122,7 @@ export function CustomersPage({ locale, query = "", status = "ALL", role }: { re
         : visibleCustomers.length ? <div className={styles.tableWrap}><table className={styles.table}><thead><tr><th scope="col">{ar ? "العميل" : "Customer"}</th><th scope="col">{ar ? "التواصل" : "Contact"}</th><th scope="col">{ar ? "الحالة" : "Status"}</th></tr></thead><tbody>{visibleCustomers.map((customer) => <tr key={customer.id}><td data-label={ar ? "العميل" : "Customer"}><div className={styles.product}><strong><a href={`/customers/${encodeURIComponent(customer.id)}?locale=${locale}${roleSuffix}`}>{ar && customer.legalNameAr ? customer.legalNameAr : customer.legalName}</a></strong><span><bdi>{customer.reference}</bdi>{customer.contactName ? ` · ${customer.contactName}` : ""}</span></div></td><td data-label={ar ? "التواصل" : "Contact"}><div className={styles.product}>{customer.email && <bdi>{customer.email}</bdi>}{customer.phone && <bdi>{customer.phone}</bdi>}</div></td><td data-label={ar ? "الحالة" : "Status"}><span className={styles.status} data-status={customer.status}>{ar ? (customer.status === "ACTIVE" ? "نشط" : "مؤرشف") : (customer.status === "ACTIVE" ? "Active" : "Archived")}</span></td></tr>)}</tbody></table></div>
         : <div className={styles.empty} role="status"><h3>{customers.length === 0 ? (ar ? "لم يُسجل أي عميل بعد" : "No customers registered yet") : (ar ? "لا يوجد عملاء مطابقون" : "No matching customers")}</h3><p className={styles.muted}>{customers.length === 0 ? (ar ? "لم يرجع الخادم أي سجلات عملاء لهذه الجلسة.":"The server returned no customer records for this session.") : (ar ? "غيّر البحث أو الحالة وحاول مرة أخرى.":"Change the search or status and try again.")}</p></div>}
     </section>
-    {notice && <div ref={feedbackRef} className={notice.kind === "error" ? styles.errorNotice : styles.successNotice} role={notice.kind === "error" ? "alert" : "status"} tabIndex={-1}>{notice.text}</div>}
-    {canCreate && <details ref={registrationRef} id="customer-registration" className={`${styles.card} ${styles.registration}`}><summary>{ar ? "فتح نموذج إضافة العميل" : "Open customer registration form"}</summary><h2>{ar ? "بيانات العميل" : "Customer details"}</h2><p className={styles.muted}>{ar ? "يُرسل هذا النموذج إلى خدمة العملاء، ولا يُعد السجل محفوظاً إلا بعد استجابة خادم صالحة.":"This form posts to the customer service; a record is shown as saved only after a valid server response."}</p><form className={styles.formGrid} onSubmit={handleCreate} aria-busy={submitting}><label>{ar ? "المرجع" : "Reference"}<input name="reference" required maxLength={64}/></label><label>{ar ? "الاسم القانوني" : "Legal name"}<input name="legalName" required maxLength={200}/></label><label>{ar ? "اسم جهة الاتصال" : "Contact name"}<input name="contactName" maxLength={160}/></label><label>{ar ? "البريد الإلكتروني" : "Email"}<input name="email" type="email" maxLength={254}/></label><label>{ar ? "الهاتف الدولي" : "International phone"}<input name="phone" type="tel" dir="ltr" maxLength={32} placeholder="+971 50 123 4567"/></label>{profileApi && <><label>{ar ? "الاسم القانوني بالعربية" : "Arabic legal name"}<input name="legalNameAr" dir="rtl" maxLength={200}/></label><label>{ar ? "الدولة" : "Country"}<select name="countryCode" defaultValue=""><option value="">{ar ? "اختر الدولة" : "Select country"}</option>{ISO_COUNTRY_CODES.map((code) => <option key={code} value={code}>{new Intl.DisplayNames([locale], { type: "region" }).of(code)}</option>)}</select></label><label>{ar ? "الرقم الضريبي" : "Tax registration number"}<input name="taxRegistrationNumber" dir="ltr" maxLength={64}/></label><label>{ar ? "أجل السداد بالأيام" : "Payment terms (days)"}<input name="paymentTermsDays" type="number" min={0} max={3650} defaultValue={0}/></label><label>{ar ? "عنوان الفوترة" : "Billing address"}<input name="billingAddressLine1" maxLength={200}/></label><label>{ar ? "المدينة" : "City"}<input name="billingAddressCity" maxLength={120}/></label><label>{ar ? "المنطقة" : "Region"}<input name="billingAddressRegion" maxLength={120}/></label><label>{ar ? "الرمز البريدي" : "Postal code"}<input name="billingAddressPostalCode" maxLength={32}/></label><label>{ar ? "تفاصيل العنوان" : "Address line 2"}<input name="billingAddressLine2" maxLength={200}/></label></>}<p className={styles.muted}>{ar ? "أدخل البريد الإلكتروني أو الهاتف الدولي على الأقل." : "Enter at least an email or international phone number."}</p><div className={styles.formActions}><button type="submit" disabled={submitting} data-operation-id="createCustomer">{submitting ? (ar ? "جارٍ الإرسال…" : "Sending…") : (ar ? "حفظ العميل على الخادم" : "Save customer on server")}</button></div></form></details>}
+    {notice && noticeTarget !== "reference" && <div ref={feedbackRef} className={notice.kind === "error" ? styles.errorNotice : styles.successNotice} role={notice.kind === "error" ? "alert" : "status"} tabIndex={-1}>{notice.text}</div>}
+    {canCreate && <details ref={registrationRef} id="customer-registration" className={`${styles.card} ${styles.registration}`}><summary>{ar ? "فتح نموذج إضافة العميل" : "Open customer registration form"}</summary><h2>{ar ? "بيانات العميل" : "Customer details"}</h2><p className={styles.muted}>{ar ? "يُرسل هذا النموذج إلى خدمة العملاء، ولا يُعد السجل محفوظاً إلا بعد استجابة خادم صالحة.":"This form posts to the customer service; a record is shown as saved only after a valid server response."}</p><form className={styles.formGrid} onSubmit={handleCreate} aria-busy={submitting}><label>{ar ? "المرجع" : "Reference"}<input ref={referenceRef} name="reference" required maxLength={64} aria-invalid={referenceConflict || undefined} aria-describedby={referenceConflict ? "customer-reference-error" : undefined}/></label>{referenceConflict && <div id="customer-reference-error" className={styles.errorNotice} role="alert">{notice.text}</div>}<label>{ar ? "الاسم القانوني" : "Legal name"}<input name="legalName" required maxLength={200}/></label><label>{ar ? "اسم جهة الاتصال" : "Contact name"}<input name="contactName" maxLength={160}/></label><label>{ar ? "البريد الإلكتروني" : "Email"}<input name="email" type="email" maxLength={254}/></label><label>{ar ? "الهاتف الدولي" : "International phone"}<input name="phone" type="tel" dir="ltr" maxLength={32} placeholder="+971 50 123 4567"/></label>{profileApi && <><label>{ar ? "الاسم القانوني بالعربية" : "Arabic legal name"}<input name="legalNameAr" dir="rtl" maxLength={200}/></label><label>{ar ? "الدولة" : "Country"}<select name="countryCode" defaultValue=""><option value="">{ar ? "اختر الدولة" : "Select country"}</option>{ISO_COUNTRY_CODES.map((code) => <option key={code} value={code}>{new Intl.DisplayNames([locale], { type: "region" }).of(code)}</option>)}</select></label><label>{ar ? "الرقم الضريبي" : "Tax registration number"}<input name="taxRegistrationNumber" dir="ltr" maxLength={64}/></label><label>{ar ? "أجل السداد بالأيام" : "Payment terms (days)"}<input name="paymentTermsDays" type="number" min={0} max={3650} defaultValue={0}/></label><label>{ar ? "عنوان الفوترة" : "Billing address"}<input name="billingAddressLine1" maxLength={200}/></label><label>{ar ? "المدينة" : "City"}<input name="billingAddressCity" maxLength={120}/></label><label>{ar ? "المنطقة" : "Region"}<input name="billingAddressRegion" maxLength={120}/></label><label>{ar ? "الرمز البريدي" : "Postal code"}<input name="billingAddressPostalCode" maxLength={32}/></label><label>{ar ? "تفاصيل العنوان" : "Address line 2"}<input name="billingAddressLine2" maxLength={200}/></label></>}<p className={styles.muted}>{ar ? "أدخل البريد الإلكتروني أو الهاتف الدولي على الأقل." : "Enter at least an email or international phone number."}</p><div className={styles.formActions}><button type="submit" disabled={submitting} data-operation-id="createCustomer">{submitting ? (ar ? "جارٍ الإرسال…" : "Sending…") : (ar ? "حفظ العميل على الخادم" : "Save customer on server")}</button></div></form></details>}
   </section>;
 }
