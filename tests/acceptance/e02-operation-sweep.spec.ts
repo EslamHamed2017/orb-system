@@ -42,7 +42,7 @@ const CONTROL_REFS = {
 } as const;
 const ALL_ROLES = ["OWNER_ADMIN", "OPERATIONS", "FINANCE_VIEWER"] as const;
 const METHODS = new Set(["get", "post", "put", "patch", "delete"]);
-const EXPECTED_CONTROL_COUNTS = { idempotency: 73, csrf: 72, ifMatch: 64 } as const;
+const EXPECTED_CONTROL_COUNTS = { idempotency: 75, csrf: 74, ifMatch: 65 } as const;
 function parseOperations(source: string): Operation[] {
   const lines = source.replace(/\r\n?/g, "\n").split("\n");
   const operations: Array<{ id?: string; method: Method; path: string; roles: Role[]; controls: Set<"Idempotency-Key" | "X-CSRF-Token" | "If-Match"> }> = [];

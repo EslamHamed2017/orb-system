@@ -1,6 +1,39 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const product = { reference: "PROD-004", nameEn: "Kenya AA", nameAr: "كينيا AA", origin: "KE", type: "Arabica", grade: "AA", cropYear: "2026", bagType: "Jute", weight: "60" };
+
+type ProductRecord = {
+  id: string; reference: string; nameEn: string; nameAr: string; origin: string; type: string; grade: string;
+  cropYear: string; bagType: string; standardBagWeight: string; attributes: Record<string, unknown>;
+  status: "ACTIVE" | "INACTIVE"; version: number;
+};
+
+async function mockProductsApi(page: Page) {
+  let rows: ProductRecord[] = [];
+  await page.route(/\/api\/products(?:\/[^/?]+)?(?:\?.*)?$/, async (route) => {
+    const request = route.request();
+    const method = request.method();
+    const id = new URL(request.url()).pathname.split("/").pop();
+    if (method === "GET") {
+      await route.fulfill({ status: 200, headers: { "x-orb-product-write-permitted": "true" }, contentType: "application/json", body: JSON.stringify({ items: rows, nextCursor: null }) });
+      return;
+    }
+    const body = request.postDataJSON() as Partial<ProductRecord>;
+    if (method === "POST") {
+      const saved: ProductRecord = { ...body, id: "44444444-4444-4444-8444-444444444444", attributes: {}, status: "ACTIVE", version: 1 } as ProductRecord;
+      rows = [saved];
+      await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(saved) });
+      return;
+    }
+    expect(method).toBe("PATCH");
+    const current = rows.find((row) => row.id === id);
+    expect(current).toBeTruthy();
+    expect(request.headers()["if-match"]).toBe(`"${current!.version}"`);
+    const saved = { ...current!, ...body, version: current!.version + 1 };
+    rows = rows.map((row) => row.id === saved.id ? saved : row);
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(saved) });
+  });
+}
 
 async function registerProduct(page: import("@playwright/test").Page, ar: boolean) {
   await page.getByText(ar ? "فتح نموذج تسجيل المنتج" : "Open product registration form").click();
@@ -19,6 +52,7 @@ async function registerProduct(page: import("@playwright/test").Page, ar: boolea
 for (const locale of ["en", "ar"] as const) {
   test(`${locale} product registration persists and supports lifecycle`, async ({ page }, testInfo) => {
     const ar = locale === "ar";
+    await mockProductsApi(page);
     await page.goto(`/masters/coffee?locale=${locale}`);
     await expect(page.locator("main > section")).toHaveAttribute("dir", ar ? "rtl" : "ltr");
     await expect(page.getByText(ar ? "لم تُسجل منتجات بعد" : "No products registered yet")).toBeVisible();
@@ -42,6 +76,7 @@ for (const locale of ["en", "ar"] as const) {
 for (const locale of ["en", "ar"] as const) {
   test(`mobile ${locale} product register has no horizontal page overflow`, async ({ page }, testInfo) => {
     const ar = locale === "ar";
+    await mockProductsApi(page);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`/masters/coffee?locale=${locale}`);
     await registerProduct(page, ar);

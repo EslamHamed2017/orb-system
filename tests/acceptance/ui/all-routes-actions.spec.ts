@@ -37,7 +37,7 @@ const acceptanceOnlyRouteVariants = new Set(["/masters/customers", "/masters/sup
 
 const asyncStates = ["loading", "empty", "error", "permission-denied", "offline", "stale-version"] as const;
 const uiMutationOperationIds = new Set([
-  "createCustomer", "updateCustomer", "createSupplier", "updateSupplier", "createProjectWithSalesContract", "createPurchaseContract", "createContractAmendment",
+  "createCustomer", "updateCustomer", "createSupplier", "updateSupplier", "createProduct", "updateProduct", "createProjectWithSalesContract", "createPurchaseContract", "createContractAmendment",
   "submitContractForApproval", "createSupplierShipment", "submitSupplierShipmentConfirmation", "confirmSupplierShipment", "createSalesShipment",
   "setPrimarySupplierSource", "requestToleranceException", "confirmSalesShipment", "updateRouteEvidenceOrMilestone", "uploadEvidence",
   "generateShipmentDocument", "reviseDocument", "submitDocumentForApproval", "cancelDocumentRevision", "createOutboundManifest",
@@ -112,7 +112,7 @@ test("every accepted UI mutation has one reachable named action bound to its exa
     }
   }
   const missing = [...uiMutationOperationIds].filter((id) => !found.has(id)).sort();
-  const unavailableWithoutDatabase = ["createRole", "createSupplier", "decideFixedApproval", "replaceRolePermissions", "startIsolatedRestoreTest", "updateCustomer", "updateSupplier"].sort();
+  const unavailableWithoutDatabase = ["createProduct", "createRole", "createSupplier", "decideFixedApproval", "replaceRolePermissions", "startIsolatedRestoreTest", "updateCustomer", "updateProduct", "updateSupplier"].sort();
   const unknown = [...found].filter(([id]) => !operationIds.includes(id)).sort();
   expect(missing, "only database-backed mutation controls may be absent from the no-database preview").toEqual(unavailableWithoutDatabase);
   expect(unknown, "UI controls reference unknown contract operations").toEqual([]);
