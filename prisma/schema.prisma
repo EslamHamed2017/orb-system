@@ -249,11 +249,13 @@ model Contract {
   reference                                                   String
   counterparty_id                                             String?                       @db.Uuid
   counterparty_customer_id                                    String?                       @db.Uuid
+  counterparty_supplier_id                                    String?                       @db.Uuid
   active_version_id                                           String?                       @db.Uuid
   state                                                       String
   version                                                     Int                           @default(1)
   Tenant                                                      Tenant?                       @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   Customer                                                    Customer?                     @relation(fields: [counterparty_customer_id, tenant_id], references: [id, tenant_id], onDelete: NoAction, onUpdate: NoAction)
+  Supplier                                                    Supplier?                     @relation(fields: [counterparty_supplier_id, tenant_id], references: [id, tenant_id], onDelete: NoAction, onUpdate: NoAction, map: "Contract_counterparty_supplier_tenant_fkey")
   LegacyContractQuarantine                                    LegacyContractQuarantine?
   ContractVersion_Contract_active_version_idToContractVersion ContractVersion?              @relation("Contract_active_version_idToContractVersion", fields: [active_version_id, id], references: [id, contract_id], onDelete: NoAction, onUpdate: NoAction, map: "Contract_active_version_contract_fkey")
   Project_Contract_project_idToProject                        Project                       @relation("Contract_project_idToProject", fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_6_Contract")
@@ -272,6 +274,7 @@ model Contract {
   @@unique([id, tenant_id])
   @@unique([id, counterparty_id])
   @@unique([project_id, reference])
+  @@index([counterparty_supplier_id, tenant_id], map: "Contract_counterparty_supplier_id_tenant_id_idx")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -508,11 +511,15 @@ model IdempotencyRecord {
   response_status  Int
   response_locator String?
   response_hash    String   @db.Char(64)
+  tenant_id        String?  @db.Uuid
+  response_body    Json?
   created_at       DateTime @default(now()) @db.Timestamptz(6)
   expires_at       DateTime @db.Timestamptz(6)
   User             User     @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_62_IdempotencyRecord")
+  Tenant           Tenant?  @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "IdempotencyRecord_tenant_fkey")
 
   @@unique([actor_id, operation_id, key])
+  @@index([tenant_id, actor_id], map: "IdempotencyRecord_tenant_id_actor_id_idx")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1291,6 +1298,7 @@ model Tenant {
   Contract            Contract[]
   ProjectAuditEvent   ProjectAuditEvent[]
   TenantMembership    TenantMembership[]
+  IdempotencyRecord   IdempotencyRecord[]
 }
 
 /// Tenant-owned customer master with optimistic concurrency and tenant-scoped business reference.
@@ -1360,6 +1368,7 @@ model Supplier {
   updated_at         DateTime             @updatedAt @db.Timestamptz(6)
   Tenant             Tenant               @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   SupplierAuditEvent SupplierAuditEvent[]
+  Contract           Contract[]
 
   @@unique([tenant_id, reference])
   @@unique([id, tenant_id])
