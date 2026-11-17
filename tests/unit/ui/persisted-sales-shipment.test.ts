@@ -22,3 +22,16 @@ test("persisted shipment workspace renders only loaded attachment records", () =
   const page = readFileSync("src/ui/features/shipments/PersistedSalesShipmentWorkspace.tsx", "utf8");
   assert.match(page, /attachments=\{shipment\.attachments\}/);
 });
+
+
+test("persisted shipment navigation and states use bilingual business labels instead of technical identifiers", () => {
+  const page = readFileSync("src/ui/features/shipments/PersistedSalesShipmentWorkspace.tsx", "utf8");
+  assert.match(page, /projectLabel=\{shipment\.projectReference\}/);
+  assert.match(page, /recordId=\{shipment\.reference\}/);
+  assert.doesNotMatch(page, /recordId=\{shipment\.id\}/);
+  assert.match(page, /DELIVERED: \["Delivered", "تم التسليم"\]/);
+  assert.match(page, /APPROVED: \["Approved", "معتمدة"\]/);
+  assert.match(page, /PENDING_APPROVAL: \["Pending approval", "بانتظار الموافقة"\]/);
+  assert.match(page, /stateLabel\(shipment\.executionState, locale\)/);
+  assert.match(page, /stateLabel\(d\.state, locale\)/);
+});

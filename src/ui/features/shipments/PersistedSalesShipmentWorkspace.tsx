@@ -7,6 +7,17 @@ function Fact({ label, value }: Readonly<{ label: string; value: React.ReactNode
   return <div><dt>{label}</dt><dd>{value}</dd></div>;
 }
 
+const STATE_LABELS = {
+  DRAFT: ["Draft", "مسودة"], CONFIRMED: ["Confirmed", "مؤكدة"], IN_TRANSIT: ["In transit", "قيد النقل"],
+  DELIVERED: ["Delivered", "تم التسليم"], CANCELLED: ["Cancelled", "ملغاة"], APPROVED: ["Approved", "معتمدة"],
+  PENDING_APPROVAL: ["Pending approval", "بانتظار الموافقة"],
+  SUPERSEDED: ["Superseded", "مستبدلة"], REJECTED: ["Rejected", "مرفوضة"],
+} as const;
+function stateLabel(state: string, locale: "en" | "ar"): string {
+  const known = STATE_LABELS[state as keyof typeof STATE_LABELS];
+  return known?.[locale === "ar" ? 1 : 0] ?? (locale === "ar" ? "حالة غير معروفة" : "Unknown status");
+}
+
 export function PersistedSalesShipmentUnavailable({ locale }: Readonly<{ locale: "en" | "ar" }>) {
   const ar = locale === "ar";
   return <article className={s.page} dir={ar ? "rtl" : "ltr"}><header className={s.pageHeader}><div><p className={s.eyebrow}>{ar ? "تنفيذ شحنة البيع" : "Sales execution"}</p><h1>{ar ? "بيانات الشحنة غير متاحة" : "Shipment data unavailable"}</h1><p role="status">{ar ? "قاعدة بيانات الشحنات غير متاحة؛ لم يتم عرض أي بيانات تجريبية." : "The shipment database is unavailable; no sample data is shown."}</p></div></header></article>;
@@ -16,10 +27,10 @@ export function PersistedSalesShipmentWorkspace({ locale, shipment }: Readonly<{
   const ar = locale === "ar", d = shipment.dataset;
   const text = (en: string, arValue: string) => ar ? arValue : en;
   return <article data-persisted-sales-shipment className={s.page} dir={ar ? "rtl" : "ltr"}>
-    <ProjectContextNavigation locale={locale} projectId={shipment.projectId} current="salesShipment" recordId={shipment.id} />
-    <header className={s.pageHeader}><div><p className={s.eyebrow}>{text("Sales execution", "تنفيذ شحنة البيع")}</p><h1>{text("Sales shipment workspace", "مساحة شحنة البيع")}</h1><p>{text("Persisted shipment identity, logistics facts, dates, and evidence.", "هوية الشحنة المحفوظة وحقائق النقل والتواريخ والأدلة.")}</p></div><span className={`${s.chip} ${s.warning}`}>{shipment.executionState.replaceAll("_", " ")}</span></header>
+    <ProjectContextNavigation locale={locale} projectId={shipment.projectId} projectLabel={shipment.projectReference} current="salesShipment" recordId={shipment.reference} />
+    <header className={s.pageHeader}><div><p className={s.eyebrow}>{text("Sales execution", "تنفيذ شحنة البيع")}</p><h1>{text("Sales shipment workspace", "مساحة شحنة البيع")}</h1><p>{text("Persisted shipment identity, logistics facts, dates, and evidence.", "هوية الشحنة المحفوظة وحقائق النقل والتواريخ والأدلة.")}</p></div><span className={`${s.chip} ${s.warning}`}>{stateLabel(shipment.executionState, locale)}</span></header>
     <div className={s.contextBar}><div className={s.contextItem}><span>{text("Reference", "المرجع")}</span><strong><bdi>{shipment.reference}</bdi></strong></div><div className={s.contextItem}><span>{text("Project", "المشروع")}</span><strong><bdi>{shipment.projectReference}</bdi></strong></div><div className={s.contextItem}><span>{text("Record version", "إصدار السجل")}</span><strong>{shipment.version}</strong></div>{d ? <div className={s.contextItem}><span>{text("Dataset revision", "مراجعة مجموعة البيانات")}</span><strong>{d.revision}</strong></div> : null}</div>
-    {d ? <section className={s.card} aria-labelledby="persisted-dataset-title"><div className={s.sectionHeader}><div><p className={s.eyebrow}>{text("Active dataset", "مجموعة البيانات النشطة")}</p><h2 id="persisted-dataset-title">{d.productDescription}</h2><p>{text("These values are loaded from the active PostgreSQL shipment dataset.", "تُحمّل هذه القيم من مجموعة بيانات الشحنة النشطة في PostgreSQL.")}</p></div><span className={`${s.chip} ${s.success}`}>{d.state.replaceAll("_", " ")}</span></div>
+    {d ? <section className={s.card} aria-labelledby="persisted-dataset-title"><div className={s.sectionHeader}><div><p className={s.eyebrow}>{text("Active dataset", "مجموعة البيانات النشطة")}</p><h2 id="persisted-dataset-title">{d.productDescription}</h2><p>{text("These values are loaded from the active PostgreSQL shipment dataset.", "تُحمّل هذه القيم من مجموعة بيانات الشحنة النشطة في PostgreSQL.")}</p></div><span className={`${s.chip} ${s.success}`}>{stateLabel(d.state, locale)}</span></div>
       <dl className={s.metaGrid}>
         <Fact label={text("Quantity", "الكمية")} value={<bdi>{d.quantity}</bdi>} />
         <Fact label={text("Bags", "الأكياس")} value={d.bagCount} />
