@@ -16,7 +16,7 @@ export ORB_TEST_BASE_URL="http://127.0.0.1:${ORB_TEST_PORT}"
 export ORB_APP_ORIGIN="$ORB_TEST_BASE_URL" ORB_ALLOWED_ORIGINS="$ORB_TEST_BASE_URL"
 export OBJECT_STORAGE_ENDPOINT=http://127.0.0.1:9 OBJECT_STORAGE_REGION=us-east-1 OBJECT_STORAGE_BUCKET=orb-evidence OBJECT_STORAGE_ACCESS_KEY_ID=test OBJECT_STORAGE_SECRET_ACCESS_KEY=test ENCRYPTION_KEY_BASE64="$(openssl rand -base64 32)" TELEMETRY_ENDPOINT=http://127.0.0.1/telemetry BACKUP_STATUS_ENDPOINT=http://127.0.0.1/backup
 corepack pnpm build
-ORB_TEST_MANAGED_SERVER=1 corepack pnpm exec playwright test tests/acceptance/supplier-shipment-persistence.spec.ts --project=chromium --retries=0
+ORB_TEST_MANAGED_SERVER=1 ORB_SUPPLIER_SHIPMENT_ACCEPTANCE=1 corepack pnpm exec playwright test tests/acceptance/supplier-shipment-persistence.spec.ts --project=chromium --retries=0
 count=$("${compose[@]}" exec -T migration-postgres psql -U orb_migrator -d orb_migration -Atc "SELECT count(*) FROM \"SupplierShipment\" WHERE \"project_id\"='33333333-3333-7333-8333-333333333333'")
 [[ "$count" == 4 ]];printf 'supplier shipment persistence acceptance passed: chromium=5; retries=0; PostgreSQL rows=%s; artifacts=4
 ' "$count"
