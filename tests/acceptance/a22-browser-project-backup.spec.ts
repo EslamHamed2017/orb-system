@@ -2,11 +2,9 @@ import { expect, test, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 
 async function createProject(page: Page): Promise<void> {
-  await page.goto("/projects/new?locale=en");
-  const data = { customer: "Atlas Foods", reference: "AF-101", contractReference: "SC-44", startDate: "2026-11-14", commodity: "Coffee", quantity: "20", unit: "MT", currency: "USD", unitPrice: "4200", origin: "Mombasa", destination: "Dubai" };
-  for (const [name, value] of Object.entries(data)) await page.locator(`[name="${name}"]`).fill(value);
-  await page.getByRole("button", { name: "Save and open project" }).click();
-  await page.waitForURL(/\/projects\/[^/]+\/overview/);
+  const project = { id: "legacy-project-1", code: "ORB-P-0001", customer: "Atlas Foods", reference: "AF-101", contractReference: "SC-44", startDate: "2026-11-14", commodity: "Coffee", quantity: "20", unit: "MT", currency: "USD", unitPrice: "4200", value: 84000, origin: "Mombasa", destination: "Dubai", status: "SETUP", createdAt: "2026-11-14T12:00:00.000Z", updatedAt: "2026-11-14T12:00:00.000Z" };
+  await page.goto("/sign-in?locale=en");
+  await page.evaluate(value => localStorage.setItem("orb.user-projects.owner-1.v1", JSON.stringify([value])), project);
 }
 
 test("owner exports, previews, confirms, and restores exact saved projects", async ({ page }) => {
@@ -37,8 +35,8 @@ test("owner exports, previews, confirms, and restores exact saved projects", asy
   await expect(replace).toBeEnabled();
   await replace.click();
   await expect(page.getByRole("status")).toContainText("1 project restored in this browser");
-  await page.getByRole("link", { name: "Open projects" }).click();
-  await expect(page.getByRole("heading", { name: "Atlas Foods" })).toBeVisible();
+  await page.getByRole("link", { name: "Open Today" }).click();
+  await expect(page.getByText("Atlas Foods", { exact: false }).first()).toBeVisible();
 });
 
 test("invalid backup preserves existing projects and never enables restore", async ({ page }) => {

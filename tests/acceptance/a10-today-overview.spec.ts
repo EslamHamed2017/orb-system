@@ -1,71 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
 
-async function createProject(page: Page, locale: "en" | "ar" = "en"): Promise<string> {
-  await page.goto(`/projects/new?locale=${locale}`);
-  const data = { customer: "Atlas Foods", reference: "AF-101", contractReference: "SC-44", startDate: "2026-11-14", commodity: "Coffee", quantity: "20", unit: "MT", currency: "USD", unitPrice: "4200", origin: "Mombasa", destination: "Dubai" };
-  for (const [name, value] of Object.entries(data)) await page.locator(`[name="${name}"]`).fill(value);
-  await page.getByRole("button", { name: locale === "ar" ? "حفظ وفتح المشروع" : "Save and open project" }).click();
-  await page.waitForURL(/\/projects\/[^/]+\/overview/);
-  return new URL(page.url()).pathname;
-}
+const LEGACY_PROJECT={id:"legacy-project-1",code:"ORB-P-0001",customer:"Atlas Foods",reference:"AF-101",contractReference:"SC-44",startDate:"2026-11-14",commodity:"Coffee",quantity:"20",unit:"MT",currency:"USD",unitPrice:"4200",value:84000,origin:"Mombasa",destination:"Dubai",status:"SETUP",createdAt:"2026-11-14T12:00:00.000Z",updatedAt:"2026-11-14T12:00:00.000Z"};
+async function createProject(page:Page,locale:"en"|"ar"="en"):Promise<string>{await page.goto(`/sign-in?locale=${locale}`);await page.evaluate(project=>localStorage.setItem("orb.user-projects.owner-1.v1",JSON.stringify([project])),LEGACY_PROJECT);const path=`/projects/${LEGACY_PROJECT.id}/overview`;await page.goto(`${path}?locale=${locale}`);await expect(page.getByRole("heading",{level:1,name:"Atlas Foods"})).toBeVisible();return path}
 
-test("empty Today and Projects disclose browser-only storage and never show fixed projects", async ({ page }) => {
-  await page.goto("/?locale=en");
-  await expect(page.getByRole("heading", { name: "Start with your first project" })).toBeVisible();
-  await expect(page.getByText("Start with the next required step for every project that needs work.", { exact: true })).toBeVisible();
-  await expect(page.locator("body")).toContainText("ORB will not add sample data");
-  await page.goto("/projects?locale=en");
-  await expect(page.getByRole("heading", { name: "No saved projects" })).toBeVisible();
-  await expect(page.locator("body")).toContainText("saved in this browser only");
-  await expect(page.locator("body")).not.toContainText(/Pilot Customer|ORB-P-0001/);
-});
-
-test("creation persists exact fields, opens the exact detail, and Today has one direct action", async ({ page }) => {
-  const detailPath = await createProject(page);
-  await expect(page.getByRole("heading", { level: 1, name: "Atlas Foods" })).toBeVisible();
-  await expect(page.locator("body")).toContainText("AF-101");
-  await expect(page.locator("body")).toContainText("SC-44");
-  await expect(page.getByText("Not started", { exact: true })).toHaveCount(6);
-  await expect(page.getByText("Claims (optional, when needed)", { exact: true })).toBeVisible();
-  await expect(page.getByText("No claims recorded", { exact: true })).toBeVisible();
-  await expect(page.locator('#lifecycle a[href*="/contracts"], #lifecycle a[href*="/shipments"], #lifecycle a[href*="/money"]')).toHaveCount(0);
-  await expect(page.locator("body")).not.toContainText(/Pilot Customer|estimated total|actual margin/i);
-  await page.reload();
-  await expect(page).toHaveURL(new RegExp(detailPath));
-  await page.goto("/?locale=en");
-  await expect(page.getByRole("heading", { name: "Complete project setup" })).toHaveCount(1);
-  await expect(page.getByRole("link", { name: "Complete setup" })).toHaveAttribute("href", /\/overview\?locale=en#project-data$/);
-  await page.goto(`${detailPath}?locale=en`);
-  await expect(page.getByRole("button", { name: "Complete project setup" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Complete project setup" })).toHaveCount(0);
-});
-
-test("corrupt browser storage shows an error instead of pretending the register is empty", async ({ page }) => {
-  await page.goto("/projects?locale=en");
-  await page.evaluate(() => localStorage.setItem("orb.user-projects.owner-1.v1", "not-json"));
-  await page.reload();
-  await expect(page.getByText("Projects could not be opened", { exact: true })).toBeVisible();
-});
-
-test("project search works and cards reflow above mobile navigation", async ({ page }) => {
-  await createProject(page);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/projects?locale=en");
-  const search = page.getByRole("searchbox", { name: "Search projects" });
-  await search.fill("Atlas");
-  await expect(page.getByRole("heading", { name: "Atlas Foods" })).toBeVisible();
-  await search.fill("missing");
-  await expect(page.getByRole("heading", { name: "No matching projects" })).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
-  const bottom = page.locator('[data-navigation="bottom"]');
-  await expect(bottom).toBeVisible();
-  const shellGeometry = await page.evaluate(() => {
-    const main = document.querySelector(".orb-main")!.getBoundingClientRect();
-    const nav = document.querySelector('[data-navigation="bottom"]')!.getBoundingClientRect();
-    return { mainBottom: Math.round(main.bottom), navTop: Math.round(nav.top) };
-  });
-  expect(shellGeometry.mainBottom).toBeLessThanOrEqual(shellGeometry.navTop);
-});
+const project={id:"33333333-3333-7333-8333-333333333333",reference:"ORB-PRJ-2026-000001",lifecycleState:"DRAFT",managementCurrency:"USD",version:1,customer:{id:"11111111-1111-7111-8111-111111111111",reference:"CUS-001",legalName:"Northstar Roasters",legalNameAr:"محمصة نورث ستار"},salesContract:{id:"44444444-4444-7444-8444-444444444444",reference:"ORB-SC-2026-000001",state:"DRAFT",version:1,activeVersion:{revisionNo:1,effectiveDate:"2026-11-17",product:{id:"22222222-2222-7222-8222-222222222222",reference:"PROD-001",nameEn:"Yemen Matari",nameAr:"مطري يمني"},quantity:"100.000000",unitPrice:"4250.000000",currency:"USD",route:"FOREIGN_TO_FOREIGN",incoterm:"FOB",namedPlace:"Jebel Ali",paymentTerms:"30 days",documentTerms:"Original BL",tolerances:{quantityUnder:"0.000000",quantityOver:"0.000000",netWeightUnder:"0.000000",netWeightOver:"0.000000",grossWeightUnder:"0.000000",grossWeightOver:"0.000000"}}}};
+function fulfill(page:any,items:any[]){return page.route("**/api/projects",(route:any)=>route.fulfill({status:200,headers:{"x-orb-project-write-permitted":"true"},contentType:"application/json",body:JSON.stringify({items,nextCursor:null})}))}
+test("empty persisted project register never invents demo projects",async({page})=>{await fulfill(page,[]);await page.goto("/projects?locale=en");await expect(page.getByRole("heading",{name:"No projects registered yet"})).toBeVisible();await expect(page.locator("body")).not.toContainText(/Pilot Customer|ORB-P-0001|browser only/i)});
+test("persisted project register searches shared project, customer, contract, and product facts",async({page})=>{await fulfill(page,[project]);await page.goto("/projects?locale=en");for(const value of ["ORB-PRJ-2026-000001","Northstar","ORB-SC-2026-000001","Yemen Matari","Jebel Ali"]){await page.getByRole("searchbox",{name:"Search projects"}).fill(value);await expect(page.getByText("ORB-PRJ-2026-000001",{exact:true})).toBeVisible()}await expect(page.getByRole("link",{name:"Open project"})).toHaveAttribute("href",/33333333-3333-7333-8333-333333333333/)});
+test("Arabic persisted project register is RTL and mobile-safe",async({page})=>{await fulfill(page,[project]);await page.setViewportSize({width:390,height:844});await page.goto("/projects?locale=ar");await expect(page.locator("main > section")).toHaveAttribute("dir","rtl");await expect(page.getByText("مطري يمني",{exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth)).toBeLessThanOrEqual(1)});
+test("project service failure is truthful and keyboard-recoverable",async({page})=>{let failing=true;await page.route("**/api/projects",route=>route.fulfill(failing?{status:503,body:"unavailable"}:{status:200,headers:{"x-orb-project-write-permitted":"true"},contentType:"application/json",body:JSON.stringify({items:[],nextCursor:null})}));await page.goto("/projects?locale=en");await expect(page.locator("main [role=alert]")).toContainText("Project service is unavailable.");const retry=page.getByRole("button",{name:"Retry"});await retry.focus();await expect(retry).toBeFocused();failing=false;await retry.press("Enter");await expect(page.getByRole("heading",{name:"No projects registered yet"})).toBeVisible()});
 
 for (const locale of ["en", "ar"] as const) test(`${locale} bounded flow uses route direction and business copy`, async ({ page }) => {
   await createProject(page, locale);
