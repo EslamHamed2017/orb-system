@@ -43,6 +43,7 @@ const unavailable: SessionsRouteDependencies = {
   verify: async (login, credential) => {
     if (process.env.ORB_TEST_AUTH !== "1" || !process.env.ORB_APP_ORIGIN?.startsWith("http://127.0.0.1:")) return null;
     if (login === "operations@example.test" && credential === "test-credential") return { userId: "019a5f9b-7c00-7000-8000-000000000311", roles: ["OPERATIONS"], mfaRequired: false };
+    if (login === "finance@example.test" && credential === "test-credential") return { userId: "019a5f9b-7c00-7000-8000-000000000313", roles: ["FINANCE_VIEWER"], mfaRequired: false };
     if (login === "owner@example.test" && credential === "owner-secret-value") return { userId: "019a5f9b-7c00-7000-8000-000000000312", roles: ["OWNER_ADMIN"], mfaRequired: true };
     return null;
   },

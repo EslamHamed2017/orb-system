@@ -307,10 +307,12 @@ model ContractVersion {
   Approval                                             Approval?             @relation(fields: [approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_102_ContractVersion")
   Contract_ContractVersion_contract_idToContract       Contract              @relation("ContractVersion_contract_idToContract", fields: [contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_8_ContractVersion")
   ContractLineVersion                                  ContractLineVersion[]
+  SupplierShipmentDataset                              SupplierShipmentDataset[] @relation("SupplierShipmentDataset_purchase_contract_version")
   CoffeeSpecification                                  CoffeeSpecification   @relation(fields: [coffee_specification_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_9_ContractVersion")
 
   @@unique([contract_id, revision_no])
   @@unique([id, contract_id])
+  @@unique([id, contract_id, tenant_id])
 }
 
 /// Stable identity for a commercial line across contract amendments.
@@ -1050,20 +1052,26 @@ model SupplierShipment {
   id                                                                                  String                    @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
   project_id                                                                          String                    @db.Uuid
   purchase_contract_id                                                                String                    @db.Uuid
+  tenant_id                                                                           String?                   @db.Uuid
+  supplier_id                                                                         String?                   @db.Uuid
   reference                                                                           String
   active_dataset_id                                                                   String?                   @db.Uuid
   execution_state                                                                     SupplierExecutionState    @default(DRAFT)
   version                                                                             Int                       @default(1)
+  Tenant                                                                              Tenant?                   @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Supplier                                                                            Supplier?                 @relation(fields: [supplier_id, tenant_id], references: [id, tenant_id], onDelete: NoAction, onUpdate: NoAction)
   Claim                                                                               Claim[]
   SalesShipment                                                                       SalesShipment[]
   SupplierInvoice                                                                     SupplierInvoice[]
-  SupplierShipmentDataset_SupplierShipment_active_dataset_idToSupplierShipmentDataset SupplierShipmentDataset?  @relation("SupplierShipment_active_dataset_idToSupplierShipmentDataset", fields: [active_dataset_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_103_SupplierShipment")
-  Project                                                                             Project                   @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_10_SupplierShipment")
-  Contract                                                                            Contract                  @relation(fields: [purchase_contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_11_SupplierShipment")
+  SupplierShipmentDataset_SupplierShipment_active_dataset_idToSupplierShipmentDataset SupplierShipmentDataset?  @relation("SupplierShipment_active_dataset_idToSupplierShipmentDataset", fields: [active_dataset_id, id], references: [id, shipment_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_103_SupplierShipment")
+  Project                                                                             Project?                  @relation(fields: [project_id, tenant_id], references: [id, tenant_id], onDelete: NoAction, onUpdate: NoAction, map: "SupplierShipment_project_tenant_fkey")
+  Contract                                                                            Contract?                 @relation(fields: [purchase_contract_id, tenant_id], references: [id, tenant_id], onDelete: NoAction, onUpdate: NoAction, map: "SupplierShipment_contract_tenant_fkey")
   SupplierShipmentDataset_SupplierShipmentDataset_shipment_idToSupplierShipment       SupplierShipmentDataset[] @relation("SupplierShipmentDataset_shipment_idToSupplierShipment")
 
   @@unique([id, project_id])
+  @@unique([id, tenant_id])
   @@unique([project_id, reference])
+  @@index([tenant_id, project_id, execution_state])
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1071,11 +1079,14 @@ model SupplierShipment {
 model SupplierShipmentDataset {
   id                                                                           String                        @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
   shipment_id                                                                  String                        @db.Uuid
+  tenant_id                                                                    String?                       @db.Uuid
   revision_no                                                                  Int
   dataset_version                                                              Int
   dataset_hash                                                                 String                        @db.Char(64)
   purchase_contract_id                                                         String                        @db.Uuid
-  supplier_id                                                                  String                        @db.Uuid
+  purchase_contract_version_id                                                 String?                       @db.Uuid
+  supplier_id                                                                  String?                       @db.Uuid
+  supplier_master_id                                                           String?                       @db.Uuid
   coffee_specification_id                                                      String                        @db.Uuid
   supplier_lot_reference                                                       String
   quantity                                                                     Decimal                       @db.Decimal(20, 6)
@@ -1085,10 +1096,16 @@ model SupplierShipmentDataset {
   gross_weight                                                                 Decimal                       @db.Decimal(20, 6)
   origin_country                                                               String                        @db.Char(2)
   origin_location                                                              String
+  origin_unlocode                                                              String?
+  load_country                                                                 String?                       @db.Char(2)
+  load_unlocode                                                                String?
   load_location                                                                String
   discharge_location                                                           String?
+  discharge_country                                                            String?                       @db.Char(2)
+  discharge_unlocode                                                           String?
   destination_country                                                          String                        @db.Char(2)
   destination_location                                                         String
+  destination_unlocode                                                         String?
   incoterm                                                                     String
   named_place                                                                  String
   container_numbers                                                            String[]
@@ -1108,19 +1125,24 @@ model SupplierShipmentDataset {
   created_at                                                                   DateTime                      @default(now()) @db.Timestamptz(6)
   revision_reason                                                              String
   invalidated_approval_ids                                                     String[]                      @db.Uuid
+  Tenant                                                                       Tenant?                       @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Supplier                                                                     Supplier?                     @relation(fields: [supplier_master_id, tenant_id], references: [id, tenant_id], onDelete: NoAction, onUpdate: NoAction)
   SupplierShipment_SupplierShipment_active_dataset_idToSupplierShipmentDataset SupplierShipment[]            @relation("SupplierShipment_active_dataset_idToSupplierShipmentDataset")
   Approval                                                                     Approval?                     @relation(fields: [approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_104_SupplierShipmentDataset")
   User                                                                         User                          @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_105_SupplierShipmentDataset")
-  SupplierShipment_SupplierShipmentDataset_shipment_idToSupplierShipment       SupplierShipment              @relation("SupplierShipmentDataset_shipment_idToSupplierShipment", fields: [shipment_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_12_SupplierShipmentDataset")
-  Contract                                                                     Contract                      @relation(fields: [purchase_contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_13_SupplierShipmentDataset")
-  Party                                                                        Party                         @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_14_SupplierShipmentDataset")
-  CoffeeSpecification                                                          CoffeeSpecification           @relation(fields: [coffee_specification_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_15_SupplierShipmentDataset")
+  SupplierShipment_SupplierShipmentDataset_shipment_idToSupplierShipment       SupplierShipment?             @relation("SupplierShipmentDataset_shipment_idToSupplierShipment", fields: [shipment_id, tenant_id], references: [id, tenant_id], onDelete: NoAction, onUpdate: NoAction, map: "SupplierShipmentDataset_shipment_tenant_fkey")
+  Contract                                                                     Contract?                     @relation(fields: [purchase_contract_id, tenant_id], references: [id, tenant_id], onDelete: NoAction, onUpdate: NoAction, map: "SupplierShipmentDataset_contract_tenant_fkey")
+  PurchaseContractVersion                                                      ContractVersion?              @relation("SupplierShipmentDataset_purchase_contract_version", fields: [purchase_contract_version_id, purchase_contract_id, tenant_id], references: [id, contract_id, tenant_id], onDelete: NoAction, onUpdate: NoAction, map: "SupplierShipmentDataset_contract_version_tenant_fkey")
+  Party                                                                        Party?                        @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_14_SupplierShipmentDataset")
+  CoffeeSpecification                                                          CoffeeSpecification?          @relation(fields: [coffee_specification_id, tenant_id], references: [id, tenant_id], onDelete: NoAction, onUpdate: NoAction, map: "SupplierShipmentDataset_product_tenant_fkey")
   SupplierShipmentDatasetLine                                                  SupplierShipmentDatasetLine[]
   SupplierInvoiceLine                                                          SupplierInvoiceLine[]
 
   @@unique([id, purchase_contract_id])
   @@unique([id, shipment_id])
+  @@unique([id, tenant_id])
   @@unique([shipment_id, revision_no])
+  @@index([supplier_master_id, tenant_id])
 }
 
 /// Immutable product/quantity facts for one line in a supplier-shipment dataset revision.
@@ -1284,21 +1306,23 @@ model SettingsAuditEvent {
 
 /// Durable organization boundary. No legacy rows are assigned to a tenant by this additive increment.
 model Tenant {
-  id                  String                @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
-  slug                String                @unique
-  name                String
-  created_at          DateTime              @default(now()) @db.Timestamptz(6)
-  Customer            Customer[]
-  CustomerAuditEvent  CustomerAuditEvent[]
-  Supplier            Supplier[]
-  SupplierAuditEvent  SupplierAuditEvent[]
-  ProductAuditEvent   ProductAuditEvent[]
-  CoffeeSpecification CoffeeSpecification[]
-  Project             Project[]
-  Contract            Contract[]
-  ProjectAuditEvent   ProjectAuditEvent[]
-  TenantMembership    TenantMembership[]
-  IdempotencyRecord   IdempotencyRecord[]
+  id                      String                    @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  slug                    String                    @unique
+  name                    String
+  created_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  Customer                Customer[]
+  CustomerAuditEvent      CustomerAuditEvent[]
+  Supplier                Supplier[]
+  SupplierAuditEvent      SupplierAuditEvent[]
+  ProductAuditEvent       ProductAuditEvent[]
+  CoffeeSpecification     CoffeeSpecification[]
+  Project                 Project[]
+  Contract                Contract[]
+  ProjectAuditEvent       ProjectAuditEvent[]
+  TenantMembership        TenantMembership[]
+  IdempotencyRecord       IdempotencyRecord[]
+  SupplierShipment        SupplierShipment[]
+  SupplierShipmentDataset SupplierShipmentDataset[]
 }
 
 /// Tenant-owned customer master with optimistic concurrency and tenant-scoped business reference.
@@ -1351,24 +1375,26 @@ model CustomerAuditEvent {
 
 /// Tenant-owned supplier master. Legacy global Party rows are intentionally not inferred.
 model Supplier {
-  id                 String               @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
-  tenant_id          String               @db.Uuid
-  reference          String
-  registered_name    String
-  display_name_ar    String?
-  country_code       String               @db.Char(2)
-  contact_name       String?
-  email              String?
-  phone              String?
-  payment_currency   String               @db.Char(3)
-  payment_terms_days Int                  @default(0)
-  status             SupplierStatus       @default(ACTIVE)
-  version            Int                  @default(1)
-  created_at         DateTime             @default(now()) @db.Timestamptz(6)
-  updated_at         DateTime             @updatedAt @db.Timestamptz(6)
-  Tenant             Tenant               @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  SupplierAuditEvent SupplierAuditEvent[]
-  Contract           Contract[]
+  id                      String                    @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  tenant_id               String                    @db.Uuid
+  reference               String
+  registered_name         String
+  display_name_ar         String?
+  country_code            String                    @db.Char(2)
+  contact_name            String?
+  email                   String?
+  phone                   String?
+  payment_currency        String                    @db.Char(3)
+  payment_terms_days      Int                       @default(0)
+  status                  SupplierStatus            @default(ACTIVE)
+  version                 Int                       @default(1)
+  created_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime                  @updatedAt @db.Timestamptz(6)
+  Tenant                  Tenant                    @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  SupplierAuditEvent      SupplierAuditEvent[]
+  Contract                Contract[]
+  SupplierShipment        SupplierShipment[]
+  SupplierShipmentDataset SupplierShipmentDataset[]
 
   @@unique([tenant_id, reference])
   @@unique([id, tenant_id])

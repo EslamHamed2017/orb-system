@@ -1,3 +1,4 @@
+import { SupplierShipmentPlanningPage } from "../../../../ui/features/shipments/SupplierShipmentPlanningPage";
 import { ShipmentWorkspaceCore } from "../../../../ui/features/shipments/ShipmentWorkspaceCore";
 import type { ShipmentUiState } from "../../../../ui/features/shipments/ExecutionActions";
 import { ProjectContextNavigation } from "../../../../ui/navigation/ProjectContextNavigation";
@@ -5,6 +6,7 @@ import s from "../../../../ui/features/shipments/operations.module.css";
 type Query={locale?:string;state?:string;demoState?:string;role?:string};
 function uiState(value:string|undefined):ShipmentUiState{return (["draft","confirmed","in-transit","received","delivered","cancelled","rejected"] as const).includes(value as ShipmentUiState)?value as ShipmentUiState:"confirmed"}
 export default async function ProjectShipmentsPage({params,searchParams}:{params:Promise<{id:string}>;searchParams:Promise<Query>}){const [{id},query]=await Promise.all([params,searchParams]);const locale=query.locale==="ar"?"ar":"en",ar=locale==="ar",state=uiState(query.state),canMutate=query.role!=="finance-viewer";const demoState=(["tolerance","stale","replay","post-transit"] as const).find(v=>v===query.demoState)??null;const supplierState:ShipmentUiState=state==="delivered"?"received":state,salesState:ShipmentUiState=state==="received"?"delivered":state;
+const decodedId=decodeURIComponent(id);if(decodedId!=="demo")return <SupplierShipmentPlanningPage id={decodedId} locale={locale}/>;
 return <section aria-labelledby="shipments-title" className={s.page}>
  <ProjectContextNavigation locale={locale} projectId={id} current="shipments" />
  <script dangerouslySetInnerHTML={{ __html: `document.documentElement.lang=${JSON.stringify(locale)};document.documentElement.dir=${JSON.stringify(ar ? "rtl" : "ltr")}` }} />
