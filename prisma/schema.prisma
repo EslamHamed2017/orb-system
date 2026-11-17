@@ -308,6 +308,7 @@ model ContractVersion {
   Contract_ContractVersion_contract_idToContract       Contract              @relation("ContractVersion_contract_idToContract", fields: [contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_8_ContractVersion")
   ContractLineVersion                                  ContractLineVersion[]
   SupplierShipmentDataset                              SupplierShipmentDataset[] @relation("SupplierShipmentDataset_purchase_contract_version")
+  SalesShipmentDataset                                 SalesShipmentDataset[]    @relation("SalesShipmentDataset_contract_version")
   CoffeeSpecification                                  CoffeeSpecification   @relation(fields: [coffee_specification_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_9_ContractVersion")
 
   @@unique([contract_id, revision_no])
@@ -723,6 +724,7 @@ model Project {
   @@unique([id, customer_id])
   @@unique([id, tenant_id])
   @@unique([id, customer_master_id, tenant_id])
+  @@unique([id, primary_sales_contract_id, customer_master_id, tenant_id])
   @@unique([tenant_id, reference])
   @@index([tenant_id, lifecycle_state, reference])
 }
@@ -833,6 +835,8 @@ model SalesInvoiceLine {
 model SalesShipment {
   id                                                                         String                 @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
   project_id                                                                 String                 @db.Uuid
+  tenant_id                                                                  String?                @db.Uuid
+  customer_id                                                                String?                @db.Uuid
   sales_contract_id                                                          String                 @db.Uuid
   reference                                                                  String
   primary_supplier_shipment_id                                               String?                @db.Uuid
@@ -847,13 +851,16 @@ model SalesShipment {
   DirectExpense                                                              DirectExpense[]
   RouteChecklist                                                             RouteChecklist?
   SalesInvoice                                                               SalesInvoice[]
-  SalesShipmentDataset_SalesShipment_active_dataset_idToSalesShipmentDataset SalesShipmentDataset?  @relation("SalesShipment_active_dataset_idToSalesShipmentDataset", fields: [active_dataset_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_106_SalesShipment")
-  Project                                                                    Project                @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_16_SalesShipment")
+  SalesShipmentDataset_SalesShipment_active_dataset_idToSalesShipmentDataset SalesShipmentDataset?  @relation("SalesShipment_active_dataset_idToSalesShipmentDataset", fields: [active_dataset_id, id], references: [id, shipment_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_106_SalesShipment")
+  Project                                                                    Project?               @relation(fields: [project_id, sales_contract_id, customer_id, tenant_id], references: [id, primary_sales_contract_id, customer_master_id, tenant_id], onDelete: NoAction, onUpdate: NoAction, map: "SalesShipment_project_context_fkey")
+  Tenant                                                                     Tenant?                @relation("SalesShipmentTenant", fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Customer                                                                   Customer?              @relation("SalesShipmentCustomer", fields: [customer_id, tenant_id], references: [id, tenant_id], onDelete: NoAction, onUpdate: NoAction)
   Contract                                                                   Contract               @relation(fields: [sales_contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_17_SalesShipment")
   SupplierShipment                                                           SupplierShipment?      @relation(fields: [primary_supplier_shipment_id, project_id], references: [id, project_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_18_SalesShipment")
   SalesShipmentDataset_SalesShipmentDataset_shipment_idToSalesShipment       SalesShipmentDataset[] @relation("SalesShipmentDataset_shipment_idToSalesShipment")
 
   @@unique([id, project_id])
+  @@unique([id, sales_contract_id, customer_id, tenant_id])
   @@unique([project_id, reference])
 }
 
@@ -862,6 +869,9 @@ model SalesShipment {
 model SalesShipmentDataset {
   id                                                                  String                     @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
   shipment_id                                                         String                     @db.Uuid
+  tenant_id                                                           String?                    @db.Uuid
+  sales_contract_version_id                                           String?                    @db.Uuid
+  customer_id                                                         String?                    @db.Uuid
   revision_no                                                         Int
   dataset_version                                                     Int
   dataset_hash                                                        String                     @db.Char(64)
@@ -878,7 +888,9 @@ model SalesShipmentDataset {
   origin_country                                                      String                     @db.Char(2)
   origin_location                                                     String
   load_location                                                       String
+  load_country                                                        String?                    @db.Char(2)
   discharge_location                                                  String
+  discharge_country                                                   String?                    @db.Char(2)
   destination_country                                                 String                     @db.Char(2)
   destination_location                                                String
   incoterm                                                            String
@@ -904,7 +916,10 @@ model SalesShipmentDataset {
   SalesShipment_SalesShipment_active_dataset_idToSalesShipmentDataset SalesShipment[]            @relation("SalesShipment_active_dataset_idToSalesShipmentDataset")
   Approval                                                            Approval?                  @relation(fields: [approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_107_SalesShipmentDataset")
   User                                                                User                       @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_108_SalesShipmentDataset")
-  SalesShipment_SalesShipmentDataset_shipment_idToSalesShipment       SalesShipment              @relation("SalesShipmentDataset_shipment_idToSalesShipment", fields: [shipment_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_19_SalesShipmentDataset")
+  SalesShipment_SalesShipmentDataset_shipment_idToSalesShipment       SalesShipment?             @relation("SalesShipmentDataset_shipment_idToSalesShipment", fields: [shipment_id, sales_contract_id, customer_id, tenant_id], references: [id, sales_contract_id, customer_id, tenant_id], onDelete: NoAction, onUpdate: NoAction, map: "SalesShipmentDataset_header_context_fkey")
+  Tenant                                                              Tenant?                    @relation("SalesShipmentDatasetTenant", fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Customer                                                            Customer?                  @relation("SalesShipmentDatasetCustomer", fields: [customer_id, tenant_id], references: [id, tenant_id], onDelete: NoAction, onUpdate: NoAction)
+  ContractVersion                                                     ContractVersion?           @relation("SalesShipmentDataset_contract_version", fields: [sales_contract_version_id, sales_contract_id, tenant_id], references: [id, contract_id, tenant_id], onDelete: NoAction, onUpdate: NoAction)
   Contract                                                            Contract                   @relation(fields: [sales_contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_20_SalesShipmentDataset")
   CoffeeSpecification                                                 CoffeeSpecification        @relation(fields: [coffee_specification_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_21_SalesShipmentDataset")
   SalesShipmentDatasetLine                                            SalesShipmentDatasetLine[]
@@ -912,6 +927,7 @@ model SalesShipmentDataset {
 
   @@unique([id, sales_contract_id])
   @@unique([id, shipment_id])
+  @@unique([id, tenant_id])
   @@unique([shipment_id, revision_no])
 }
 
@@ -1323,6 +1339,8 @@ model Tenant {
   IdempotencyRecord       IdempotencyRecord[]
   SupplierShipment        SupplierShipment[]
   SupplierShipmentDataset SupplierShipmentDataset[]
+  SalesShipment           SalesShipment[]           @relation("SalesShipmentTenant")
+  SalesShipmentDataset    SalesShipmentDataset[]    @relation("SalesShipmentDatasetTenant")
 }
 
 /// Tenant-owned customer master with optimistic concurrency and tenant-scoped business reference.
@@ -1347,6 +1365,8 @@ model Customer {
   CustomerAuditEvent      CustomerAuditEvent[]
   Project                 Project[]
   Contract                Contract[]
+  SalesShipment           SalesShipment[]        @relation("SalesShipmentCustomer")
+  SalesShipmentDataset    SalesShipmentDataset[] @relation("SalesShipmentDatasetCustomer")
 
   @@unique([tenant_id, reference])
   @@unique([id, tenant_id])
