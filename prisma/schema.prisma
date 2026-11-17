@@ -193,28 +193,29 @@ model CoffeeSpecification {
 
 /// Immutable inventory of pre-tenancy product rows. These rows remain operationally linked until Projects/contracts gain tenant ownership.
 model LegacyProductQuarantine {
-  product_id                 String              @id @db.Uuid
-  snapshot                   Json
+  product_id                  String              @id @db.Uuid
+  snapshot                    Json
   operational_reference_count Int
-  reason                     String              @default("TENANT_OWNERSHIP_UNKNOWN")
-  quarantined_at             DateTime            @default(now()) @db.Timestamptz(6)
-  CoffeeSpecification        CoffeeSpecification @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "LegacyProductQuarantine_product_id_fkey")
+  reason                      String              @default("TENANT_OWNERSHIP_UNKNOWN")
+  quarantined_at              DateTime            @default(now()) @db.Timestamptz(6)
+  CoffeeSpecification         CoffeeSpecification @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "LegacyProductQuarantine_product_id_fkey")
 }
 
 model ProductAuditEvent {
-  id                String              @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
-  tenant_id         String              @db.Uuid
-  product_id        String              @db.Uuid
-  actor_id          String              @db.Uuid
-  action            String
-  aggregate_version Int
-  occurred_at       DateTime            @default(now()) @db.Timestamptz(6)
-  before            Json?
-  after             Json
-  Tenant            Tenant              @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                  String              @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  tenant_id           String              @db.Uuid
+  product_id          String              @db.Uuid
+  actor_id            String              @db.Uuid
+  action              String
+  aggregate_version   Int
+  occurred_at         DateTime            @default(now()) @db.Timestamptz(6)
+  before              Json?
+  after               Json
+  Tenant              Tenant              @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   CoffeeSpecification CoffeeSpecification @relation(fields: [product_id, tenant_id], references: [id, tenant_id], onDelete: NoAction, onUpdate: NoAction)
-  User              User                @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  TenantMembership  TenantMembership    @relation(fields: [tenant_id, actor_id], references: [tenant_id, user_id], onDelete: NoAction, onUpdate: NoAction)
+  User                User                @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  TenantMembership    TenantMembership    @relation(fields: [tenant_id, actor_id], references: [tenant_id, user_id], onDelete: NoAction, onUpdate: NoAction)
+
   @@unique([product_id, aggregate_version])
   @@index([tenant_id, occurred_at])
   @@index([actor_id])
@@ -243,15 +244,20 @@ model CommercialDocument {
 model Contract {
   id                                                          String                        @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
   project_id                                                  String                        @unique(map: "one_sales_contract_per_project", where: raw("(kind = 'SALES'::\"ContractKind\")")) @db.Uuid
+  tenant_id                                                   String?                       @db.Uuid
   kind                                                        ContractKind
   reference                                                   String
-  counterparty_id                                             String                        @db.Uuid
+  counterparty_id                                             String?                       @db.Uuid
+  counterparty_customer_id                                    String?                       @db.Uuid
   active_version_id                                           String?                       @db.Uuid
   state                                                       String
   version                                                     Int                           @default(1)
-  ContractVersion_Contract_active_version_idToContractVersion ContractVersion?              @relation("Contract_active_version_idToContractVersion", fields: [active_version_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_101_Contract")
+  Tenant                                                      Tenant?                       @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Customer                                                    Customer?                     @relation(fields: [counterparty_customer_id, tenant_id], references: [id, tenant_id], onDelete: NoAction, onUpdate: NoAction)
+  LegacyContractQuarantine                                    LegacyContractQuarantine?
+  ContractVersion_Contract_active_version_idToContractVersion ContractVersion?              @relation("Contract_active_version_idToContractVersion", fields: [active_version_id, id], references: [id, contract_id], onDelete: NoAction, onUpdate: NoAction, map: "Contract_active_version_contract_fkey")
   Project_Contract_project_idToProject                        Project                       @relation("Contract_project_idToProject", fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_6_Contract")
-  Party                                                       Party                         @relation(fields: [counterparty_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_7_Contract")
+  Party                                                       Party?                        @relation(fields: [counterparty_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_7_Contract")
   ContractVersion_ContractVersion_contract_idToContract       ContractVersion[]             @relation("ContractVersion_contract_idToContract")
   ContractLine                                                ContractLine[]
   MoneyMovement                                               MoneyMovement[]
@@ -263,6 +269,7 @@ model Contract {
   SupplierShipmentDatasetLine                                 SupplierShipmentDatasetLine[]
 
   @@unique([id, project_id])
+  @@unique([id, tenant_id])
   @@unique([id, counterparty_id])
   @@unique([project_id, reference])
 }
@@ -272,6 +279,7 @@ model Contract {
 model ContractVersion {
   id                                                   String                @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
   contract_id                                          String                @db.Uuid
+  tenant_id                                            String?               @db.Uuid
   revision_no                                          Int
   effective_date                                       DateTime              @db.Date
   amendment_reason                                     String?
@@ -669,33 +677,45 @@ model ProfitSnapshot {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
 model Project {
-  id                                                   String                @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
-  reference                                            String                @unique
-  customer_id                                          String                @db.Uuid
-  primary_sales_contract_id                            String?               @db.Uuid
-  lifecycle_state                                      ProjectLifecycleState @default(DRAFT)
-  financial_state                                      FinancialState        @default(OPEN)
-  final_state                                          ProjectFinalState     @default(OPEN)
-  management_currency                                  String                @db.Char(3)
-  version                                              Int                   @default(1)
+  id                                                   String                   @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  reference                                            String
+  tenant_id                                            String?                  @db.Uuid
+  customer_id                                          String?                  @db.Uuid
+  customer_master_id                                   String?                  @db.Uuid
+  primary_sales_contract_id                            String?                  @db.Uuid
+  lifecycle_state                                      ProjectLifecycleState    @default(DRAFT)
+  financial_state                                      FinancialState           @default(OPEN)
+  final_state                                          ProjectFinalState        @default(OPEN)
+  management_currency                                  String                   @db.Char(3)
+  version                                              Int                      @default(1)
+  created_at                                           DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at                                           DateTime                 @updatedAt @db.Timestamptz(6)
+  Tenant                                               Tenant?                  @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Customer                                             Customer?                @relation(fields: [customer_master_id, tenant_id], references: [id, tenant_id], onDelete: NoAction, onUpdate: NoAction)
+  ProjectAuditEvent                                    ProjectAuditEvent[]
+  LegacyProjectQuarantine                              LegacyProjectQuarantine?
   AuditEvent                                           AuditEvent[]
   Claim                                                Claim[]
   ClosureAssessment                                    ClosureAssessment[]
   CommercialDocument                                   CommercialDocument[]
-  Contract_Contract_project_idToProject                Contract?             @relation("Contract_project_idToProject")
+  Contract_Contract_project_idToProject                Contract?                @relation("Contract_project_idToProject")
   DirectExpense                                        DirectExpense[]
   EvidenceObject                                       EvidenceObject[]
   MoneyMovement                                        MoneyMovement[]
   ProfitSnapshot                                       ProfitSnapshot[]
   SalesInvoice                                         SalesInvoice[]
-  Contract_Project_primary_sales_contract_idToContract Contract?             @relation("Project_primary_sales_contract_idToContract", fields: [primary_sales_contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_100_Project")
-  Party                                                Party                 @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_5_Project")
+  Contract_Project_primary_sales_contract_idToContract Contract?                @relation("Project_primary_sales_contract_idToContract", fields: [primary_sales_contract_id, id], references: [id, project_id], onDelete: NoAction, onUpdate: NoAction, map: "Project_primary_sales_contract_project_fkey")
+  Party                                                Party?                   @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_5_Project")
   SalesShipment                                        SalesShipment[]
   SupplierInvoice                                      SupplierInvoice[]
   SupplierShipment                                     SupplierShipment[]
   TransactionSerial                                    TransactionSerial[]
 
   @@unique([id, customer_id])
+  @@unique([id, tenant_id])
+  @@unique([id, customer_master_id, tenant_id])
+  @@unique([tenant_id, reference])
+  @@index([tenant_id, lifecycle_state, reference])
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -921,7 +941,7 @@ model Session {
   expires_at       DateTime  @db.Timestamptz(6)
   mfa_satisfied_at DateTime? @db.Timestamptz(6)
   revoked_at       DateTime? @db.Timestamptz(6)
-  token_hash      String?   @unique @db.Char(64)
+  token_hash       String?   @unique @db.Char(64)
   version          Int       @default(1)
   User             User      @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_2_Session")
 }
@@ -969,24 +989,24 @@ model ShipmentExecutionEvent {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
 model SupplierInvoice {
-  id                   String               @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
-  project_id           String               @db.Uuid
-  supplier_shipment_id String               @db.Uuid
-  supplier_id          String               @db.Uuid
+  id                   String                @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  project_id           String                @db.Uuid
+  supplier_shipment_id String                @db.Uuid
+  supplier_id          String                @db.Uuid
   reference            String
-  invoice_date         DateTime             @db.Date
-  amount               Decimal              @db.Decimal(20, 6)
-  currency             String               @db.Char(3)
-  evidence_id          String               @db.Uuid
-  state                SupplierInvoiceState @default(DRAFT)
-  approval_id          String?              @db.Uuid
+  invoice_date         DateTime              @db.Date
+  amount               Decimal               @db.Decimal(20, 6)
+  currency             String                @db.Char(3)
+  evidence_id          String                @db.Uuid
+  state                SupplierInvoiceState  @default(DRAFT)
+  approval_id          String?               @db.Uuid
   cancellation_reason  String?
-  version              Int                  @default(1)
-  Approval             Approval?            @relation(fields: [approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_120_SupplierInvoice")
-  Project              Project              @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_32_SupplierInvoice")
-  SupplierShipment     SupplierShipment     @relation(fields: [supplier_shipment_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_33_SupplierInvoice")
-  Party                Party                @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_34_SupplierInvoice")
-  EvidenceObject       EvidenceObject       @relation(fields: [evidence_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_35_SupplierInvoice")
+  version              Int                   @default(1)
+  Approval             Approval?             @relation(fields: [approval_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_120_SupplierInvoice")
+  Project              Project               @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_32_SupplierInvoice")
+  SupplierShipment     SupplierShipment      @relation(fields: [supplier_shipment_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_33_SupplierInvoice")
+  Party                Party                 @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_34_SupplierInvoice")
+  EvidenceObject       EvidenceObject        @relation(fields: [evidence_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_35_SupplierInvoice")
   SupplierInvoiceLine  SupplierInvoiceLine[]
 
   @@unique([id, supplier_id, supplier_shipment_id])
@@ -1089,7 +1109,7 @@ model SupplierShipmentDataset {
   Party                                                                        Party                         @relation(fields: [supplier_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_14_SupplierShipmentDataset")
   CoffeeSpecification                                                          CoffeeSpecification           @relation(fields: [coffee_specification_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_15_SupplierShipmentDataset")
   SupplierShipmentDatasetLine                                                  SupplierShipmentDatasetLine[]
-  SupplierInvoiceLine                                                         SupplierInvoiceLine[]
+  SupplierInvoiceLine                                                          SupplierInvoiceLine[]
 
   @@unique([id, purchase_contract_id])
   @@unique([id, shipment_id])
@@ -1257,39 +1277,44 @@ model SettingsAuditEvent {
 
 /// Durable organization boundary. No legacy rows are assigned to a tenant by this additive increment.
 model Tenant {
-  id                 String               @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
-  slug               String               @unique
-  name               String
-  created_at         DateTime             @default(now()) @db.Timestamptz(6)
-  Customer           Customer[]
-  CustomerAuditEvent CustomerAuditEvent[]
-  Supplier           Supplier[]
-  SupplierAuditEvent SupplierAuditEvent[]
-  ProductAuditEvent ProductAuditEvent[]
+  id                  String                @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  slug                String                @unique
+  name                String
+  created_at          DateTime              @default(now()) @db.Timestamptz(6)
+  Customer            Customer[]
+  CustomerAuditEvent  CustomerAuditEvent[]
+  Supplier            Supplier[]
+  SupplierAuditEvent  SupplierAuditEvent[]
+  ProductAuditEvent   ProductAuditEvent[]
   CoffeeSpecification CoffeeSpecification[]
-  TenantMembership   TenantMembership[]
+  Project             Project[]
+  Contract            Contract[]
+  ProjectAuditEvent   ProjectAuditEvent[]
+  TenantMembership    TenantMembership[]
 }
 
 /// Tenant-owned customer master with optimistic concurrency and tenant-scoped business reference.
 model Customer {
-  id                 String               @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
-  tenant_id          String               @db.Uuid
-  reference          String
-  legal_name         String
-  legal_name_ar      String?
-  contact_name       String?
-  email              String?
-  phone              String?
-  country_code       String?                @db.Char(2)
+  id                      String               @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  tenant_id               String               @db.Uuid
+  reference               String
+  legal_name              String
+  legal_name_ar           String?
+  contact_name            String?
+  email                   String?
+  phone                   String?
+  country_code            String?              @db.Char(2)
   tax_registration_number String?
-  payment_terms_days Int                   @default(0)
-  billing_address    Json?
-  status             CustomerStatus       @default(ACTIVE)
-  version            Int                  @default(1)
-  created_at         DateTime             @default(now()) @db.Timestamptz(6)
-  updated_at         DateTime             @updatedAt @db.Timestamptz(6)
-  Tenant             Tenant               @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  CustomerAuditEvent CustomerAuditEvent[]
+  payment_terms_days      Int                  @default(0)
+  billing_address         Json?
+  status                  CustomerStatus       @default(ACTIVE)
+  version                 Int                  @default(1)
+  created_at              DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at              DateTime             @updatedAt @db.Timestamptz(6)
+  Tenant                  Tenant               @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  CustomerAuditEvent      CustomerAuditEvent[]
+  Project                 Project[]
+  Contract                Contract[]
 
   @@unique([tenant_id, reference])
   @@unique([id, tenant_id])
@@ -1318,98 +1343,103 @@ model CustomerAuditEvent {
 
 /// Tenant-owned supplier master. Legacy global Party rows are intentionally not inferred.
 model Supplier {
-  id String @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
-  tenant_id String @db.Uuid
-  reference String
-  registered_name String
-  display_name_ar String?
-  country_code String @db.Char(2)
-  contact_name String?
-  email String?
-  phone String?
-  payment_currency String @db.Char(3)
-  payment_terms_days Int @default(0)
-  status SupplierStatus @default(ACTIVE)
-  version Int @default(1)
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  updated_at DateTime @updatedAt @db.Timestamptz(6)
-  Tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                 String               @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  tenant_id          String               @db.Uuid
+  reference          String
+  registered_name    String
+  display_name_ar    String?
+  country_code       String               @db.Char(2)
+  contact_name       String?
+  email              String?
+  phone              String?
+  payment_currency   String               @db.Char(3)
+  payment_terms_days Int                  @default(0)
+  status             SupplierStatus       @default(ACTIVE)
+  version            Int                  @default(1)
+  created_at         DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime             @updatedAt @db.Timestamptz(6)
+  Tenant             Tenant               @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   SupplierAuditEvent SupplierAuditEvent[]
+
   @@unique([tenant_id, reference])
   @@unique([id, tenant_id])
   @@index([tenant_id, status, registered_name])
 }
+
 model SupplierAuditEvent {
-  id String @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
-  tenant_id String @db.Uuid
-  supplier_id String @db.Uuid
-  actor_id String @db.Uuid
-  action String
+  id                String           @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  tenant_id         String           @db.Uuid
+  supplier_id       String           @db.Uuid
+  actor_id          String           @db.Uuid
+  action            String
   aggregate_version Int
-  occurred_at DateTime @default(now()) @db.Timestamptz(6)
-  before Json?
-  after Json
-  Tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Supplier Supplier @relation(fields: [supplier_id, tenant_id], references: [id, tenant_id], onDelete: NoAction, onUpdate: NoAction)
-  User User @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  TenantMembership TenantMembership @relation(fields: [tenant_id, actor_id], references: [tenant_id, user_id], onDelete: NoAction, onUpdate: NoAction)
+  occurred_at       DateTime         @default(now()) @db.Timestamptz(6)
+  before            Json?
+  after             Json
+  Tenant            Tenant           @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Supplier          Supplier         @relation(fields: [supplier_id, tenant_id], references: [id, tenant_id], onDelete: NoAction, onUpdate: NoAction)
+  User              User             @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  TenantMembership  TenantMembership @relation(fields: [tenant_id, actor_id], references: [tenant_id, user_id], onDelete: NoAction, onUpdate: NoAction)
+
   @@unique([supplier_id, aggregate_version])
   @@index([tenant_id, occurred_at])
   @@index([actor_id])
 }
 
 model TenantMembership {
-  id         String   @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
-  tenant_id  String   @db.Uuid
-  user_id    String   @db.Uuid
-  status     String   @default("ACTIVE")
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  updated_at DateTime @updatedAt @db.Timestamptz(6)
-  Tenant     Tenant   @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  User       User     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                 String               @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  tenant_id          String               @db.Uuid
+  user_id            String               @db.Uuid
+  status             String               @default("ACTIVE")
+  created_at         DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime             @updatedAt @db.Timestamptz(6)
+  Tenant             Tenant               @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  User               User                 @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   SupplierAuditEvent SupplierAuditEvent[]
-  ProductAuditEvent ProductAuditEvent[]
+  ProductAuditEvent  ProductAuditEvent[]
+  ProjectAuditEvent  ProjectAuditEvent[]
 
   @@unique([tenant_id, user_id])
   @@index([user_id, status])
 }
 
 model User {
-  id                                         String                    @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
-  auth_subject                               String                    @unique
-  name_ar                                    String
-  name_en                                    String
-  locale                                     String
-  status                                     String
-  mfa_state                                  String
-  created_at                                 DateTime                  @default(now()) @db.Timestamptz(6)
-  updated_at                                 DateTime                  @db.Timestamptz(6)
-  Approval_Approval_requester_idToUser       Approval[]                @relation("Approval_requester_idToUser")
-  Approval_Approval_approver_idToUser        Approval[]                @relation("Approval_approver_idToUser")
-  AuditEvent                                 AuditEvent[]
-  SystemSettings                             SystemSettings[]
-  SettingsAuditEvent                         SettingsAuditEvent[]
-  CustomerAuditEvent                         CustomerAuditEvent[]
-  SupplierAuditEvent                         SupplierAuditEvent[]
-  ProductAuditEvent                          ProductAuditEvent[]
-  TenantMembership                           TenantMembership[]
-  IdempotencyRecord                          IdempotencyRecord[]
-  OutboundSendAttempt                        OutboundSendAttempt[]
-  PilotSession_PilotSession_user_idToUser    PilotSession[]            @relation("PilotSession_user_idToUser")
-  PilotSession_PilotSession_revoked_byToUser PilotSession[]            @relation("PilotSession_revoked_byToUser")
-  RestoreTest                                RestoreTest[]
-  RouteChecklistItem                         RouteChecklistItem[]
-  SalesShipmentDataset                       SalesShipmentDataset[]
-  Session                                    Session[]
-  SettlementAllocation                       SettlementAllocation[]
-  ShipmentExecutionEvent                     ShipmentExecutionEvent[]
-  SupplierShipmentDataset                    SupplierShipmentDataset[]
-  TransactionSerial                          TransactionSerial[]
-  RolePermission                             RolePermission[]     @relation("RolePermission_granted_byToUser")
-  UserRoleAssignment_UserRoleAssignment_user_idToUser     UserRoleAssignment[] @relation("UserRoleAssignment_user_idToUser")
-  UserRoleAssignment_UserRoleAssignment_assigned_byToUser UserRoleAssignment[] @relation("UserRoleAssignment_assigned_byToUser")
-  UserRoleAssignment_UserRoleAssignment_revoked_byToUser  UserRoleAssignment[] @relation("UserRoleAssignment_revoked_byToUser")
-  UserRole                                   UserRole[]
+  id                                                      String                    @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  auth_subject                                            String                    @unique
+  name_ar                                                 String
+  name_en                                                 String
+  locale                                                  String
+  status                                                  String
+  mfa_state                                               String
+  created_at                                              DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at                                              DateTime                  @db.Timestamptz(6)
+  Approval_Approval_requester_idToUser                    Approval[]                @relation("Approval_requester_idToUser")
+  Approval_Approval_approver_idToUser                     Approval[]                @relation("Approval_approver_idToUser")
+  AuditEvent                                              AuditEvent[]
+  SystemSettings                                          SystemSettings[]
+  SettingsAuditEvent                                      SettingsAuditEvent[]
+  CustomerAuditEvent                                      CustomerAuditEvent[]
+  SupplierAuditEvent                                      SupplierAuditEvent[]
+  ProductAuditEvent                                       ProductAuditEvent[]
+  ProjectAuditEvent                                       ProjectAuditEvent[]
+  TenantMembership                                        TenantMembership[]
+  IdempotencyRecord                                       IdempotencyRecord[]
+  OutboundSendAttempt                                     OutboundSendAttempt[]
+  PilotSession_PilotSession_user_idToUser                 PilotSession[]            @relation("PilotSession_user_idToUser")
+  PilotSession_PilotSession_revoked_byToUser              PilotSession[]            @relation("PilotSession_revoked_byToUser")
+  RestoreTest                                             RestoreTest[]
+  RouteChecklistItem                                      RouteChecklistItem[]
+  SalesShipmentDataset                                    SalesShipmentDataset[]
+  Session                                                 Session[]
+  SettlementAllocation                                    SettlementAllocation[]
+  ShipmentExecutionEvent                                  ShipmentExecutionEvent[]
+  SupplierShipmentDataset                                 SupplierShipmentDataset[]
+  TransactionSerial                                       TransactionSerial[]
+  RolePermission                                          RolePermission[]          @relation("RolePermission_granted_byToUser")
+  UserRoleAssignment_UserRoleAssignment_user_idToUser     UserRoleAssignment[]      @relation("UserRoleAssignment_user_idToUser")
+  UserRoleAssignment_UserRoleAssignment_assigned_byToUser UserRoleAssignment[]      @relation("UserRoleAssignment_assigned_byToUser")
+  UserRoleAssignment_UserRoleAssignment_revoked_byToUser  UserRoleAssignment[]      @relation("UserRoleAssignment_revoked_byToUser")
+  UserRole                                                UserRole[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1421,6 +1451,41 @@ model UserRole {
   User    User      @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_1_UserRole")
 
   @@unique([user_id, role])
+}
+
+model LegacyProjectQuarantine {
+  project_id                  String   @id @db.Uuid
+  snapshot                    Json
+  operational_reference_count Int
+  reason                      String   @default("TENANT_OWNERSHIP_UNKNOWN")
+  quarantined_at              DateTime @default(now()) @db.Timestamptz(6)
+  Project                     Project  @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model LegacyContractQuarantine {
+  contract_id    String   @id @db.Uuid
+  snapshot       Json
+  reason         String   @default("TENANT_OWNERSHIP_UNKNOWN")
+  quarantined_at DateTime @default(now()) @db.Timestamptz(6)
+  Contract       Contract @relation(fields: [contract_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model ProjectAuditEvent {
+  id                String           @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  tenant_id         String           @db.Uuid
+  project_id        String           @db.Uuid
+  actor_id          String           @db.Uuid
+  action            String
+  aggregate_version Int
+  occurred_at       DateTime         @default(now()) @db.Timestamptz(6)
+  after             Json
+  Tenant            Tenant           @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Project           Project          @relation(fields: [project_id, tenant_id], references: [id, tenant_id], onDelete: NoAction, onUpdate: NoAction)
+  User              User             @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  TenantMembership  TenantMembership @relation(fields: [tenant_id, actor_id], references: [tenant_id, user_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([project_id, aggregate_version])
+  @@index([tenant_id, occurred_at])
 }
 
 enum CustomerStatus {
