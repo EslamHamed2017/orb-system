@@ -37,7 +37,7 @@ const acceptanceOnlyRouteVariants = new Set(["/masters/customers", "/masters/sup
 
 const asyncStates = ["loading", "empty", "error", "permission-denied", "offline", "stale-version"] as const;
 const uiMutationOperationIds = new Set([
-  "createCustomer", "updateCustomer", "createSupplier", "updateSupplier", "createProduct", "updateProduct", "createProjectWithSalesContract", "createPurchaseContract", "createContractAmendment",
+  "createCustomer", "updateCustomer", "createSupplier", "updateSupplier", "createProduct", "updateProduct", "createProjectWithSalesContract", "createPurchaseContract", "activateProject", "createContractAmendment",
   "submitContractForApproval", "createSupplierShipment", "submitSupplierShipmentConfirmation", "confirmSupplierShipment", "createSalesShipment",
   "setPrimarySupplierSource", "requestToleranceException", "confirmSalesShipment", "updateRouteEvidenceOrMilestone", "uploadEvidence",
   "generateShipmentDocument", "reviseDocument", "submitDocumentForApproval", "cancelDocumentRevision", "createOutboundManifest",
@@ -103,6 +103,14 @@ for (const locale of ["en", "ar"] as const) {
 
 test("every accepted UI mutation has one reachable named action bound to its exact operationId", async ({ page }) => {
   const found = new Map<string, number>();
+  const persistedProjectId = "33333333-3333-7333-8333-333333333333";
+  const version = { revisionNo: 1, effectiveDate: "2026-11-18", product: { id: "22222222-2222-7222-8222-222222222222", reference: "PROD-001", nameEn: "Yemen Matari", nameAr: "مطري يمني" }, quantity: "20.000000", unitPrice: "4100.000000", currency: "USD", route: "FOREIGN_TO_FOREIGN", incoterm: "FOB", namedPlace: "Aden", paymentTerms: "30 days", documentTerms: "Original BL", tolerances: { quantityUnder: "0.000000", quantityOver: "0.000000", netWeightUnder: "0.000000", netWeightOver: "0.000000", grossWeightUnder: "0.000000", grossWeightOver: "0.000000" } };
+  const purchaseContract = { id: "66666666-6666-7666-8666-666666666666", reference: "ORB-PC-2026-000001", state: "DRAFT", version: 1, supplier: { id: "55555555-5555-7555-8555-555555555555", reference: "SUP-001", registeredName: "Coast Exporters", displayNameAr: "مصدرو الساحل" }, activeVersion: version };
+  const persistedProject = { id: persistedProjectId, reference: "ORB-PRJ-2026-000001", lifecycleState: "DRAFT", managementCurrency: "USD", version: 2, customer: { id: "11111111-1111-7111-8111-111111111111", reference: "CUS-001", legalName: "Northstar Roasters", legalNameAr: "محمصة نورث ستار" }, salesContract: { id: "77777777-7777-7777-8777-777777777777", reference: "ORB-SC-2026-000001", state: "DRAFT", version: 1, activeVersion: version }, purchaseContracts: [purchaseContract] };
+  await page.route(`**/api/projects/${persistedProjectId}`, route => route.fulfill({ status: 200, headers: { "x-orb-project-write-permitted": "true" }, contentType: "application/json", body: JSON.stringify(persistedProject) }));
+  await page.goto(`/projects/${persistedProjectId}/overview?locale=en`);
+  await expect(page.getByRole("button", { name: "Activate project" })).toHaveAttribute("data-operation-id", "activateProject");
+  found.set("activateProject", 1);
   for (const route of routes) {
     await page.goto(`${route}${route.includes("?") ? "&" : "?"}locale=en&role=owner-admin`);
     await expect(page.locator("main h1").first()).toBeVisible();
