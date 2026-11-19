@@ -6,32 +6,40 @@ const copy = {
 } as const;
 function region(page: Page, name: string | RegExp): Locator { return page.getByRole("region", { name }); }
 
-for (const locale of ["en", "ar"] as const) {
-  test(`${locale} approval request uses business copy and keeps technical values behind disclosure`, async ({ page }) => {
-    const text = copy[locale];
-    await page.goto(`/approvals?locale=${locale}`);
-    await expect(page.locator(".orb-shell")).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
-    await expect(page.getByRole("heading", { level: 1, name: text.approvals })).toBeVisible();
-    const dialog = region(page, locale === "ar" ? "مراجعة إرسال مستندات العميل" : "Review customer document delivery");
-    await expect(dialog).toContainText(locale === "ar" ? "إرسال مستندات الشحن إلى العميل" : "Send shipping documents to the customer");
-    await expect(dialog).toContainText(locale === "ar" ? "قائمة المستلمين" : "Recipient list");
-    await expect(dialog).toContainText(locale === "ar" ? "مالك النظام" : "System owner");
-    await expect(dialog).toContainText(locale === "ar" ? "بانتظار القرار" : "Awaiting decision");
-    await expect(dialog).toContainText(locale === "ar" ? "خدمة الموافقات غير متصلة" : "Approval service is not connected");
-    for (const value of ["EXTERNAL_SEND", "OUTBOUND_MANIFEST", "customer@example.test"]) {
-      await expect(dialog.getByText(value, { exact: true })).not.toBeVisible();
-    }
-    await expect(dialog.getByText(/[a-f0-9]{64}/)).not.toBeVisible();
-    await expect(dialog.getByRole("button", { name: /approve|reject|موافقة|رفض/i })).toHaveCount(0);
-    await expect(dialog.getByRole("link", { name: /shipping-document evidence|حزمة مستندات الشحن/i })).toHaveCount(0);
-    await expect(dialog).toContainText(locale === "ar" ? "المرفقات غير متاحة" : "Attachments are unavailable");
+const INBOX = { items: [
+  { id: "019a5f9b-7c00-7000-8000-0000000000c1", actionCode: "CONTRACT_VERSION", subjectType: "CONTRACT", subjectId: "019a5f9b-7c00-7000-8000-0000000000d1", subjectReference: "ORB-PC-2026-000001", contractKind: "PURCHASE", projectId: "019a5f9b-7c00-7000-8000-0000000000e1", projectReference: "ORB-PRJ-2026-000001", quantity: "40.000000", requesterId: "019a5f9b-7c00-7000-8000-0000000000f1", requesterName: "Sara", requestedAt: "2026-11-19T10:00:00.000Z" },
+  { id: "019a5f9b-7c00-7000-8000-0000000000c2", actionCode: "SUPPLIER_SHIPMENT_CONFIRMATION", subjectType: "SUPPLIER", subjectId: "019a5f9b-7c00-7000-8000-0000000000d2", subjectReference: "IN-ADEN-01", projectId: "019a5f9b-7c00-7000-8000-0000000000e1", projectReference: "ORB-PRJ-2026-000001", quantity: "19.200000", requesterId: "019a5f9b-7c00-7000-8000-0000000000f1", requesterName: "Sara", requestedAt: "2026-11-19T11:00:00.000Z" },
+] };
 
-    const details = dialog.getByText(locale === "ar" ? "التفاصيل التقنية" : "Technical details", { exact: true });
-    await details.click();
-    for (const value of ["EXTERNAL_SEND", "OUTBOUND_MANIFEST"]) await expect(dialog.getByText(value, { exact: true })).toBeVisible();
-    await expect(dialog.getByText(/[a-f0-9]{64}/)).toBeVisible();
+for (const locale of ["en", "ar"] as const) {
+  test(`${locale} approval inbox lists real requests with business copy and decisions`, async ({ page }) => {
+    const text = copy[locale], ar = locale === "ar";
+    const decisions: unknown[] = [];
+    await page.route("**/api/approvals", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(INBOX) }));
+    await page.route("**/api/approvals/*/decision", async (route) => { decisions.push(route.request().postDataJSON()); await route.fulfill({ status: 200, contentType: "application/json", body: "{}" }); });
+    await page.goto(`/approvals?locale=${locale}`);
+    await expect(page.locator(".orb-shell")).toHaveAttribute("dir", ar ? "rtl" : "ltr");
+    await expect(page.getByRole("heading", { level: 1, name: text.approvals })).toBeVisible();
+    const items = page.locator(".orb-inbox article");
+    await expect(items).toHaveCount(2);
+    await expect(items.first()).toContainText(ar ? "عقد (شراء)" : "Contract (purchase)");
+    await expect(items.nth(1)).toContainText(ar ? "تأكيد شحنة مورد" : "Supplier shipment confirmation");
+    await expect(items.nth(1).getByRole("link", { name: "IN-ADEN-01" })).toHaveAttribute("href", `/supplier-shipments/019a5f9b-7c00-7000-8000-0000000000d2?locale=${locale}`);
+    await expect(page.locator(".orb-inbox")).not.toContainText(/CONTRACT_VERSION|SUPPLIER_SHIPMENT_CONFIRMATION/);
+    await items.nth(1).getByRole("button", { name: ar ? "رفض…" : "Reject…" }).click();
+    await items.nth(1).locator("textarea").fill(ar ? "رقم الختم ناقص" : "Seal number missing");
+    await items.nth(1).getByRole("button", { name: ar ? "رفض" : "Reject", exact: true }).click();
+    await items.first().getByRole("button", { name: ar ? "اعتماد" : "Approve" }).click();
+    await expect.poll(() => decisions.length).toBe(2);
+    expect(decisions).toEqual([{ decision: "REJECTED", comment: ar ? "رقم الختم ناقص" : "Seal number missing" }, { decision: "APPROVED" }]);
   });
 }
+
+test("approval inbox explains when the signed-in user is not an owner", async ({ page }) => {
+  await page.route("**/api/approvals", (route) => route.fulfill({ status: 403, contentType: "application/problem+json", body: JSON.stringify({ status: 403, code: "PERMISSION_DENIED" }) }));
+  await page.goto("/approvals?locale=en");
+  await expect(page.locator(".orb-inbox-notice")).toContainText("Only an owner administrator can decide approvals.");
+});
 
 test("audit timeline exposes independently verifiable ascending chain and cursor anchors", async ({ page }) => {
   await page.goto("/projects/demo/audit?locale=en");

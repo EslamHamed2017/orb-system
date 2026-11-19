@@ -1009,6 +1009,8 @@ model ShipmentExecutionEvent {
   idempotency_key   String
   EvidenceObject    EvidenceObject? @relation(fields: [evidence_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_109_ShipmentExecutionEvent")
   User              User            @relation(fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_110_ShipmentExecutionEvent")
+
+  @@unique([shipment_type, shipment_id, idempotency_key], map: "ShipmentExecutionEvent_idempotency_key")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1872,4 +1874,19 @@ model AccessAuditEvent {
 
   @@index([tenant_id, occurred_at])
   @@index([subject_user_id])
+}
+
+model ShipmentAuditEvent {
+  id            String   @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  tenant_id     String   @db.Uuid
+  project_id    String   @db.Uuid
+  shipment_type String
+  shipment_id   String   @db.Uuid
+  actor_id      String   @db.Uuid
+  action        String
+  occurred_at   DateTime @default(now()) @db.Timestamptz(6)
+  details       Json     @default("{}")
+
+  @@index([shipment_type, shipment_id, occurred_at], map: "ShipmentAuditEvent_shipment_idx")
+  @@index([tenant_id, occurred_at])
 }

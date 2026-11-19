@@ -1,4 +1,5 @@
 import { SupplierShipmentWorkspace } from "../../../ui/features/shipments/SupplierShipmentWorkspace";
+import { ShipmentExecutionWorkspace } from "../../../ui/features/shipments/ShipmentExecutionWorkspace";
 import type { ShipmentUiState } from "../../../ui/features/shipments/ExecutionActions";
 import type { WorkspaceRole } from "../../../ui/features/shipments/workspace-tabs";
 
@@ -7,5 +8,7 @@ function role(value: string | undefined): WorkspaceRole { return value === "fina
 function state(value: string | undefined): ShipmentUiState { return (["draft", "confirmed", "in-transit", "received", "cancelled", "rejected"] as const).includes(value as never) ? value as ShipmentUiState : "confirmed"; }
 export default async function SupplierShipmentPage({ params, searchParams }: Readonly<{ params: Promise<{ id: string }>; searchParams: Promise<Query> }>) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
+  // Saved shipments (UUID ids) run on the database; the "demo" id keeps the illustrative workspace.
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) return <ShipmentExecutionWorkspace kind="SUPPLIER" shipmentId={id} locale={query.locale === "ar" ? "ar" : "en"} />;
   return <SupplierShipmentWorkspace locale={query.locale === "ar" ? "ar" : "en"} role={role(query.role)} state={state(query.state)} projectId={query.projectId ?? "demo"} shipmentId={id} />;
 }

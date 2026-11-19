@@ -1,4 +1,4 @@
-import { ApprovalDialog } from "../../ui/features/approvals/ApprovalDialog";
+import { ApprovalInbox } from "../../ui/features/approvals/ApprovalInbox";
 import { EnterpriseStyles, ErpPageHeader } from "../../ui/features/admin/EnterpriseUx";
 
 type Query = { locale?: string; role?: string };
@@ -14,10 +14,9 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
       eyebrow={ar ? "مساحة القرار" : "Decision workspace"}
       title={ar ? "طلبات الموافقة" : "Approval requests"}
       description={ar
-        ? "راجع أثر الطلب والمستلمين والتغييرات قبل اتخاذ القرار."
-        : "Review the request impact, recipients and changes before deciding."}
-      meta={<span className="orb-chip" data-tone="warning">{ar ? "معاينة فقط" : "Preview only"}</span>}
+        ? "العقود وتأكيدات الشحنات التي تنتظر قرارك. لا يمكن لمن طلب الاعتماد أن يعتمده بنفسه."
+        : "Contracts and shipment confirmations waiting for your decision. Whoever requested an approval cannot approve it."}
     />
-    <ApprovalDialog locale={locale} />
+    <ApprovalInbox locale={locale} />
   </section>;
 }

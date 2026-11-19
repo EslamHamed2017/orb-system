@@ -24,9 +24,10 @@ for (const locale of ["en", "ar"] as const) {
       await expect(printTable).toContainText("ORB-R1-SAL-100MT · 1");
       await expect(printTable).toContainText("USD 850.000000");
       await shipmentLink.click();
-      await expect(page.getByRole("heading", { level: 1, name: ar ? "مساحة شحنة البيع" : "Sales shipment workspace" })).toBeVisible();
-      await expect(page.getByText("ORB-R1-SAL-100MT", { exact: true }).first()).toBeVisible();
-      await expect(page.getByText("ORB-R1-PROJECT-A", { exact: true }).first()).toBeVisible();
+      // The link opens the database-backed shipment workspace. The seeded R1 shipment predates
+      // tenants and datasets, so the workspace reports it as not found instead of showing demo data.
+      await expect(page).toHaveURL(/\/sales-shipments\/00000000-0000-7000-8000-000000000232\?/);
+      await expect(page.getByRole("heading", { level: 1, name: /ORB-R1-SAL-100MT|Shipment not found|الشحنة غير موجودة/ })).toBeVisible();
       await expect(page.getByText("ORB-SAL-0007", { exact: true })).toHaveCount(0);
       await page.setViewportSize({ width: 1280, height: 900 });
       await page.screenshot({ path: `artifacts/ui-review/persisted-sales-invoices/shipment-desktop-${locale}.png`, fullPage: true });

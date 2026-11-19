@@ -1,6 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextResponse } from "next/server.js";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { bodyOf, idempotencyKey, jsonBody, mapShipmentErrors, shipmentActor, shipmentExecution, shipmentMutationActor } from "../../../../../modules/shipments/execution/shipment-execution-runtime.ts";
 export interface Principal { readonly userId: string; readonly roles: readonly string[] }
 function problem(status: number, code: string) { return NextResponse.json({ type: `https://orb.example/problems/${code.toLowerCase().replaceAll("_", "-")}`, title: code, status, code, correlationId: crypto.randomUUID() }, { status, headers: { "content-type": "application/problem+json", "Cache-Control": "no-store" } }); }
 export interface Dependencies { authenticate: (request: Request) => Promise<Principal | null>; execute?: (input: { request: Request; shipmentId: string; principal: Principal; body: unknown }) => Promise<unknown> }
 export function createPostHandler(d: Dependencies) { return async (request: Request, context: { params: Promise<{ shipmentId: string }>; }) => { const principal = await d.authenticate(request); if (!principal) return problem(401, "AUTHENTICATION_REQUIRED"); if (!principal.roles.some((role) => ["OWNER_ADMIN", "OPERATIONS"].includes(role))) return problem(403, "PERMISSION_DENIED"); if (!d.execute) return problem(503, "DEPENDENCY_UNAVAILABLE"); const { shipmentId } = await context.params; return NextResponse.json(await d.execute({ request, shipmentId, principal, body: await request.json().catch(() => ({})) }), { headers: { "Cache-Control": "no-store" } }); }; }
-export const POST = createPostHandler({ authenticate: async () => null });
+export const POST = mapShipmentErrors(createPostHandler({
+  authenticate: (request) => shipmentMutationActor(request),
+  execute: async ({ request, shipmentId, principal, body }) => shipmentExecution().transition(principal as never, "SUPPLIER", shipmentId, bodyOf(request, body), idempotencyKey(request)),
+}));
