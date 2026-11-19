@@ -28,6 +28,12 @@ curl --fail --silent "http://127.0.0.1:${ORB_MIGRATION_OBJECT_PORT}/minio/health
 export DATABASE_URL="postgresql://orb_migrator:${ORB_ISOLATED_DB_PASSWORD}@127.0.0.1:${ORB_MIGRATION_DB_PORT}/orb_migration?sslmode=disable"
 corepack pnpm exec prisma migrate deploy
 node prisma/seed.ts
+# Pages require a real session: create a throwaway owner in the seeded tenant for the browser run.
+export ORB_OWNER_MFA_REQUIRED=0
+export ORB_ACCEPTANCE_LOGIN="acceptance-$(openssl rand -hex 6)@orb.test"
+export ORB_ACCEPTANCE_PASSWORD="Acc$(openssl rand -hex 16)9"
+ORB_OWNER_PASSWORD="$ORB_ACCEPTANCE_PASSWORD" node --experimental-strip-types scripts/create-owner.ts \
+  --login "$ORB_ACCEPTANCE_LOGIN" --name-en "Acceptance Owner" --name-ar "مالك الاختبار" --tenant-slug r1-pilot --additional
 mc() {
   docker run --rm --interactive --network orb-isolated_backend     -e "MC_HOST_alpha=http://${ORB_ISOLATED_MINIO_USER}:${ORB_ISOLATED_MINIO_PASSWORD}@migration-object-store:9000"     "$MC_IMAGE" "$@"
 }
