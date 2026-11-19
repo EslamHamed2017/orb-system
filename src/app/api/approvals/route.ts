@@ -1,4 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server.js";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { approvalInbox, idempotencyKey, jsonBody, mapShipmentErrors, shipmentActor, shipmentExecution, shipmentMutationActor } from "../../../modules/shipments/execution/shipment-execution-runtime.ts";
 
 export interface ApprovalInboxPrincipal { readonly userId: string; readonly roles: readonly string[] }
 export interface ApprovalInboxRouteDependencies {
@@ -17,4 +19,7 @@ export function createApprovalsGetHandler(dependencies: ApprovalInboxRouteDepend
     return NextResponse.json(await dependencies.list({ request, principal }), { headers: { "Cache-Control": "no-store" } });
   };
 }
-export async function GET() { return problem(503, "DEPENDENCY_UNAVAILABLE", "Approval inbox dependencies are not configured."); }
+export const GET = mapShipmentErrors(createApprovalsGetHandler({
+  authenticate: (request) => shipmentActor(request),
+  list: async ({ principal }) => approvalInbox().list(principal as never),
+}));
