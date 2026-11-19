@@ -54,28 +54,21 @@ test("every invoice mutation carries exact concurrency, idempotency and CSRF con
   }
 });
 
-test("create requires supplier-attributable container lines and derives the invoice amount", () => {
+test("create is a multipart upload with the invoice document; the line comes from the shipment and contract", () => {
   const create = operation("/supplier-shipments/{shipmentId}/invoices");
   assert.equal(create.requestBody.required, true);
-  assert.equal(create.requestBody.content["application/json"].schema.$ref, "#/components/schemas/SupplierInvoiceInput");
+  assert.equal(create.requestBody.content["multipart/form-data"].schema.$ref, "#/components/schemas/SupplierInvoiceInput");
+  assert.equal(create.requestBody.content["application/json"], undefined);
   assert.equal(create.responses["201"].$ref, "#/components/responses/Entity");
 
   const input = api.components.schemas.SupplierInvoiceInput;
-  const fields = ["supplierId", "reference", "invoiceDate", "currency", "evidenceId", "lines"];
+  const fields = ["reference", "invoiceDate", "amount", "file"];
   assert.equal(input.additionalProperties, false);
   assert.deepEqual(input.required, fields);
   assert.deepEqual(Object.keys(input.properties), fields);
-  assert.equal(input.properties.supplierId.$ref, "#/components/schemas/Uuid");
   assert.equal(input.properties.invoiceDate.format, "date");
-  assert.equal(input.properties.currency.$ref, "#/components/schemas/Currency");
-  assert.equal(input.properties.evidenceId.$ref, "#/components/schemas/Uuid");
-  assert.equal(input.properties.lines.type, "array");
-  assert.equal(input.properties.lines.minItems, 1);
-  assert.equal(input.properties.lines.items.$ref, "#/components/schemas/SupplierInvoiceLineInput");
-  const line = api.components.schemas.SupplierInvoiceLineInput;
-  assert.equal(line.additionalProperties, false);
-  assert.deepEqual(line.required, ["shipmentLineId", "description", "quantity", "unitPrice"]);
-  assert.deepEqual(Object.keys(line.properties), ["shipmentLineId", "description", "quantity", "unitPrice"]);
+  assert.equal(input.properties.amount.$ref, "#/components/schemas/Decimal");
+  assert.equal(input.properties.file.format, "binary");
 });
 
 test("submit creates the fixed approval and confirm binds only its exact identifier", () => {

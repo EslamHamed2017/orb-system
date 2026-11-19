@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { EnterpriseStyles, ErpPageHeader } from "../admin/EnterpriseUx";
 import { problemOf, sendJson, type ApiProblem } from "../../session-client";
+import { ShipmentInvoicesPanel, type ShipmentInvoice } from "../invoices/ShipmentInvoicesPanel";
 
 type Locale = "en" | "ar";
 type Kind = "SUPPLIER" | "SALES";
@@ -28,6 +29,7 @@ interface Shipment {
   events: { fromState: string; toState: string; reason: string | null; occurredAt: string; actorName: string }[];
   history: { action: string; occurredAt: string; actorName: string; details: Record<string, unknown> }[];
   availableActions: Action[];
+  invoices?: ShipmentInvoice[];
 }
 
 const STATES: Record<string, [string, string]> = {
@@ -77,7 +79,7 @@ export function ShipmentExecutionWorkspace({ kind, shipmentId, locale }: { reado
     try {
       const result = await action() as Shipment | { shipment: Shipment } | null;
       const next = result && "shipment" in result ? result.shipment : result as Shipment | null;
-      if (next && next.id) setShipment(next); else await load();
+      if (next && next.id) setShipment((current) => ({ ...next, invoices: next.invoices ?? current?.invoices })); else await load();
       setOpen(null);
       setNotice({ tone: "success", text: success });
     } catch (error) {
@@ -259,6 +261,8 @@ export function ShipmentExecutionWorkspace({ kind, shipmentId, locale }: { reado
           <dt>{t("Revision", "المراجعة")}</dt><dd>#{d.revisionNo}</dd></dl>
       </article>
     </div>
+
+    <ShipmentInvoicesPanel kind={kind} shipmentId={s.id} shipmentState={s.executionState} invoices={s.invoices ?? []} locale={locale} onChanged={load}/>
 
     <section className="ship-card" aria-labelledby="timeline-title"><h2 id="timeline-title">{t("History", "السجل")}</h2>
       {timeline.length === 0 ? <p className="orb-muted">{t("No activity yet.", "لا يوجد نشاط بعد.")}</p> :

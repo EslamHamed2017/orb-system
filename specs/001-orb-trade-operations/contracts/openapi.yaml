@@ -1323,6 +1323,21 @@ paths:
         default: { $ref: '#/components/responses/Problem' }
       x-required-roles: [OWNER_ADMIN, FINANCE_VIEWER]
       summary: Read deterministic bilingual customer invoice print data
+  /sales-invoices/{invoiceId}/cancel:
+    post:
+      tags: [SalesInvoices]
+      operationId: cancelUnallocatedSalesInvoice
+      parameters:
+      - $ref: '#/components/parameters/InvoiceId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        $ref: '#/components/requestBodies/Reason'
+      responses:
+        '200': { $ref: '#/components/responses/Entity' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, FINANCE_VIEWER]
+      summary: Cancel a customer invoice that has no receipts allocated to it
   /supplier-shipments/{shipmentId}/invoices:
     post:
       tags:
@@ -1336,7 +1351,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
               $ref: '#/components/schemas/SupplierInvoiceInput'
       responses:
@@ -3804,31 +3819,26 @@ components:
         unitPrice: { $ref: '#/components/schemas/Decimal' }
     SupplierInvoiceInput:
       type: object
+      description: Multipart upload; the single invoice line is the shipment quantity times the purchase contract unit price
       additionalProperties: false
       required:
-      - supplierId
       - reference
       - invoiceDate
-      - currency
-      - evidenceId
-      - lines
+      - amount
+      - file
       properties:
-        supplierId:
-          $ref: '#/components/schemas/Uuid'
         reference:
           type: string
+          maxLength: 64
         invoiceDate:
           type: string
           format: date
-        currency:
-          $ref: '#/components/schemas/Currency'
-        evidenceId:
-          $ref: '#/components/schemas/Uuid'
-        lines:
-          type: array
-          minItems: 1
-          items:
-            $ref: '#/components/schemas/SupplierInvoiceLineInput'
+        amount:
+          $ref: '#/components/schemas/Decimal'
+        file:
+          type: string
+          format: binary
+          description: Supplier invoice document as PDF, JPEG or PNG, at most 10 MB
     SupplierInvoiceLineInput:
       type: object
       additionalProperties: false

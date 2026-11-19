@@ -4,7 +4,11 @@ import type { ApprovalInboxItem } from "../shipments/execution/shipment-executio
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { ShipmentProblem, type ShipmentActor, type ShipmentExecutionService } from "../shipments/execution/shipment-execution-service.ts";
 
+import type { InvoiceService } from "../invoices/invoice-service.ts";
+import type { InvoiceApprovalItem, PrismaInvoiceStore } from "../invoices/invoice-store.ts";
+
 type ContractStore = Pick<PrismaContractApprovalStore, keyof PrismaContractApprovalStore>;
+type InvoiceReads = Pick<PrismaInvoiceStore, "listPendingApprovals" | "approvalSubject">;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -18,17 +22,21 @@ function translate(error: unknown): never {
 }
 
 /** One owner inbox for every approval kind wired so far: contract versions and shipment confirmations. */
-export function createApprovalInboxService(shipments: ShipmentExecutionService, contracts: ContractStore) {
+export function createApprovalInboxService(shipments: ShipmentExecutionService, contracts: ContractStore, invoices?: InvoiceService, invoiceReads?: InvoiceReads) {
   return Object.freeze({
-    async list(actor: ShipmentActor): Promise<{ items: (ApprovalInboxItem | ContractInboxItem)[] }> {
+    async list(actor: ShipmentActor): Promise<{ items: (ApprovalInboxItem | ContractInboxItem | InvoiceApprovalItem)[] }> {
       const shipmentItems = (await shipments.listApprovals(actor)).items;
       const contractItems = await contracts.listPending(actor.tenantId);
-      return { items: [...contractItems, ...shipmentItems].sort((a, b) => a.id.localeCompare(b.id)) };
+      const invoiceItems = invoiceReads ? await invoiceReads.listPendingApprovals(actor.tenantId) : [];
+      return { items: [...contractItems, ...shipmentItems, ...invoiceItems].sort((a, b) => a.id.localeCompare(b.id)) };
     },
 
     async decide(actor: ShipmentActor, approvalId: unknown, body: Record<string, unknown>, idempotencyKey: string) {
       if (!actor.roles.includes("OWNER_ADMIN")) throw new ShipmentProblem(403, "PERMISSION_DENIED", "Only an owner can decide approvals.");
       if (typeof approvalId !== "string" || !UUID.test(approvalId)) throw new ShipmentProblem(422, "VALIDATION_FAILED", "Approval is not a valid id.");
+      if (invoices && invoiceReads && await invoiceReads.approvalSubject(actor.tenantId, approvalId)) {
+        return { subjectType: "SUPPLIER_INVOICE", invoice: await invoices.decideSupplierInvoice(actor, approvalId, body) };
+      }
       if (await contracts.approvalSubject(actor.tenantId, approvalId)) {
         const decision = body.decision;
         if (decision !== "APPROVED" && decision !== "REJECTED") throw new ShipmentProblem(422, "VALIDATION_FAILED", "decision must be APPROVED or REJECTED.");

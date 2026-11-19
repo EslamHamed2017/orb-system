@@ -14,7 +14,13 @@ import { PrismaContractApprovalStore } from "../../contracts/contract-approval-s
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { createApprovalInboxService, type ApprovalInboxService } from "../../approvals/approval-inbox-service.ts";
 
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { PrismaInvoiceStore } from "../../invoices/invoice-store.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { createInvoiceService, type InvoiceService } from "../../invoices/invoice-service.ts";
+
 let service: ShipmentExecutionService | undefined;
+let invoices: InvoiceService | undefined;
 let inbox: ApprovalInboxService | undefined;
 
 export function shipmentExecution(): ShipmentExecutionService {
@@ -22,8 +28,13 @@ export function shipmentExecution(): ShipmentExecutionService {
   return service;
 }
 
+export function invoiceService(): InvoiceService {
+  invoices ??= createInvoiceService(new PrismaInvoiceStore(getPrismaClient() as unknown as SqlClient));
+  return invoices;
+}
+
 export function approvalInbox(): ApprovalInboxService {
-  inbox ??= createApprovalInboxService(shipmentExecution(), new PrismaContractApprovalStore(getPrismaClient() as unknown as SqlClient));
+  inbox ??= createApprovalInboxService(shipmentExecution(), new PrismaContractApprovalStore(getPrismaClient() as unknown as SqlClient), invoiceService(), new PrismaInvoiceStore(getPrismaClient() as unknown as SqlClient));
   return inbox;
 }
 

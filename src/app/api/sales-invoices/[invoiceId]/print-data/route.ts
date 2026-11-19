@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server.js";
 // @ts-expect-error Native Node TypeScript tests require source extensions.
+import { invoiceService, mapShipmentErrors, shipmentActor } from "../../../../../modules/shipments/execution/shipment-execution-runtime.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
 import { assertServerPermission, type OperationPrincipal } from "../../../../../modules/access/permissions.ts";
 import type { SalesInvoicePrincipal } from "../route.ts";
 export interface Dependencies { authenticate: (request: Request) => Promise<SalesInvoicePrincipal | null>; getPrintData?: (input: { request: Request; invoiceId: string; principal: SalesInvoicePrincipal; locale: "ar" | "en" }) => Promise<unknown> }
 function problem(status: number, code: string) { return NextResponse.json({ type: `https://orb.example/problems/${code.toLowerCase().replaceAll("_", "-")}`, title: code, status, code, correlationId: crypto.randomUUID() }, { status, headers: { "content-type":"application/problem+json", "Cache-Control":"no-store" } }); }
 export function createGetHandler(dependencies: Dependencies) { return async (request: Request, context: { params: Promise<{ invoiceId: string }> }) => { const principal=await dependencies.authenticate(request); if(!principal)return problem(401,"AUTHENTICATION_REQUIRED"); try { assertServerPermission(principal, "getSalesInvoicePrintData"); } catch { return problem(403, "PERMISSION_DENIED"); } if(!dependencies.getPrintData)return problem(503,"DEPENDENCY_UNAVAILABLE"); const {invoiceId}=await context.params; const locale=new URL(request.url).searchParams.get("locale")==="ar"?"ar":"en"; return NextResponse.json(await dependencies.getPrintData({request,invoiceId,principal,locale}),{headers:{"Cache-Control":"no-store"}}); }; }
-export const GET=createGetHandler({authenticate:async()=>null});
+export const GET = mapShipmentErrors(createGetHandler({
+  authenticate: (request) => shipmentActor(request),
+  getPrintData: async ({ invoiceId, principal }) => invoiceService().salesInvoicePrintData(principal as never, invoiceId),
+}));

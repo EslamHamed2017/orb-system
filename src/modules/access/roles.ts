@@ -396,6 +396,10 @@ const OPERATION_ROLES = Object.freeze({
     "OWNER_ADMIN",
     "FINANCE_VIEWER"
   ],
+  "cancelUnallocatedSalesInvoice": [
+    "OWNER_ADMIN",
+    "FINANCE_VIEWER"
+  ],
   "signIn": [],
   "signOutCurrentSession": [
     "OWNER_ADMIN",

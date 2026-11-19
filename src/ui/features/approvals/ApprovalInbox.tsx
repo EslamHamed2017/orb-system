@@ -5,12 +5,14 @@ import { fetchCurrentSession, problemOf, sendJson, type ApiProblem } from "../..
 
 type Locale = "en" | "ar";
 interface Item {
-  id: string; actionCode: string; subjectType: "CONTRACT" | "SUPPLIER" | "SALES"; subjectId: string; subjectReference: string;
+  id: string; actionCode: string; subjectType: "CONTRACT" | "SUPPLIER" | "SALES" | "SUPPLIER_INVOICE"; subjectId: string; subjectReference: string;
+  shipmentId?: string; amount?: string; expectedAmount?: string; currency?: string; supplierName?: string;
   contractKind?: string; projectId: string; projectReference: string; quantity: string; requesterId: string; requesterName: string; requestedAt: string | null;
 }
 
 const KIND: Record<Item["subjectType"], [string, string]> = {
   CONTRACT: ["Contract", "عقد"], SUPPLIER: ["Supplier shipment confirmation", "تأكيد شحنة مورد"], SALES: ["Customer shipment confirmation", "تأكيد شحنة عميل"],
+  SUPPLIER_INVOICE: ["Supplier invoice", "فاتورة مورد"],
 };
 
 /** Owner inbox: every pending contract and shipment approval, with approve / reject-with-reason. */
@@ -44,7 +46,8 @@ export function ApprovalInbox({ locale }: { readonly locale: Locale }) {
     } finally { setBusy(null); }
   }
 
-  const link = (item: Item) => item.subjectType === "SUPPLIER" ? `/supplier-shipments/${item.subjectId}?locale=${locale}`
+  const link = (item: Item) => item.subjectType === "SUPPLIER_INVOICE" ? `/supplier-shipments/${item.shipmentId}?locale=${locale}`
+    : item.subjectType === "SUPPLIER" ? `/supplier-shipments/${item.subjectId}?locale=${locale}`
     : item.subjectType === "SALES" ? `/sales-shipments/${item.subjectId}?locale=${locale}` : `/projects/${item.projectId}/shipments?locale=${locale}`;
 
   if (error) return <p className="orb-inbox-notice" role="alert" data-tone="error">{error.status === 403 ? t("Only an owner administrator can decide approvals.", "اتخاذ قرارات الاعتماد متاح للمالك فقط.") : t("Approvals could not be loaded.", "تعذر تحميل الاعتمادات.")} {error.status !== 403 && <button type="button" onClick={() => void load()}>{t("Try again", "حاول مرة أخرى")}</button>}</p>;
@@ -66,6 +69,8 @@ export function ApprovalInbox({ locale }: { readonly locale: Locale }) {
         <strong id={`approval-${item.id}`}>{KIND[item.subjectType][ar ? 1 : 0]}{item.contractKind ? ` (${item.contractKind === "SALES" ? t("sales", "بيع") : t("purchase", "شراء")})` : ""} · <a href={link(item)}><bdi>{item.subjectReference}</bdi></a></strong>
         <span className="meta"><bdi>{item.projectReference}</bdi> · <bdi>{Number(item.quantity).toLocaleString("en-US", { maximumFractionDigits: 3 })} MT</bdi></span>
       </header>
+      {item.subjectType === "SUPPLIER_INVOICE" && item.amount && <span className="meta">{item.supplierName} · <bdi>{item.currency} {Number(item.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}</bdi>
+        {item.expectedAmount && Number(item.expectedAmount) !== Number(item.amount) && <strong> · {t(`differs from contract (${Number(item.expectedAmount).toLocaleString("en-US", { minimumFractionDigits: 2 })})`, `يختلف عن العقد (${Number(item.expectedAmount).toLocaleString("en-US", { minimumFractionDigits: 2 })})`)}</strong>}</span>}
       <span className="meta">{t("Requested by", "طلبها")} {item.requesterName}{item.requestedAt ? ` · ${new Date(item.requestedAt).toLocaleString(ar ? "ar-AE" : "en-GB", { dateStyle: "medium", timeStyle: "short" })}` : ""}</span>
       {own ? <p className="meta">{t("You requested this, so another owner must decide it.", "أنت من طلبها، لذلك يجب أن يقرر مالك آخر.")}</p>
         : rejecting === item.id ? <form onSubmit={(event: FormEvent<HTMLFormElement>) => { event.preventDefault(); void decide(item, "REJECTED", String(new FormData(event.currentTarget).get("comment") ?? "")); }}>

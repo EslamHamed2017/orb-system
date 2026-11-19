@@ -50,6 +50,14 @@ export async function sendJson<T = unknown>(url: string, method: "POST" | "PATCH
   return response.status === 204 ? null : await response.json() as T;
 }
 
+/** Sends a multipart form (file uploads). The browser sets the multipart boundary itself. */
+export async function sendForm<T = unknown>(url: string, form: FormData): Promise<T> {
+  const { "content-type": _json, ...headers } = mutationHeaders();
+  const response = await fetch(url, { method: "POST", headers, body: form, cache: "no-store" });
+  if (!response.ok) throw await problemOf(response);
+  return await response.json() as T;
+}
+
 export async function fetchCurrentSession(): Promise<CurrentSession | null> {
   const response = await fetch("/api/sessions/current", { cache: "no-store", headers: { accept: "application/json" } });
   if (response.status === 401) return null;
