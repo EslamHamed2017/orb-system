@@ -6,6 +6,8 @@ import { ShipmentProblem, type ShipmentActor, type ShipmentExecutionService } fr
 
 import type { InvoiceService } from "../invoices/invoice-service.ts";
 import type { InvoiceApprovalItem, PrismaInvoiceStore } from "../invoices/invoice-store.ts";
+import type { MoneyService } from "../money/money-service.ts";
+import type { MoneyApprovalItem } from "../money/money-store.ts";
 
 type ContractStore = Pick<PrismaContractApprovalStore, keyof PrismaContractApprovalStore>;
 type InvoiceReads = Pick<PrismaInvoiceStore, "listPendingApprovals" | "approvalSubject">;
@@ -21,14 +23,15 @@ function translate(error: unknown): never {
   throw error;
 }
 
-/** One owner inbox for every approval kind wired so far: contract versions and shipment confirmations. */
-export function createApprovalInboxService(shipments: ShipmentExecutionService, contracts: ContractStore, invoices?: InvoiceService, invoiceReads?: InvoiceReads) {
+/** One owner inbox for every approval kind wired so far: contracts, shipment confirmations, supplier invoices, payments and expenses. */
+export function createApprovalInboxService(shipments: ShipmentExecutionService, contracts: ContractStore, invoices?: InvoiceService, invoiceReads?: InvoiceReads, money?: MoneyService) {
   return Object.freeze({
-    async list(actor: ShipmentActor): Promise<{ items: (ApprovalInboxItem | ContractInboxItem | InvoiceApprovalItem)[] }> {
+    async list(actor: ShipmentActor): Promise<{ items: (ApprovalInboxItem | ContractInboxItem | InvoiceApprovalItem | MoneyApprovalItem)[] }> {
       const shipmentItems = (await shipments.listApprovals(actor)).items;
       const contractItems = await contracts.listPending(actor.tenantId);
       const invoiceItems = invoiceReads ? await invoiceReads.listPendingApprovals(actor.tenantId) : [];
-      return { items: [...contractItems, ...shipmentItems, ...invoiceItems].sort((a, b) => a.id.localeCompare(b.id)) };
+      const moneyItems = money ? await money.listApprovals(actor) : [];
+      return { items: [...contractItems, ...shipmentItems, ...invoiceItems, ...moneyItems].sort((a, b) => a.id.localeCompare(b.id)) };
     },
 
     async decide(actor: ShipmentActor, approvalId: unknown, body: Record<string, unknown>, idempotencyKey: string) {
@@ -36,6 +39,14 @@ export function createApprovalInboxService(shipments: ShipmentExecutionService, 
       if (typeof approvalId !== "string" || !UUID.test(approvalId)) throw new ShipmentProblem(422, "VALIDATION_FAILED", "Approval is not a valid id.");
       if (invoices && invoiceReads && await invoiceReads.approvalSubject(actor.tenantId, approvalId)) {
         return { subjectType: "SUPPLIER_INVOICE", invoice: await invoices.decideSupplierInvoice(actor, approvalId, body) };
+      }
+      if (money) {
+        const decision = body.decision;
+        const comment = typeof body.comment === "string" && body.comment.trim() ? body.comment.trim().slice(0, 500) : null;
+        if (decision === "APPROVED" || decision === "REJECTED") {
+          const result = await money.decide(actor, approvalId, { decision, comment });
+          if (result) return result;
+        }
       }
       if (await contracts.approvalSubject(actor.tenantId, approvalId)) {
         const decision = body.decision;

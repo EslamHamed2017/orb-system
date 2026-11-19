@@ -31,8 +31,11 @@ test("money exposes only the four accepted append-only command operations", () =
   const moneyOperations = Object.values(api.paths).flatMap((item: any) => Object.values(item))
     .filter((operation: any) => operation?.tags?.includes("Money"))
     .map((operation: any) => operation.operationId).sort();
-  assert.deepEqual(moneyOperations, commands.map(([, operationId]) => operationId).sort(),
+  assert.deepEqual(moneyOperations, [...commands.map(([, operationId]) => operationId), "getProjectMoney"].sort(),
     "no edit, delete, bank matching, netting or destructive allocation endpoint may exist");
+  const read = api.paths["/projects/{projectId}/money-movements"].get;
+  assert.equal(read.operationId, "getProjectMoney");
+  assert.equal(read.requestBody, undefined);
 });
 
 test("every money command requires exact version, idempotency and CSRF controls", () => {
@@ -42,22 +45,21 @@ test("every money command requires exact version, idempotency and CSRF controls"
   }
 });
 
-test("movement input pins party, contract, kind, exact amount, currency and occurrence facts", () => {
+test("movement upload pins counterparty, kind, exact amount, currency, manual AED rate, date and the bank slip", () => {
   const operation = post("/projects/{projectId}/money-movements");
   assert.equal(operation.requestBody.required, true);
-  assert.equal(operation.requestBody.content["application/json"].schema.$ref, "#/components/schemas/MoneyMovementInput");
+  assert.equal(operation.requestBody.content["multipart/form-data"].schema.$ref, "#/components/schemas/MoneyMovementInput");
   assert.equal(operation.responses["201"].$ref, "#/components/responses/Entity");
   const schema = api.components.schemas.MoneyMovementInput;
-  const required = ["partyId", "contractId", "kind", "amount", "currency", "occurredOn", "reference"];
+  const required = ["kind", "counterpartyId", "amount", "currency", "fxRate", "occurredOn", "reference", "file"];
+  assert.equal(schema.additionalProperties, false);
   assert.deepEqual(schema.required, required);
-  assert.deepEqual(Object.keys(schema.properties), [...required, "evidenceId"]);
-  assert.deepEqual(schema.properties.kind.enum, [
-    "CUSTOMER_ADVANCE", "CUSTOMER_RECEIPT", "CUSTOMER_REFUND",
-    "SUPPLIER_ADVANCE", "SUPPLIER_PAYMENT", "SUPPLIER_REFUND",
-  ]);
+  assert.deepEqual(Object.keys(schema.properties), [...required.slice(0, 7), "notes", "file"]);
+  assert.deepEqual(schema.properties.kind.enum, ["CUSTOMER_RECEIPT", "CUSTOMER_REFUND", "SUPPLIER_PAYMENT", "SUPPLIER_REFUND"]);
   assert.equal(schema.properties.amount.$ref, "#/components/schemas/Decimal");
   assert.equal(schema.properties.currency.$ref, "#/components/schemas/Currency");
   assert.equal(schema.properties.occurredOn.format, "date");
+  assert.equal(schema.properties.file.format, "binary");
 });
 
 test("allocation input is one exact CINV or supplier-invoice target", () => {

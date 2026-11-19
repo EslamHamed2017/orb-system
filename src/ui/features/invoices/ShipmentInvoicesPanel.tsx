@@ -10,7 +10,7 @@ import { fetchCurrentSession, sendForm, sendJson, type ApiProblem } from "../../
  */
 export interface ShipmentInvoice {
   type: "SUPPLIER" | "SALES"; id: string; reference: string; invoiceDate: string; state: string; currency: string;
-  amount: string; expectedAmount: string; quantity: string; unitPrice: string;
+  amount: string; expectedAmount: string; quantity: string; unitPrice: string; paid?: string; outstanding?: string;
   document: { id: string; filename: string; mediaType: string; byteLength: number } | null;
   pendingApprovalId: string | null; requesterId: string | null;
   lastDecision: { decision: string; comment: string | null; approverName: string | null } | null;
@@ -85,6 +85,7 @@ export function ShipmentInvoicesPanel({ kind, shipmentId, shipmentState, invoice
         <td><bdi>{invoice.invoiceDate}</bdi></td>
         <td><bdi>{money(invoice.amount, invoice.currency)}</bdi>
           {differs && <><br/><small data-tone="warning">{t(`Expected ${money(invoice.expectedAmount, invoice.currency)} from the contract`, `المتوقع حسب العقد ${money(invoice.expectedAmount, invoice.currency)}`)}</small></>}
+          {["CONFIRMED", "ISSUED"].includes(invoice.state) && invoice.paid !== undefined && <><br/><small data-testid="invoice-balance">{Number(invoice.outstanding) <= 0 ? t("Fully paid", "مدفوعة بالكامل") : t(`Paid ${money(invoice.paid, invoice.currency)} · Due ${money(invoice.outstanding ?? "0", invoice.currency)}`, `مدفوع ${money(invoice.paid, invoice.currency)} · المتبقي ${money(invoice.outstanding ?? "0", invoice.currency)}`)}</small></>}
           <br/><small className="orb-muted"><bdi>{Number(invoice.quantity).toLocaleString("en-US", { maximumFractionDigits: 3 })} MT × {Number(invoice.unitPrice).toLocaleString("en-US", { maximumFractionDigits: 2 })}</bdi></small></td>
         <td><span className="orb-chip" data-tone={state[2]}>{state[ar ? 1 : 0]}</span>
           {invoice.state === "REJECTED" && invoice.lastDecision?.comment && <><br/><small>{invoice.lastDecision.comment}</small></>}

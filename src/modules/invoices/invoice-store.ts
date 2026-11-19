@@ -27,6 +27,9 @@ export type InvoiceType = "SUPPLIER" | "SALES";
 
 export interface InvoiceSummary {
   readonly type: InvoiceType;
+  /** Payments allocated to the invoice (active allocations) and what is still unpaid. */
+  readonly paid: string;
+  readonly outstanding: string;
   readonly id: string;
   readonly reference: string;
   readonly invoiceDate: string;
@@ -138,7 +141,11 @@ export class PrismaInvoiceStore {
         WHERE ap."action_code" = 'SUPPLIER_INVOICE_CONFIRMATION' AND ap."subject_id" = $1 ORDER BY ap."id" DESC`, invoiceId) : [];
     const pending = approvals.find((a) => a.decision === "PENDING");
     const decided = approvals.find((a) => a.decision === "APPROVED" || a.decision === "REJECTED");
+    const paid = (await tx.$queryRawUnsafe<Array<{ paid: string }>>(
+      `SELECT COALESCE(SUM("amount"), 0)::text paid FROM "SettlementAllocation" WHERE "target_type" = $1::"AllocationTargetType" AND "target_id" = $2 AND "state" = 'ACTIVE'`,
+      type === "SUPPLIER" ? "SUPPLIER_INVOICE" : "CINV", invoiceId))[0].paid;
     return {
+      paid: money(paid), outstanding: (Math.round(Number(row.amount) * 100 - Number(paid) * 100) / 100).toFixed(2),
       type, id: String(row.id), reference: String(row.reference), invoiceDate: day(row.invoice_date), state: String(row.state), currency: String(row.currency).trim(),
       amount: money(row.amount), expectedAmount: money(row.line_amount), quantity: six(row.quantity), unitPrice: six(row.unit_price),
       shipmentId: String(row.shipment_id), projectId: String(row.project_id),

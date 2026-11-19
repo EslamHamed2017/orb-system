@@ -5,14 +5,15 @@ import { fetchCurrentSession, problemOf, sendJson, type ApiProblem } from "../..
 
 type Locale = "en" | "ar";
 interface Item {
-  id: string; actionCode: string; subjectType: "CONTRACT" | "SUPPLIER" | "SALES" | "SUPPLIER_INVOICE"; subjectId: string; subjectReference: string;
-  shipmentId?: string; amount?: string; expectedAmount?: string; currency?: string; supplierName?: string;
+  id: string; actionCode: string; subjectType: "CONTRACT" | "SUPPLIER" | "SALES" | "SUPPLIER_INVOICE" | "MONEY_MOVEMENT" | "EXPENSE"; subjectId: string; subjectReference: string;
+  shipmentId?: string; amount?: string; expectedAmount?: string; currency?: string; supplierName?: string; kind?: string; counterpartyName?: string; aedAmount?: string;
   contractKind?: string; projectId: string; projectReference: string; quantity: string; requesterId: string; requesterName: string; requestedAt: string | null;
 }
 
 const KIND: Record<Item["subjectType"], [string, string]> = {
   CONTRACT: ["Contract", "عقد"], SUPPLIER: ["Supplier shipment confirmation", "تأكيد شحنة مورد"], SALES: ["Customer shipment confirmation", "تأكيد شحنة عميل"],
   SUPPLIER_INVOICE: ["Supplier invoice", "فاتورة مورد"],
+  MONEY_MOVEMENT: ["Payment", "دفعة"], EXPENSE: ["Project expense", "مصروف مشروع"],
 };
 
 /** Owner inbox: every pending contract and shipment approval, with approve / reject-with-reason. */
@@ -46,12 +47,14 @@ export function ApprovalInbox({ locale }: { readonly locale: Locale }) {
     } finally { setBusy(null); }
   }
 
-  const link = (item: Item) => item.subjectType === "SUPPLIER_INVOICE" ? `/supplier-shipments/${item.shipmentId}?locale=${locale}`
+  const link = (item: Item) => item.subjectType === "MONEY_MOVEMENT" ? `/projects/${item.projectId}/money?locale=${locale}`
+    : item.subjectType === "EXPENSE" ? `/projects/${item.projectId}/expenses?locale=${locale}`
+    : item.subjectType === "SUPPLIER_INVOICE" ? `/supplier-shipments/${item.shipmentId}?locale=${locale}`
     : item.subjectType === "SUPPLIER" ? `/supplier-shipments/${item.subjectId}?locale=${locale}`
     : item.subjectType === "SALES" ? `/sales-shipments/${item.subjectId}?locale=${locale}` : `/projects/${item.projectId}/shipments?locale=${locale}`;
 
   if (error) return <p className="orb-inbox-notice" role="alert" data-tone="error">{error.status === 403 ? t("Only an owner administrator can decide approvals.", "اتخاذ قرارات الاعتماد متاح للمالك فقط.") : t("Approvals could not be loaded.", "تعذر تحميل الاعتمادات.")} {error.status !== 403 && <button type="button" onClick={() => void load()}>{t("Try again", "حاول مرة أخرى")}</button>}</p>;
-  if (!items) return <p role="status" aria-busy="true">{t("Loading approvals…", "جارٍ تحميل الاعتمادات…")}</p>;
+  if (!items) return <p role="status" aria-busy="true">{t("Loading approvals…", "جارٍ تحميل الاعتمادات…")} <button type="button" onClick={() => void load()}>{t("Refresh", "تحديث")}</button></p>;
 
   return <div className="orb-inbox">
     <style>{`
@@ -67,8 +70,9 @@ export function ApprovalInbox({ locale }: { readonly locale: Locale }) {
     {items.map((item) => { const own = me !== null && item.requesterId === me; return <article key={item.id} aria-labelledby={`approval-${item.id}`}>
       <header>
         <strong id={`approval-${item.id}`}>{KIND[item.subjectType][ar ? 1 : 0]}{item.contractKind ? ` (${item.contractKind === "SALES" ? t("sales", "بيع") : t("purchase", "شراء")})` : ""} · <a href={link(item)}><bdi>{item.subjectReference}</bdi></a></strong>
-        <span className="meta"><bdi>{item.projectReference}</bdi> · <bdi>{Number(item.quantity).toLocaleString("en-US", { maximumFractionDigits: 3 })} MT</bdi></span>
+        <span className="meta"><bdi>{item.projectReference}</bdi>{item.subjectType === "MONEY_MOVEMENT" || item.subjectType === "EXPENSE" ? null : <> · <bdi>{Number(item.quantity).toLocaleString("en-US", { maximumFractionDigits: 3 })} MT</bdi></>}</span>
       </header>
+      {(item.subjectType === "MONEY_MOVEMENT" || item.subjectType === "EXPENSE") && item.amount && <span className="meta">{item.subjectType === "MONEY_MOVEMENT" ? (item.kind === "CUSTOMER_REFUND" ? t("Refund to", "رد مبلغ إلى") : t("Pay", "دفع إلى")) : t("Paid to", "مدفوع إلى")} {item.counterpartyName} · <strong><bdi>{item.currency} {Number(item.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}</bdi></strong> <bdi>(AED {Number(item.aedAmount ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2 })})</bdi></span>}
       {item.subjectType === "SUPPLIER_INVOICE" && item.amount && <span className="meta">{item.supplierName} · <bdi>{item.currency} {Number(item.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}</bdi>
         {item.expectedAmount && Number(item.expectedAmount) !== Number(item.amount) && <strong> · {t(`differs from contract (${Number(item.expectedAmount).toLocaleString("en-US", { minimumFractionDigits: 2 })})`, `يختلف عن العقد (${Number(item.expectedAmount).toLocaleString("en-US", { minimumFractionDigits: 2 })})`)}</strong>}</span>}
       <span className="meta">{t("Requested by", "طلبها")} {item.requesterName}{item.requestedAt ? ` · ${new Date(item.requestedAt).toLocaleString(ar ? "ar-AE" : "en-GB", { dateStyle: "medium", timeStyle: "short" })}` : ""}</span>
