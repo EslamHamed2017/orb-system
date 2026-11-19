@@ -6,6 +6,7 @@
   "scripts": {
     "prisma:generate": "prisma generate",
     "typecheck": "tsc --noEmit",
+    "access:create-owner": "node --experimental-strip-types scripts/create-owner.ts",
     "test": "node --test tests/**/*.test.ts",
     "build": "next build",
     "release:sbom": "node scripts/generate-sbom.mjs",
@@ -14,29 +15,28 @@
     "release:freeze": "ops/release/freeze-candidate.sh --freeze"
   },
   "dependencies": {
-    "next": "16.4.5",
-    "react": "19.3.1",
-    "react-dom": "19.3.1",
-    "@mui/material": "9.5.0",
+    "@aws-sdk/client-s3": "3.1162.0",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
-    "@tanstack/react-table": "9.3.1",
-    "prisma": "7.10.1",
-    "@prisma/client": "7.10.1",
+    "@mui/material": "9.5.0",
     "@prisma/adapter-pg": "7.10.1",
-    "zod": "4.6.7",
-    "better-auth": "1.7.18",
+    "@prisma/client": "7.10.1",
+    "@tanstack/react-table": "9.3.1",
+    "next": "16.4.5",
     "pg": "8.16.3",
-    "@aws-sdk/client-s3": "3.1162.0"
+    "prisma": "7.10.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zod": "4.6.7"
   },
   "devDependencies": {
-    "typescript": "7.0.2",
+    "@playwright/test": "1.64.1",
+    "@types/bun": "1.4.4",
     "@types/node": "24.19.2",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
-    "vitest": "5.1.0",
-    "@playwright/test": "1.64.1",
-    "@types/bun": "1.4.4"
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
   },
   "engines": {
     "node": "24.22.2",

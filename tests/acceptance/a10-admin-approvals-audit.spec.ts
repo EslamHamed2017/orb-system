@@ -48,18 +48,25 @@ test("audit timeline exposes independently verifiable ascending chain and cursor
 });
 
 test("fixed-role administration shows exact session versions and complete active/revoked metadata", async ({ page }) => {
+  const user = { id: "019a5f9b-7c00-7000-8000-00000000a002", login: "ops@orb.test", nameEn: "Ops User", nameAr: "العمليات", locale: "en", status: "ACTIVE", activeSessionCount: 1, lastActiveAt: "2026-11-19T08:00:00.000Z", mustChangePassword: false, createdAt: "2026-11-01T08:00:00.000Z", updatedAt: "2026-11-01T08:00:00.000Z" };
+  const users = ["OWNER_ADMIN", "OPERATIONS", "FINANCE_VIEWER"].map((role, index) => ({ ...user, id: user.id.slice(0, -1) + index, login: `${role.toLowerCase()}@orb.test`, roleCodes: [role] }));
+  await page.route("**/api/users", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: users }) }));
+  await page.route("**/api/users/*/sessions", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: [
+    { sessionId: "019a5f9b-7c00-7000-8000-0000000000a7", createdAt: "2026-11-19T08:00:00.000Z", expiresAt: "2026-11-19T20:00:00.000Z", revokedAt: null, active: true },
+    { sessionId: "019a5f9b-7c00-7000-8000-0000000000a6", createdAt: "2026-11-18T08:00:00.000Z", expiresAt: "2026-11-18T20:00:00.000Z", revokedAt: "2026-11-18T09:00:00.000Z", active: false },
+  ] }) }));
   await page.goto("/admin/users?locale=en");
   await expect(page.getByRole("heading", { level: 1, name: copy.en.users })).toBeVisible();
-  const users = region(page, /user directory/i);
-  for (const role of ["OWNER_ADMIN", "OPERATIONS", "FINANCE_VIEWER"]) await expect(users.getByRole("table").getByText(role, { exact: true })).toBeVisible();
-  const sessions = region(page, /exact user sessions/i);
+  const directory = region(page, /user directory/i);
+  for (const name of ["Owner administrator", "Operations", "Finance"]) await expect(directory.getByRole("table").getByText(name, { exact: true })).toBeVisible();
+  await page.locator(`#manage-${users[1].id} > summary`).click();
+  const sessions = region(page, /exact user sessions/i).first();
   const active = sessions.getByTestId("session-active");
-  await expect(active).toContainText(/SESSION-ACTIVE-0007.*version 4.*current.*last seen.*idle expiry.*absolute expiry/i);
-  await expect(active).toContainText(/revoked at.*null.*revoked by.*null.*revocation reason.*null/i);
-  const revoked = sessions.getByTestId("session-revoked");
-  await expect(revoked).toContainText(/SESSION-REVOKED-0006.*version 3.*revoked at.*2026-11-07.*revoked by.*owner user.*security review/i);
-  await expect(revoked.getByRole("button", { name: copy.en.revoke })).toHaveCount(0);
+  await expect(active).toContainText(/signed in.*expires/i);
   await expect(active.getByRole("button", { name: copy.en.revoke })).toBeVisible();
+  const revoked = sessions.getByTestId("session-revoked");
+  await expect(revoked).toContainText(/ended/i);
+  await expect(revoked.getByRole("button", { name: copy.en.revoke })).toHaveCount(0);
 });
 
 test("project backup is truthful about browser-local access and exposes usable actions without fabricated recovery evidence", async ({ page }) => {

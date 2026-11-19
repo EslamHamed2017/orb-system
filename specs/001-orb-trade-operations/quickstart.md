@@ -67,7 +67,7 @@ Every requirement and invariant has an operationId, named UI action, and numbere
 | R1-007 | `getOperationalStatement`, `getProjectMarginAndCash` | Statements; Profit and cash | E12: currency partitions, sources and four reconciled measures |
 | R1-008 | `openSimpleClaim`, `moveClaimUnderReview`, `submitClaimOutcomeForApproval`, `decideFixedApproval`, `applyApprovedClaimOutcome` | Claims; fixed approval inbox | E13: terminal bypass denial and approved exact outcome apply |
 | R1-009 | `assessProjectClosure`, `requestClosureException`, `submitFinalCloseForApproval`, `finalCloseProject`, `submitReopenForApproval`, `reopenProject` | Closure assessment/blockers/exceptions/reopen | E14: financial/final prerequisites, invalidation and reopening |
-| R1-010 | `signIn`, `signOutCurrentSession`, `listPilotUsers`, `assignFixedPilotRoles`, `listPilotUserSessions`, `revokePilotUserSession`, `getBackupRecoveryStatus`, `startIsolatedRestoreTest`, `getIsolatedRestoreTest` | All bilingual screens; Pilot administration; Backup | E15–E17: role shaping, exact sessions, bilingual parity, restore |
+| R1-010 | `signIn`, `signOutCurrentSession`, `getCurrentSession`, `changeOwnPassword`, `resetUserPassword`, `listPilotUsers`, `assignFixedPilotRoles`, `listPilotUserSessions`, `revokePilotUserSession`, `getBackupRecoveryStatus`, `startIsolatedRestoreTest`, `getIsolatedRestoreTest` | All bilingual screens; Pilot administration; Backup | E15–E17: role shaping, exact sessions, bilingual parity, restore |
 | R1-011 | `openSimpleClaim`, `moveClaimUnderReview`, `submitClaimOutcomeForApproval`, `applyApprovedClaimOutcome` | Claims | E13: outcome recording only; forbidden settlement automation absent |
 | R1-012 | `assessProjectClosure`, `finalCloseProject`, `submitReopenForApproval`, `reopenProject` | Shipment/Project finance axes and Closure | E14: automatic financial close/reopen independent from Final Close |
 | R1-013 | `generateShipmentDocument`, `getDocumentGenerationStatus`, `getOutboundManifestExactPreview` | Every active screen and document preview in AR/EN/bilingual | E08, E15: output language and zero journey divergence |
@@ -92,7 +92,7 @@ Each active operation is exercised once with an allowed role and once with a den
 
 | Tag | Active operationIds (complete) | UI action | Numbered evidence |
 |---|---|---|---|
-| Access | `signIn`, `signOutCurrentSession`, `listPilotUsers`, `assignFixedPilotRoles`, `revokePilotUserSession`, `listPilotUserSessions`, `createUser`, `updateUser`, `listRoles`, `createRole`, `replaceRolePermissions`, `listPermissions` | Sign in / Pilot administration | E02 + E03/E16 |
+| Access | `signIn`, `signOutCurrentSession`, `getCurrentSession`, `changeOwnPassword`, `resetUserPassword`, `listPilotUsers`, `assignFixedPilotRoles`, `revokePilotUserSession`, `listPilotUserSessions`, `createUser`, `updateUser`, `listRoles`, `createRole`, `replaceRolePermissions`, `listPermissions` | Sign in / Pilot administration | E02 + E03/E16 |
 | Accounts | `runOperationalReport`, `getAccountsSummary`, `listAccountRecords` | Accounts hub | E02 + E10/E12 |
 | Approvals | `requestToleranceException`, `listFixedApprovalInbox`, `decideFixedApproval` | Approval inbox | E02 + E04/E06/E09/E11/E13/E14 |
 | Audit | `listProjectAuditEvents`, `getSettings`, `updateSettings` | Audit timeline / Settings controls | E02 + E16 |

@@ -1326,6 +1326,7 @@ model Tenant {
   slug                    String                    @unique
   name                    String
   created_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  AccessAuditEvent        AccessAuditEvent[]
   Customer                Customer[]
   CustomerAuditEvent      CustomerAuditEvent[]
   Supplier                Supplier[]
@@ -1495,6 +1496,9 @@ model User {
   UserRoleAssignment_UserRoleAssignment_assigned_byToUser UserRoleAssignment[]      @relation("UserRoleAssignment_assigned_byToUser")
   UserRoleAssignment_UserRoleAssignment_revoked_byToUser  UserRoleAssignment[]      @relation("UserRoleAssignment_revoked_byToUser")
   UserRole                                                UserRole[]
+  UserCredential                                          UserCredential?
+  AccessAuditEvent_actor                                  AccessAuditEvent[]        @relation("AccessAuditEvent_actor")
+  AccessAuditEvent_subject                                AccessAuditEvent[]        @relation("AccessAuditEvent_subject")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -1839,4 +1843,33 @@ enum SupplierInvoiceState {
   CONFIRMED
   REJECTED
   CANCELLED
+}
+
+model UserCredential {
+  user_id              String    @id @db.Uuid
+  login                String    @unique
+  password_hash        String
+  password_changed_at  DateTime  @default(now()) @db.Timestamptz(6)
+  must_change_password Boolean   @default(false)
+  failed_attempts      Int       @default(0)
+  locked_until         DateTime? @db.Timestamptz(6)
+  created_at           DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime  @default(now()) @db.Timestamptz(6)
+  User                 User      @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model AccessAuditEvent {
+  id              String   @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  tenant_id       String   @db.Uuid
+  actor_id        String?  @db.Uuid
+  subject_user_id String   @db.Uuid
+  action          String
+  occurred_at     DateTime @default(now()) @db.Timestamptz(6)
+  details         Json     @default("{}")
+  Tenant          Tenant   @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Actor           User?    @relation("AccessAuditEvent_actor", fields: [actor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Subject         User     @relation("AccessAuditEvent_subject", fields: [subject_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([tenant_id, occurred_at])
+  @@index([subject_user_id])
 }

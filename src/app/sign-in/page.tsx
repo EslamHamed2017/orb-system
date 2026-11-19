@@ -17,8 +17,11 @@ const TRUST_SIGNALS = {
   ],
 } as const;
 
-export default async function SignInPage({ searchParams }: { searchParams: Promise<{ locale?: string }> }) {
-  const requested = (await searchParams).locale;
+export default async function SignInPage({ searchParams }: { searchParams: Promise<{ locale?: string; next?: string }> }) {
+  const query = await searchParams;
+  const requested = query.locale;
+  // Only same-site relative paths are accepted as a post-sign-in destination.
+  const next = typeof query.next === "string" && /^\/(?!\/)[^\\]*$/.test(query.next) ? query.next : "/";
   const locale: Locale = requested === "ar" ? "ar" : "en";
   const dir = locale === "ar" ? "rtl" : "ltr";
   const ar = locale === "ar";
@@ -45,7 +48,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
         <div className="orb-eyebrow">ORB · {ar ? "مساحة آمنة" : "Secure workspace"}</div>
         <h1 id="sign-in-heading">{ar ? "تسجيل الدخول" : "Sign in"}</h1>
         <p className="orb-muted">{ar ? "سجّل الدخول للمتابعة إلى مساحة ORB." : "Use your authorized account to continue."}</p>
-        <SignInForm locale={locale} />
+        <SignInForm locale={locale} next={next} />
         <p className="orb-signin-monitoring">{ar ? "تخضع جميع عمليات الدخول للتسجيل والمراقبة." : "All access is logged and monitored."}</p>
       </div>
     </section>
