@@ -24,7 +24,7 @@ export function SessionList({ locale, sessions, busy = false, onRevoke }: Readon
     <ul style={{ listStyle: "none", padding: 0, margin: "8px 0 0", display: "grid", gap: 6 }}>
       {active.map((session) => <li key={session.sessionId} data-testid="session-active" style={{ display: "flex", gap: 8, justifyContent: "space-between", alignItems: "center", fontSize: ".85rem" }}>
         <span>{ar ? "دخول" : "Signed in"} <time dateTime={session.createdAt}>{format(session.createdAt, ar)}</time> · {ar ? "تنتهي" : "expires"} <time dateTime={session.expiresAt}>{format(session.expiresAt, ar)}</time></span>
-        {onRevoke && <button type="button" disabled={busy} onClick={() => onRevoke(session.sessionId)} data-operation-id="revokePilotUserSession">{ar ? "إنهاء الجلسة" : "End session"}</button>}
+        {onRevoke && <button type="button" disabled={busy} onClick={() => onRevoke(session.sessionId)} data-operation-id="revokePilotUserSession">{ar ? "إلغاء الجلسة المحددة" : "Revoke exact session"}</button>}
       </li>)}
       {ended.map((session) => <li key={session.sessionId} data-testid="session-revoked" className="orb-muted" style={{ fontSize: ".8rem" }}>
         {ar ? "منتهية" : "Ended"} · <time dateTime={session.revokedAt ?? session.expiresAt}>{format(session.revokedAt ?? session.expiresAt, ar)}</time>

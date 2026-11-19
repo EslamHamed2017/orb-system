@@ -12,6 +12,8 @@ import { sessionCsrfToken } from "../../../modules/access/session-csrf.ts";
 import { accessRuntime } from "../../../modules/access/access-runtime.ts";
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { ownerMfaRequired } from "../../../modules/tenancy/customer-session-context-repository.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { rememberTestSession } from "../../../modules/access/test-sessions.ts";
 
 export interface SessionsRouteDependencies {
   readonly verify: CredentialVerifier;
@@ -61,8 +63,11 @@ const production: SessionsRouteDependencies = {
     if (!verified) return null;
     return { userId: verified.userId, tenantId: verified.tenantId, roles: verified.roles, mfaRequired: verified.roles.includes("OWNER_ADMIN") && ownerMfaRequired() } as Awaited<ReturnType<CredentialVerifier>>;
   },
-  createSession: async ({ userId, tenantId, now, tokenHash }) => {
-    if (!process.env.DATABASE_URL) return { sessionId: randomUUID(), version: 1 };
+  createSession: async ({ userId, tenantId, roles, now, tokenHash }) => {
+    if (!process.env.DATABASE_URL) {
+      rememberTestSession(tokenHash, { userId, roles });
+      return { sessionId: randomUUID(), version: 1 };
+    }
     if (tenantId) return accessRuntime().service.startSession({ userId, tenantId, tokenHash });
     const created = await getPrismaClient().session.create({ data: { user_id: userId, expires_at: new Date(Date.parse(now) + 12 * 60 * 60_000), token_hash: tokenHash } });
     return { sessionId: created.id, version: created.version };

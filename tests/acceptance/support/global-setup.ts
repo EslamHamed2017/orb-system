@@ -10,7 +10,12 @@ export const ACCEPTANCE_STATE = "test-results/.auth/acceptance-owner.json";
  * reuse the session cookies for every browser test.
  */
 export default async function globalSetup(config: FullConfig) {
-  const login = process.env.ORB_ACCEPTANCE_LOGIN, password = process.env.ORB_ACCEPTANCE_PASSWORD;
+  let login = process.env.ORB_ACCEPTANCE_LOGIN, password = process.env.ORB_ACCEPTANCE_PASSWORD;
+  // Database-less local run: use the fixed test owner that /api/sessions accepts only under ORB_TEST_AUTH=1 on 127.0.0.1.
+  if ((!login || !password) && process.env.ORB_TEST_AUTH === "1" && process.env.ORB_TEST_MANAGED_SERVER === "1") {
+    login = "owner@example.test";
+    password = "owner-secret-value";
+  }
   if (!login || !password) return;
   const baseURL = config.projects[0]?.use.baseURL;
   const context = await request.newContext({ baseURL });

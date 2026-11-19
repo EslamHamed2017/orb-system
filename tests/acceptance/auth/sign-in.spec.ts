@@ -30,7 +30,8 @@ for (const locale of ["en", "ar"] as const) {
       expect(cookie).toMatchObject({ secure: true, httpOnly: true, sameSite: "Strict", path: "/" });
       expect(cookie?.domain.startsWith(".")).toBe(false);
     }
-    await expect(page).toHaveURL(/\/$/);
+    // Lands on Today and keeps the language the user signed in with.
+    await expect(page).toHaveURL(/\/\?locale=(?:en|ar)$/);
   });
 }
 

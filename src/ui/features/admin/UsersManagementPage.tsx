@@ -148,12 +148,15 @@ export function UsersManagementPage({ locale, query = "", status = "ALL", userLo
     `}</style>
     <ErpPageHeader titleId="users-title" eyebrow={t("Access administration", "إدارة الوصول")} title={t("Users and access", "المستخدمون والوصول")}
       description={t("Create users, set temporary passwords, assign roles, and end sessions. Every change is recorded in the access audit trail.", "إنشاء المستخدمين وتعيين كلمات مرور مؤقتة وتوزيع الأدوار وإنهاء الجلسات. كل تغيير يُسجل في سجل تدقيق الوصول.")}
-      meta={users ? <a className="orb-button-filled" href="#create-user" data-operation-id="createUser">{t("Add user", "إضافة مستخدم")}</a> : undefined}/>
+      meta={users ? <a className="orb-button-filled" href="#create-user" data-operation-id="createUser" onClick={() => { const form = document.getElementById("create-user"); if (form instanceof HTMLDetailsElement) form.open = true; }}>{t("Add user", "إضافة مستخدم")}</a> : undefined}/>
 
     {loadError && <div className="notice" data-tone="error" role="alert">
       {loadError.status === 403 ? t("Only an owner administrator can manage users.", "إدارة المستخدمين متاحة للمالك / مدير النظام فقط.")
         : loadError.status === 401 ? t("Your session ended. Sign in again.", "انتهت جلستك. سجّل الدخول مرة أخرى.")
         : t("Users could not be loaded. Try again.", "تعذر تحميل المستخدمين. حاول مرة أخرى.")}
+      {loadError.status === 401
+        ? <p><a href={`/sign-in?locale=${locale}&next=${encodeURIComponent(`/admin/users?locale=${locale}`)}`}>{t("Sign in", "تسجيل الدخول")}</a></p>
+        : loadError.status !== 403 && <p><button type="button" onClick={() => void load()}>{t("Try again", "حاول مرة أخرى")}</button></p>}
     </div>}
     {!users && !loadError && <p role="status" aria-busy="true">{t("Loading users…", "جارٍ تحميل المستخدمين…")}</p>}
     {notice && <div className="notice" data-tone={notice.tone} role={notice.tone === "error" ? "alert" : "status"}>{notice.text}</div>}

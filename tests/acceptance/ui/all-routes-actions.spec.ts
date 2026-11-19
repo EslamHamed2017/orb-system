@@ -56,6 +56,8 @@ const nonDirectMutationOperations: ReadonlyMap<string, string> = new Map([
   ["allocateShipmentLineSource", "composed inside the sales-shipment source-allocation workflow"],
   ["createSalesInvoice", "created from the finalized sales-shipment workflow, not the invoice register"],
   ["updateContractLine", "composed inside an amendment version rather than exposed as a standalone action"],
+  ["changeOwnPassword", "inside the account dialog, rendered only after the avatar is opened"],
+  ["resetUserPassword", "inside each user's manage panel on Users and access"],
 ] as const);
 
 function pageRoutes(directory = resolve(process.cwd(), "src/app"), segments: string[] = []): string[] {
@@ -120,7 +122,7 @@ test("every accepted UI mutation has one reachable named action bound to its exa
     }
   }
   const missing = [...uiMutationOperationIds].filter((id) => !found.has(id)).sort();
-  const unavailableWithoutDatabase = ["cancelUnexecutedProject", "createProduct", "createProjectWithSalesContract", "createRole", "createSupplier", "decideFixedApproval", "replaceRolePermissions", "startIsolatedRestoreTest", "updateCustomer", "updateProduct", "updateSupplier"].sort();
+  const unavailableWithoutDatabase = ["assignFixedPilotRoles", "cancelUnexecutedProject", "createProduct", "createProjectWithSalesContract", "createRole", "createSupplier", "createUser", "decideFixedApproval", "replaceRolePermissions", "revokePilotUserSession", "startIsolatedRestoreTest", "updateCustomer", "updateProduct", "updateSupplier", "updateUser"].sort();
   const unknown = [...found].filter(([id]) => !operationIds.includes(id)).sort();
   expect(missing, "only database-backed mutation controls may be absent from the no-database preview").toEqual(unavailableWithoutDatabase);
   expect(unknown, "UI controls reference unknown contract operations").toEqual([]);

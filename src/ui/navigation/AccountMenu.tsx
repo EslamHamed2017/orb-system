@@ -21,11 +21,13 @@ export function AccountMenu({ session, locale, onPasswordChanged }: { readonly s
   const dialog = useRef<HTMLDialogElement>(null);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<{ tone: "error" | "success"; text: string } | null>(null);
+  // Render the dialog body only while it is open, so its content is not part of every page.
+  const [open, setOpen] = useState(false);
   const forced = session.mustChangePassword;
   const name = ar ? session.nameAr : session.nameEn;
 
   useEffect(() => {
-    if (forced && dialog.current && !dialog.current.open) dialog.current.showModal();
+    if (forced && dialog.current && !dialog.current.open) { setOpen(true); dialog.current.showModal(); }
   }, [forced]);
 
   async function signOut() {
@@ -59,7 +61,7 @@ export function AccountMenu({ session, locale, onPasswordChanged }: { readonly s
   }
 
   return <>
-    <button className="orb-avatar" type="button" aria-haspopup="dialog" aria-label={t(`Account: ${name}`, `الحساب: ${name}`)} onClick={() => dialog.current?.showModal()}>
+    <button className="orb-avatar" type="button" aria-haspopup="dialog" aria-label={t(`Account: ${name}`, `الحساب: ${name}`)} onClick={() => { setOpen(true); dialog.current?.showModal(); }}>
       {initials(session.nameEn || session.nameAr)}
     </button>
     <dialog
@@ -68,7 +70,9 @@ export function AccountMenu({ session, locale, onPasswordChanged }: { readonly s
       dir={ar ? "rtl" : "ltr"}
       aria-labelledby="orb-account-title"
       onCancel={(event) => { if (forced) event.preventDefault(); }}
+      onClose={() => setOpen(false)}
     >
+      {open && <>
       <style>{`
         .orb-account-dialog{border:0;border-radius:20px;padding:24px;inline-size:min(440px,calc(100vw - 32px));background:var(--orb-color-surface,#fff);color:inherit;box-shadow:0 12px 40px rgb(0 0 0/.18)}
         .orb-account-dialog::backdrop{background:rgb(0 0 0/.35)}
@@ -96,6 +100,7 @@ export function AccountMenu({ session, locale, onPasswordChanged }: { readonly s
         <button type="button" onClick={signOut} disabled={pending} data-operation-id="signOutCurrentSession">{t("Sign out", "تسجيل الخروج")}</button>
         {!forced && <button type="button" onClick={() => { setMessage(null); dialog.current?.close(); }}>{t("Close", "إغلاق")}</button>}
       </div>
+      </>}
     </dialog>
   </>;
 }

@@ -66,7 +66,9 @@ test("every contracted operation mirrors the fixed runtime role declaration, wit
     expect([...operation.roles].sort(), `${operation.operationId} role declaration drifted`).toEqual([...requiredRolesForOperation(operation.operationId)].sort());
 });
 
-test("anonymous direct calls to every protected operation fail closed with a safe problem response", async ({ request }) => {
+test("anonymous direct calls to every protected operation fail closed with a safe problem response", async ({ playwright, baseURL }) => {
+  // A fresh context without the suite's signed-in storage state: these calls must be truly anonymous.
+  const request = await playwright.request.newContext({ baseURL, storageState: { cookies: [], origins: [] } });
   for (const operation of contractOperations.filter(({ operationId }) => operationId !== "signIn")) {
     await test.step(operation.operationId, async () => {
       const response = await directCall(request, operation);
@@ -77,6 +79,7 @@ test("anonymous direct calls to every protected operation fail closed with a saf
       expect(JSON.stringify(body)).not.toMatch(/password|credential|secret|stack|sql|prisma/i);
     });
   }
+  await request.dispose();
 });
 
 for (const role of ["operations", "finance-viewer"] as const) {

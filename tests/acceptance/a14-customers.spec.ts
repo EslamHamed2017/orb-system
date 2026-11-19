@@ -1,8 +1,14 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+/** The page shell is signed in, but the customer API rejects the session (expired or revoked). */
+async function rejectCustomerSession(page: Page) {
+  await page.route("**/api/customers", (route) => route.fulfill({ status: 401, contentType: "application/problem+json", body: JSON.stringify({ status: 401, code: "AUTHENTICATION_REQUIRED" }) }));
+}
 
 for (const locale of ["en", "ar"] as const) {
   test(`${locale} customer directory fails closed when no trusted session is available`, async ({ page }) => {
     const ar = locale === "ar";
+    await rejectCustomerSession(page);
     await page.goto(`/masters/customers?locale=${locale}`);
     await expect(page.getByRole("heading", { level: 1, name: ar ? "العملاء" : "Customers" })).toBeVisible();
     await expect(page.locator("main > section")).toHaveAttribute("dir", ar ? "rtl" : "ltr");
@@ -131,6 +137,7 @@ test("invalid success response never fabricates a saved customer", async ({ page
 
 test("mobile Arabic fail-closed state remains responsive above bottom navigation", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await rejectCustomerSession(page);
   await page.goto("/masters/customers?locale=ar");
   await expect(page.getByRole("heading", { name: "تسجيل الدخول مطلوب" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);

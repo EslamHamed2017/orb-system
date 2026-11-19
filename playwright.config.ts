@@ -4,7 +4,7 @@ const managedServer = process.env.ORB_TEST_MANAGED_SERVER === "1";
 const managedPort = process.env.ORB_TEST_PORT ?? "3000";
 const baseURL = process.env.ORB_TEST_BASE_URL ?? `http://127.0.0.1:${managedPort}`;
 // Signed-in browser state, created by the global setup when a real acceptance account is provided.
-const signedIn = Boolean(process.env.ORB_ACCEPTANCE_LOGIN && process.env.ORB_ACCEPTANCE_PASSWORD);
+const signedIn = Boolean(process.env.ORB_ACCEPTANCE_LOGIN && process.env.ORB_ACCEPTANCE_PASSWORD) || (process.env.ORB_TEST_AUTH === "1" && managedServer);
 
 export default defineConfig({
   testDir: "tests/acceptance",
