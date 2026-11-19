@@ -48,7 +48,7 @@ const uiMutationOperationIds = new Set([
   "submitReopenForApproval", "reviseSupplierShipmentDataset", "reviseSalesShipmentDataset", "transitionSupplierShipmentExecution",
   "transitionSalesShipmentExecution", "reverseSettlementAllocation", "submitApprovedExpenseCorrection", "applyApprovedExpenseCorrection",
   "cancelUnexecutedProject", "applyApprovedClaimOutcome", "reviseOutboundManifest", "submitSalesShipmentConfirmation",
-  "cancelUnallocatedSupplierInvoice", "cancelUnallocatedSalesInvoice", "signIn", "signOutCurrentSession", "assignFixedPilotRoles", "revokePilotUserSession",
+  "cancelUnallocatedSupplierInvoice", "cancelUnallocatedSalesInvoice", "cancelDirectExpense", "signIn", "signOutCurrentSession", "assignFixedPilotRoles", "revokePilotUserSession",
   "startIsolatedRestoreTest", "createContractLine", "createMasterRecord", "createRole", "createSalesShipmentLine",
   "createSupplierShipmentLine", "createUser", "replaceRolePermissions", "updateMasterRecord", "updateSettings", "updateUser",
 ]);
@@ -122,7 +122,7 @@ test("every accepted UI mutation has one reachable named action bound to its exa
     }
   }
   const missing = [...uiMutationOperationIds].filter((id) => !found.has(id)).sort();
-  const unavailableWithoutDatabase = ["assignFixedPilotRoles", "cancelUnallocatedSalesInvoice", "cancelUnexecutedProject", "createProduct", "createProjectWithSalesContract", "createRole", "createSupplier", "createUser", "decideFixedApproval", "replaceRolePermissions", "revokePilotUserSession", "startIsolatedRestoreTest", "updateCustomer", "updateProduct", "updateSupplier", "updateUser"].sort();
+  const unavailableWithoutDatabase = ["assignFixedPilotRoles", "cancelDirectExpense", "cancelUnallocatedSalesInvoice", "cancelUnexecutedProject", "createProduct", "createProjectWithSalesContract", "createRole", "createSupplier", "createUser", "decideFixedApproval", "replaceRolePermissions", "revokePilotUserSession", "startIsolatedRestoreTest", "updateCustomer", "updateProduct", "updateSupplier", "updateUser"].sort();
   const unknown = [...found].filter(([id]) => !operationIds.includes(id)).sort();
   expect(missing, "only database-backed mutation controls may be absent from the no-database preview").toEqual(unavailableWithoutDatabase);
   expect(unknown, "UI controls reference unknown contract operations").toEqual([]);

@@ -257,6 +257,11 @@ const OPERATION_ROLES = Object.freeze({
     "OWNER_ADMIN",
     "FINANCE_VIEWER"
   ],
+  "getProjectMoney": [
+    "OWNER_ADMIN",
+    "OPERATIONS",
+    "FINANCE_VIEWER"
+  ],
   "recordMoneyMovement": [
     "OWNER_ADMIN",
     "FINANCE_VIEWER"
@@ -271,7 +276,12 @@ const OPERATION_ROLES = Object.freeze({
   ],
   "createDirectExpense": [
     "OWNER_ADMIN",
-    "OPERATIONS"
+    "OPERATIONS",
+    "FINANCE_VIEWER"
+  ],
+  "cancelDirectExpense": [
+    "OWNER_ADMIN",
+    "FINANCE_VIEWER"
   ],
   "submitDirectExpense": [
     "OWNER_ADMIN",

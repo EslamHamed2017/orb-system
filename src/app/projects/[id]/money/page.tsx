@@ -6,9 +6,13 @@ import { ReversalDialog } from "../../../../ui/features/money/ReversalDialog";
 import { SalesShipmentSettlementPanel } from "../../../../ui/features/money/SalesShipmentSettlementPanel";
 import { EnterpriseStyles, ErpPageHeader, Kpi } from "../../../../ui/features/admin/EnterpriseUx";
 import { ProjectContextNavigation } from "../../../../ui/navigation/ProjectContextNavigation";
+import { ProjectMoneyWorkspace } from "../../../../ui/features/money/ProjectMoneyWorkspace";
+import { isSavedProjectId } from "../../../../ui/features/money/saved-project-id";
 type Query = { locale?: string; demoState?: string; role?: string };
 export default async function MoneyPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Query> }) {
  const [{ id }, query] = await Promise.all([params, searchParams]); const locale=query.locale==="ar"?"ar":"en", ar=locale==="ar", canMutate=query.role!=="finance-viewer", state=query.demoState;
+ // Saved projects (UUID ids) run on the database; other ids keep the illustrative page.
+ if (isSavedProjectId(id)) return <ProjectMoneyWorkspace projectId={id} locale={locale} />;
  return <section aria-labelledby="money-title" dir={ar?"rtl":"ltr"} className="orb-erp"><EnterpriseStyles /><ProjectContextNavigation locale={locale} projectId={id} current="accounts" />
   <ErpPageHeader titleId="money-title" eyebrow={<><bdi>{id}</bdi><span>•</span>{ar?"الرقابة المالية":"Finance control"}</>} title={ar?"الأموال":"Money"} description={ar?"سجل موحد للحركات والفواتير والتخصيصات العكسية، مع أرصدة محدثة وقابلية تدقيق كاملة.":"A unified ledger for movements, invoices, allocations and compensating reversals—with live balances and full traceability."} meta={<span className="orb-chip" data-tone="success">{ar?"متوازن":"Reconciled"}</span>} />
   <p><a href={`/accounts/sales-invoices?projectId=${encodeURIComponent(id)}&locale=${locale}`}>{ar?"فواتير مبيعات المشروع":"Project sales invoices"}</a> <span aria-hidden="true">•</span> <a href={`/accounts/supplier-invoices?projectId=${encodeURIComponent(id)}&locale=${locale}`}>{ar?"فواتير موردي المشروع":"Project supplier invoices"}</a> <span aria-hidden="true">•</span> <a href={`/accounts/collections?projectId=${encodeURIComponent(id)}&locale=${locale}`}>{ar?"تحصيلات المشروع":"Project collections"}</a> <span aria-hidden="true">•</span> <a href={`/accounts/supplier-payments?projectId=${encodeURIComponent(id)}&locale=${locale}`}>{ar?"دفعات موردي المشروع":"Project supplier payments"}</a> <span aria-hidden="true">•</span> <a href={`/accounts/expenses?projectId=${encodeURIComponent(id)}&locale=${locale}`}>{ar?"مصروفات المشروع":"Project expenses"}</a></p>

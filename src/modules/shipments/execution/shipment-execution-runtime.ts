@@ -19,7 +19,13 @@ import { PrismaInvoiceStore } from "../../invoices/invoice-store.ts";
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { createInvoiceService, type InvoiceService } from "../../invoices/invoice-service.ts";
 
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { PrismaMoneyStore } from "../../money/money-store.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { createMoneyService, type MoneyService } from "../../money/money-service.ts";
+
 let service: ShipmentExecutionService | undefined;
+let money: MoneyService | undefined;
 let invoices: InvoiceService | undefined;
 let inbox: ApprovalInboxService | undefined;
 
@@ -33,8 +39,13 @@ export function invoiceService(): InvoiceService {
   return invoices;
 }
 
+export function moneyService(): MoneyService {
+  money ??= createMoneyService(new PrismaMoneyStore(getPrismaClient() as unknown as SqlClient));
+  return money;
+}
+
 export function approvalInbox(): ApprovalInboxService {
-  inbox ??= createApprovalInboxService(shipmentExecution(), new PrismaContractApprovalStore(getPrismaClient() as unknown as SqlClient), invoiceService(), new PrismaInvoiceStore(getPrismaClient() as unknown as SqlClient));
+  inbox ??= createApprovalInboxService(shipmentExecution(), new PrismaContractApprovalStore(getPrismaClient() as unknown as SqlClient), invoiceService(), new PrismaInvoiceStore(getPrismaClient() as unknown as SqlClient), moneyService());
   return inbox;
 }
 
