@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import test from "node:test";
 
 /**
@@ -25,6 +26,9 @@ function call(url: string, init: { method?: string; cookies?: string; body?: unk
   return new Request(`${ORIGIN}${url}`, { method: init.method ?? "GET", headers, body: init.body === undefined ? undefined : JSON.stringify(init.body) });
 }
 const params = <T>(value: T) => ({ params: Promise.resolve(value) });
+// Test-only passwords generated per run (never committed literals).
+const generated = () => `Tst${randomBytes(8).toString("hex")}9`;
+const OWNER_PW = generated(), WRONG_PW = generated(), TEMP_PW = generated(), NEXT_PW = generated(), OUTSIDER_PW = generated();
 
 integration("owner signs in, administers users, and the server enforces every access rule", async () => {
   process.env.DATABASE_URL = databaseUrl;
@@ -43,7 +47,7 @@ integration("owner signs in, administers users, and the server enforces every ac
   const ownerLogin = `owner-${suffix}@orb.test`, userLogin = `ops-${suffix}@orb.test`;
   const ownerId = await store.createUser({
     tenantId: tenant.id, actorId: null, login: ownerLogin, nameEn: "Owner", nameAr: "المالك", locale: "ar",
-    roleCodes: ["OWNER_ADMIN"], passwordHash: await hashPassword("Owner-pass-2026"), mustChangePassword: false, now: new Date(),
+    roleCodes: ["OWNER_ADMIN"], passwordHash: await hashPassword(OWNER_PW), mustChangePassword: false, now: new Date(),
   });
 
   const sessions = await import("../../../src/app/api/sessions/route.ts");
@@ -58,11 +62,11 @@ integration("owner signs in, administers users, and the server enforces every ac
   const signIn = async (login: string, credential: string) => sessions.POST(call("/api/sessions", { method: "POST", body: { login, credential } }) as never);
 
   // 1. Wrong password and unknown login fail identically.
-  assert.equal((await signIn(ownerLogin, "Wrong-pass-2026")).status, 401);
-  assert.equal((await signIn(`nobody-${suffix}@orb.test`, "Wrong-pass-2026")).status, 401);
+  assert.equal((await signIn(ownerLogin, WRONG_PW)).status, 401);
+  assert.equal((await signIn(`nobody-${suffix}@orb.test`, WRONG_PW)).status, 401);
 
   // 2. Owner signs in with a real database credential (login is case-insensitive).
-  const ownerResponse = await signIn(ownerLogin.toUpperCase(), "Owner-pass-2026");
+  const ownerResponse = await signIn(ownerLogin.toUpperCase(), OWNER_PW);
   assert.equal(ownerResponse.status, 201);
   assert.equal((await ownerResponse.json()).mfaRequired, false);
   const owner = cookiesFrom(ownerResponse);
@@ -78,7 +82,7 @@ integration("owner signs in, administers users, and the server enforces every ac
   assert.equal((await projects.GET(call("/api/projects", { cookies: owner }))).status, 200);
 
   // 4. Mutations without CSRF or from another origin are refused.
-  const newUser = { login: userLogin, nameEn: "Ops User", nameAr: "مستخدم العمليات", locale: "ar", roleCodes: ["OPERATIONS"], password: "Temp-pass-2026" };
+  const newUser = { login: userLogin, nameEn: "Ops User", nameAr: "مستخدم العمليات", locale: "ar", roleCodes: ["OPERATIONS"], password: TEMP_PW };
   assert.equal((await users.POST(call("/api/users", { method: "POST", cookies: owner, body: newUser, csrf: false }))).status, 403);
   assert.equal((await users.POST(call("/api/users", { method: "POST", cookies: owner, body: newUser, origin: "https://evil.example" }))).status, 403);
 
@@ -99,22 +103,22 @@ integration("owner signs in, administers users, and the server enforces every ac
   assert.deepEqual(listed.items.map((item: { login: string }) => item.login).sort(), [ownerLogin, userLogin].sort());
 
   // 7. The new user signs in, must change password, and cannot manage users.
-  const opsResponse = await signIn(userLogin, "Temp-pass-2026");
+  const opsResponse = await signIn(userLogin, TEMP_PW);
   assert.equal(opsResponse.status, 201);
   let ops = cookiesFrom(opsResponse);
   assert.equal((await (await current.GET(call("/api/sessions/current", { cookies: ops }))).json()).mustChangePassword, true);
   assert.equal((await users.GET(call("/api/users", { cookies: ops }))).status, 403);
-  assert.equal((await ownPassword.POST(call("/api/sessions/current/password", { method: "POST", cookies: ops, body: { currentPassword: "nope", newPassword: "Next-pass-2026" } }), params({}))).status, 422);
-  assert.equal((await ownPassword.POST(call("/api/sessions/current/password", { method: "POST", cookies: ops, body: { currentPassword: "Temp-pass-2026", newPassword: "Next-pass-2026" } }), params({}))).status, 204);
+  assert.equal((await ownPassword.POST(call("/api/sessions/current/password", { method: "POST", cookies: ops, body: { currentPassword: "nope", newPassword: NEXT_PW } }), params({}))).status, 422);
+  assert.equal((await ownPassword.POST(call("/api/sessions/current/password", { method: "POST", cookies: ops, body: { currentPassword: TEMP_PW, newPassword: NEXT_PW } }), params({}))).status, 204);
   assert.equal((await (await current.GET(call("/api/sessions/current", { cookies: ops }))).json()).mustChangePassword, false);
-  assert.equal((await signIn(userLogin, "Temp-pass-2026")).status, 401, "old password no longer works");
+  assert.equal((await signIn(userLogin, TEMP_PW)).status, 401, "old password no longer works");
 
   // 8. A role change revokes the user's sessions.
   const replaced = await roles.PUT(call(`/api/users/${createdBody.id}/roles`, { method: "PUT", cookies: owner, body: { roleCodes: ["FINANCE_VIEWER", "OPERATIONS"] } }), params({ userId: createdBody.id }));
   assert.equal(replaced.status, 200);
   assert.deepEqual((await replaced.json()).roleCodes, ["FINANCE_VIEWER", "OPERATIONS"]);
   assert.equal((await current.GET(call("/api/sessions/current", { cookies: ops }))).status, 401);
-  ops = cookiesFrom(await signIn(userLogin, "Next-pass-2026"));
+  ops = cookiesFrom(await signIn(userLogin, NEXT_PW));
   const opsSessions = await (await userSessions.GET(call(`/api/users/${createdBody.id}/sessions`, { cookies: owner }) as never, params({ userId: createdBody.id }))).json();
   assert.equal(opsSessions.items.filter((item: { active: boolean }) => item.active).length, 1);
 
@@ -128,18 +132,18 @@ integration("owner signs in, administers users, and the server enforces every ac
   const suspended = await user.PATCH(call(`/api/users/${createdBody.id}`, { method: "PATCH", cookies: owner, body: { status: "SUSPENDED" } }), params({ userId: createdBody.id }));
   assert.equal((await suspended.json()).status, "SUSPENDED");
   assert.equal((await current.GET(call("/api/sessions/current", { cookies: ops }))).status, 401);
-  assert.equal((await signIn(userLogin, "Next-pass-2026")).status, 401);
+  assert.equal((await signIn(userLogin, NEXT_PW)).status, 401);
 
   // 11. Five wrong passwords lock the account, even for the right password afterwards.
   await user.PATCH(call(`/api/users/${createdBody.id}`, { method: "PATCH", cookies: owner, body: { status: "ACTIVE" } }), params({ userId: createdBody.id }));
-  for (let attempt = 0; attempt < 5; attempt += 1) assert.equal((await signIn(userLogin, "Wrong-pass-2026")).status, 401);
-  assert.equal((await signIn(userLogin, "Next-pass-2026")).status, 401, "locked account refuses the correct password");
+  for (let attempt = 0; attempt < 5; attempt += 1) assert.equal((await signIn(userLogin, WRONG_PW)).status, 401);
+  assert.equal((await signIn(userLogin, NEXT_PW)).status, 401, "locked account refuses the correct password");
 
   // 12. Users in another tenant are invisible.
   const otherTenant = await prisma.tenant.create({ data: { slug: `other-${suffix}`, name: "Other" } });
   const outsiderId = await store.createUser({
     tenantId: otherTenant.id, actorId: null, login: `outsider-${suffix}@orb.test`, nameEn: "Outsider", nameAr: "خارجي", locale: "en",
-    roleCodes: ["OPERATIONS"], passwordHash: await hashPassword("Outsider-2026"), mustChangePassword: false, now: new Date(),
+    roleCodes: ["OPERATIONS"], passwordHash: await hashPassword(OUTSIDER_PW), mustChangePassword: false, now: new Date(),
   });
   assert.equal((await user.PATCH(call(`/api/users/${outsiderId}`, { method: "PATCH", cookies: owner, body: { nameEn: "Hijacked" } }), params({ userId: outsiderId }))).status, 404);
 

@@ -5,7 +5,7 @@ Every access change is written to the append-only `AccessAuditEvent` table.
 
 ## 1. Apply migrations
 
-Run the normal migration step. `202611190001_user_credentials` adds `UserCredential` and `AccessAuditEvent`.
+Run the normal migration step. `202611190001_user_sign_in` adds `UserCredential` and `AccessAuditEvent`.
 
 ## 2. Create the first owner administrator
 
