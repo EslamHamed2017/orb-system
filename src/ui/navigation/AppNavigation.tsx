@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { actionStateForOperation, navigationAccessForRole, permissionAwareQuery, type NavigationDestination } from "./permission-aware-access";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ar } from "../i18n/ar";
 import { en } from "../i18n/en";
 import { AsyncState, type AsyncStateName } from "../components/AsyncState";
+import { AccountMenu } from "./AccountMenu";
+import { fetchCurrentSession, sendJson, signInUrl, type CurrentSession } from "../session-client";
 
 type Locale = "ar" | "en";
 type IconName = "today" | "projects" | "approvals" | "products" | "shipments" | "finance" | "documents" | "reports" | "admin" | "settings" | "search" | "help" | "bell" | "menu" | "plus";
@@ -49,20 +51,42 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
   const state = requestedState && allowedStates.has(requestedState) ? requestedState : null;
   const dialogRef = useRef<HTMLDialogElement>(null);
   const moreRef = useRef<HTMLButtonElement>(null);
-  const role = search.get("role");
-  const suffix = permissionAwareQuery(locale, role);
-  const canOpen = (destination: NavigationDestination) => navigationAccessForRole(role, destination);
+  // Roles come from the signed-in session on the server, never from the URL.
+  const [session, setSession] = useState<CurrentSession | null>(null);
+  const [sessionVersion, setSessionVersion] = useState(0);
+  const roles: readonly string[] = session?.roles ?? [];
+  const role = roles.includes("OWNER_ADMIN") ? "OWNER_ADMIN" : roles.length === 1 ? roles[0] : roles.length > 1 ? "MULTIPLE" : "PENDING";
+  const suffix = permissionAwareQuery(locale, null);
+  const canOpen = (destination: NavigationDestination) => roles.some((value) => navigationAccessForRole(value, destination));
+  const operationState = (operationId: string) => {
+    if (roles.length === 0) return actionStateForOperation("PENDING", operationId);
+    const states = roles.map((value) => actionStateForOperation(value, operationId));
+    return states.find((item) => item.allowed) ?? states.find((item) => item.visibility === "disabled") ?? states[0];
+  };
   const label = (english: string, arabic: string) => locale === "ar" ? arabic : english;
   const specializedProjectSection = /\/(shipments|money|expenses|statements|profit)(?:\/|$)/.test(pathname);
   const projectsCurrent = pathname.startsWith("/projects") && !specializedProjectSection;
 
   useEffect(() => {
+    if (isUnauthenticatedShell) return;
+    let cancelled = false;
+    fetchCurrentSession().then((current) => {
+      if (cancelled) return;
+      if (!current) { window.location.assign(signInUrl(locale)); return; }
+      setSession(current);
+    }).catch(() => { /* keep the shell; API calls will surface their own errors */ });
+    return () => { cancelled = true; };
+  }, [isUnauthenticatedShell, locale, sessionVersion]);
+
+  useEffect(() => {
     const applyPermissionState = () => {
       document.documentElement.lang = locale;
       document.documentElement.dir = direction;
+      // Nothing to shape on the sign-in page, and nothing to shape until the session's roles are known.
+      if (isUnauthenticatedShell || roles.length === 0) return;
       const controls = document.querySelectorAll<HTMLElement>("[data-operation-id]");
       for (const control of controls) {
-        const state = actionStateForOperation(role, control.dataset.operationId ?? "");
+        const state = operationState(control.dataset.operationId ?? "");
         control.hidden = state.visibility === "hidden";
         control.dataset.permissionState = state.allowed ? "allowed" : state.visibility;
         if (state.allowed) {
@@ -87,7 +111,7 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
     const observer = new MutationObserver(applyPermissionState);
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [direction, locale, pathname, role]);
+  }, [direction, isUnauthenticatedShell, locale, pathname, role, roles.length]);
 
   function openMore(): void { dialogRef.current?.showModal(); }
   function closeMore(): void { dialogRef.current?.close(); }
@@ -118,10 +142,10 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
         <kbd>⌘ K</kbd>
       </label>
       <span className="orb-top-spacer" />
-      <a className="orb-top-action orb-language" href={`${pathname}${permissionAwareQuery(locale === "ar" ? "en" : "ar", role)}`}>{locale === "ar" ? "EN" : "ع"}</a>
+      <a className="orb-top-action orb-language" href={`${pathname}${permissionAwareQuery(locale === "ar" ? "en" : "ar", null)}`}>{locale === "ar" ? "EN" : "ع"}</a>
       <button className="orb-top-action" type="button" aria-label={label("Help", "المساعدة")}><Icon name="help" /></button>
       <button className="orb-top-action" type="button" aria-label={label("Notifications", "الإشعارات")}><Icon name="bell" /></button>
-      <button className="orb-avatar" type="button" aria-label={label("Account: Eslam", "الحساب: إسلام")}>EB</button>
+      {session ? <AccountMenu session={session} locale={locale} onPasswordChanged={() => setSessionVersion((value) => value + 1)} /> : <span className="orb-avatar" aria-hidden="true">…</span>}
     </header>
     <nav className="orb-rail" data-navigation="rail" data-variant="compact" aria-label={copy.primaryNavigation}>
       <div className="orb-nav-group"><span className="orb-nav-heading">{label("Workspace", "مساحة العمل")}</span>{primaryLinks}
@@ -152,7 +176,7 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
         {canOpen("settings") && <a href={`/settings${suffix}`}><Icon name="settings" />{label("Settings", "الإعدادات")}</a>}
         {canOpen("admin") && <a href={`/admin/users${suffix}`}><Icon name="admin" />{label("Admin", "الإدارة")}</a>}
       </nav>
-      <div className="orb-dialog-actions"><button className="orb-button-text" type="button" data-operation-id="signOutCurrentSession">{label("Sign out", "تسجيل الخروج")}</button><button className="orb-button-filled" type="button" onClick={closeMore}>{copy.close}</button></div>
+      <div className="orb-dialog-actions"><button className="orb-button-text" type="button" data-operation-id="signOutCurrentSession" onClick={async () => { try { await sendJson("/api/sessions/current", "DELETE"); } catch { /* cookies are cleared either way */ } window.location.assign(`/sign-in?locale=${locale}`); }}>{label("Sign out", "تسجيل الخروج")}</button><button className="orb-button-filled" type="button" onClick={closeMore}>{copy.close}</button></div>
     </dialog>
   </div>;
 }

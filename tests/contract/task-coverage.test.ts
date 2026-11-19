@@ -17,8 +17,8 @@ const repositorySources = {
 
 test('accepted R1 graph has exact complete coverage, ownership and ordering', () => {
   assert.deepEqual(verifyRepositorySources(repositorySources), {
-    tasks: 85, edges: 196, primaryFiles: 415, correctionOverlays: 0,
-    operations: 122, requirements: 20, invariants: 7,
+    tasks: 85, edges: 196, primaryFiles: 422, correctionOverlays: 0,
+    operations: 125, requirements: 20, invariants: 7,
     uiRoutes: 21, pageFiles: 22, evidence: 17,
   });
 });

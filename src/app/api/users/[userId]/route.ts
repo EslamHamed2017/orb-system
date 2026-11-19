@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server.js";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { accessRuntime, asActor, assertSessionMutation, authenticateRequest, mapAccessErrors, requireActor } from "../../../../modules/access/access-runtime.ts";
 // @ts-expect-error TS5097: direct Node test execution requires the explicit TypeScript extension.
 import { accessProblem, requireAccessOwner, type AccessPrincipal } from "../../../../modules/access/administration-http.ts";
 export interface UserPatchDependencies { readonly authenticate: (request: Request) => Promise<AccessPrincipal | null>; readonly update?: (input: { request: Request; principal: AccessPrincipal; userId: string; input: Record<string, unknown> }) => Promise<unknown>; }
 export function createUserPatchHandler(dependencies: UserPatchDependencies) { return async function PATCH(request: Request, context: { params: Promise<{ userId: string }> }) { const principal=await requireAccessOwner(request, dependencies.authenticate); if(principal instanceof Response) return principal; if(!dependencies.update) return accessProblem(503,"DEPENDENCY_UNAVAILABLE"); let input:unknown; try{input=await request.json();}catch{return accessProblem(400,"VALIDATION_FAILED");} if(!input||typeof input!=="object"||Array.isArray(input)) return accessProblem(400,"VALIDATION_FAILED"); const {userId}=await context.params; return NextResponse.json(await dependencies.update({request,principal,userId,input:input as Record<string,unknown>}),{headers:{"Cache-Control":"no-store"}}); }; }
-export const PATCH=createUserPatchHandler({authenticate:async()=>null});
+export const PATCH = mapAccessErrors(createUserPatchHandler({
+  authenticate: authenticateRequest,
+  update: ({ request, principal, userId, input }) => { assertSessionMutation(request); return accessRuntime().service.updateUser(asActor(principal), userId, input); },
+}));

@@ -1,6 +1,6 @@
-import { BrowserRolesAdministration } from "../../../ui/features/admin/BrowserRolesAdministration";
-type Query = { locale?: string; role?: string };
+import { SystemRolesPage } from "../../../ui/features/admin/SystemRolesPage";
+type Query = { locale?: string; q?: string };
 export default async function RolesPage({ searchParams }: { searchParams: Promise<Query> }) {
   const query = await searchParams;
-  return <BrowserRolesAdministration locale={query.locale === "ar" ? "ar" : "en"} canManage={!query.role || query.role === "owner-admin"}/>;
+  return <SystemRolesPage locale={query.locale === "ar" ? "ar" : "en"} query={query.q ?? ""}/>;
 }

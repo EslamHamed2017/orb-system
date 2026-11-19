@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server.js";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { accessRuntime, asActor, assertSessionMutation, authenticateRequest, mapAccessErrors, requireActor } from "../../../../../modules/access/access-runtime.ts";
 // @ts-expect-error TS5097: direct Node test execution requires the explicit TypeScript extension.
 import { accessProblem, requireAccessOwner, type AccessPrincipal } from "../../../../../modules/access/administration-http.ts";
 export interface UserRolesRouteDependencies { readonly authenticate:(request:Request)=>Promise<AccessPrincipal|null>; readonly replace?:(input:{request:Request;principal:AccessPrincipal;userId:string;roleCodes:readonly string[]})=>Promise<unknown>; }
 export function createUserRolesPutHandler(dependencies:UserRolesRouteDependencies){return async function PUT(request:Request,context:{params:Promise<{userId:string}>}){const principal=await requireAccessOwner(request,dependencies.authenticate);if(principal instanceof Response)return principal;if(!dependencies.replace)return accessProblem(503,"DEPENDENCY_UNAVAILABLE");let body:unknown;try{body=await request.json();}catch{return accessProblem(400,"VALIDATION_FAILED");}const roleCodes=(body as {roleCodes?:unknown})?.roleCodes;if(!Array.isArray(roleCodes)||!roleCodes.every(value=>typeof value==="string"))return accessProblem(400,"VALIDATION_FAILED");const {userId}=await context.params;return NextResponse.json(await dependencies.replace({request,principal,userId,roleCodes}),{headers:{"Cache-Control":"no-store"}});};}
-export const PUT=createUserRolesPutHandler({authenticate:async()=>null});
+export const PUT = mapAccessErrors(createUserRolesPutHandler({
+  authenticate: authenticateRequest,
+  replace: ({ request, principal, userId, roleCodes }) => { assertSessionMutation(request); return accessRuntime().service.replaceRoles(asActor(principal), userId, roleCodes); },
+}));

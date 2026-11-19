@@ -2384,6 +2384,24 @@ paths:
       x-required-roles: []
       summary: Sign in
   /sessions/current:
+    get:
+      tags:
+      - Access
+      operationId: getCurrentSession
+      responses:
+        '200':
+          description: The signed-in user, roles, and session expiry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentSession'
+        default:
+          $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: Get current session
     delete:
       tags:
       - Access
@@ -2393,12 +2411,8 @@ paths:
       - $ref: '#/components/parameters/IdempotencyKey'
       - $ref: '#/components/parameters/CsrfToken'
       responses:
-        '200':
-          description: Successful response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SessionTermination'
+        '204':
+          description: Session revoked and cookies cleared
         default:
           $ref: '#/components/responses/Problem'
       x-required-roles:
@@ -2406,6 +2420,30 @@ paths:
       - OPERATIONS
       - FINANCE_VIEWER
       summary: Sign out current session
+  /sessions/current/password:
+    post:
+      tags:
+      - Access
+      operationId: changeOwnPassword
+      parameters:
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeOwnPasswordInput'
+      responses:
+        '204':
+          description: Password changed; other sessions of this user are revoked
+        default:
+          $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: Change own password
   /users:
     get:
       tags:
@@ -2476,6 +2514,33 @@ paths:
       x-required-roles:
       - OWNER_ADMIN
       summary: Update user
+  /users/{userId}/password:
+    post:
+      tags:
+      - Access
+      operationId: resetUserPassword
+      parameters:
+      - $ref: '#/components/parameters/UserId'
+      - $ref: '#/components/parameters/IdempotencyKey'
+      - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordInput'
+      responses:
+        '200':
+          description: Password reset; all sessions of the user are revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessUser'
+        default:
+          $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      summary: Reset user password
   /roles:
     get:
       tags:
@@ -5441,15 +5506,18 @@ components:
     AccessUser:
       type: object
       additionalProperties: false
-      required: [id, authSubject, nameEn, nameAr, locale, status, roleCodes, createdAt, updatedAt]
+      required: [id, login, nameEn, nameAr, locale, status, roleCodes, activeSessionCount, lastActiveAt, mustChangePassword, createdAt, updatedAt]
       properties:
         id: { $ref: '#/components/schemas/Uuid' }
-        authSubject: { type: string, minLength: 1, maxLength: 255 }
+        login: { type: [string, 'null'], minLength: 3, maxLength: 254 }
         nameEn: { type: string, minLength: 1 }
         nameAr: { type: string, minLength: 1 }
         locale: { type: string, enum: [en, ar] }
         status: { type: string, enum: [ACTIVE, SUSPENDED] }
-        roleCodes: { type: array, uniqueItems: true, items: { type: string } }
+        roleCodes: { type: array, uniqueItems: true, items: { type: string, enum: [OWNER_ADMIN, OPERATIONS, FINANCE_VIEWER] } }
+        activeSessionCount: { type: integer, minimum: 0 }
+        lastActiveAt: { type: [string, 'null'], format: date-time }
+        mustChangePassword: { type: boolean }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
     AccessUserPage:
@@ -5461,13 +5529,43 @@ components:
     CreateAccessUserInput:
       type: object
       additionalProperties: false
-      required: [authSubject, nameEn, nameAr, locale, roleCodes]
+      required: [login, nameEn, nameAr, locale, roleCodes, password]
       properties:
-        authSubject: { type: string, minLength: 1, maxLength: 255 }
+        login: { type: string, minLength: 3, maxLength: 254 }
         nameEn: { type: string, minLength: 1 }
         nameAr: { type: string, minLength: 1 }
         locale: { type: string, enum: [en, ar] }
-        roleCodes: { type: array, uniqueItems: true, items: { type: string } }
+        roleCodes: { type: array, minItems: 1, uniqueItems: true, items: { type: string, enum: [OWNER_ADMIN, OPERATIONS, FINANCE_VIEWER] } }
+        password: { type: string, minLength: 10, maxLength: 200, writeOnly: true, description: Temporary password; the user must change it at first sign-in. }
+    ResetPasswordInput:
+      type: object
+      additionalProperties: false
+      required: [password]
+      properties:
+        password: { type: string, minLength: 10, maxLength: 200, writeOnly: true }
+        mustChangePassword: { type: boolean, default: true }
+    ChangeOwnPasswordInput:
+      type: object
+      additionalProperties: false
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { type: string, minLength: 1, writeOnly: true }
+        newPassword: { type: string, minLength: 10, maxLength: 200, writeOnly: true }
+    CurrentSession:
+      type: object
+      additionalProperties: false
+      required: [sessionId, userId, login, nameEn, nameAr, locale, roles, mustChangePassword, version, expiresAt]
+      properties:
+        sessionId: { $ref: '#/components/schemas/Uuid' }
+        userId: { $ref: '#/components/schemas/Uuid' }
+        login: { type: [string, 'null'] }
+        nameEn: { type: string }
+        nameAr: { type: string }
+        locale: { type: string, enum: [en, ar] }
+        roles: { type: array, uniqueItems: true, items: { type: string, enum: [OWNER_ADMIN, OPERATIONS, FINANCE_VIEWER] } }
+        mustChangePassword: { type: boolean }
+        version: { type: integer, minimum: 1 }
+        expiresAt: { type: string, format: date-time }
     UpdateAccessUserInput:
       type: object
       additionalProperties: false

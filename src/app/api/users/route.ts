@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server.js";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { accessRuntime, asActor, assertSessionMutation, authenticateRequest, mapAccessErrors, requireActor } from "../../../modules/access/access-runtime.ts";
 // @ts-expect-error TS5097: direct Node test execution requires the explicit TypeScript extension.
 import { accessProblem, requireAccessOwner, type AccessPrincipal } from "../../../modules/access/administration-http.ts";
 export interface UsersRouteDependencies { readonly authenticate: (request: Request) => Promise<AccessPrincipal | null>; readonly list?: (input: { request: Request; principal: AccessPrincipal }) => Promise<unknown>; readonly create?: (input: { request: Request; principal: AccessPrincipal; input: Record<string, unknown> }) => Promise<unknown>; }
@@ -6,4 +8,10 @@ export function createUsersHandlers(dependencies: UsersRouteDependencies) { retu
   async GET(request: Request) { const principal = await requireAccessOwner(request, dependencies.authenticate); if (principal instanceof Response) return principal; if (!dependencies.list) return accessProblem(503, "DEPENDENCY_UNAVAILABLE"); return NextResponse.json(await dependencies.list({ request, principal }), { headers: { "Cache-Control": "no-store" } }); },
   async POST(request: Request) { const principal = await requireAccessOwner(request, dependencies.authenticate); if (principal instanceof Response) return principal; if (!dependencies.create) return accessProblem(503, "DEPENDENCY_UNAVAILABLE"); let input: unknown; try { input = await request.json(); } catch { return accessProblem(400, "VALIDATION_FAILED"); } if (!input || typeof input !== "object" || Array.isArray(input)) return accessProblem(400, "VALIDATION_FAILED"); return NextResponse.json(await dependencies.create({ request, principal, input: input as Record<string, unknown> }), { status: 201, headers: { "Cache-Control": "no-store" } }); },
 }); }
-const handlers = createUsersHandlers({ authenticate: async () => null }); export const GET = handlers.GET; export const POST = handlers.POST;
+const handlers = createUsersHandlers({
+  authenticate: authenticateRequest,
+  list: ({ principal }) => accessRuntime().service.listUsers(asActor(principal)),
+  create: ({ request, principal, input }) => { assertSessionMutation(request); return accessRuntime().service.createUser(asActor(principal), input); },
+});
+export const GET = mapAccessErrors(handlers.GET);
+export const POST = mapAccessErrors(handlers.POST);

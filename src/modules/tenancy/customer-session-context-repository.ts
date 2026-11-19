@@ -15,9 +15,21 @@ export interface CustomerSessionPrismaClient {
 
 const CUSTOMER_ROLES = new Set(["OWNER_ADMIN", "OPERATIONS", "FINANCE_VIEWER"]);
 
+/**
+ * Owner sessions require a satisfied MFA step unless ORB_OWNER_MFA_REQUIRED=0.
+ * MFA enrolment is not built yet, so deployments set it to 0 until it is.
+ */
+export function ownerMfaRequired(env: Record<string, string | undefined> = process.env): boolean {
+  return env.ORB_OWNER_MFA_REQUIRED !== "0";
+}
+
 export class PrismaCustomerSessionContextRepository implements CustomerSessionContextRepository {
   private readonly client: CustomerSessionPrismaClient;
-  constructor(client: CustomerSessionPrismaClient) { this.client = client; }
+  private readonly requireOwnerMfa: () => boolean;
+  constructor(client: CustomerSessionPrismaClient, options: { requireOwnerMfa?: () => boolean } = {}) {
+    this.client = client;
+    this.requireOwnerMfa = options.requireOwnerMfa ?? (() => ownerMfaRequired());
+  }
 
   async findActiveContext(tokenHash: string, now: Date): Promise<CustomerSessionContext | null> {
     const rows = await this.client.$queryRaw<SessionContextRow[]>`
@@ -37,7 +49,7 @@ export class PrismaCustomerSessionContextRepository implements CustomerSessionCo
     if (rows.length !== 1) return null;
     const row = rows[0];
     const roles = row.roles.filter((role) => CUSTOMER_ROLES.has(role));
-    if (roles.length === 0 || (roles.includes("OWNER_ADMIN") && !row.mfa_satisfied_at)) return null;
+    if (roles.length === 0 || (roles.includes("OWNER_ADMIN") && !row.mfa_satisfied_at && this.requireOwnerMfa())) return null;
     return Object.freeze({ sessionId: row.session_id, userId: row.user_id, tenantId: row.tenant_id, locale: row.locale, roles });
   }
 }

@@ -1,15 +1,34 @@
-export function SessionList({ locale, canManage = true }: Readonly<{ locale: "ar" | "en"; canManage?: boolean }>) {
+export interface SessionListItem {
+  readonly sessionId: string;
+  readonly createdAt: string;
+  readonly expiresAt: string;
+  readonly revokedAt: string | null;
+  readonly active: boolean;
+}
+
+const format = (value: string, ar: boolean) => new Date(value).toLocaleString(ar ? "ar-AE" : "en-GB", { dateStyle: "medium", timeStyle: "short" });
+
+/** One user's real sessions (from /api/users/{userId}/sessions), with an "end session" action for active ones. */
+export function SessionList({ locale, sessions, busy = false, onRevoke }: Readonly<{
+  locale: "ar" | "en";
+  sessions: readonly SessionListItem[];
+  busy?: boolean;
+  onRevoke?: (sessionId: string) => void;
+}>) {
   const ar = locale === "ar";
-  return <section role="region" aria-labelledby="sessions-title" style={{ background: "var(--orb-color-surface-container)", borderRadius: 16, minWidth: 0, padding: 16 }}>
-    <h2 id="sessions-title">{ar ? "جلسات المستخدم المحددة" : "Exact user sessions"}</h2>
-    <div style={{ display: "grid", gap: 12 }}>
-      <article data-testid="session-active" style={{ border: "1px solid var(--orb-color-outline)", borderRadius: 12, overflowWrap: "anywhere", padding: 12 }}>
-        <h3><bdi>SESSION-ACTIVE-0007</bdi></h3><p>Version 4 · CURRENT · Last seen 2026-11-07T09:15:00Z · Idle expiry 2026-11-07T09:45:00Z · Absolute expiry 2026-11-07T20:00:00Z</p>
-        <p>Revoked at: null · Revoked by: null · Revocation reason: null</p>{canManage && <button type="button" data-operation-id="revokePilotUserSession" data-required-role="OWNER_ADMIN">{ar ? "إلغاء الجلسة المحددة" : "Revoke exact session"}</button>}
-      </article>
-      <article data-testid="session-revoked" style={{ border: "1px solid var(--orb-color-outline)", borderRadius: 12, overflowWrap: "anywhere", padding: 12 }}>
-        <h3><bdi>SESSION-REVOKED-0006</bdi></h3><p>Version 3 · Revoked at 2026-11-07T08:00:00Z · Revoked by Owner user · Security review</p>
-      </article>
-    </div>
+  const active = sessions.filter((session) => session.active);
+  const ended = sessions.filter((session) => !session.active).slice(0, 5);
+  return <section role="region" aria-label={ar ? "جلسات المستخدم المحددة" : "Exact user sessions"} style={{ minWidth: 0 }}>
+    <strong>{ar ? "جلسات المستخدم المحددة" : "Exact user sessions"}</strong>
+    {active.length === 0 && <p className="orb-muted">{ar ? "لا توجد جلسات نشطة." : "No active sessions."}</p>}
+    <ul style={{ listStyle: "none", padding: 0, margin: "8px 0 0", display: "grid", gap: 6 }}>
+      {active.map((session) => <li key={session.sessionId} data-testid="session-active" style={{ display: "flex", gap: 8, justifyContent: "space-between", alignItems: "center", fontSize: ".85rem" }}>
+        <span>{ar ? "دخول" : "Signed in"} <time dateTime={session.createdAt}>{format(session.createdAt, ar)}</time> · {ar ? "تنتهي" : "expires"} <time dateTime={session.expiresAt}>{format(session.expiresAt, ar)}</time></span>
+        {onRevoke && <button type="button" disabled={busy} onClick={() => onRevoke(session.sessionId)} data-operation-id="revokePilotUserSession">{ar ? "إنهاء الجلسة" : "End session"}</button>}
+      </li>)}
+      {ended.map((session) => <li key={session.sessionId} data-testid="session-revoked" className="orb-muted" style={{ fontSize: ".8rem" }}>
+        {ar ? "منتهية" : "Ended"} · <time dateTime={session.revokedAt ?? session.expiresAt}>{format(session.revokedAt ?? session.expiresAt, ar)}</time>
+      </li>)}
+    </ul>
   </section>;
 }
