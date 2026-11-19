@@ -70,6 +70,12 @@ for alias in migration restore; do
   mc version enable "${alias}/orb-evidence"
 done
 
+# Daily-use trade flows: shipments and invoices (with real document upload to the locked bucket).
+ORB_TEST_DATABASE_URL="$ORB_TEST_DATABASE_URL" node --test tests/integration/shipments/shipment-execution-postgres.test.ts
+ORB_TEST_DATABASE_URL="$ORB_TEST_DATABASE_URL" OBJECT_STORAGE_ENDPOINT="http://127.0.0.1:${ORB_MIGRATION_OBJECT_PORT}" OBJECT_STORAGE_BUCKET=orb-evidence \
+  OBJECT_STORAGE_ACCESS_KEY_ID="$ORB_ISOLATED_MINIO_USER" OBJECT_STORAGE_SECRET_ACCESS_KEY="$ORB_ISOLATED_MINIO_PASSWORD" \
+  node --test tests/integration/invoices/invoices-postgres.test.ts
+
 object_keys=("evidence/pilot-contract.txt" "reports/restore-marker.json")
 printf 'ORB isolated evidence %s\n' "$(openssl rand -hex 32)" | mc pipe "migration/orb-evidence/${object_keys[0]}" >/dev/null
 printf '{"gate":"T084","nonce":"%s"}\n' "$(openssl rand -hex 32)" | mc pipe "migration/orb-evidence/${object_keys[1]}" >/dev/null

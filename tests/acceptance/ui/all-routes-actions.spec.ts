@@ -29,7 +29,7 @@ const routes = [
   "/projects/demo/documents", "/projects/demo/expenses", "/projects/demo/money", "/projects/demo/overview", "/projects/demo/profit",
   "/projects/demo/shipments", "/projects/demo/statements", "/projects/demo/transactions",
   "/reports", "/reports/accounts", "/reports/contract-fulfillment", "/reports/product-movement", "/reports/project-profitability",
-  "/sales-shipments/demo", "/sales-shipments/demo?state=draft", "/settings", "/shipments",
+  "/sales-invoices/demo/print", "/sales-shipments/demo", "/sales-shipments/demo?state=draft", "/settings", "/shipments",
   "/supplier-shipments/demo", "/supplier-shipments/demo?state=draft", "/suppliers/demo",
 ] as const;
 
@@ -48,7 +48,7 @@ const uiMutationOperationIds = new Set([
   "submitReopenForApproval", "reviseSupplierShipmentDataset", "reviseSalesShipmentDataset", "transitionSupplierShipmentExecution",
   "transitionSalesShipmentExecution", "reverseSettlementAllocation", "submitApprovedExpenseCorrection", "applyApprovedExpenseCorrection",
   "cancelUnexecutedProject", "applyApprovedClaimOutcome", "reviseOutboundManifest", "submitSalesShipmentConfirmation",
-  "cancelUnallocatedSupplierInvoice", "signIn", "signOutCurrentSession", "assignFixedPilotRoles", "revokePilotUserSession",
+  "cancelUnallocatedSupplierInvoice", "cancelUnallocatedSalesInvoice", "signIn", "signOutCurrentSession", "assignFixedPilotRoles", "revokePilotUserSession",
   "startIsolatedRestoreTest", "createContractLine", "createMasterRecord", "createRole", "createSalesShipmentLine",
   "createSupplierShipmentLine", "createUser", "replaceRolePermissions", "updateMasterRecord", "updateSettings", "updateUser",
 ]);
@@ -122,7 +122,7 @@ test("every accepted UI mutation has one reachable named action bound to its exa
     }
   }
   const missing = [...uiMutationOperationIds].filter((id) => !found.has(id)).sort();
-  const unavailableWithoutDatabase = ["assignFixedPilotRoles", "cancelUnexecutedProject", "createProduct", "createProjectWithSalesContract", "createRole", "createSupplier", "createUser", "decideFixedApproval", "replaceRolePermissions", "revokePilotUserSession", "startIsolatedRestoreTest", "updateCustomer", "updateProduct", "updateSupplier", "updateUser"].sort();
+  const unavailableWithoutDatabase = ["assignFixedPilotRoles", "cancelUnallocatedSalesInvoice", "cancelUnexecutedProject", "createProduct", "createProjectWithSalesContract", "createRole", "createSupplier", "createUser", "decideFixedApproval", "replaceRolePermissions", "revokePilotUserSession", "startIsolatedRestoreTest", "updateCustomer", "updateProduct", "updateSupplier", "updateUser"].sort();
   const unknown = [...found].filter(([id]) => !operationIds.includes(id)).sort();
   expect(missing, "only database-backed mutation controls may be absent from the no-database preview").toEqual(unavailableWithoutDatabase);
   expect(unknown, "UI controls reference unknown contract operations").toEqual([]);
