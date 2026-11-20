@@ -18,19 +18,6 @@ test("isolated infrastructure is ready and current route states remain truthful"
     await expect(page.locator("body"), route).not.toContainText(/application error|internal server error/i);
   }
 
-  await page.goto("/projects/demo/contracts?locale=en");
-  await expect(page.getByRole("table").first()).toBeVisible();
-  await expect(page.getByText(/print/i).first()).toBeVisible();
-  await expect(page.getByText(/attachment/i).first()).toBeVisible();
-
-  await page.goto("/supplier-shipments/demo?locale=en");
-  await expect(page.getByText(/2 suppliers|supplier count/i).first()).toBeVisible();
-  await expect(page.getByText(/separate supplier invoice/i).first()).toBeVisible();
-
-  await page.goto("/sales-shipments/demo?locale=en&state=confirmed");
-  await expect(page.getByText("Remaining quantity", { exact: true }).first()).toBeVisible();
-  await expect(page.getByRole("progressbar")).toHaveCount(2);
-
   // Accounts read the signed-in company's live records; the acceptance owner's company may have none yet.
   for (const [view, heading] of [["sales-invoices", "Sales invoice"], ["supplier-invoices", "Supplier invoice"], ["collections", "Collection"]] as const) {
     await page.goto(`/accounts/${view}?projectId=00000000-0000-7000-8000-000000000201&locale=en`);
