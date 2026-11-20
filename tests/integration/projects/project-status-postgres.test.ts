@@ -76,6 +76,15 @@ integration("projects start In progress, complete with reasons, reopen, cancel o
     assert.equal((await cancel.POST(fresh.post(`/api/projects/${id}/cancel`, "owner", { reason: "again please" }), p)).status, 409);
     const audit = (await fresh.sql.query(`SELECT "after"->>'reason' reason FROM "ProjectAuditEvent" WHERE "project_id" = $1 AND "action" = 'PROJECT_CANCELLED'`, [id])).rows as { reason: string }[];
     assert.deepEqual(audit.map((r) => r.reason), ["Buyer withdrew before shipping"]);
+    // ---- Gear > Tools > Audit log: owner only, every module in one list ----
+    const activity = await import("../../../src/app/api/activity-log/route.ts");
+    assert.equal((await activity.GET(fresh.get(`/api/activity-log?projectId=${id}`, "ops"))).status, 403);
+    assert.equal((await activity.GET(fresh.get(`/api/activity-log?projectId=nope`, "owner"))).status, 422);
+    const log = await fresh.ok<{ items: { area: string; action: string; reason: string | null; userName: string; projectId: string | null }[] }>(await activity.GET(fresh.get(`/api/activity-log?projectId=${id}`, "owner")));
+    assert.ok(log.items.every((e) => e.projectId === id));
+    const cancelled = log.items.find((e) => e.action === "PROJECT_CANCELLED");
+    assert.deepEqual([cancelled?.area, cancelled?.reason], ["PROJECT", "Buyer withdrew before shipping"]);
+    assert.ok(log.items.some((e) => e.action === "PROJECT_ACTIVATED"), "starting the project is in the same log");
   } finally {
     await fresh.sql.end();
   }

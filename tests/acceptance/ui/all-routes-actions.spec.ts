@@ -23,7 +23,7 @@ const routes = [
   "/", "/sign-in",
   "/masters/customers", "/masters/suppliers",
   "/accounts", "/accounts/collections", "/accounts/expenses", "/accounts/sales-invoices", "/accounts/supplier-invoices", "/accounts/supplier-payments",
-  "/admin/backup", "/admin/roles", "/admin/users", "/approvals", "/attachments",
+  "/admin/audit-log", "/admin/backup", "/admin/roles", "/admin/users", "/approvals", "/attachments",
   "/contracts/demo/print", "/customers/demo", "/documents/demo", "/evidence/demo", "/masters/products", "/money-movements/demo/print", "/new/demo", "/products/demo/movements",
   "/projects", "/projects/new", "/projects/demo/audit", "/projects/demo/claims", "/projects/demo/closure", "/projects/demo/contracts",
   "/projects/demo/documents", "/projects/demo/expenses", "/projects/demo/invoices/new", "/projects/demo/money", "/projects/demo/overview", "/projects/demo/profit",
