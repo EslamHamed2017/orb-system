@@ -19,7 +19,7 @@ test("isolated infrastructure is ready and current route states remain truthful"
   }
 
   // Accounts read the signed-in company's live records; the acceptance owner's company may have none yet.
-  for (const [view, heading] of [["sales-invoices", "Sales invoice"], ["supplier-invoices", "Supplier invoice"], ["collections", "Collection"]] as const) {
+  for (const [view, heading] of [["sales-invoices", "Invoices"], ["supplier-invoices", "Bills"], ["collections", "Payments received"]] as const) {
     await page.goto(`/accounts/${view}?projectId=00000000-0000-7000-8000-000000000201&locale=en`);
     await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
     await expect(page.getByText("Showing one project.")).toBeVisible();

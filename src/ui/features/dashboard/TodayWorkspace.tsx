@@ -1,5 +1,6 @@
 "use client";
 
+import { AccountsMoneyBars } from "../accounts/AccountsWorkspace";
 import { useEffect, useState } from "react";
 import { EnterpriseStyles, ErpPageHeader, Kpi } from "../admin/EnterpriseUx";
 import { fetchCurrentSession } from "../../session-client";
@@ -70,6 +71,7 @@ export function TodayWorkspace({ locale }: { readonly locale: "en" | "ar" }) {
   return <section className="orb-erp orb-today" dir={ar ? "rtl" : "ltr"} aria-labelledby="today-title">
     <EnterpriseStyles/><style>{STYLES}</style>
     <ErpPageHeader titleId="today-title" eyebrow={t("Work", "العمل")} title={t("Today", "اليوم")} description={t("What needs attention across your projects, from the live records.", "ما يحتاج متابعة في مشاريعك، من السجلات الفعلية.")}/>
+    <AccountsMoneyBars locale={locale}/>
     <div className="orb-summary-grid" data-testid="today-kpis">
       <Kpi label={t("Active projects", "المشاريع النشطة")} value={active === null ? "—" : String(active)} detail={<a href={`/projects${q}`}>{t("See all", "عرض الكل")}</a>}/>
       <Kpi label={t("Shipments in transit", "الشحنات في الطريق")} value={moving === null ? "—" : String(moving)} detail={<a href={`/shipments${q}`}>{t("See all", "عرض الكل")}</a>}/>
