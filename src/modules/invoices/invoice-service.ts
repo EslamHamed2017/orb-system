@@ -1,5 +1,5 @@
 // @ts-expect-error Native Node TypeScript tests require source extensions.
-import { InvoiceStoreError, type InvoiceType, type PrismaInvoiceStore } from "./invoice-store.ts";
+import { InvoiceStoreError, type InvoiceType, type PrismaInvoiceStore, type VatTreatment } from "./invoice-store.ts";
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { DocumentStorageError, readDocument } from "../evidence/document-storage.ts";
 // @ts-expect-error Native Node TypeScript tests require source extensions.
@@ -103,7 +103,9 @@ export function createInvoiceService(store: InvoiceStore) {
 
     async issueSalesInvoice(actor: ShipmentActor, shipmentId: unknown, body: Record<string, unknown>) {
       requireRole(actor, FINANCE);
-      const input = { shipmentId: id(shipmentId, "Shipment"), invoiceDate: invoiceDate(body.invoiceDate ?? new Date().toISOString().slice(0, 10)) };
+      const vatTreatment = body.vatTreatment === undefined || body.vatTreatment === null || body.vatTreatment === "" ? null : String(body.vatTreatment);
+      if (vatTreatment !== null && !["STANDARD", "ZERO_RATED", "EXEMPT", "OUT_OF_SCOPE"].includes(vatTreatment)) throw new ShipmentProblem(422, "VALIDATION_FAILED", "vatTreatment must be STANDARD, ZERO_RATED, EXEMPT or OUT_OF_SCOPE.");
+      const input = { shipmentId: id(shipmentId, "Shipment"), invoiceDate: invoiceDate(body.invoiceDate ?? new Date().toISOString().slice(0, 10)), vatTreatment: vatTreatment as VatTreatment | null };
       try { return await store.issueSalesInvoice({ tenantId: actor.tenantId, actorId: actor.userId, ...input }); } catch (error) { translate(error); }
     },
 

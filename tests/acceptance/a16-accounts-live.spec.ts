@@ -91,18 +91,28 @@ for (const locale of ["en", "ar"] as const) {
   });
 }
 
-test("printable sales invoice shows buyer, lines and total, and warns when company details are missing", async ({ page }) => {
+test("printable tax invoice shows company details, buyer, lines, VAT and total, and asks for missing company details", async ({ page }) => {
   const id = "44444444-4444-7444-8444-444444444444";
+  const company = { legalNameEn: "Gulf Bean Trading LLC", legalNameAr: "الخليج لتجارة البن", addressEn: "", addressAr: "", phone: "", email: "", website: "", trn: "", licenceNo: "",
+    bankName: "Emirates NBD", bankAccountName: "Gulf Bean Trading LLC", iban: "AE070331234567890123456", swift: "EBILAEAD", bankCurrency: "USD", termsEn: "", termsAr: "", footerEn: "", footerAr: "",
+    brandColor: "#0b5d3b", documentLanguage: "BILINGUAL", vatRegistered: true, logoDataUrl: null };
   await page.route(`**/api/sales-invoices/${id}/print-data`, (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
-    invoice: { reference: "ORB-INV-2026-000001", invoiceDate: "2026-11-19", state: "ISSUED", currency: "USD", amount: "117120.00" },
-    seller: { name: "", nameAr: null, address: null, taxNumber: null },
+    invoice: { reference: "ORB-INV-2026-000001", invoiceDate: "2026-11-19", state: "ISSUED", currency: "USD", amount: "122976.00", paid: "0.00", outstanding: "122976.00", shipmentId: "s1",
+      vat: { treatment: "STANDARD", rate: "5.00", amount: "5856.00", net: "117120.00" } },
+    company, seller: { name: company.legalNameEn, nameAr: null, address: null, taxNumber: null },
     buyer: { reference: "CUS-1", name: "Hamburg Roasters GmbH", nameAr: null, address: "Speicherstadt 1, 20457 Hamburg", taxNumber: "DE123456789", paymentTermsDays: 30 },
-    project: { reference: "ORB-PRJ-2026-000001" }, shipment: { reference: "OUT-1", customerPurchaseOrder: "PO-7", containers: ["MSCU1234565"], route: "FOREIGN_TO_FOREIGN", incoterm: "CFR" },
+    project: { reference: "ORB-PRJ-2026-000001" }, shipment: { reference: "OUT-1", customerPurchaseOrder: "PO-7", containers: ["MSCU1234565"], route: "Jebel Ali, AE → Hamburg, DE", incoterm: "CFR" },
+    product: { name: "Yemen Matari", nameAr: "بن يمني" },
     lines: [{ lineNo: 1, description: "Yemen Matari", quantity: "19.200000", unitPrice: "6100.000000", lineAmount: "117120.00" }], paymentTerms: "CAD 30 days", issuedAt: null, issuedByName: "Finance User",
   }) }));
   await page.goto(`/sales-invoices/${id}/print?locale=en`);
-  await expect(page.getByText("Hamburg Roasters GmbH")).toBeVisible();
-  await expect(page.getByText("USD 117,120.00")).toBeVisible();
-  await expect(page.getByRole("note")).toContainText("company name and tax number are not set");
-  await expect(page.getByRole("button", { name: "Print / save as PDF" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Tax Invoice" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "فاتورة ضريبية" })).toBeVisible();
+  await expect(page.locator(".doc")).toContainText("Gulf Bean Trading LLC");
+  await expect(page.locator(".doc")).toContainText("AE070331234567890123456");
+  await expect(page.locator(".doc")).toContainText("Hamburg Roasters GmbH");
+  await expect(page.locator(".doc")).toContainText("USD 5,856.00");
+  await expect(page.locator(".doc")).toContainText("USD 122,976.00");
+  await expect(page.getByRole("note")).toContainText("Add your company address and tax number");
+  await expect(page.getByRole("button", { name: "Print or save as PDF" })).toBeVisible();
 });

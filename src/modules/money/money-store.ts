@@ -164,7 +164,7 @@ export class PrismaMoneyStore {
   async openInvoices(tx: SqlTransaction, tenantId: string, projectId: string): Promise<OpenInvoice[]> {
     const rows = await tx.$queryRawUnsafe<Array<Record<string, unknown>>>(
       `SELECT 'CINV' type, i."id", i."reference", i."customer_master_id" counterparty_id, c."legal_name" counterparty_name, i."invoice_date", i."currency",
-              (SELECT SUM(l."line_amount") FROM "SalesInvoiceLine" l WHERE l."sales_invoice_id" = i."id")::text amount,
+              ((SELECT SUM(l."line_amount") FROM "SalesInvoiceLine" l WHERE l."sales_invoice_id" = i."id") + i."vat_amount")::text amount,
               COALESCE((SELECT SUM(a."amount") FROM "SettlementAllocation" a WHERE a."target_type" = 'CINV' AND a."target_id" = i."id" AND a."state" = 'ACTIVE'), 0)::text allocated
          FROM "SalesInvoice" i JOIN "Customer" c ON c."id" = i."customer_master_id"
         WHERE i."tenant_id" = $1 AND i."project_id" = $2 AND i."state"::text = 'ISSUED'
@@ -368,7 +368,7 @@ export class PrismaMoneyStore {
       if (!["CONFIRMED", "PARTIALLY_ALLOCATED"].includes(String(m.state))) throw new MoneyStoreError("CONFLICT", m.state === "PENDING_APPROVAL" ? "This payment is still waiting for owner approval." : "This payment has nothing left to allocate.");
       const invoice = (await tx.$queryRawUnsafe<Array<Record<string, unknown>>>(
         input.targetType === "CINV"
-          ? `SELECT i."project_id", i."customer_master_id" party_id, i."currency", i."state"::text state, (SELECT SUM(l."line_amount") FROM "SalesInvoiceLine" l WHERE l."sales_invoice_id" = i."id")::text amount
+          ? `SELECT i."project_id", i."customer_master_id" party_id, i."currency", i."state"::text state, ((SELECT SUM(l."line_amount") FROM "SalesInvoiceLine" l WHERE l."sales_invoice_id" = i."id") + i."vat_amount")::text amount
                FROM "SalesInvoice" i WHERE i."tenant_id" = $1 AND i."id" = $2 FOR UPDATE OF i`
           : `SELECT i."project_id", i."supplier_master_id" party_id, i."currency", i."state"::text state, i."amount"::text amount
                FROM "SupplierInvoice" i WHERE i."tenant_id" = $1 AND i."id" = $2 FOR UPDATE OF i`, input.tenantId, input.targetId))[0];

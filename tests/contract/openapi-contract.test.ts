@@ -429,7 +429,7 @@ function controlViolations(document) {
   return errors;
 }
 function operation(document, id) { return operations(document).find((entry) => entry.operation.operationId === id).operation; }
-const EXPECTED_OPENAPI_SHA256 = '93f2e6a46dcc84eac62b4418522ee0effb7eff5ad094a94160a7cb792c4736cd';
+const EXPECTED_OPENAPI_SHA256 = 'ba65f211c760b915a3a96858bff661be94eac7aac80c9d1054b1b4c1947b1a46';
 function assertAcceptedOpenApiBytes(bytes) {
   const actual = createHash('sha256').update(bytes).digest('hex');
   assert.equal(actual, EXPECTED_OPENAPI_SHA256, 'accepted OpenAPI bytes changed; expected=' + EXPECTED_OPENAPI_SHA256 + ' actual=' + actual);
@@ -499,7 +499,7 @@ test('accepted raw OpenAPI bytes are independently SHA-256 pinned', () => {
 });
 test('accepted OpenAPI 3.1 surface and every local ref are pinned', () => {
   assert.match(document.openapi, /^3\.1(?:\.|$)/); assert.equal(Object.keys(document.paths).length, 109);
-  assert.equal(operations(document).length, 131); assert.equal(acceptedLocalRefCount, 1070);
+  assert.equal(operations(document).length, 131); assert.equal(acceptedLocalRefCount, 1072);
 });
 test('route handler export inventory recognizes repository syntax and rejects method drift', () => {
   assert.deepEqual(exportedHttpMethods('export async function GET() {}\nexport const POST = handler;'), ['get', 'post']);

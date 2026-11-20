@@ -309,7 +309,7 @@ export class PrismaClaimsClosureStore {
               EXISTS (SELECT 1 FROM "SupplierInvoice" i WHERE i."supplier_shipment_id" = s."id" AND i."state"::text NOT IN ('CANCELLED', 'REJECTED'))::text invoiced
          FROM "SupplierShipment" s WHERE s."tenant_id" = $1 AND s."project_id" = $2 AND s."execution_state"::text NOT IN ('CANCELLED', 'REJECTED') ORDER BY s."reference"`),
       q<Record<string, string>>(`SELECT i."id"::text id, i."reference", i."state"::text state, btrim(i."currency") currency, i."sales_shipment_id"::text shipment_id,
-              (SELECT SUM(l."line_amount") FROM "SalesInvoiceLine" l WHERE l."sales_invoice_id" = i."id")::text amount,
+              ((SELECT SUM(l."line_amount") FROM "SalesInvoiceLine" l WHERE l."sales_invoice_id" = i."id") + i."vat_amount")::text amount,
               COALESCE((SELECT SUM(a."amount") FROM "SettlementAllocation" a WHERE a."target_type" = 'CINV' AND a."target_id" = i."id" AND a."state" = 'ACTIVE'), 0)::text settled
          FROM "SalesInvoice" i WHERE i."tenant_id" = $1 AND i."project_id" = $2 AND i."state"::text <> 'CANCELLED' ORDER BY i."reference"`),
       q<Record<string, string>>(`SELECT i."id"::text id, i."reference", i."state"::text state, btrim(i."currency") currency, i."supplier_shipment_id"::text shipment_id, i."amount"::text amount,
