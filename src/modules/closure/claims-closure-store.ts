@@ -495,6 +495,32 @@ export class PrismaClaimsClosureStore {
     return this.closure(input.tenantId, input.projectId);
   }
 
+  /**
+   * Cancels a project that has nothing live on it: no active shipment, invoice, bill, payment or expense.
+   * QuickBooks-style status "Cancelled"; the reason is kept in the project's audit trail.
+   */
+  async cancelProject(input: { tenantId: string; actorId: string; projectId: string; reason: string }): Promise<ClosureState> {
+    await this.client.$transaction(async (tx) => {
+      const project = await this.head(tx, input.tenantId, input.projectId, true);
+      if (project.lifecycleState === "CANCELLED") throw new ClaimsClosureError("CONFLICT", "This project is already cancelled.");
+      if (project.finalState === "FINAL_CLOSED") throw new ClaimsClosureError("CONFLICT", "This project is completed. Reopen it before cancelling.");
+      const live = (await tx.$queryRawUnsafe<Array<{ n: number }>>(
+        `SELECT ((SELECT count(*) FROM "SupplierShipment" WHERE "project_id" = $1 AND "execution_state"::text NOT IN ('DRAFT','CANCELLED','REJECTED'))
+               + (SELECT count(*) FROM "SalesShipment" WHERE "project_id" = $1 AND "execution_state"::text NOT IN ('DRAFT','CANCELLED','REJECTED'))
+               + (SELECT count(*) FROM "SalesInvoice" WHERE "project_id" = $1 AND "state"::text <> 'CANCELLED')
+               + (SELECT count(*) FROM "SupplierInvoice" WHERE "project_id" = $1 AND "state"::text NOT IN ('CANCELLED','REJECTED'))
+               + (SELECT count(*) FROM "MoneyMovement" WHERE "project_id" = $1 AND "state"::text NOT IN ('REVERSED','REJECTED'))
+               + (SELECT count(*) FROM "DirectExpense" WHERE "project_id" = $1 AND "state"::text NOT IN ('CANCELLED','REJECTED')))::int n`, input.projectId))[0]?.n ?? 0;
+      if (live > 0) throw new ClaimsClosureError("CONFLICT", `This project has ${live} live record(s) — confirmed shipments, invoices, bills, payments or expenses. Cancel or reverse them first, or mark the project completed.`);
+      const next = (await tx.$queryRawUnsafe<Array<{ version: number }>>(
+        `UPDATE "Project" SET "lifecycle_state" = 'CANCELLED', "version" = "version" + 1, "updated_at" = NOW() WHERE "id" = $1 RETURNING "version"`, input.projectId))[0].version;
+      await tx.$executeRawUnsafe(
+        `INSERT INTO "ProjectAuditEvent" ("tenant_id","project_id","actor_id","action","aggregate_version","after") VALUES ($1,$2,$3,'PROJECT_CANCELLED',$4,$5::jsonb)`,
+        input.tenantId, input.projectId, input.actorId, Number(next), JSON.stringify({ lifecycleState: "CANCELLED", reason: input.reason }));
+    });
+    return this.closure(input.tenantId, input.projectId);
+  }
+
   // ---------------- approvals ----------------
 
   async approvalSubject(tenantId: string, approvalId: string): Promise<{ action: "CLAIM_OUTCOME" | "FINAL_CLOSE" | "REOPEN"; projectId: string; claimId: string | null; proposalId: string | null } | null> {

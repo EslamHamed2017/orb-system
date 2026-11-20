@@ -4,6 +4,7 @@ import { SalesShipmentPlanningPage } from "../../../../ui/features/shipments/Sal
 import { SupplierShipmentPlanningPage } from "../../../../ui/features/shipments/SupplierShipmentPlanningPage";
 import { ContractApprovalStrip } from "../../../../ui/features/contracts/ContractApprovalStrip";
 import s from "../../../../ui/features/shipments/operations.module.css";
+import { ProjectContextNavigation } from "../../../../ui/navigation/ProjectContextNavigation";
 
 type Query = { readonly locale?: string; readonly flow?: string };
 
@@ -15,11 +16,13 @@ export default async function ProjectShipmentsPage({ params, searchParams }: { r
   const flow = query.flow === "sales" ? "sales" : "supplier";
   const base = `/projects/${encodeURIComponent(decodedId)}/shipments?locale=${locale}`;
   return <>
+    <ProjectContextNavigation locale={locale} projectId={decodedId} current="shipments"/>
+    <style>{".shipments-body [data-project-context-navigation]{display:none}"}</style>
     <ContractApprovalStrip projectId={decodedId} locale={locale}/>
     <nav className={s.tabs} aria-label={ar ? "نوع تخطيط الشحنة" : "Shipment planning type"}>
       <a className={`${s.tab} ${flow === "supplier" ? s.tabActive : ""}`} aria-current={flow === "supplier" ? "page" : undefined} href={`${base}&flow=supplier`}>{ar ? "وارد من المورد" : "Supplier inbound"}</a>
       <a className={`${s.tab} ${flow === "sales" ? s.tabActive : ""}`} aria-current={flow === "sales" ? "page" : undefined} href={`${base}&flow=sales`}>{ar ? "صادر إلى العميل" : "Customer outbound"}</a>
     </nav>
-    {flow === "sales" ? <SalesShipmentPlanningPage id={decodedId} locale={locale}/> : <SupplierShipmentPlanningPage id={decodedId} locale={locale}/>}
+    <div className="shipments-body">{flow === "sales" ? <SalesShipmentPlanningPage id={decodedId} locale={locale}/> : <SupplierShipmentPlanningPage id={decodedId} locale={locale}/>}</div>
   </>;
 }

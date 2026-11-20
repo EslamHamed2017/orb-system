@@ -55,7 +55,7 @@ for (const locale of ["en", "ar"] as const) {
     await expect(cards.first()).toContainText(ar ? "بانتظار اعتماد المالك" : "Waiting for an owner to approve");
     await expect(cards.first().getByRole("link", { name: /survey\.pdf/ })).toHaveAttribute("href", "/api/evidence/88888888-8888-7888-8888-888888888881/content");
     await expect(cards.nth(1)).toContainText("USD 800.00");
-    await expect(page.getByRole("navigation", { name: ar ? "مساحة عمل المشروع" : "Project workspace" }).getByRole("link", { name: ar ? "إغلاق المشروع" : "Project closure" })).toHaveAttribute("href", `/projects/${PROJECT}/closure?locale=${locale}`);
+    await expect(page.getByRole("navigation", { name: ar ? "مساحة عمل المشروع" : "Project workspace" }).getByRole("link", { name: ar ? "المعاملات" : "Transactions" })).toHaveAttribute("aria-current", "page");
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   });
@@ -95,7 +95,7 @@ test("a closed project is read-only and offers reopening with a reason; another 
     pending: { approvalId: "99999999-9999-7999-8999-999999999992", action: "REOPEN", requesterId: OPS, requesterName: "Omar Ops", requestedAt: null, reason: "Buyer disputes the certificate" } };
   const sent = await stub(page, OWNER, ["OWNER_ADMIN"], closed);
   await page.goto(`/projects/${PROJECT}/closure?locale=ar`);
-  await expect(page.locator(".orb-chip").first()).toHaveText("مغلق");
+  await expect(page.getByTestId("project-status")).toHaveText("مكتمل");
   await expect(page.locator("body")).toContainText("للقراءة فقط");
   await page.getByRole("button", { name: "اعتماد إعادة الفتح" }).click();
   await expect.poll(() => sent.map((s) => s.url)).toEqual(["/api/approvals/99999999-9999-7999-8999-999999999992/decision"]);

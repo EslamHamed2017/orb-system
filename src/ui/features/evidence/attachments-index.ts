@@ -50,3 +50,7 @@ export function buildAttachmentSourceHref(input: Readonly<{ subjectType: Attachm
     case "CLAIM": return `/projects/${projectId}/claims?${context}&recordId=${subjectId}`;
   }
 }
+
+const SUBJECT_TYPES: readonly AttachmentSubjectType[] = ["CONTRACT","SALES_SHIPMENT","SUPPLIER_CONTAINER","SALES_INVOICE","SUPPLIER_INVOICE","MONEY_MOVEMENT","EXPENSE","CLAIM"];
+export function isAttachmentSubjectType(value: string | undefined): value is AttachmentSubjectType { return SUBJECT_TYPES.includes(value as AttachmentSubjectType); }
+export function isAttachmentVerificationState(value: string | undefined): value is AttachmentVerificationState { return value === "PENDING" || value === "VERIFIED" || value === "REJECTED"; }

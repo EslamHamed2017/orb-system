@@ -156,6 +156,13 @@ export function createClaimsClosureService(store: Store) {
       return state;
     },
 
+    /** Cancels a project with nothing live on it. Owner only; needs a written reason. */
+    async cancelProject(actor: ShipmentActor, projectId: unknown, body: unknown) {
+      requireRole(actor, ["OWNER_ADMIN"]);
+      const b = objectOf(body);
+      return guarded(() => store.cancelProject({ tenantId: actor.tenantId, actorId: actor.userId, projectId: id(projectId, "Project"), reason: text(b.reason, "Reason", 3, 500) }));
+    },
+
     async submitReopen(actor: ShipmentActor, projectId: unknown, body: unknown) {
       requireRole(actor, CLOSURE_REQUESTERS);
       const b = objectOf(body);

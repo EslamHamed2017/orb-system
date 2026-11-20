@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server.js";
 // @ts-expect-error Native Node TypeScript tests require source extensions.
+import { getPrismaClient } from "../../../platform/database/prisma-client.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { shipmentActor } from "../../../modules/shipments/execution/shipment-execution-runtime.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { listAttachments } from "../../../modules/evidence/evidence-index.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
 import { assertServerPermission, type OperationPrincipal } from "../../../modules/access/permissions.ts";
 
 function unavailable() {
@@ -49,4 +55,10 @@ export function createEvidencePostHandler(dependencies: EvidenceUploadRouteDepen
 
 // Authentication, CSRF and idempotency wiring is owned by ORB-R1-0210; fail closed until injected.
 export async function POST() { return unavailable(); }
-export const GET = createEvidenceListGetHandler({ authenticate: async () => null });
+export const GET = createEvidenceListGetHandler({
+  authenticate: async (request) => { try { return await shipmentActor(request) as EvidencePrincipal & { tenantId: string }; } catch { return null; } },
+  list: async ({ principal, projectId, subjectType, subjectId }) => {
+    if (!/^[0-9a-f-]{36}$/i.test(projectId) || (subjectId && !/^[0-9a-f-]{36}$/i.test(subjectId))) return { items: [] };
+    return listAttachments(getPrismaClient() as never, { tenantId: (principal as unknown as { tenantId: string }).tenantId, projectId, subjectType, subjectId });
+  },
+});

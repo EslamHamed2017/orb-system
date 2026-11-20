@@ -55,10 +55,8 @@ export async function buildTrade(databaseUrl: string) {
 
   const projects = await import("../../../src/app/api/projects/route.ts");
   const purchase = await import("../../../src/app/api/projects/[projectId]/purchase-contracts/route.ts");
-  const activate = await import("../../../src/app/api/projects/[projectId]/activate/route.ts");
   const createSupplierShipment = await import("../../../src/app/api/projects/[projectId]/supplier-shipments/route.ts");
   const createSalesShipment = await import("../../../src/app/api/projects/[projectId]/sales-shipments/route.ts");
-  const submitContract = await import("../../../src/app/api/contracts/[contractId]/submit/route.ts");
   const decision = await import("../../../src/app/api/approvals/[approvalId]/decision/route.ts");
   const supplierSubmit = await import("../../../src/app/api/supplier-shipments/[shipmentId]/submit/route.ts");
   const salesSource = await import("../../../src/app/api/sales-shipments/[shipmentId]/primary-source/route.ts");
@@ -67,13 +65,11 @@ export async function buildTrade(databaseUrl: string) {
   const tolerances = { quantityUnder: "0", quantityOver: "2.5", netWeightUnder: "0", netWeightOver: "0", grossWeightUnder: "0", grossWeightOver: "0" };
   const project = await ok<{ id: string; salesContract: { id: string; activeVersion: { id: string } } }>(await projects.POST(post("/api/projects", "ops", { customerId: customer, salesContract: { counterpartyId: customer, coffeeSpecificationId: product, effectiveDate: "2026-11-17", quantity: "100", unitPrice: "6100", currency: "USD", route: "FOREIGN_TO_FOREIGN", incoterm: "CFR", namedPlace: "Hamburg", paymentTerms: "CAD 30 days", documentTerms: "Original BL", tolerances } })), 201);
   const purchaseContract = (await ok<{ purchaseContracts: { id: string; activeVersion: { id: string } }[] }>(await purchase.POST(post(`/api/projects/${project.id}/purchase-contracts`, "ops", { counterpartyId: supplier, coffeeSpecificationId: product, effectiveDate: "2026-11-18", quantity: "100", unitPrice: "5200.50", currency: "USD", route: "FOREIGN_TO_FOREIGN", incoterm: "FOB", namedPlace: "Aden", paymentTerms: "30% advance", documentTerms: "Original BL", tolerances: { quantityOver: "2" } }, { "if-match": '"1"' }), params({ projectId: project.id })), 201)).purchaseContracts[0];
-  await ok(await activate.POST(post(`/api/projects/${project.id}/activate`, "ops", {}, { "if-match": '"2"' }), params({ projectId: project.id })));
+  // Saving the contracts confirms them and starts the project (QuickBooks-style: no draft or approval step).
   const approveAll = async () => {
     const pending = (await sql.query(`SELECT "id" FROM "Approval" WHERE "decision" = 'PENDING' AND "requester_id" = $1`, [users.ops])).rows as { id: string }[];
     for (const row of pending) await ok(await decision.POST(post(`/api/approvals/${row.id}/decision`, "owner", { decision: "APPROVED" }) as never, params({ approvalId: row.id })));
   };
-  for (const contractId of [project.salesContract.id, purchaseContract.id]) await ok(await submitContract.POST(post(`/api/contracts/${contractId}/submit`, "ops", {}), params({ contractId })));
-  await approveAll();
 
   const transport = { mode: "SEA", carrierName: "MSC", reference: "BKG-1", estimatedDepartureAt: "2026-12-01T00:00:00Z", estimatedArrivalAt: "2026-12-12T00:00:00Z" };
   const supplierShipment = await ok<{ id: string; version: number }>(await createSupplierShipment.POST(post(`/api/projects/${project.id}/supplier-shipments`, "ops", { purchaseContractId: purchaseContract.id, purchaseContractVersionId: purchaseContract.activeVersion.id, supplierId: supplier, reference: `IN-${tag}`, coffeeSpecificationId: product, supplierLotReference: "LOT-1", quantity: "19.2", bagCount: 320, bagWeight: "60", netWeight: "19200", grossWeight: "19390", origin: { countryCode: "YE", name: "Haraz" }, loadLocation: { countryCode: "YE", name: "Aden" }, destination: { countryCode: "AE", name: "Jebel Ali" }, incoterm: "FOB", namedPlace: "Aden", containerNumbers: ["MSCU1234565"], sealNumbers: ["S-1"], transport }, { "if-match": '"3"' }), params({ projectId: project.id })), 201);

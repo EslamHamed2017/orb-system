@@ -59,18 +59,12 @@ integration("supplier and customer shipments run the full approval and execution
     const withPurchase = await purchase.POST(post(`/api/projects/${project.id}/purchase-contracts`, "ops", { counterpartyId: supplier, coffeeSpecificationId: product, effectiveDate: "2026-11-18", quantity: "100", unitPrice: "4000", currency: "USD", route: "FOREIGN_TO_FOREIGN", incoterm: "FOB", namedPlace: "Aden", paymentTerms: "30 days", documentTerms: "Original BL", tolerances: { quantityOver: "2" } }, { "if-match": '"1"' }), params({ projectId: project.id }));
     assert.equal(withPurchase.status, 201, await withPurchase.clone().text());
     const purchaseContract = (await withPurchase.json() as { purchaseContracts: { id: string; activeVersion: { id: string } }[] }).purchaseContracts[0];
-    const activated = await activate.POST(post(`/api/projects/${project.id}/activate`, "ops", {}, { "if-match": '"2"' }), params({ projectId: project.id }));
-    assert.equal(activated.status, 200, await activated.clone().text());
-    // Confirming a contract makes it effective at once (no approval step); shipments need a confirmed contract.
+    // Saving the supplier contract confirms both contracts and starts the project — no activation or approval step.
     const submitContract = await import("../../../src/app/api/contracts/[contractId]/submit/route.ts");
-    const blocked = await createSupplierShipment.POST(post(`/api/projects/${project.id}/supplier-shipments`, "ops", {}, { "if-match": '"3"' }), params({ projectId: project.id }));
-    assert.ok(blocked.status >= 400, "no shipment against an unconfirmed contract");
     for (const contractId of [project.salesContract.id, purchaseContract.id]) {
-      const submitted = await submitContract.POST(post(`/api/contracts/${contractId}/submit`, "ops", {}), params({ contractId }));
-      assert.equal(submitted.status, 202, await submitted.clone().text());
-      assert.equal((await submitted.json() as { versionState: string }).versionState, "APPROVED");
       assert.equal((await submitContract.POST(post(`/api/contracts/${contractId}/submit`, "ops", {}), params({ contractId }))).status, 409, "already confirmed");
     }
+    assert.equal((await activate.POST(post(`/api/projects/${project.id}/activate`, "ops", {}, { "if-match": '"3"' }), params({ projectId: project.id }))).status >= 400, true, "already in progress");
     const transport = { mode: "SEA", carrierName: "Ocean Line", reference: "BOOK-88", estimatedDepartureAt: "2026-12-01T00:00:00Z", estimatedArrivalAt: "2026-12-12T00:00:00Z" };
     const inbound = await createSupplierShipment.POST(post(`/api/projects/${project.id}/supplier-shipments`, "ops", { purchaseContractId: purchaseContract.id, purchaseContractVersionId: purchaseContract.activeVersion.id, supplierId: supplier, reference: `IN-${tenant.slice(-6).toUpperCase()}`, coffeeSpecificationId: product, supplierLotReference: "LOT-1", quantity: "20", bagCount: 320, bagWeight: "60", netWeight: "19200", grossWeight: "19400", origin: { countryCode: "YE", name: "Sana'a" }, loadLocation: { countryCode: "YE", name: "Aden Port" }, destination: { countryCode: "AE", name: "Jebel Ali Port" }, incoterm: "FOB", namedPlace: "Aden", containerNumbers: ["MSCU1234567"], sealNumbers: ["SL-991"], transport }, { "if-match": '"3"' }), params({ projectId: project.id }));
     assert.equal(inbound.status, 201, await inbound.clone().text());
