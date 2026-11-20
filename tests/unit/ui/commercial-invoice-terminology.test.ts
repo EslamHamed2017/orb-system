@@ -24,12 +24,9 @@ test("customer and supplier registers, print documents and service output use fr
   assert.doesNotMatch(files,/>فواتير الموردين</);
 });
 
-test("project documents route preserves project context and enforces the project filter",()=>{
-  const route="src/app/projects/[id]/documents/page.tsx";
-  assert.equal(existsSync(route),true);
-  const source=readFileSync(route,"utf8");
-  assert.match(source,/ProjectContextNavigation/);
+test("project documents route never shows sample attachments for a project",()=>{
+  const source=readFileSync("src/app/projects/[id]/documents/page.tsx","utf8");
+  assert.match(source,/NotOnDatabaseYet/);
   assert.match(source,/current="documents"/);
-  assert.match(source,/projectId:\s*id/);
-  assert.match(source,/AttachmentsIndexPage/);
+  assert.doesNotMatch(source,/AttachmentsIndexPage/);
 });

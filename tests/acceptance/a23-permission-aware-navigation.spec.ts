@@ -3,14 +3,12 @@ import { signInAs, signOutLocally } from "./support/session";
 
 test("operations navigation hides finance and administration while preserving role context", async ({ page }) => {
   await signInAs(page, "operations");
-  await page.goto("/projects/demo/contracts?locale=en");
+  await page.goto("/projects?locale=en");
   const rail = page.locator('[data-navigation="rail"]');
   await expect(rail.getByRole("link", { name: "Projects" })).toHaveAttribute("href", "/projects?locale=en");
   await expect(rail.getByRole("link", { name: "Shipments" })).toBeVisible();
   await expect(rail.getByRole("link", { name: "Accounts" })).toHaveCount(0);
   await expect(rail.getByRole("link", { name: "Admin" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Add purchase contract" })).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Submit for approval" }).first()).toBeEnabled();
 });
 
 test("finance navigation exposes operational accounts but not trade mutation or administration", async ({ page }) => {

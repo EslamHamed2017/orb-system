@@ -7,31 +7,16 @@ test("isolated infrastructure is ready and current route states remain truthful"
   expect(await readiness.json()).toMatchObject({ status: "ready", checks: { auditChain: "up", database: "up", objectStorage: "up" } });
 
   const lifecycle = [
-    "/masters/customers", "/masters/suppliers", "/masters/products", "/projects/demo/overview",
-    "/projects/demo/contracts", "/supplier-shipments/demo", "/sales-shipments/demo",
+    "/masters/customers", "/masters/suppliers", "/masters/products", "/projects", "/shipments",
     "/accounts/sales-invoices?projectId=00000000-0000-7000-8000-000000000201", "/accounts/supplier-invoices?projectId=00000000-0000-7000-8000-000000000201",
     "/accounts/collections?projectId=00000000-0000-7000-8000-000000000201", "/accounts/supplier-payments?projectId=00000000-0000-7000-8000-000000000201",
     "/accounts/expenses?projectId=00000000-0000-7000-8000-000000000201", "/attachments", "/reports/product-movement",
-    "/projects/demo/closure",
   ] as const;
   for (const route of lifecycle) {
     await page.goto(`${route}${route.includes("?") ? "&" : "?"}locale=en`);
     await expect(page.locator("main").first(), route).toBeVisible();
     await expect(page.locator("body"), route).not.toContainText(/application error|internal server error/i);
   }
-
-  await page.goto("/projects/demo/contracts?locale=en");
-  await expect(page.getByRole("table").first()).toBeVisible();
-  await expect(page.getByText(/print/i).first()).toBeVisible();
-  await expect(page.getByText(/attachment/i).first()).toBeVisible();
-
-  await page.goto("/supplier-shipments/demo?locale=en");
-  await expect(page.getByText(/2 suppliers|supplier count/i).first()).toBeVisible();
-  await expect(page.getByText(/separate supplier invoice/i).first()).toBeVisible();
-
-  await page.goto("/sales-shipments/demo?locale=en&state=confirmed");
-  await expect(page.getByText("Remaining quantity", { exact: true }).first()).toBeVisible();
-  await expect(page.getByRole("progressbar")).toHaveCount(2);
 
   // Accounts read the signed-in company's live records; the acceptance owner's company may have none yet.
   for (const [view, heading] of [["sales-invoices", "Sales invoice"], ["supplier-invoices", "Supplier invoice"], ["collections", "Collection"]] as const) {

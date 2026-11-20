@@ -33,8 +33,7 @@ test("global search preserves a visible keyboard focus indicator", () => {
   assert.match(tokens, /outline-offset:\s*2px/);
 });
 
-test("project audit exposes a bilingual return link to its project overview", () => {
-  assert.match(auditPage, /href=\{`\/projects\/\$\{id\}\/overview\?locale=\$\{locale\}`\}/);
-  assert.match(auditPage, /عودة إلى النظرة العامة/);
-  assert.match(auditPage, /Back to overview/);
+test("project audit links back to its project overview instead of showing a sample timeline", () => {
+  assert.match(auditPage, /NotOnDatabaseYet/);
+  assert.match(readFileSync("src/ui/features/projects/NotOnDatabaseYet.tsx", "utf8"), /\/projects\/\$\{projectId\}\/overview\?locale=\$\{locale\}/);
 });

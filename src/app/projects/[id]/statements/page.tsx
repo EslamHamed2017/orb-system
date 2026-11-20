@@ -1,5 +1,10 @@
-import { StatementTable } from "../../../../ui/features/statements/StatementTable";
-import { SupplierShipmentStatementPanel } from "../../../../ui/features/statements/SupplierShipmentStatementPanel";
-import { EnterpriseStyles,ErpPageHeader,Kpi } from "../../../../ui/features/admin/EnterpriseUx";
-import { ProjectContextNavigation } from "../../../../ui/navigation/ProjectContextNavigation";
-type Query={locale?:string}; export default async function StatementsPage({params,searchParams}:{params:Promise<{id:string}>;searchParams:Promise<Query>}){const [{id},query]=await Promise.all([params,searchParams]);const locale=query.locale==="ar"?"ar":"en",ar=locale==="ar";const tabs=ar?["المشروع","العميل","المورد","شحنة البيع","شحنة المورد"]:["Project","Customer","Supplier","Sales shipment","Supplier shipment"];return <section aria-labelledby="statements-title" dir={ar?"rtl":"ltr"} className="orb-erp"><EnterpriseStyles/><ProjectContextNavigation locale={locale} projectId={id} current="accounts"/><ErpPageHeader titleId="statements-title" eyebrow={<><bdi>{id}</bdi><span>•</span>{ar?"دفتر الأستاذ":"Ledger reporting"}</>} title={ar?"البيانات التشغيلية":"Operational statements"} description={ar?"أرصدة مفصولة حسب العملة مع رابط مباشر لكل مستند مصدر.":"Currency-partitioned balances with every line linked directly to its source record."} meta={<span className="orb-chip" data-tone="success">{ar?"فرق صفري":"Zero variance"}</span>}/><div className="orb-summary-grid"><Kpi label="USD" value={<bdi>150.000000</bdi>} detail={ar?"الرصيد الصافي":"Net balance"}/><Kpi label="EUR" value={<bdi>500.000000</bdi>} detail={ar?"الرصيد الصافي":"Net balance"}/><Kpi label={ar?"قيود دفتر الأستاذ":"Ledger lines"} value="4"/><Kpi label={ar?"آخر قيد":"Latest posting"} value={<bdi>04 Nov 2026</bdi>}/></div><div role="tablist" aria-label={ar?"أنواع البيان":"Statement types"} className="orb-tablist">{tabs.map((tab,index)=><button key={tab} type="button" role="tab" aria-selected={index===0}>{tab}</button>)}</div><StatementTable locale={locale}/><SupplierShipmentStatementPanel locale={locale}/></section>}
+import { RetiredBrowserProject } from "../../../../ui/features/projects/RetiredBrowserProject";
+import { isSavedProjectId } from "../../../../ui/features/money/saved-project-id";
+import { NotOnDatabaseYet } from "../../../../ui/features/projects/NotOnDatabaseYet";
+type Query = { readonly locale?: string };
+
+export default async function ProjectStatementsPage({ params, searchParams }: { readonly params: Promise<{ id: string }>; readonly searchParams: Promise<Query> }) {
+  const [{ id }, query] = await Promise.all([params, searchParams]);
+  const locale = query.locale === "ar" ? "ar" : "en";
+  return isSavedProjectId(id) ? <NotOnDatabaseYet locale={locale} projectId={id} current="accounts" title={["Operational statements", "البيانات التشغيلية"]} /> : <RetiredBrowserProject locale={locale} />;
+}

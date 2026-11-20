@@ -1,14 +1,12 @@
-import { SupplierShipmentWorkspace } from "../../../ui/features/shipments/SupplierShipmentWorkspace";
 import { ShipmentExecutionWorkspace } from "../../../ui/features/shipments/ShipmentExecutionWorkspace";
-import type { ShipmentUiState } from "../../../ui/features/shipments/ExecutionActions";
-import type { WorkspaceRole } from "../../../ui/features/shipments/workspace-tabs";
+import { RetiredBrowserProject } from "../../../ui/features/projects/RetiredBrowserProject";
 
-type Query = { locale?: string; role?: string; state?: string; projectId?: string };
-function role(value: string | undefined): WorkspaceRole { return value === "finance-viewer" ? "finance-viewer" : value === "owner-admin" ? "owner-admin" : "operations"; }
-function state(value: string | undefined): ShipmentUiState { return (["draft", "confirmed", "in-transit", "received", "cancelled", "rejected"] as const).includes(value as never) ? value as ShipmentUiState : "confirmed"; }
+type Query = { readonly locale?: string };
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** Shipments live in the database; any other link is an old browser-only or sample record. */
 export default async function SupplierShipmentPage({ params, searchParams }: Readonly<{ params: Promise<{ id: string }>; searchParams: Promise<Query> }>) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
-  // Saved shipments (UUID ids) run on the database; the "demo" id keeps the illustrative workspace.
-  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) return <ShipmentExecutionWorkspace kind="SUPPLIER" shipmentId={id} locale={query.locale === "ar" ? "ar" : "en"} />;
-  return <SupplierShipmentWorkspace locale={query.locale === "ar" ? "ar" : "en"} role={role(query.role)} state={state(query.state)} projectId={query.projectId ?? "demo"} shipmentId={id} />;
+  const locale = query.locale === "ar" ? "ar" : "en";
+  return UUID.test(id) ? <ShipmentExecutionWorkspace kind="SUPPLIER" shipmentId={id} locale={locale} /> : <RetiredBrowserProject locale={locale} />;
 }
