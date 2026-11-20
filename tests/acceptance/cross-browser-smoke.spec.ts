@@ -6,10 +6,8 @@ const routes = [
   "/masters/customers",
   "/masters/suppliers",
   "/masters/products",
-  "/projects/demo/overview",
-  "/projects/demo/contracts",
-  "/supplier-shipments/demo",
-  "/sales-shipments/demo",
+  "/projects",
+  "/shipments",
   "/accounts",
   "/attachments",
   "/reports",
@@ -30,9 +28,5 @@ for (const locale of ["en", "ar"] as const) {
       await expect(page.locator("body"), route).not.toContainText(/application error|internal server error/i);
     }
 
-    await page.goto(`/supplier-shipments/demo?locale=${locale}`);
-    await expect(page.locator("main table").first()).toBeVisible();
-    await page.goto(`/sales-shipments/demo?locale=${locale}&state=confirmed`);
-    await expect(page.getByRole("progressbar")).toHaveCount(2);
   });
 }

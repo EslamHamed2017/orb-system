@@ -21,8 +21,7 @@ test("browser-only claim links no longer read or write browser storage", async (
   expect(await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith("orb.user-projects")))).toEqual([]);
 });
 
-test("demo claims route remains available", async ({ page }) => {
+test("the old demo claims link shows that the project does not exist", async ({ page }) => {
   await page.goto("/projects/demo/claims?locale=en");
-  await expect(page.getByRole("heading", { level: 1, name: "Simple claims" })).toBeVisible();
-  await expect(page.getByText("Sales shipment claims")).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Project not found" })).toBeVisible();
 });

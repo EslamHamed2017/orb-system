@@ -1,4 +1,10 @@
-import { AttachmentsIndexPage } from "../../../../ui/features/evidence/AttachmentsIndexPage";
-import { ProjectContextNavigation } from "../../../../ui/navigation/ProjectContextNavigation";
-type Query={readonly locale?:string;readonly subjectType?:string;readonly verificationState?:string;readonly q?:string};
-export default async function ProjectDocumentsPage({params,searchParams}:{readonly params:Promise<{id:string}>;readonly searchParams:Promise<Query>}){const [{id},query]=await Promise.all([params,searchParams]);const locale=query.locale==="ar"?"ar":"en";return <><ProjectContextNavigation locale={locale} projectId={id} current="documents"/><AttachmentsIndexPage locale={locale} filters={{projectId: id,...(query.q?.trim()?{query:query.q}:{})}}/></>;}
+import { RetiredBrowserProject } from "../../../../ui/features/projects/RetiredBrowserProject";
+import { isSavedProjectId } from "../../../../ui/features/money/saved-project-id";
+import { NotOnDatabaseYet } from "../../../../ui/features/projects/NotOnDatabaseYet";
+type Query = { readonly locale?: string };
+
+export default async function ProjectDocumentsPage({ params, searchParams }: { readonly params: Promise<{ id: string }>; readonly searchParams: Promise<Query> }) {
+  const [{ id }, query] = await Promise.all([params, searchParams]);
+  const locale = query.locale === "ar" ? "ar" : "en";
+  return isSavedProjectId(id) ? <NotOnDatabaseYet locale={locale} projectId={id} current="documents" title={["Documents", "المستندات"]} /> : <RetiredBrowserProject locale={locale} />;
+}

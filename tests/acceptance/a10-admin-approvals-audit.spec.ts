@@ -41,20 +41,6 @@ test("approval inbox explains when the signed-in user is not an owner", async ({
   await expect(page.locator(".orb-inbox-notice")).toContainText("Only an owner administrator can decide approvals.");
 });
 
-test("audit timeline exposes independently verifiable ascending chain and cursor anchors", async ({ page }) => {
-  await page.goto("/projects/demo/audit?locale=en");
-  const timeline = region(page, /immutable audit timeline/i);
-  await expect(timeline.getByText(/page start previous event hash.*null/i)).toBeVisible();
-  await expect(timeline.getByText(/page end event hash.*[a-f0-9]{64}/i)).toBeVisible();
-  const events = timeline.getByRole("listitem");
-  await expect(events).toHaveCount(3);
-  await expect(events.nth(0)).toContainText(/sequence 1.*PROJECT_CREATED.*previous event hash.*null/i);
-  await expect(events.nth(1)).toContainText(/sequence 2.*CONTRACT_SUBMITTED/i);
-  await expect(events.nth(2)).toContainText(/sequence 3.*APPROVAL_DECIDED/i);
-  for (let index = 0; index < 3; index += 1) await expect(events.nth(index).getByText(/^Event hash: [a-f0-9]{64}$/)).toBeVisible();
-  await expect(timeline.getByText(/chain continuity verified/i)).toBeVisible();
-});
-
 test("fixed-role administration shows exact session versions and complete active/revoked metadata", async ({ page }) => {
   const user = { id: "019a5f9b-7c00-7000-8000-00000000a002", login: "ops@orb.test", nameEn: "Ops User", nameAr: "العمليات", locale: "en", status: "ACTIVE", activeSessionCount: 1, lastActiveAt: "2026-11-19T08:00:00.000Z", mustChangePassword: false, createdAt: "2026-11-01T08:00:00.000Z", updatedAt: "2026-11-01T08:00:00.000Z" };
   const users = ["OWNER_ADMIN", "OPERATIONS", "FINANCE_VIEWER"].map((role, index) => ({ ...user, id: user.id.slice(0, -1) + index, login: `${role.toLowerCase()}@orb.test`, roleCodes: [role] }));

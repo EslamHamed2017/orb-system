@@ -7,12 +7,10 @@ test("isolated infrastructure is ready and current route states remain truthful"
   expect(await readiness.json()).toMatchObject({ status: "ready", checks: { auditChain: "up", database: "up", objectStorage: "up" } });
 
   const lifecycle = [
-    "/masters/customers", "/masters/suppliers", "/masters/products", "/projects/demo/overview",
-    "/projects/demo/contracts", "/supplier-shipments/demo", "/sales-shipments/demo",
+    "/masters/customers", "/masters/suppliers", "/masters/products", "/projects", "/shipments",
     "/accounts/sales-invoices?projectId=00000000-0000-7000-8000-000000000201", "/accounts/supplier-invoices?projectId=00000000-0000-7000-8000-000000000201",
     "/accounts/collections?projectId=00000000-0000-7000-8000-000000000201", "/accounts/supplier-payments?projectId=00000000-0000-7000-8000-000000000201",
     "/accounts/expenses?projectId=00000000-0000-7000-8000-000000000201", "/attachments", "/reports/product-movement",
-    "/projects/demo/closure",
   ] as const;
   for (const route of lifecycle) {
     await page.goto(`${route}${route.includes("?") ? "&" : "?"}locale=en`);

@@ -15,7 +15,7 @@ for (const locale of ["en", "ar"] as const) {
   });
 }
 
-test("demo closure route remains available", async ({ page }) => {
+test("the old demo closure link shows that the project does not exist", async ({ page }) => {
   await page.goto("/projects/demo/closure?locale=en");
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Project not found" })).toBeVisible();
 });

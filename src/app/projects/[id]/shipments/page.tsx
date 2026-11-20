@@ -1,22 +1,25 @@
+import { RetiredBrowserProject } from "../../../../ui/features/projects/RetiredBrowserProject";
+import { isSavedProjectId } from "../../../../ui/features/money/saved-project-id";
 import { SalesShipmentPlanningPage } from "../../../../ui/features/shipments/SalesShipmentPlanningPage";
-import { ContractApprovalStrip } from "../../../../ui/features/contracts/ContractApprovalStrip";
 import { SupplierShipmentPlanningPage } from "../../../../ui/features/shipments/SupplierShipmentPlanningPage";
-import { ShipmentWorkspaceCore } from "../../../../ui/features/shipments/ShipmentWorkspaceCore";
-import type { ShipmentUiState } from "../../../../ui/features/shipments/ExecutionActions";
-import { ProjectContextNavigation } from "../../../../ui/navigation/ProjectContextNavigation";
+import { ContractApprovalStrip } from "../../../../ui/features/contracts/ContractApprovalStrip";
 import s from "../../../../ui/features/shipments/operations.module.css";
-type Query={locale?:string;state?:string;demoState?:string;role?:string;flow?:string};
-function uiState(value:string|undefined):ShipmentUiState{return (["draft","confirmed","in-transit","received","delivered","cancelled","rejected"] as const).includes(value as ShipmentUiState)?value as ShipmentUiState:"confirmed"}
-export default async function ProjectShipmentsPage({params,searchParams}:{params:Promise<{id:string}>;searchParams:Promise<Query>}){const [{id},query]=await Promise.all([params,searchParams]);const locale=query.locale==="ar"?"ar":"en",ar=locale==="ar",state=uiState(query.state),canMutate=query.role!=="finance-viewer";const demoState=(["tolerance","stale","replay","post-transit"] as const).find(v=>v===query.demoState)??null;const supplierState:ShipmentUiState=state==="delivered"?"received":state,salesState:ShipmentUiState=state==="received"?"delivered":state;
-const decodedId=decodeURIComponent(id);if(decodedId!=="demo"){const flow=query.flow==="sales"?"sales":"supplier";return <><ContractApprovalStrip projectId={decodedId} locale={locale}/><nav className={s.tabs} aria-label={ar?"نوع تخطيط الشحنة":"Shipment planning type"}><a className={`${s.tab} ${flow==="supplier"?s.tabActive:""}`} aria-current={flow==="supplier"?"page":undefined} href={`/projects/${encodeURIComponent(decodedId)}/shipments?locale=${locale}&flow=supplier`}>{ar?"وارد من المورد":"Supplier inbound"}</a><a className={`${s.tab} ${flow==="sales"?s.tabActive:""}`} aria-current={flow==="sales"?"page":undefined} href={`/projects/${encodeURIComponent(decodedId)}/shipments?locale=${locale}&flow=sales`}>{ar?"صادر إلى العميل":"Customer outbound"}</a></nav>{flow==="sales"?<SalesShipmentPlanningPage id={decodedId} locale={locale}/>:<SupplierShipmentPlanningPage id={decodedId} locale={locale}/>}</>}
-return <section aria-labelledby="shipments-title" className={s.page}>
- <ProjectContextNavigation locale={locale} projectId={id} current="shipments" />
- <script dangerouslySetInnerHTML={{ __html: `document.documentElement.lang=${JSON.stringify(locale)};document.documentElement.dir=${JSON.stringify(ar ? "rtl" : "ltr")}` }} />
- <header className={s.pageHeader}><div><p className={s.eyebrow}>{ar?"تنفيذ المشروع":"Project execution"}</p><h1 id="shipments-title">{ar?"الشحنات":"Shipments"}</h1><p>{ar?"تابع مجموعة بيانات المورد والبيع والكميات وحالة التنفيذ دون فقدان السياق.":"Track supplier and sales datasets, quantities, and execution status without losing context."}</p></div>{canMutate&&<a className={s.primary} href="#sales-dataset">{ar?"إدارة شحنة البيع":"Manage sales shipment"}</a>}</header>
- <div className={s.contextBar}><div className={s.contextItem}><span>{ar?"المشروع":"Project"}</span><strong><bdi>{id}</bdi></strong></div><div className={s.contextItem}><span>{ar?"العميل":"Customer"}</span><strong>Northstar Roasters</strong></div><div className={s.contextItem}><span>{ar?"الكمية المتعاقدة":"Contracted"}</span><strong><bdi>10,500 kg</bdi></strong></div><span className={`${s.chip} ${s.success}`}>{ar?"نشط":"Active"}</span></div>
- <nav className={s.tabs} aria-label={ar?"مجموعات بيانات الشحنات":"Shipment datasets"}><a className={`${s.tab} ${s.tabActive}`} aria-current="page" href="#supplier-dataset">{ar?"شحنة المورد":"Supplier shipment"}</a><a className={s.tab} href="#sales-dataset">{ar?"شحنة البيع":"Sales shipment"}</a><a className={s.tab} href="#history">{ar?"السجل":"Activity"}</a></nav>
- {demoState==="stale"&&<section role="alert" className={`${s.notice} ${s.noticeError}`}><h2>{ar?"يوجد إصدار أحدث":"A newer version exists"}</h2><p>{ar?"لم يتم استبدال عملك. حمّل أحدث إصدار وقارن التغييرات.":"Your work was not overwritten. Reload the latest version and compare changes."}</p><button className={s.secondary} type="button">{ar?"تحميل أحدث إصدار":"Reload latest"}</button></section>}
- {demoState==="replay"&&<section role="status" className={s.notice}><h2>{ar?"تم تطبيق الطلب مسبقاً":"Request already applied"}</h2><p>{ar?"أعيدت النتيجة الأصلية ولم تتم إضافة حدث مكرر.":"The original result was returned; no duplicate event was appended."}</p></section>}
- {demoState==="post-transit"&&<section role="alert" className={`${s.notice} ${s.noticeError}`}><h2>{ar?"المراجعة غير متاحة":"Revision unavailable"}</h2><p>{ar?"بدأ النقل، لذلك يحتفظ النظام بالسجل ويمنع مراجعة مجموعة البيانات.":"The shipment is in transit, so history is preserved and dataset revision is locked."}</p></section>}
- <div className={s.stack}><div id="supplier-dataset"><ShipmentWorkspaceCore kind="supplier" locale={locale} state={supplierState} demoState={demoState} canMutate={canMutate}/></div><div id="sales-dataset"><ShipmentWorkspaceCore kind="sales" locale={locale} state={salesState} demoState={demoState} canMutate={canMutate}/></div></div>
-</section>;}
+
+type Query = { readonly locale?: string; readonly flow?: string };
+
+export default async function ProjectShipmentsPage({ params, searchParams }: { readonly params: Promise<{ id: string }>; readonly searchParams: Promise<Query> }) {
+  const [{ id }, query] = await Promise.all([params, searchParams]);
+  const locale = query.locale === "ar" ? "ar" : "en", ar = locale === "ar";
+  const decodedId = decodeURIComponent(id);
+  if (!isSavedProjectId(decodedId)) return <RetiredBrowserProject locale={locale} />;
+  const flow = query.flow === "sales" ? "sales" : "supplier";
+  const base = `/projects/${encodeURIComponent(decodedId)}/shipments?locale=${locale}`;
+  return <>
+    <ContractApprovalStrip projectId={decodedId} locale={locale}/>
+    <nav className={s.tabs} aria-label={ar ? "نوع تخطيط الشحنة" : "Shipment planning type"}>
+      <a className={`${s.tab} ${flow === "supplier" ? s.tabActive : ""}`} aria-current={flow === "supplier" ? "page" : undefined} href={`${base}&flow=supplier`}>{ar ? "وارد من المورد" : "Supplier inbound"}</a>
+      <a className={`${s.tab} ${flow === "sales" ? s.tabActive : ""}`} aria-current={flow === "sales" ? "page" : undefined} href={`${base}&flow=sales`}>{ar ? "صادر إلى العميل" : "Customer outbound"}</a>
+    </nav>
+    {flow === "sales" ? <SalesShipmentPlanningPage id={decodedId} locale={locale}/> : <SupplierShipmentPlanningPage id={decodedId} locale={locale}/>}
+  </>;
+}
