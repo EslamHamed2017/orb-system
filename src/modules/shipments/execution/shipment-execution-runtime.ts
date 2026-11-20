@@ -30,10 +30,15 @@ import { PrismaProfitStore } from "../../profit/profit-store.ts";
 import { createProfitService, type ProfitService } from "../../profit/project-profit-service.ts";
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { PrismaShipmentQueueStore } from "../shipment-queue-store.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { PrismaAccountsStore } from "../../accounts/accounts-store.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { createAccountsService, type AccountsService } from "../../accounts/accounts-service.ts";
 
 let service: ShipmentExecutionService | undefined;
 let money: MoneyService | undefined;
 let profit: ProfitService | undefined;
+let accounts: AccountsService | undefined;
 let invoices: InvoiceService | undefined;
 let inbox: ApprovalInboxService | undefined;
 
@@ -56,6 +61,11 @@ export function profitService(): ProfitService {
   const client = getPrismaClient() as unknown as SqlClient;
   profit ??= createProfitService(new PrismaProfitStore(client), new PrismaShipmentQueueStore(client));
   return profit;
+}
+
+export function accountsService(): AccountsService {
+  accounts ??= createAccountsService(new PrismaAccountsStore(getPrismaClient() as unknown as SqlClient));
+  return accounts;
 }
 
 export function approvalInbox(): ApprovalInboxService {

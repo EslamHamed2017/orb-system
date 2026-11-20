@@ -16,4 +16,11 @@ export function createAccountsSummaryGetHandler(dependencies: AccountsSummaryRou
     return NextResponse.json(await dependencies.summary({ request, principal, ...(projectId ? { projectId } : {}) }), { headers: { "Cache-Control": "no-store" } });
   };
 }
-export const GET = createAccountsSummaryGetHandler({ authenticate: async () => null });
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { accountsService, mapShipmentErrors, shipmentActor } from "../../../../modules/shipments/execution/shipment-execution-runtime.ts";
+
+/** Company-scoped accounts totals per currency, optionally for one project (Owner and Finance). */
+export const GET = mapShipmentErrors(createAccountsSummaryGetHandler({
+  authenticate: (request) => shipmentActor(request) as never,
+  summary: ({ principal, projectId }) => accountsService().summary(principal as never, projectId),
+}) as never);

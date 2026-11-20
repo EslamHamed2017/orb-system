@@ -27,31 +27,15 @@ test("financial attachment panel is bilingual, accessible, and permission-shaped
   assert.match(component, /Read-only attachments/);
 });
 
-for (const [file, subjectType] of [
-  ["ProjectSalesInvoicesPage.tsx", "SALES_INVOICE"],
-  ["ProjectSupplierInvoicesPage.tsx", "SUPPLIER_INVOICE"],
-  ["ProjectMoneyMovementsPage.tsx", "MONEY_MOVEMENT"],
-] as const) {
-  test(`${file} exposes a directly bound attachment panel for every displayed record`, () => {
-    const page = readFileSync(`src/ui/features/accounts/${file}`, "utf8");
-    assert.match(page, /FinancialAttachmentPanel/);
-    assert.match(page, /items.map\(\(item|items.map\(\(invoice/);
-    assert.match(page, new RegExp(`subjectType=\"${subjectType}\"`));
-    assert.match(page, /projectId={.*projectId}/);
-    assert.match(page, /subjectId={.*id}/);
-    assert.match(page, /canUpload={canUpload}/);
-  });
-}
-
-test("server-rendered finance registers are permission-shaped and sales invoices fail closed without server authorization", () => {
-  for (const route of ["supplier-invoices", "collections", "supplier-payments"]) {
+test("accounts registers read live company-scoped records and never trust a role query parameter", () => {
+  for (const route of ["sales-invoices", "supplier-invoices", "collections", "supplier-payments", "expenses"]) {
     const page = readFileSync(`src/app/accounts/${route}/page.tsx`, "utf8");
-    assert.match(page, /role\?: string/);
-    assert.match(page, /canUpload={query\.role !== "finance-viewer"}/);
-    assert.doesNotMatch(page, /BrowserFinanceRegisterPage/);
+    assert.match(page, /AccountsWorkspace/);
+    assert.match(page, new RegExp(`view="${route}"`));
+    assert.doesNotMatch(page, /role\?: string|query\.role|BrowserFinanceRegisterPage|DATABASE_URL/);
   }
-  const salesInvoices = readFileSync("src/app/accounts/sales-invoices/page.tsx", "utf8");
-  assert.doesNotMatch(salesInvoices, /role\?: string|query\.role/);
-  assert.match(salesInvoices, /canUpload={false}/);
-  assert.doesNotMatch(salesInvoices, /BrowserFinanceRegisterPage/);
+  const workspace = readFileSync("src/ui/features/accounts/AccountsWorkspace.tsx", "utf8");
+  assert.match(workspace, /\/api\/accounts\/\$\{view\}/);
+  assert.match(workspace, /\/api\/accounts\/summary/);
+  assert.doesNotMatch(workspace, /Object\.freeze\(\[\s*\{ id:/, "no sample rows");
 });

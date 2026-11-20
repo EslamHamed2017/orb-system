@@ -3455,6 +3455,13 @@ components:
         currency: { $ref: '#/components/schemas/Currency' }
         amount: { $ref: '#/components/schemas/Decimal' }
         outstandingAmount: { $ref: '#/components/schemas/Decimal' }
+        projectReference: { type: string, minLength: 1 }
+        partyName: { type: string }
+        documentId:
+          oneOf:
+          - { $ref: '#/components/schemas/Uuid' }
+          - { type: 'null' }
+        href: { type: string, minLength: 1 }
     AccountRecordPage:
       type: object
       additionalProperties: false

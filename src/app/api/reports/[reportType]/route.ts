@@ -22,15 +22,16 @@ export function createOperationalReportGetHandler(dependencies: OperationalRepor
   };
 }
 // @ts-expect-error Native Node TypeScript tests require source extensions.
-import { mapShipmentErrors, profitService, shipmentActor } from "../../../../modules/shipments/execution/shipment-execution-runtime.ts";
+import { accountsService, mapShipmentErrors, profitService, shipmentActor } from "../../../../modules/shipments/execution/shipment-execution-runtime.ts";
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { ShipmentProblem } from "../../../../modules/shipments/execution/shipment-execution-service.ts";
 
-/** Project profitability runs on the database; the other report types are not wired yet. */
+/** Project profitability and accounts run on the database; contract fulfillment is not wired yet. */
 export const GET = mapShipmentErrors(createOperationalReportGetHandler({
   authenticate: (request) => shipmentActor(request) as never,
-  run: async ({ principal, reportType, projectId }) => {
-    if (reportType !== "PROJECT_PROFITABILITY") throw new ShipmentProblem(503, "DEPENDENCY_UNAVAILABLE", "This report is not available yet.");
-    return profitService().profitabilityReport(principal as never, projectId);
+  run: async ({ principal, reportType, projectId, from, to }) => {
+    if (reportType === "PROJECT_PROFITABILITY") return profitService().profitabilityReport(principal as never, projectId);
+    if (reportType === "ACCOUNTS") return accountsService().report(principal as never, { projectId, from, to });
+    throw new ShipmentProblem(503, "DEPENDENCY_UNAVAILABLE", "This report is not available yet.");
   },
 }) as never);
