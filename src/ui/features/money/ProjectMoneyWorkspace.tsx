@@ -157,6 +157,7 @@ export function ProjectMoneyWorkspace({ projectId, locale, focus = "money" }: { 
             </td>
             <td><div className="money-buttons">
               {decisionButtons(m, t("Payment approved.", "تم اعتماد الدفعة."))}
+              <a href={`/money-movements/${m.id}/print?projectId=${projectId}&locale=${locale}`} target="_blank" rel="noreferrer" data-testid="print-movement">{t("Print", "طباعة")}</a>
               {allocatable && <button type="button" data-operation-id="allocateMoneyMovement" onClick={() => setOpen(`ALLOCATE:${m.id}`)}>{t("Match to invoice", "مطابقة مع فاتورة")}</button>}
               {!["REVERSED", "REJECTED"].includes(m.state) && <button type="button" data-danger data-operation-id="reverseMoneyMovement" onClick={() => setOpen(`REVERSE:${m.id}`)}>{m.state === "PENDING_APPROVAL" ? t("Withdraw", "سحب") : t("Reverse", "عكس")}</button>}
             </div></td>

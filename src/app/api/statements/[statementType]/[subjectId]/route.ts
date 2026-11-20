@@ -1,8 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server.js";
 interface Principal { readonly userId: string; readonly roles: readonly string[] }
 export interface StatementRouteDependencies { readonly authenticate: (request: NextRequest) => Promise<Principal | null>; readonly get: (input: { request: NextRequest; principal: Principal; statementType: string; subjectId: string; asOf?: string }) => Promise<unknown> }
 const ROLES = new Set(["OWNER_ADMIN", "OPERATIONS", "FINANCE_VIEWER"]);
 const TYPES = new Set(["customer", "supplier", "sales-shipment", "supplier-shipment", "project"]);
 function problem(status: number, code: string) { return NextResponse.json({ type: `https://orb.example/problems/${code.toLowerCase().replaceAll("_", "-")}`, title: code, status, code, correlationId: crypto.randomUUID() }, { status, headers: { "content-type": "application/problem+json", "Cache-Control": "no-store" } }); }
 export function createStatementGetHandler(dependencies: StatementRouteDependencies) { return async function GET(request: NextRequest, context: { params: Promise<{ statementType: string; subjectId: string }> }) { const principal = await dependencies.authenticate(request); if (!principal) return problem(401, "AUTHENTICATION_REQUIRED"); if (!principal.roles.some((role) => ROLES.has(role))) return problem(403, "PERMISSION_DENIED"); const { statementType, subjectId } = await context.params; const asOf = request.nextUrl.searchParams.get("asOf") ?? undefined; if (!TYPES.has(statementType) || (asOf && !/^\d{4}-\d{2}-\d{2}$/.test(asOf))) return problem(400, "VALIDATION_FAILED"); return NextResponse.json(await dependencies.get({ request, principal, statementType, subjectId, ...(asOf ? { asOf } : {}) }), { headers: { "Cache-Control": "no-store" } }); }; }
-export async function GET() { return problem(503, "DEPENDENCY_UNAVAILABLE"); }
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { mapShipmentErrors, shipmentActor } from "../../../../../modules/shipments/execution/shipment-execution-runtime.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { createPartyStatements } from "../../../../../modules/statements/party-statements.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { getPrismaClient } from "../../../../../platform/database/prisma-client.ts";
+
+/** Customer and supplier statements of account from the database (owner and finance). */
+export const GET = mapShipmentErrors(async (request: Request, context: { params: Promise<{ statementType: string; subjectId: string }> }) => {
+  const actor = await shipmentActor(request);
+  const { statementType, subjectId } = await context.params;
+  const url = new URL(request.url);
+  return NextResponse.json(await createPartyStatements(getPrismaClient() as never).statement(actor, statementType, subjectId, { asOf: url.searchParams.get("asOf"), from: url.searchParams.get("from") }), { headers: { "Cache-Control": "no-store" } });
+});

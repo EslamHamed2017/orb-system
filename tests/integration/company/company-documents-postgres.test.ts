@@ -56,3 +56,29 @@ integration("owners keep the company profile; tax invoices print it with VAT add
     await t.sql.end();
   }
 });
+
+integration("statements of account list invoices with VAT and age them; every role reads the document letterhead", async () => {
+  const t = await buildTrade(databaseUrl!);
+  const statements = await import("../../../src/app/api/statements/[statementType]/[subjectId]/route.ts");
+  const letterhead = await import("../../../src/app/api/company/document-profile/route.ts");
+  const issue = await import("../../../src/app/api/sales-shipments/[shipmentId]/sales-invoice/route.ts");
+  const read = (who: "ops" | "finance" | "owner", type: string, id: string) => statements.GET(t.get(`/api/statements/${type}/${id}`, who), params({ statementType: type, subjectId: id }));
+  try {
+    await t.confirmShipments();
+    await t.ok(await issue.POST(t.post(`/api/sales-shipments/${t.salesShipment.id}/sales-invoice`, "finance", { invoiceDate: today, vatTreatment: "STANDARD" }), params({ shipmentId: t.salesShipment.id })), 201);
+    const statement = await t.ok<{ party: { name: string }; company: { legalNameEn: string }; sections: { currency: string; closing: string; lines: { type: string; charge: string; balance: string }[]; aging: { current: string } }[] }>(await read("finance", "customer", t.customer));
+    assert.equal(statement.sections.length, 1);
+    const [section] = statement.sections;
+    assert.deepEqual(section.lines.map((l) => [l.type, Number(l.charge).toFixed(2)]), [["INVOICE", "122976.00"]], "the invoice is charged with its VAT");
+    assert.equal(Number(section.closing).toFixed(2), "122976.00");
+    assert.equal(Number(section.aging.current).toFixed(2), "122976.00", "not yet due");
+    assert.equal((await read("ops", "customer", t.customer)).status, 403, "operations cannot read statements");
+    assert.equal((await read("finance", "partner", t.customer)).status >= 400, true);
+    const supplier = await t.ok<{ sections: unknown[] }>(await read("owner", "supplier", t.supplier));
+    assert.ok(Array.isArray(supplier.sections));
+    const head = await t.ok<{ legalNameEn: string }>(await letterhead.GET(t.get("/api/company/document-profile", "ops")));
+    assert.equal(typeof head.legalNameEn, "string", "operations print shipment documents with the letterhead");
+  } finally {
+    await t.sql.end();
+  }
+});

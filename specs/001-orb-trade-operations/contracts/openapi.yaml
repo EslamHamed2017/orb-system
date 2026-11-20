@@ -117,6 +117,19 @@ paths:
               schema: { $ref: '#/components/schemas/OperationalReportResult' }
         default: { $ref: '#/components/responses/Problem' }
       x-required-roles: [OWNER_ADMIN, FINANCE_VIEWER]
+  /company/document-profile:
+    get:
+      tags: [Statements]
+      operationId: getDocumentProfile
+      summary: Read the company details printed on documents
+      responses:
+        '200':
+          description: Company name, address, tax and bank details, document design and logo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CompanyProfile' }
+        default: { $ref: '#/components/responses/Problem' }
+      x-required-roles: [OWNER_ADMIN, OPERATIONS, FINANCE_VIEWER]
   /accounts/summary:
     get:
       tags: [Statements]
