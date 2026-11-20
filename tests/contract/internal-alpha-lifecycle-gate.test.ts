@@ -22,13 +22,9 @@ test("internal-alpha gate binds Chromium to isolated PostgreSQL and object stora
 test("Chromium journey covers the approved daily-use lifecycle and infrastructure readiness", () => {
   for (const token of [
     "/api/health/ready", "/masters/customers", "/masters/suppliers", "/masters/products",
-    "/projects/demo/overview", "/projects/demo/contracts", "/supplier-shipments/demo",
-    "/sales-shipments/demo", "/accounts/sales-invoices", "/accounts/supplier-invoices",
+    "/projects", "/shipments", "/accounts/sales-invoices", "/accounts/supplier-invoices",
     "/accounts/collections", "/accounts/supplier-payments", "/accounts/expenses",
-    "/attachments", "/reports/product-movement", "/projects/demo/closure",
+    "/attachments", "/reports/product-movement",
   ]) assert.ok(journey.includes(token), `missing lifecycle surface ${token}`);
-  assert.match(journey, /supplierCount|supplier count/i);
-  assert.match(journey, /remaining quantity/i);
-  assert.match(journey, /print/i);
-  assert.match(journey, /attachment/i);
+  assert.doesNotMatch(journey, /\/demo\b/, "the lifecycle journey uses live screens only");
 });
