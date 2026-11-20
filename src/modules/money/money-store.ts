@@ -10,11 +10,11 @@ import { putDocument, recordDocument, type UploadedDocument } from "../evidence/
  *
  * Money movements (always with the bank slip and a manual FX rate to AED):
  *   money in  — customer receipt, supplier refund  → counts at once (CONFIRMED)
- *   money out — supplier payment, customer refund  → PENDING_APPROVAL → owner approves → CONFIRMED (or REJECTED)
+ *   money out — supplier payment, customer refund  → CONFIRMED as soon as it is saved (no approval step)
  * Allocation: a confirmed receipt is matched to the customer's issued invoices, a confirmed supplier payment to that
  *   supplier's approved invoices, in the same currency and project; one movement may be split over several invoices.
  *   Whatever is not allocated is an advance. Allocations and movements are reversed with a reason, never deleted.
- * Expenses: recorded with the bill → PENDING_APPROVAL → owner approves (APPROVED, counts as project cost) or rejects;
+ * Expenses: recorded with the bill → APPROVED at once (counts as project cost; no approval step);
  *   pending/approved expenses can be cancelled with a reason.
  */
 
@@ -29,8 +29,8 @@ export class MoneyStoreError extends Error {
 export type MovementKind = "CUSTOMER_RECEIPT" | "CUSTOMER_REFUND" | "SUPPLIER_PAYMENT" | "SUPPLIER_REFUND";
 export const MOVEMENT_KINDS: Record<MovementKind, { party: "CUSTOMER" | "SUPPLIER"; direction: "IN" | "OUT"; needsApproval: boolean; allocatesTo: "CINV" | "SUPPLIER_INVOICE" | null }> = {
   CUSTOMER_RECEIPT: { party: "CUSTOMER", direction: "IN", needsApproval: false, allocatesTo: "CINV" },
-  CUSTOMER_REFUND: { party: "CUSTOMER", direction: "OUT", needsApproval: true, allocatesTo: null },
-  SUPPLIER_PAYMENT: { party: "SUPPLIER", direction: "OUT", needsApproval: true, allocatesTo: "SUPPLIER_INVOICE" },
+  CUSTOMER_REFUND: { party: "CUSTOMER", direction: "OUT", needsApproval: false, allocatesTo: null },
+  SUPPLIER_PAYMENT: { party: "SUPPLIER", direction: "OUT", needsApproval: false, allocatesTo: "SUPPLIER_INVOICE" },
   SUPPLIER_REFUND: { party: "SUPPLIER", direction: "IN", needsApproval: false, allocatesTo: null },
 };
 
@@ -326,11 +326,12 @@ export class PrismaMoneyStore {
     }
   }
 
-  private async requestApproval(tx: SqlTransaction, actionCode: "MONEY_MOVEMENT" | "DIRECT_EXPENSE", subjectType: string, subjectId: string, version: number, facts: unknown, requesterId: string) {
+  /** With `saved`, the record counts at once (no approval step); the Approval row only records who saved it. */
+  private async requestApproval(tx: SqlTransaction, actionCode: "MONEY_MOVEMENT" | "DIRECT_EXPENSE", subjectType: string, subjectId: string, version: number, facts: unknown, requesterId: string, saved = false) {
     return (await tx.$queryRawUnsafe<Array<{ id: string }>>(
-      `INSERT INTO "Approval" ("action_code","subject_type","subject_id","subject_version","subject_hash","requester_id","decision")
-       VALUES ($1::"ApprovalActionCode",$2,$3,$4,$5,$6,'PENDING') RETURNING "id"::text id`,
-      actionCode, subjectType, subjectId, version, createHash("sha256").update(JSON.stringify(facts)).digest("hex"), requesterId))[0].id;
+      `INSERT INTO "Approval" ("action_code","subject_type","subject_id","subject_version","subject_hash","requester_id","decision","decided_at","comment")
+       VALUES ($1::"ApprovalActionCode",$2,$3,$4,$5,$6,$7::"ApprovalDecision",CASE WHEN $7 = 'APPROVED' THEN NOW() END,CASE WHEN $7 = 'APPROVED' THEN 'Saved' END) RETURNING "id"::text id`,
+      actionCode, subjectType, subjectId, version, createHash("sha256").update(JSON.stringify(facts)).digest("hex"), requesterId, saved ? "APPROVED" : "PENDING"))[0].id;
   }
 
   private async lockMovement(tx: SqlTransaction, tenantId: string, movementId: string) {
@@ -450,16 +451,16 @@ export class PrismaMoneyStore {
       await this.checkExpense(tx, input);
       const expenseId = await uuid(tx);
       await recordDocument(tx, { evidenceId, projectId: input.projectId, actorId: input.actorId, document: input.document, stored, subjectType: "EXPENSE", subjectId: expenseId, purpose: "EXPENSE_BILL", parentType: "PROJECT", parentId: input.projectId });
-      const approvalId = await this.requestApproval(tx, "DIRECT_EXPENSE", "EXPENSE", expenseId, 1, { ...input, document: undefined }, input.actorId);
+      const approvalId = await this.requestApproval(tx, "DIRECT_EXPENSE", "EXPENSE", expenseId, 1, { ...input, document: undefined }, input.actorId, true);
       await tx.$executeRawUnsafe(
         `INSERT INTO "DirectExpense" ("id","project_id","tenant_id","category_code","supplier_master_id","payee_name","description","supplier_shipment_id","sales_shipment_id",
                                       "amount","currency","occurred_on","evidence_id","state","approval_id","aed_amount","fx_rate","recorded_by","recorded_at")
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::numeric,$11,$12::date,$13,'PENDING_APPROVAL',$14,ROUND($10::numeric * $15::numeric, 2),$15::numeric,$16,NOW())`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::numeric,$11,$12::date,$13,'APPROVED',$14,ROUND($10::numeric * $15::numeric, 2),$15::numeric,$16,NOW())`,
         expenseId, input.projectId, input.tenantId, input.categoryCode, input.supplierId, input.supplierId ? null : input.payeeName, input.description,
         input.shipment?.type === "SUPPLIER" ? input.shipment.id : null, input.shipment?.type === "SALES" ? input.shipment.id : null,
         input.amount, input.currency, input.occurredOn, evidenceId, approvalId, input.fxRate, input.actorId);
       await this.audit(tx, { tenantId: input.tenantId, projectId: input.projectId, subjectType: "EXPENSE", subjectId: expenseId, actorId: input.actorId, action: "RECORDED", details: { category: input.categoryCode, amount: input.amount, currency: input.currency, evidenceId } });
-      await this.audit(tx, { tenantId: input.tenantId, projectId: input.projectId, subjectType: "EXPENSE", subjectId: expenseId, actorId: input.actorId, action: "SUBMITTED", details: { approvalId } });
+      await this.audit(tx, { tenantId: input.tenantId, projectId: input.projectId, subjectType: "EXPENSE", subjectId: expenseId, actorId: input.actorId, action: "APPROVED", details: { approvalId, comment: "Saved" } });
       return this.expense(tx, input.tenantId, expenseId);
     });
   }

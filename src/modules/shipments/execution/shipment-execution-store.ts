@@ -391,8 +391,8 @@ export class PrismaShipmentExecutionStore {
     });
   }
 
-  /** Draft → waiting for approval. Creates the Approval bound to this exact dataset hash and shipment version. */
-  async submitForConfirmation(input: { tenantId: string; kind: ShipmentKind; shipmentId: string; expectedVersion: number; actorId: string }): Promise<ShipmentDetail> {
+  /** Draft → confirmed in one step (no approval). The Approval row is kept, bound to this dataset hash, as the record of who confirmed it. */
+  async submitForConfirmation(input: { tenantId: string; kind: ShipmentKind; shipmentId: string; expectedVersion: number; actorId: string; idempotencyKey?: string }): Promise<ShipmentDetail> {
     const k = KINDS[input.kind];
     return this.client.$transaction(async (tx) => {
       const shipment = await this.lock(tx, input.tenantId, input.kind, input.shipmentId, input.expectedVersion);
@@ -407,9 +407,12 @@ export class PrismaShipmentExecutionStore {
         `INSERT INTO "Approval" ("action_code","subject_type","subject_id","subject_version","subject_hash","requester_id","decision")
          VALUES ($1::"ApprovalActionCode",$2,$3,$4,$5,$6,'PENDING') RETURNING "id"::text id`,
         k.approvalAction, input.kind, shipment.id, Number(shipment.version) + 1, shipment.dataset_hash, input.actorId))[0].id;
-      await tx.$executeRawUnsafe(`UPDATE ${k.datasetTable} SET "state" = 'PENDING_APPROVAL', "approval_id" = $1 WHERE "id" = $2`, approvalId, shipment.active_dataset_id);
-      await this.bumpVersion(tx, input.kind, shipment);
-      await this.audit(tx, { tenantId: input.tenantId, kind: input.kind, shipment, actorId: input.actorId, action: "CONFIRMATION_SUBMITTED", details: { approvalId, datasetId: shipment.active_dataset_id } });
+      // No approval step: confirming saves the shipment as confirmed at once. The Approval row records who confirmed it.
+      await tx.$executeRawUnsafe(`UPDATE "Approval" SET "decision" = 'APPROVED', "decided_at" = NOW(), "comment" = 'Confirmed' WHERE "id" = $1`, approvalId);
+      await tx.$executeRawUnsafe(`UPDATE ${k.datasetTable} SET "state" = 'APPROVED', "approval_id" = $1 WHERE "id" = $2`, approvalId, shipment.active_dataset_id);
+      await this.executionEvent(tx, { kind: input.kind, shipment, from: "DRAFT", to: "CONFIRMED", actorId: input.actorId, reason: null, idempotencyKey: input.idempotencyKey ?? crypto.randomUUID() });
+      await this.bumpVersion(tx, input.kind, shipment, `"execution_state" = 'CONFIRMED'`);
+      await this.audit(tx, { tenantId: input.tenantId, kind: input.kind, shipment, actorId: input.actorId, action: "CONFIRMATION_APPROVED", details: { approvalId, datasetId: shipment.active_dataset_id, comment: "Confirmed without an approval step" } });
       return this.readDetail(tx, input.tenantId, input.kind, shipment.id);
     });
   }

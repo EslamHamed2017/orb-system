@@ -83,7 +83,7 @@ test("closure lists open items, accepts the rest with a reason and asks to close
   await page.goto(`/projects/${PROJECT}/closure`);
   await expect(page.locator(".closure-item")).toHaveCount(2);
   await expect(page.locator(".closure-item").nth(1)).toContainText("Settled after closing by credit note");
-  await expect(page.getByRole("button", { name: "Ask to close" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Close project" })).toHaveCount(0);
   await page.getByRole("button", { name: "Select all without a reason" }).click();
   await page.locator(".closure-form textarea[name=reason]").fill("Collected after closing; agreed with the owner");
   await page.getByRole("button", { name: "Accept with this reason" }).click();

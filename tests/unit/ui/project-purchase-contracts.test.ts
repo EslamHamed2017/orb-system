@@ -24,8 +24,8 @@ test("supplier and product catalog failures identify auth, permission, and servi
 });
 
 test("purchase readback localizes enums and formats business values without raw enum leakage",()=>{
-  assert.equal(contractStateLabel("PENDING_APPROVAL","en"),"Pending approval");
-  assert.equal(contractStateLabel("APPROVED","ar"),"معتمد");
+  assert.equal(contractStateLabel("PENDING_APPROVAL","en"),"Draft");
+  assert.equal(contractStateLabel("APPROVED","ar"),"مؤكد");
   assert.equal(tradeRouteLabel("FOREIGN_TO_FOREIGN","ar"),"دولي إلى دولي");
   assert.equal(tradeRouteLabel("DOMESTIC_TO_FOREIGN","en"),"Domestic to foreign");
   assert.equal(formatContractDecimal("4100.000000","en"),"4,100");

@@ -21,7 +21,7 @@ export function catalogErrorMessage(kind:CatalogKind,status:number,locale:Projec
   return localized(locale,`${kind==="supplier"?"Supplier":"Product"} catalog service is unavailable.`,`خدمة دليل ${ar} غير متاحة.`);
 }
 
-const states:Record<string,readonly [string,string]>={DRAFT:["Draft","مسودة"],PENDING_APPROVAL:["Pending approval","بانتظار الاعتماد"],APPROVED:["Approved","معتمد"],REJECTED:["Rejected","مرفوض"],SUPERSEDED:["Superseded","مستبدل"],CANCELLED:["Cancelled","ملغى"]};
+const states:Record<string,readonly [string,string]>={DRAFT:["Draft","مسودة"],PENDING_APPROVAL:["Draft","مسودة"],APPROVED:["Confirmed","مؤكد"],REJECTED:["Rejected","مرفوض"],SUPERSEDED:["Superseded","مستبدل"],CANCELLED:["Cancelled","ملغى"]};
 export function contractStateTone(state:string){if(state==="APPROVED")return "success";if(state==="REJECTED"||state==="CANCELLED")return "error";if(state==="DRAFT"||state==="PENDING_APPROVAL")return "warning";return "neutral";}
 export function contractStateLabel(state:string,locale:ProjectLocale){const label=states[state];return label?label[locale==="ar"?1:0]:localized(locale,"Unknown state","حالة غير معروفة");}
 const routes:Record<string,readonly [string,string]>={FOREIGN_TO_FOREIGN:["Foreign to foreign","دولي إلى دولي"],DOMESTIC_TO_FOREIGN:["Domestic to foreign","محلي إلى دولي"],FOREIGN_TO_DOMESTIC:["Foreign to domestic","دولي إلى محلي"]};

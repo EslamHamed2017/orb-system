@@ -27,8 +27,8 @@ export function ShipmentsQueue({ locale }: { readonly locale: "en" | "ar" }) {
   }, []);
   useEffect(() => { void load(); }, [load]);
 
-  const next = (s: Shipment) => s.waitingForApproval ? t("Waiting for owner approval", "بانتظار اعتماد المالك")
-    : s.state === "DRAFT" ? t("Send for confirmation", "إرسال للتأكيد")
+  const next = (s: Shipment) => s.waitingForApproval ? t("Old approval request — open to confirm", "طلب اعتماد قديم — افتح للتأكيد")
+    : s.state === "DRAFT" ? t("Confirm shipment", "تأكيد الشحنة")
     : s.type === "SALES" && s.hasSource === false ? t("Choose source supplier shipment", "اختيار شحنة المورد المصدر")
     : ["CONFIRMED", "IN_TRANSIT", "DELIVERED", "RECEIVED"].includes(s.state) && !s.invoiceState ? (s.type === "SALES" ? t("Issue customer invoice", "إصدار فاتورة العميل") : t("Record supplier invoice", "تسجيل فاتورة المورد"))
     : s.state === "CONFIRMED" ? t("Mark in transit when it leaves", "تحديد في الطريق عند المغادرة")

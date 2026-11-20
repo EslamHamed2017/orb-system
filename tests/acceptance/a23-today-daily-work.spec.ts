@@ -20,7 +20,7 @@ test("Today next steps stay readable above mobile navigation", async ({ page }) 
   await page.goto("/?locale=en");
   const first = page.getByTestId("today-steps").locator("li").first();
   await expect(first).toBeVisible();
-  await expect(page.getByTestId("today-steps").getByRole("link", { name: /Send OUT-REFERENCE/ })).toBeVisible();
+  await expect(page.getByTestId("today-steps").getByRole("link", { name: /Confirm OUT-REFERENCE/ })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   await first.scrollIntoViewIfNeeded();
   const geometry = await page.evaluate(() => {
@@ -41,7 +41,7 @@ for (const locale of ["en", "ar"] as const) {
     await expect(page.getByRole("heading", { level: 1, name: ar ? "الشحنات" : "Shipments" })).toBeVisible();
     const table = page.getByTestId("shipments-queue");
     await expect(table.getByRole("link", { name: "IN-9" })).toHaveAttribute("href", `/supplier-shipments/55555555-5555-7555-8555-555555555555?locale=${locale}`);
-    await expect(table).toContainText(ar ? "إرسال للتأكيد" : "Send for confirmation");
+    await expect(table).toContainText(ar ? "تأكيد الشحنة" : "Confirm shipment");
     await expect(table).toContainText(ar ? "تحديد الاستلام عند الوصول" : "Mark received on arrival");
     await page.getByRole("button", { name: ar ? "إلى العملاء" : "To customers" }).click();
     await expect(table.getByRole("link", { name: "IN-9" })).toHaveCount(0);

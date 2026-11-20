@@ -107,7 +107,7 @@ export function ProjectClaimsWorkspace({ projectId, locale }: { readonly project
     const form = new FormData(event.currentTarget);
     const outcome = String(form.get("outcome"));
     void run(() => sendJson(`/api/claims/${c.id}/submit-outcome`, "POST", { outcome, reason: String(form.get("reason") ?? "").trim(), ...(outcome === "RESOLVED" ? { amount: String(form.get("amount") ?? "").trim(), currency: c.currency ?? d.project.currency } : {}) }),
-      t("Outcome sent to an owner for approval.", "أُرسلت النتيجة إلى المالك للاعتماد."));
+      t("Outcome saved — the claim is closed.", "تم حفظ النتيجة — أُغلقت المطالبة."));
   }}>
     <fieldset><legend>{t("Outcome", "النتيجة")}</legend>
       <label className="inline"><input type="radio" name="outcome" value="RESOLVED" defaultChecked/> {c.side === "CUSTOMER" ? t("Settle — we credit the customer", "تسوية — نخصم للعميل") : t("Settle — supplier credits us", "تسوية — المورد يخصم لنا")}</label>
@@ -115,7 +115,7 @@ export function ProjectClaimsWorkspace({ projectId, locale }: { readonly project
     </fieldset>
     <label>{t(`Settled amount (${c.currency ?? d.project.currency}) — leave empty when rejecting`, `المبلغ المسوّى (${c.currency ?? d.project.currency}) — اتركه فارغاً عند الرفض`)}<input name="amount" inputMode="decimal" pattern="[0-9]+(\.[0-9]{1,2})?" defaultValue={c.amount ?? ""}/></label>
     <label>{t("Reason", "السبب")}<textarea name="reason" required minLength={3} maxLength={500} rows={2}/></label>
-    <div className="claims-buttons"><button type="submit" className="orb-button-filled" disabled={busy} data-operation-id="submitClaimOutcomeForApproval">{t("Send for approval", "إرسال للاعتماد")}</button><button type="button" onClick={() => setOpen(null)}>{t("Back", "رجوع")}</button></div>
+    <div className="claims-buttons"><button type="submit" className="orb-button-filled" disabled={busy} data-operation-id="submitClaimOutcomeForApproval">{t("Save outcome", "حفظ النتيجة")}</button><button type="button" onClick={() => setOpen(null)}>{t("Back", "رجوع")}</button></div>
   </form>;
 
   return shell(<>
@@ -125,7 +125,7 @@ export function ProjectClaimsWorkspace({ projectId, locale }: { readonly project
     {notice && <p className="claims-banner" data-tone={notice.tone} role={notice.tone === "error" ? "alert" : "status"}>{notice.text}</p>}
     {closed && <p className="claims-banner" role="status">{t("This project is closed, so claims can't be opened or changed. Reopen it from Closure.", "هذا المشروع مغلق، لذلك لا يمكن فتح المطالبات أو تعديلها. أعد فتحه من صفحة الإغلاق.")}</p>}
     <div className="orb-summary-grid">
-      <Kpi label={t("Open claims", "مطالبات مفتوحة")} value={String(live.length)} detail={t(`${live.filter((c) => c.proposal?.state === "PENDING_APPROVAL").length} waiting for approval`, `${live.filter((c) => c.proposal?.state === "PENDING_APPROVAL").length} بانتظار الاعتماد`)}/>
+      <Kpi label={t("Open claims", "مطالبات مفتوحة")} value={String(live.length)} detail={t(`${live.filter((c) => c.state === "UNDER_REVIEW").length} under review`, `${live.filter((c) => c.state === "UNDER_REVIEW").length} قيد المراجعة`)}/>
       <Kpi label={t("Settled with customer", "مسوّى مع العميل")} value={<bdi>{d.project.currency} {fmt(settled("CUSTOMER"))}</bdi>} detail={t("Lowers revenue", "يخفض الإيراد")}/>
       <Kpi label={t("Settled by suppliers", "مسوّى من الموردين")} value={<bdi>{d.project.currency} {fmt(settled("SUPPLIER"))}</bdi>} detail={t("Lowers cost", "يخفض التكلفة")}/>
     </div>

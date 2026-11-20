@@ -112,11 +112,12 @@ export class PrismaClaimsClosureStore {
       actionCode, subjectType, subjectId, version, createHash("sha256").update(JSON.stringify(facts)).digest("hex"), requesterId, reason))[0].id;
   }
 
-  private async decideApproval(tx: SqlTransaction, approvalId: string, approverId: string, decision: "APPROVED" | "REJECTED", comment: string | null) {
+  private async decideApproval(tx: SqlTransaction, approvalId: string, approverId: string, decision: "APPROVED" | "REJECTED", comment: string | null, auto = false) {
     const approval = (await tx.$queryRawUnsafe<Array<{ decision: string; requester_id: string }>>(`SELECT "decision"::text decision, "requester_id"::text requester_id FROM "Approval" WHERE "id" = $1 FOR UPDATE`, approvalId))[0];
     if (!approval || approval.decision !== "PENDING") throw new ClaimsClosureError("CONFLICT", "This approval was already decided or withdrawn.");
-    if (approval.requester_id === approverId) throw new ClaimsClosureError("INVALID", "You cannot approve your own request.");
-    await tx.$executeRawUnsafe(`UPDATE "Approval" SET "decision" = $2::"ApprovalDecision", "approver_id" = $3, "decided_at" = NOW(), "comment" = $4 WHERE "id" = $1`, approvalId, decision, approverId, comment);
+    if (!auto && approval.requester_id === approverId) throw new ClaimsClosureError("INVALID", "You cannot approve your own request.");
+    // No approval step: a saved outcome, close or reopen takes effect at once and the Approval row records who saved it.
+    await tx.$executeRawUnsafe(`UPDATE "Approval" SET "decision" = $2::"ApprovalDecision", "approver_id" = $3, "decided_at" = NOW(), "comment" = $4 WHERE "id" = $1`, approvalId, decision, auto ? null : approverId, comment);
   }
 
   private async head(tx: SqlTransaction, tenantId: string, projectId: string, lock = false): Promise<ProjectHead> {
@@ -269,6 +270,8 @@ export class PrismaClaimsClosureStore {
       const approval = await this.requestApproval(tx, "CLAIM_OUTCOME", "CLAIM_OUTCOME", proposalId, Number(c.version), facts, input.actorId, input.reason);
       await tx.$executeRawUnsafe(`UPDATE "ClaimOutcomeProposal" SET "approval_id" = $2 WHERE "id" = $1`, proposalId, approval);
       await this.audit(tx, { tenantId: input.tenantId, projectId: String(c.project_id), subjectType: "CLAIM", subjectId: input.claimId, actorId: input.actorId, action: "OUTCOME_SUBMITTED", details: { ...facts, approvalId: approval } });
+      await this.decideTx(tx, { tenantId: input.tenantId, approvalId: approval, approverId: input.actorId, decision: "APPROVED", comment: "Saved", auto: true },
+        { action: "CLAIM_OUTCOME", projectId: String(c.project_id), claimId: input.claimId, proposalId });
       return approval;
     });
     return { ...(await this.claim(input.tenantId, input.claimId)), approvalId };
@@ -474,6 +477,7 @@ export class PrismaClaimsClosureStore {
       const approvalId = await this.requestApproval(tx, "FINAL_CLOSE", "PROJECT", input.projectId, project.version, { assessmentId: input.assessmentId, covered }, input.actorId,
         covered.length ? `Closing with ${covered.length} accepted item(s).` : "All closure checks passed.");
       await this.audit(tx, { tenantId: input.tenantId, projectId: input.projectId, subjectType: "CLOSURE", subjectId: input.assessmentId, actorId: input.actorId, action: "CLOSE_SUBMITTED", details: { approvalId, accepted: covered.length } });
+      await this.decideTx(tx, { tenantId: input.tenantId, approvalId, approverId: input.actorId, decision: "APPROVED", comment: "Saved", auto: true }, { action: "FINAL_CLOSE", projectId: input.projectId, claimId: null, proposalId: null });
     });
     return this.closure(input.tenantId, input.projectId);
   }
@@ -486,6 +490,7 @@ export class PrismaClaimsClosureStore {
       if (pending.length) throw new ClaimsClosureError("CONFLICT", "Reopening is already waiting for approval.");
       const approvalId = await this.requestApproval(tx, "REOPEN", "PROJECT", input.projectId, project.version, { reason: input.reason }, input.actorId, input.reason);
       await this.audit(tx, { tenantId: input.tenantId, projectId: input.projectId, subjectType: "CLOSURE", subjectId: input.projectId, actorId: input.actorId, action: "REOPEN_SUBMITTED", details: { approvalId, reason: input.reason } });
+      await this.decideTx(tx, { tenantId: input.tenantId, approvalId, approverId: input.actorId, decision: "APPROVED", comment: "Saved", auto: true }, { action: "REOPEN", projectId: input.projectId, claimId: null, proposalId: null });
     });
     return this.closure(input.tenantId, input.projectId);
   }
@@ -536,44 +541,47 @@ export class PrismaClaimsClosureStore {
   async decide(input: { tenantId: string; approvalId: string; approverId: string; decision: "APPROVED" | "REJECTED"; comment: string | null }) {
     const subject = await this.approvalSubject(input.tenantId, input.approvalId);
     if (!subject) return null;
-    await this.client.$transaction(async (tx) => {
-      if (subject.action === "CLAIM_OUTCOME") {
-        const c = await this.lockClaim(tx, input.tenantId, String(subject.claimId));
-        this.assertOpen(await this.head(tx, input.tenantId, subject.projectId));
-        await this.decideApproval(tx, input.approvalId, input.approverId, input.decision, input.comment);
-        if (c.state !== "UNDER_REVIEW") throw new ClaimsClosureError("CONFLICT", "This claim is no longer under review.");
-        await tx.$executeRawUnsafe(`UPDATE "ClaimOutcomeProposal" SET "state" = $2::"ProposalState" WHERE "id" = $1`, subject.proposalId, input.decision === "APPROVED" ? "APPROVED" : "REJECTED");
-        await this.audit(tx, { tenantId: input.tenantId, projectId: subject.projectId, subjectType: "CLAIM", subjectId: String(subject.claimId), actorId: input.approverId, action: input.decision, details: { approvalId: input.approvalId, comment: input.comment } });
-        if (input.decision === "APPROVED") await this.apply(tx, input.tenantId, subject.projectId, String(subject.claimId), String(subject.proposalId), input.approverId);
-        return;
-      }
-      const project = await this.head(tx, input.tenantId, subject.projectId, true);
-      if (subject.action === "FINAL_CLOSE") {
-        this.assertOpen(project);
-        const facts = (await tx.$queryRawUnsafe<Array<{ assessment_id: string }>>(
-          `SELECT a."id"::text assessment_id FROM "ClosureAssessment" a WHERE a."tenant_id" = $1 AND a."project_id" = $2 ORDER BY a."assessed_at" DESC, a."id" DESC LIMIT 1`, input.tenantId, subject.projectId))[0];
-        await this.decideApproval(tx, input.approvalId, input.approverId, input.decision, input.comment);
-        if (input.decision === "APPROVED") {
-          if (!facts) throw new ClaimsClosureError("CONFLICT", "Run the closure check again.");
-          const covered = await this.verifyCovered(tx, input.tenantId, subject.projectId, facts.assessment_id);
-          for (const blockerId of covered) await tx.$executeRawUnsafe(`UPDATE "ClosureBlocker" SET "covered_by_approval_id" = $2 WHERE "id" = $1`, blockerId, input.approvalId);
-          await tx.$executeRawUnsafe(
-            `UPDATE "Project" SET "final_state" = 'FINAL_CLOSED', "closed_at" = NOW(), "closed_by" = $2, "closure_assessment_id" = $3, "version" = "version" + 1, "updated_at" = NOW() WHERE "id" = $1`,
-            subject.projectId, input.approverId, facts.assessment_id);
-        }
-        await this.audit(tx, { tenantId: input.tenantId, projectId: subject.projectId, subjectType: "CLOSURE", subjectId: subject.projectId, actorId: input.approverId, action: input.decision === "APPROVED" ? "CLOSED" : "REJECTED", details: { approvalId: input.approvalId, comment: input.comment } });
-        return;
-      }
-      if (project.finalState !== "FINAL_CLOSED") throw new ClaimsClosureError("CONFLICT", "This project is not closed.");
-      await this.decideApproval(tx, input.approvalId, input.approverId, input.decision, input.comment);
-      if (input.decision === "APPROVED") {
-        const reason = (await tx.$queryRawUnsafe<Array<{ reason: string | null }>>(`SELECT "reason" FROM "Approval" WHERE "id" = $1`, input.approvalId))[0]?.reason ?? null;
-        await tx.$executeRawUnsafe(
-          `UPDATE "Project" SET "final_state" = 'OPEN', "reopened_at" = NOW(), "reopened_by" = $2, "reopen_reason" = $3, "version" = "version" + 1, "updated_at" = NOW() WHERE "id" = $1`,
-          subject.projectId, input.approverId, reason);
-      }
-      await this.audit(tx, { tenantId: input.tenantId, projectId: subject.projectId, subjectType: "CLOSURE", subjectId: subject.projectId, actorId: input.approverId, action: input.decision === "APPROVED" ? "REOPENED" : "REJECTED", details: { approvalId: input.approvalId, comment: input.comment } });
-    });
+    await this.client.$transaction((tx) => this.decideTx(tx, input, subject));
     return subject;
+  }
+
+  private async decideTx(tx: SqlTransaction, input: { tenantId: string; approvalId: string; approverId: string; decision: "APPROVED" | "REJECTED"; comment: string | null; auto?: boolean },
+    subject: { action: "CLAIM_OUTCOME" | "FINAL_CLOSE" | "REOPEN"; projectId: string; claimId: string | null; proposalId: string | null }) {
+    if (subject.action === "CLAIM_OUTCOME") {
+      const c = await this.lockClaim(tx, input.tenantId, String(subject.claimId));
+      this.assertOpen(await this.head(tx, input.tenantId, subject.projectId));
+      await this.decideApproval(tx, input.approvalId, input.approverId, input.decision, input.comment, input.auto);
+      if (c.state !== "UNDER_REVIEW") throw new ClaimsClosureError("CONFLICT", "This claim is no longer under review.");
+      await tx.$executeRawUnsafe(`UPDATE "ClaimOutcomeProposal" SET "state" = $2::"ProposalState" WHERE "id" = $1`, subject.proposalId, input.decision === "APPROVED" ? "APPROVED" : "REJECTED");
+      await this.audit(tx, { tenantId: input.tenantId, projectId: subject.projectId, subjectType: "CLAIM", subjectId: String(subject.claimId), actorId: input.approverId, action: input.decision, details: { approvalId: input.approvalId, comment: input.comment } });
+      if (input.decision === "APPROVED") await this.apply(tx, input.tenantId, subject.projectId, String(subject.claimId), String(subject.proposalId), input.approverId);
+      return;
+    }
+    const project = await this.head(tx, input.tenantId, subject.projectId, true);
+    if (subject.action === "FINAL_CLOSE") {
+      this.assertOpen(project);
+      const facts = (await tx.$queryRawUnsafe<Array<{ assessment_id: string }>>(
+        `SELECT a."id"::text assessment_id FROM "ClosureAssessment" a WHERE a."tenant_id" = $1 AND a."project_id" = $2 ORDER BY a."assessed_at" DESC, a."id" DESC LIMIT 1`, input.tenantId, subject.projectId))[0];
+      await this.decideApproval(tx, input.approvalId, input.approverId, input.decision, input.comment, input.auto);
+      if (input.decision === "APPROVED") {
+        if (!facts) throw new ClaimsClosureError("CONFLICT", "Run the closure check again.");
+        const covered = await this.verifyCovered(tx, input.tenantId, subject.projectId, facts.assessment_id);
+        for (const blockerId of covered) await tx.$executeRawUnsafe(`UPDATE "ClosureBlocker" SET "covered_by_approval_id" = $2 WHERE "id" = $1`, blockerId, input.approvalId);
+        await tx.$executeRawUnsafe(
+          `UPDATE "Project" SET "final_state" = 'FINAL_CLOSED', "closed_at" = NOW(), "closed_by" = $2, "closure_assessment_id" = $3, "version" = "version" + 1, "updated_at" = NOW() WHERE "id" = $1`,
+          subject.projectId, input.approverId, facts.assessment_id);
+      }
+      await this.audit(tx, { tenantId: input.tenantId, projectId: subject.projectId, subjectType: "CLOSURE", subjectId: subject.projectId, actorId: input.approverId, action: input.decision === "APPROVED" ? "CLOSED" : "REJECTED", details: { approvalId: input.approvalId, comment: input.comment } });
+      return;
+    }
+    if (project.finalState !== "FINAL_CLOSED") throw new ClaimsClosureError("CONFLICT", "This project is not closed.");
+    await this.decideApproval(tx, input.approvalId, input.approverId, input.decision, input.comment, input.auto);
+    if (input.decision === "APPROVED") {
+      const reason = (await tx.$queryRawUnsafe<Array<{ reason: string | null }>>(`SELECT "reason" FROM "Approval" WHERE "id" = $1`, input.approvalId))[0]?.reason ?? null;
+      await tx.$executeRawUnsafe(
+        `UPDATE "Project" SET "final_state" = 'OPEN', "reopened_at" = NOW(), "reopened_by" = $2, "reopen_reason" = $3, "version" = "version" + 1, "updated_at" = NOW() WHERE "id" = $1`,
+        subject.projectId, input.approverId, reason);
+    }
+    await this.audit(tx, { tenantId: input.tenantId, projectId: subject.projectId, subjectType: "CLOSURE", subjectId: subject.projectId, actorId: input.approverId, action: input.decision === "APPROVED" ? "REOPENED" : "REJECTED", details: { approvalId: input.approvalId, comment: input.comment } });
   }
 }

@@ -36,10 +36,8 @@ integration("receipts and supplier payments are allocated to invoices, reversed 
   const reverseAllocation = await import("../../../src/app/api/allocations/[allocationId]/reverse/route.ts");
   const expenses = await import("../../../src/app/api/projects/[projectId]/expenses/route.ts");
   const cancelExpense = await import("../../../src/app/api/expenses/[expenseId]/cancel/route.ts");
-  const decision = await import("../../../src/app/api/approvals/[approvalId]/decision/route.ts");
   const inbox = await import("../../../src/app/api/approvals/route.ts");
   const createSupplierInvoice = await import("../../../src/app/api/supplier-shipments/[shipmentId]/invoices/route.ts");
-  const submitSupplierInvoice = await import("../../../src/app/api/supplier-invoices/[invoiceId]/submit/route.ts");
   const cancelSupplierInvoice = await import("../../../src/app/api/supplier-invoices/[invoiceId]/cancel/route.ts");
   const issue = await import("../../../src/app/api/sales-shipments/[shipmentId]/sales-invoice/route.ts");
   const salesInvoice = await import("../../../src/app/api/sales-invoices/[invoiceId]/route.ts");
@@ -51,7 +49,6 @@ integration("receipts and supplier payments are allocated to invoices, reversed 
     return data;
   };
   const move = (who: Parameters<typeof t.multipart>[1], fields: Record<string, string>, file: Buffer | null = PDF) => movements.POST(t.multipart(`/api/projects/${projectId}/money-movements`, who, form(fields, file)), project);
-  const decide = (who: Parameters<typeof t.post>[1], approvalId: string, body: Record<string, unknown>) => decision.POST(t.post(`/api/approvals/${approvalId}/decision`, who, body) as never, params({ approvalId }));
   const alloc = (movementId: string, body: Record<string, unknown>) => allocate.POST(t.post(`/api/money-movements/${movementId}/allocations`, "finance", body) as never, params({ movementId }) as never);
   const moneyOf = async (who: Parameters<typeof t.get>[1]) => t.ok<{ movements: Movement[]; expenses: Expense[]; invoices: { id: string; outstanding: string }[]; totals: Record<string, string>[]; canManageMoney: boolean }>(await movements.GET(t.get(`/api/projects/${projectId}/money-movements`, who), project));
   const sales = async (id: string) => t.ok<Invoice>(await salesInvoice.GET(t.get(`/api/sales-invoices/${id}`, "finance"), params({ invoiceId: id })));
@@ -60,8 +57,6 @@ integration("receipts and supplier payments are allocated to invoices, reversed 
     // Invoices to pay: an approved supplier invoice (99,849.60) and an issued customer invoice (117,120.00).
     const invoiceForm = new FormData(); invoiceForm.set("reference", "AD-77"); invoiceForm.set("invoiceDate", today); invoiceForm.set("amount", "99849.60"); invoiceForm.set("file", new File([PDF], "inv.pdf"));
     const supplierInvoice = await t.ok<Invoice>(await createSupplierInvoice.POST(t.multipart(`/api/supplier-shipments/${t.supplierShipment.id}/invoices`, "finance", invoiceForm), params({ shipmentId: t.supplierShipment.id })), 201);
-    const submitted = await t.ok<Invoice>(await submitSupplierInvoice.POST(t.post(`/api/supplier-invoices/${supplierInvoice.id}/submit`, "finance", {}), params({ invoiceId: supplierInvoice.id })));
-    await t.ok(await decide("owner", submitted.pendingApprovalId!, { decision: "APPROVED" }));
     const customerInvoice = await t.ok<Invoice>(await issue.POST(t.post(`/api/sales-shipments/${t.salesShipment.id}/sales-invoice`, "finance", { invoiceDate: today }), params({ shipmentId: t.salesShipment.id })), 201);
 
     // ---- customer receipt: counts at once, needs the slip and the rate ----
@@ -86,15 +81,12 @@ integration("receipts and supplier payments are allocated to invoices, reversed 
     assert.equal(allocated.allocations[0].invoiceReference, customerInvoice.reference);
     assert.deepEqual([(await sales(customerInvoice.id)).paid, (await sales(customerInvoice.id)).outstanding], ["50000.00", "67120.00"]);
 
-    // ---- supplier payment: waits for the owner ----
+    // ---- supplier payment: counts as soon as it is saved (no approval step) ----
     const payment = await t.ok<Movement>(await move("finance", { kind: "SUPPLIER_PAYMENT", counterpartyId: t.supplier, amount: "99849.60", currency: "USD", fxRate: "3.6725", occurredOn: today, reference: "TT-ADEN-1", notes: "Balance for IN shipment" }, PNG), 201);
-    assert.equal(payment.state, "PENDING_APPROVAL");
-    assert.equal((await alloc(payment.id, { targetType: "SUPPLIER_INVOICE", targetId: supplierInvoice.id, amount: "100", currency: "USD" })).status, 409, "not before approval");
-    const items = (await t.ok<{ items: { subjectType: string; subjectId: string; amount?: string }[] }>(await inbox.GET(t.get("/api/approvals", "owner") as never))).items;
-    assert.ok(items.some((item) => item.subjectType === "MONEY_MOVEMENT" && item.subjectId === payment.id && item.amount === "99849.60"));
-    assert.equal((await decide("owner", payment.pendingApprovalId!, { decision: "REJECTED" })).status, 422, "rejection needs a comment");
-    const approved = await t.ok<{ movement: Movement }>(await decide("owner", payment.pendingApprovalId!, { decision: "APPROVED" }));
-    assert.equal(approved.movement.state, "CONFIRMED");
+    assert.equal(payment.state, "CONFIRMED");
+    assert.equal(payment.pendingApprovalId, null);
+    const items = (await t.ok<{ items: { subjectId: string }[] }>(await inbox.GET(t.get("/api/approvals", "owner") as never))).items;
+    assert.ok(!items.some((item) => item.subjectId === payment.id), "nothing waits for approval");
     const partly = await t.ok<Movement>(await alloc(payment.id, { targetType: "SUPPLIER_INVOICE", targetId: supplierInvoice.id, amount: "60000", currency: "USD" }), 201);
     assert.equal(partly.state, "PARTIALLY_ALLOCATED");
     assert.equal(partly.unallocated, "39849.60");
@@ -111,21 +103,21 @@ integration("receipts and supplier payments are allocated to invoices, reversed 
     assert.equal(reversed.unallocated, "0.00");
     assert.equal((await sales(customerInvoice.id)).outstanding, "117120.00");
 
-    // ---- expenses: anyone on the project records them with the bill; the owner approves ----
+    // ---- expenses: anyone on the project records them with the bill; they count at once ----
     const expenseFields = { categoryCode: "FREIGHT", payeeName: "Gulf Forwarders LLC", description: "Ocean freight Aden → Jebel Ali", shipmentType: "SUPPLIER", shipmentId: t.supplierShipment.id, amount: "1850", currency: "USD", fxRate: "3.6725", occurredOn: today };
     const spend = (who: Parameters<typeof t.multipart>[1], fields: Record<string, string>, file: Buffer | null = PDF) => expenses.POST(t.multipart(`/api/projects/${projectId}/expenses`, who, form(fields, file, "bill.pdf")), project);
     assert.equal((await spend("ops", expenseFields, null)).status, 422, "the bill is required");
     assert.equal((await spend("ops", { ...expenseFields, payeeName: "" })).status, 422, "who was paid is required");
     assert.equal((await spend("ops", { ...expenseFields, categoryCode: "NOPE" })).status, 422);
     const freight = await t.ok<Expense>(await spend("ops", expenseFields), 201);
-    assert.equal(freight.state, "PENDING_APPROVAL");
+    assert.equal(freight.state, "APPROVED");
+    assert.equal(freight.pendingApprovalId, null);
     assert.equal(freight.aedAmount, "6794.13");
     assert.equal(freight.shipment?.reference, `IN-${t.tenant.slice(-6).toUpperCase()}`);
-    assert.equal((await t.ok<{ expense: Expense }>(await decide("owner", freight.pendingApprovalId!, { decision: "APPROVED" }))).expense.state, "APPROVED");
     const customs = await t.ok<Expense>(await spend("finance", { ...expenseFields, categoryCode: "CUSTOMS", payeeName: "", supplierId: t.supplier, shipmentId: "", amount: "420" }), 201);
     assert.equal(customs.payee.name, "Aden Coffee Exporters");
-    const rejected = await t.ok<{ expense: Expense }>(await decide("owner", customs.pendingApprovalId!, { decision: "REJECTED", comment: "Duplicate of the clearing bill" }));
-    assert.equal(rejected.expense.state, "REJECTED");
+    assert.equal((await cancelExpense.POST(t.post(`/api/expenses/${customs.id}/cancel`, "finance", { reason: "" }), params({ expenseId: customs.id }))).status, 422, "cancelling needs a reason");
+    assert.equal((await t.ok<Expense>(await cancelExpense.POST(t.post(`/api/expenses/${customs.id}/cancel`, "finance", { reason: "Duplicate of the clearing bill" }), params({ expenseId: customs.id })))).state, "CANCELLED");
     const storage = await t.ok<Expense>(await spend("ops", { ...expenseFields, categoryCode: "STORAGE", amount: "300" }), 201);
     assert.equal((await cancelExpense.POST(t.post(`/api/expenses/${storage.id}/cancel`, "ops", { reason: "Entered twice" }), params({ expenseId: storage.id }))).status, 403, "Operations cannot cancel");
     assert.equal((await t.ok<Expense>(await cancelExpense.POST(t.post(`/api/expenses/${storage.id}/cancel`, "finance", { reason: "Entered twice" }), params({ expenseId: storage.id })))).state, "CANCELLED");
@@ -142,7 +134,7 @@ integration("receipts and supplier payments are allocated to invoices, reversed 
     }, { received: "0.00", paid: "99849.60", customerOutstanding: "117120.00", supplierOutstanding: "99849.60", supplierAdvance: "99849.60", expensesApproved: "1850.00", expensesPending: "0.00" });
 
     const actions = (await t.sql.query(`SELECT "subject_type" || ':' || "action" a FROM "MoneyAuditEvent" WHERE "tenant_id" = $1`, [t.tenant])).rows.map((row) => row.a);
-    for (const action of ["MOVEMENT:RECORDED", "MOVEMENT:SUBMITTED", "MOVEMENT:APPROVED", "MOVEMENT:REVERSED", "ALLOCATION:ALLOCATED", "ALLOCATION:REVERSED", "EXPENSE:RECORDED", "EXPENSE:APPROVED", "EXPENSE:REJECTED", "EXPENSE:CANCELLED"]) assert.ok(actions.includes(action), `missing ${action}`);
+    for (const action of ["MOVEMENT:RECORDED", "MOVEMENT:REVERSED", "ALLOCATION:ALLOCATED", "ALLOCATION:REVERSED", "EXPENSE:RECORDED", "EXPENSE:APPROVED", "EXPENSE:CANCELLED"]) assert.ok(actions.includes(action), `missing ${action}`);
   } finally {
     await t.sql.end();
     const { getPrismaClient } = await import("../../../src/platform/database/prisma-client.ts");
