@@ -36,7 +36,7 @@ export interface DocumentRef { readonly id: string; readonly filename: string; r
 
 export interface ClaimProposal {
   readonly id: string; readonly outcome: "RESOLVED" | "REJECTED"; readonly amount: string | null; readonly reason: string;
-  readonly state: string; readonly approvalId: string | null; readonly proposedByName: string; readonly proposedAt: string | null; readonly decisionComment: string | null;
+  readonly state: string; readonly approvalId: string | null; readonly proposedById: string | null; readonly proposedByName: string; readonly proposedAt: string | null; readonly decisionComment: string | null;
 }
 
 export interface ClaimSummary {
@@ -167,7 +167,7 @@ export class PrismaClaimsClosureStore {
               btrim(c."currency") currency, c."settled_amount"::text settled_amount, ou."name_en" opened_by_name, c."opened_at", c."closed_at", c."version",
               e."id"::text evidence_id, e."original_filename", e."media_type", e."byte_length",
               pr."id"::text proposal_id, pr."proposed_outcome"::text proposed_outcome, pr."amount"::text proposal_amount, pr."reason" proposal_reason, pr."state"::text proposal_state,
-              pr."approval_id"::text approval_id, pu."name_en" proposed_by_name, pr."proposed_at", ap."comment" decision_comment
+              pr."approval_id"::text approval_id, pr."proposed_by"::text proposed_by, pu."name_en" proposed_by_name, pr."proposed_at", ap."comment" decision_comment
          FROM "Claim" c
          LEFT JOIN "SalesShipment" ss ON ss."id" = c."sales_shipment_id" LEFT JOIN "SupplierShipment" sp ON sp."id" = c."supplier_shipment_id"
          LEFT JOIN "Customer" cu ON cu."id" = c."customer_master_id" LEFT JOIN "Supplier" su ON su."id" = c."supplier_master_id"
@@ -184,7 +184,7 @@ export class PrismaClaimsClosureStore {
       document: r.evidence_id ? { id: String(r.evidence_id), filename: String(r.original_filename), mediaType: String(r.media_type), byteLength: Number(r.byte_length) } : null,
       proposal: r.proposal_id ? {
         id: String(r.proposal_id), outcome: r.proposed_outcome as "RESOLVED" | "REJECTED", amount: money(r.proposal_amount), reason: String(r.proposal_reason ?? ""),
-        state: String(r.proposal_state), approvalId: str(r.approval_id), proposedByName: String(r.proposed_by_name ?? ""), proposedAt: iso(r.proposed_at), decisionComment: str(r.decision_comment),
+        state: String(r.proposal_state), approvalId: str(r.approval_id), proposedById: str(r.proposed_by), proposedByName: String(r.proposed_by_name ?? ""), proposedAt: iso(r.proposed_at), decisionComment: str(r.decision_comment),
       } : null,
     }));
   }

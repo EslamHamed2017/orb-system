@@ -27,6 +27,7 @@ test("project context exposes the approved granular 360-degree destinations", ()
     ["accounts","Accounts"],
     ["expenses","Expenses"],
     ["claims","Claims"],
+    ["closure","Project closure"],
     ["audit","Audit"],
     ["reports","Project reports"],
   ]);

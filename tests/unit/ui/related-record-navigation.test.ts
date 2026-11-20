@@ -4,7 +4,7 @@ import { buildProjectContextLinks, projectContextCopy } from "../../../src/ui/na
 
 test("project record navigation exposes exact bidirectional related-record links", () => {
   const links = buildProjectContextLinks("en", "project-7");
-  assert.deepEqual(links.map(({ key }) => key), ["overview", "contracts", "supplierContainer", "salesShipment", "accounts", "expenses", "claims", "audit", "reports"]);
+  assert.deepEqual(links.map(({ key }) => key), ["overview", "contracts", "supplierContainer", "salesShipment", "accounts", "expenses", "claims", "closure", "audit", "reports"]);
   assert.equal(links[0].href, "/projects/project-7/overview?locale=en");
   assert.equal(links[1].href, "/projects/project-7/contracts?locale=en");
   assert.equal(links[2].href, "/projects/project-7/shipments?locale=en#supplier-dataset");
@@ -12,8 +12,9 @@ test("project record navigation exposes exact bidirectional related-record links
   assert.equal(links[4].href, "/projects/project-7/money?locale=en");
   assert.equal(links[5].href, "/projects/project-7/expenses?locale=en");
   assert.equal(links[6].href, "/projects/project-7/claims?locale=en");
-  assert.equal(links[7].href, "/projects/project-7/audit?locale=en");
-  assert.equal(links[8].href, "/projects/project-7/profit?locale=en");
+  assert.equal(links[7].href, "/projects/project-7/closure?locale=en");
+  assert.equal(links[8].href, "/projects/project-7/audit?locale=en");
+  assert.equal(links[9].href, "/projects/project-7/profit?locale=en");
 });
 
 test("Arabic project navigation preserves canonical labels, locale and encoded project context", () => {
