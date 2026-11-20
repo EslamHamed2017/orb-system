@@ -30,7 +30,7 @@ test("getProjectMarginAndCash exposes four distinct measures with formula and so
   const operation = api.paths["/projects/{projectId}/profit"]?.get;
   assert.ok(operation);
   assert.equal(operation.operationId, "getProjectMarginAndCash");
-  assert.deepEqual(operation["x-required-roles"], readRoles);
+  assert.deepEqual(operation["x-required-roles"], ["OWNER_ADMIN", "FINANCE_VIEWER"], "margins show costs, so Operations cannot read them");
   assert.deepEqual(operation.parameters.map((item: any) => item.$ref), ["#/components/parameters/ProjectId"]);
   assert.equal(operation.responses["200"].content["application/json"].schema.$ref, "#/components/schemas/ProfitView");
   const schema = api.components.schemas.ProfitView;

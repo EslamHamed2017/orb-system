@@ -1,2 +1,6 @@
-import { SavedProjectsToday } from "../ui/features/dashboard/SavedProjectsToday";
-export default async function TodayPage({searchParams}:{searchParams:Promise<{locale?:string}>}){const query=await searchParams,locale=query.locale==="ar"?"ar":"en";return <SavedProjectsToday locale={locale}/>}
+import { TodayWorkspace } from "../ui/features/dashboard/TodayWorkspace";
+
+export default async function TodayPage({ searchParams }: { searchParams: Promise<{ locale?: string }> }) {
+  const query = await searchParams;
+  return <TodayWorkspace locale={query.locale === "ar" ? "ar" : "en"} />;
+}

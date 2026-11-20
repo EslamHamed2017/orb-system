@@ -1582,6 +1582,21 @@ paths:
       - OPERATIONS
       - FINANCE_VIEWER
       summary: Get operational statement
+  /shipments:
+    get:
+      tags:
+      - Shipments
+      operationId: listShipments
+      responses:
+        '200':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: List all supplier and customer shipments with their next step (no prices)
   /projects/{projectId}/profit:
     get:
       tags:
@@ -1600,7 +1615,6 @@ paths:
           $ref: '#/components/responses/Problem'
       x-required-roles:
       - OWNER_ADMIN
-      - OPERATIONS
       - FINANCE_VIEWER
       summary: Get project margin and cash
   /projects/{projectId}/claims:

@@ -294,6 +294,10 @@ const OPERATION_ROLES = Object.freeze({
   ],
   "getProjectMarginAndCash": [
     "OWNER_ADMIN",
+    "FINANCE_VIEWER"
+  ],
+  "listShipments": [
+    "OWNER_ADMIN",
     "OPERATIONS",
     "FINANCE_VIEWER"
   ],

@@ -38,17 +38,18 @@ test("Project profitability report calculates exact operational margin including
 
 test("Dedicated bilingual report pages preserve Reports and Project 360 navigation", () => {
   const accountsPage=readFileSync("src/ui/features/reports/AccountsOperationalReportPage.tsx","utf8");
-  const profitabilityPage=readFileSync("src/ui/features/reports/ProjectProfitabilityReportPage.tsx","utf8");
+  const profitabilityPage=readFileSync("src/ui/features/reports/ProfitabilityReportLive.tsx","utf8");
   const accountsRoute=readFileSync("src/app/reports/accounts/page.tsx","utf8");
   const profitabilityRoute=readFileSync("src/app/reports/project-profitability/page.tsx","utf8");
   assert.match(accountsRoute,/AccountsOperationalReportPage/);
-  assert.match(profitabilityRoute,/ProjectProfitabilityReportPage/);
+  assert.match(profitabilityRoute,/ProfitabilityReportLive/);
   assert.match(accountsPage,/Accounts operational report/);
   assert.match(accountsPage,/تقرير الحسابات التشغيلي/);
   assert.match(profitabilityPage,/Project profitability report/);
   assert.match(profitabilityPage,/تقرير ربحية المشروع/);
   assert.match(accountsPage,/\/projects\/\$\{row.projectId\}\/overview/);
-  assert.match(profitabilityPage,/\/projects\/\$\{row.projectId\}\/overview/);
+  assert.match(profitabilityPage,/\/projects\/\$\{r\.project\.id\}\/profit/);
+  assert.match(profitabilityPage,/\/api\/reports\/project-profitability/);
   assert.doesNotMatch(accountsPage,/general ledger/i);
   assert.doesNotMatch(profitabilityPage,/inventory valuation/i);
 });

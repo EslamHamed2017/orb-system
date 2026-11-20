@@ -33,4 +33,4 @@ test("project cards and persisted overview show business references, not raw UUI
   assert.doesNotMatch(source, /<bdi>\{id\}<\/bdi>|lifecycleState\}\s*<\/|FOREIGN_TO_FOREIGN\}\s*<\//);
 });
 
-test("database project UUIDs use the persisted overview without removing legacy saved-project behavior",()=>{const route=readFileSync("src/app/projects/[id]/overview/page.tsx","utf8");assert.match(route,/ProjectWorkspacePage/);assert.match(route,/SavedProjectDetail/);assert.match(route,/7\[0-9a-f\]\{3\}/);assert.match(route,/canMutate=\{query\.role !== "finance-viewer"\}/)});
+test("database project UUIDs use the persisted overview and browser-only projects are retired",()=>{const route=readFileSync("src/app/projects/[id]/overview/page.tsx","utf8");assert.match(route,/ProjectWorkspacePage/);assert.match(route,/RetiredBrowserProject/);assert.doesNotMatch(route,/SavedProjectDetail/);assert.match(route,/7\[0-9a-f\]\{3\}/)});

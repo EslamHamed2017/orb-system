@@ -1,59 +1,59 @@
-import { createHash } from "node:crypto";
 // @ts-expect-error Native Node TypeScript tests require source extensions.
-import { canonicalizeJson } from "../../platform/canonical-json/rfc8785.ts";
+import { PROFIT_FORMULA_VERSION, type PrismaProfitStore, type ProjectProfit } from "./profit-store.ts";
+import type { PrismaShipmentQueueStore } from "../shipments/shipment-queue-store.ts";
 // @ts-expect-error Native Node TypeScript tests require source extensions.
-import { DecimalAmount } from "../../platform/decimal/index.ts";
-// @ts-expect-error Native Node TypeScript tests require source extensions.
-import { PROFIT_FORMULAS, PROFIT_FORMULA_VERSION, actualOperationalMargin, cashPosition, committedMargin, expectedMargin, six, type FormulaSource, type ProfitMeasureName } from "./formulas.ts";
+import { ShipmentProblem, type ShipmentActor } from "../shipments/execution/shipment-execution-service.ts";
 
-type FinancialSource = FormulaSource & { readonly projectId: string; readonly currency: string; readonly kind?: string };
-type ExchangeRate = { readonly currency: string; readonly aedRate: string; readonly rateDate: string; readonly source: string };
-interface ProfitOptions {
-  readonly salesContracts?: readonly FinancialSource[]; readonly purchaseContracts?: readonly FinancialSource[];
-  readonly customerInvoices?: readonly FinancialSource[]; readonly supplierInvoices?: readonly FinancialSource[];
-  readonly approvedExpenses?: readonly FinancialSource[]; readonly moneyMovements?: readonly FinancialSource[];
-  readonly exchangeRates?: readonly ExchangeRate[];
+/** Profit shows sales prices against costs, so it is for the Owner administrator and Finance only. */
+const FINANCE = ["OWNER_ADMIN", "FINANCE_VIEWER"];
+const ALL = ["OWNER_ADMIN", "OPERATIONS", "FINANCE_VIEWER"];
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function requireRole(actor: ShipmentActor, roles: readonly string[]) {
+  if (!actor.roles.some((role) => roles.includes(role))) throw new ShipmentProblem(403, "PERMISSION_DENIED", "Your role cannot see this.");
 }
-const clone = <T>(value: T): T => structuredClone(value);
-const hash = (value: unknown) => createHash("sha256").update(canonicalizeJson(value), "utf8").digest("hex");
-function byProjectCurrency(rows: readonly FinancialSource[], projectId: string, currency: string) { return rows.filter((row) => row.projectId === projectId && row.currency === currency).map(clone); }
-function aed(amount: string, rate?: ExchangeRate) {
-  if (!rate) return undefined;
-  const converted = DecimalAmount.parse(amount).multiply(DecimalAmount.parse(rate.aedRate));
-  return Object.freeze({ amount: six(converted), currency: "AED", rate: rate.aedRate, rateDate: rate.rateDate, rateSource: rate.source });
-}
-export function createInMemoryProfitService(options: ProfitOptions) {
-  const data = {
-    salesContracts: clone(options.salesContracts ?? []), purchaseContracts: clone(options.purchaseContracts ?? []),
-    customerInvoices: clone(options.customerInvoices ?? []), supplierInvoices: clone(options.supplierInvoices ?? []),
-    approvedExpenses: clone(options.approvedExpenses ?? []), moneyMovements: clone(options.moneyMovements ?? []),
-    exchangeRates: clone(options.exchangeRates ?? []),
+
+/** The ProfitView contract fields plus the detail the pages show. */
+function view(profit: ProjectProfit) {
+  const money = (amount: string) => ({ amount, currency: profit.project.currency });
+  return {
+    expectedMargin: money(profit.measures.expected.amount),
+    committedMargin: money(profit.measures.shipped.amount),
+    actualOperationalMargin: money(profit.measures.actual.amount),
+    cashPosition: money(profit.measures.cash.amount),
+    ...profit,
   };
+}
+
+export function createProfitService(profits: Pick<PrismaProfitStore, "projectProfit" | "listProjectIds">, shipments: Pick<PrismaShipmentQueueStore, "list">) {
   return Object.freeze({
-    async getProjectMarginAndCash(projectId: string) {
-      const all = [...data.salesContracts, ...data.purchaseContracts, ...data.customerInvoices, ...data.supplierInvoices, ...data.approvedExpenses, ...data.moneyMovements].filter((row) => row.projectId === projectId);
-      const currencies = [...new Set(all.map((row) => row.currency))].sort();
-      const currencySections = currencies.map((currency) => {
-        const sales = byProjectCurrency(data.salesContracts, projectId, currency), purchases = byProjectCurrency(data.purchaseContracts, projectId, currency);
-        const customerInvoices = byProjectCurrency(data.customerInvoices, projectId, currency), supplierInvoices = byProjectCurrency(data.supplierInvoices, projectId, currency);
-        const expenses = byProjectCurrency(data.approvedExpenses, projectId, currency), movements = byProjectCurrency(data.moneyMovements, projectId, currency);
-        const definitions: Array<[ProfitMeasureName, DecimalAmount, FinancialSource[]]> = [
-          ["expectedMargin", expectedMargin(sales, purchases), [...sales, ...purchases]],
-          ["committedMargin", committedMargin(customerInvoices, supplierInvoices), [...customerInvoices, ...supplierInvoices]],
-          ["actualOperationalMargin", actualOperationalMargin(customerInvoices, supplierInvoices, expenses), [...customerInvoices, ...supplierInvoices, ...expenses]],
-          ["cashPosition", cashPosition(movements as Array<FinancialSource & { kind: string }>), movements],
-        ];
-        const rate = data.exchangeRates.find((item) => item.currency === currency);
-        const measures = Object.fromEntries(definitions.map(([name, calculated, sources]) => {
-          const amount = six(calculated);
-          const snapshot = { projectId, currency, measure: name, formulaVersion: PROFIT_FORMULA_VERSION, formula: PROFIT_FORMULAS[name], sources };
-          return [name, Object.freeze({ amount, currency, formula: PROFIT_FORMULAS[name], formulaVersion: PROFIT_FORMULA_VERSION,
-            inputHash: hash(snapshot), sources: Object.freeze(sources.map(clone)), unexplainedVariance: "0.000000", ...(rate ? { aedEquivalent: aed(amount, rate) } : {}) })];
-        }));
-        return Object.freeze({ currency, measures: Object.freeze(measures) });
-      });
-      const measures = currencySections.length === 1 ? currencySections[0].measures : Object.freeze({});
-      return Object.freeze({ projectId, measures, currencySections: Object.freeze(currencySections), formulaVersion: PROFIT_FORMULA_VERSION });
+    async projectProfit(actor: ShipmentActor, projectId: unknown) {
+      requireRole(actor, FINANCE);
+      if (typeof projectId !== "string" || !UUID.test(projectId)) throw new ShipmentProblem(404, "RESOURCE_NOT_FOUND", "Project not found");
+      const profit = await profits.projectProfit(actor.tenantId, projectId);
+      if (!profit) throw new ShipmentProblem(404, "RESOURCE_NOT_FOUND", "Project not found");
+      return view(profit);
+    },
+
+    /** Project profitability report: one row per active project, the four measures side by side. */
+    async profitabilityReport(actor: ShipmentActor, projectId?: string) {
+      requireRole(actor, FINANCE);
+      const ids = projectId ? [projectId] : await profits.listProjectIds(actor.tenantId);
+      const rows = (await Promise.all(ids.map((id) => profits.projectProfit(actor.tenantId, id)))).filter((row): row is ProjectProfit => row !== null);
+      return {
+        reportType: "PROJECT_PROFITABILITY", formulaVersion: PROFIT_FORMULA_VERSION, generatedAt: new Date().toISOString(),
+        rows: rows.map((p) => ({
+          project: p.project, rate: p.rate, warnings: p.warnings.length,
+          expected: p.measures.expected, shipped: p.measures.shipped, actual: p.measures.actual, cash: p.measures.cash,
+        })),
+      };
+    },
+
+    async shipmentQueue(actor: ShipmentActor) {
+      requireRole(actor, ALL);
+      return { items: await shipments.list(actor.tenantId) };
     },
   });
 }
+
+export type ProfitService = ReturnType<typeof createProfitService>;

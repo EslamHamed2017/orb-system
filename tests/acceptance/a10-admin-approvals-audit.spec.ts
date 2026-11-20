@@ -77,14 +77,11 @@ test("fixed-role administration shows exact session versions and complete active
   await expect(revoked.getByRole("button", { name: copy.en.revoke })).toHaveCount(0);
 });
 
-test("project backup is truthful about browser-local access and exposes usable actions without fabricated recovery evidence", async ({ page }) => {
-  await page.goto("/admin/backup?locale=en&role=operations");
-  await expect(page.getByRole("heading", { level: 1, name: copy.en.backup })).toBeVisible();
-  await expect(page.getByText("0 projects saved in this browser", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Download backup" })).toBeVisible();
-  await expect(page.getByLabel("Choose backup file")).toBeAttached();
-  await expect(page.locator("body")).toContainText("the file is unencrypted");
-  await expect(page.locator("body")).toContainText("This evaluation page does not enforce authenticated roles");
+test("backup page is truthful that records are backed up on the server, with no browser export", async ({ page }) => {
+  await page.goto("/admin/backup?locale=en");
+  await expect(page.getByRole("heading", { level: 1, name: "Backups" })).toBeVisible();
+  await expect(page.locator("body")).toContainText("backed up on the server");
+  await expect(page.getByRole("button", { name: /download|restore/i })).toHaveCount(0);
   await expect(page.locator("body")).not.toContainText(/RPO|RTO|AES-256|PASSED|EVIDENCE-RESTORE|password|secret|access key|credential/i);
 });
 
