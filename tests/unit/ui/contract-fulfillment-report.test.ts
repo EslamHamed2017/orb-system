@@ -25,10 +25,13 @@ test("contract fulfillment report filters approved lines and calculates exact re
   assert.equal(report.summary.openLineCount, 1);
 });
 
-test("contract fulfillment report supports type, status, search, and guards impossible fulfillment", () => {
+test("contract fulfillment report supports type, status, search, and shows over-delivery as complete", () => {
   assert.deepEqual(buildContractFulfillmentReport(rows, { contractType:"SALES", status:"OPEN", query:"northstar" }).items.map((row) => row.id), ["line-1"]);
   assert.deepEqual(buildContractFulfillmentReport(rows, { contractType:"PURCHASE", status:"COMPLETE", query:"" }).items.map((row) => row.id), ["line-2"]);
-  assert.throws(() => buildContractFulfillmentReport([{ ...rows[0], fulfilledQuantity:"21" }], { contractType:"ALL", status:"ALL", query:"" }), /FULFILLMENT_EXCEEDS_CONTRACT/);
+  const over = buildContractFulfillmentReport([{ ...rows[0], fulfilledQuantity:"21" }], { contractType:"ALL", status:"ALL", query:"" });
+  assert.equal(over.items[0].remainingQuantity, "0");
+  assert.equal(over.items[0].status, "COMPLETE");
+  assert.equal(over.summary.quantityTotals[0].remaining, "0");
   assert.throws(() => buildContractFulfillmentReport(rows, { contractType:"ALL", status:"ALL", from:"2026-11-30", to:"2026-11-01", query:"" }), /INVERTED_FULFILLMENT_DATE_RANGE/);
 });
 
