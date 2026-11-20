@@ -59,10 +59,13 @@ integration("receipts and supplier payments are allocated to invoices, reversed 
     const supplierInvoice = await t.ok<Invoice>(await createSupplierInvoice.POST(t.multipart(`/api/supplier-shipments/${t.supplierShipment.id}/invoices`, "finance", invoiceForm), params({ shipmentId: t.supplierShipment.id })), 201);
     const customerInvoice = await t.ok<Invoice>(await issue.POST(t.post(`/api/sales-shipments/${t.salesShipment.id}/sales-invoice`, "finance", { invoiceDate: today }), params({ shipmentId: t.salesShipment.id })), 201);
 
-    // ---- customer receipt: counts at once, needs the slip and the rate ----
+    // ---- customer receipt: counts at once, needs the rate; the slip is optional ----
     const receiptFields = { kind: "CUSTOMER_RECEIPT", counterpartyId: t.customer, amount: "50,000", currency: "USD", fxRate: "3.6725", occurredOn: today, reference: "tt-hamburg-001" };
     assert.equal((await move("ops", receiptFields)).status, 403, "Operations cannot record money");
-    assert.equal((await move("finance", receiptFields, null)).status, 422, "bank slip is required");
+    // The bank slip is optional (QuickBooks-style attachment box).
+    const noSlip = await t.ok<Movement>(await move("finance", { ...receiptFields, amount: "1", reference: "no-slip-1" }, null), 201);
+    assert.equal(noSlip.document, null);
+    await t.ok(await reverseMovement.POST(t.post(`/api/money-movements/${noSlip.id}/reverse`, "finance", { reason: "Test entry without a slip" }) as never, params({ movementId: noSlip.id }) as never));
     assert.equal((await move("finance", { ...receiptFields, fxRate: "" })).status, 422, "FX rate is required for USD");
     assert.equal((await move("finance", { ...receiptFields, currency: "AED", fxRate: "3.67" })).status, 422, "AED rate must be 1");
     assert.equal((await move("finance", { ...receiptFields, counterpartyId: t.supplier })).status, 422, "receipt must come from the project's customer");

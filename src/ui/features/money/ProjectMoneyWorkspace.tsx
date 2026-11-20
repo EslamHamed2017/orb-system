@@ -55,6 +55,7 @@ export function ProjectMoneyWorkspace({ projectId, locale, focus = "money", init
   const [loadError, setLoadError] = useState<ApiProblem | null>(null);
   const [me, setMe] = useState<{ id: string; roles: readonly string[] } | null>(null);
   const [open, setOpen] = useState<Open>(initialOpen);
+  const [formKey, setFormKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ tone: "error" | "success"; text: string } | null>(null);
 
@@ -69,10 +70,10 @@ export function ProjectMoneyWorkspace({ projectId, locale, focus = "money", init
   const owner = Boolean(me?.roles.includes("OWNER_ADMIN"));
   const finance = Boolean(data?.canManageMoney);
 
-  async function run(action: () => Promise<unknown>, success: string) {
+  async function run(action: () => Promise<unknown>, success: string): Promise<boolean> {
     setBusy(true); setNotice(null);
-    try { await action(); setOpen(null); await load(); setNotice({ tone: "success", text: success }); }
-    catch (error) { setNotice({ tone: "error", text: (error as ApiProblem).detail ?? t("The action could not be completed.", "تعذر تنفيذ العملية.") }); }
+    try { await action(); setOpen(null); await load(); setNotice({ tone: "success", text: success }); return true; }
+    catch (error) { setNotice({ tone: "error", text: (error as ApiProblem).detail ?? t("The action could not be completed.", "تعذر تنفيذ العملية.") }); return false; }
     finally { setBusy(false); }
   }
 
@@ -130,10 +131,18 @@ export function ProjectMoneyWorkspace({ projectId, locale, focus = "money", init
       {focus === "expenses" && finance && <a href={`/projects/${projectId}/money?locale=${locale}`}>{t("Receipts and payments", "التحصيلات والمدفوعات")}</a>}
     </div>
 
-    {(open === "RECEIPT" || open === "PAYMENT" || open === "REFUND") && <MovementForm key={open} mode={open} data={d} busy={busy} t={t} onCancel={() => setOpen(null)}
-      onSubmit={(form, needsApproval) => void run(() => sendForm(`/api/projects/${projectId}/money-movements`, form), t("Saved. Match it to an invoice when ready.", "تم الحفظ. طابقه مع فاتورة عند الجاهزية."))}/>}
-    {open === "EXPENSE" && <ExpenseForm data={d} busy={busy} t={t} ar={ar} onCancel={() => setOpen(null)}
-      onSubmit={(form) => void run(() => sendForm(`/api/projects/${projectId}/expenses`, form), t("Expense saved.", "تم حفظ المصروف."))}/>}
+    {(open === "RECEIPT" || open === "PAYMENT" || open === "REFUND") && <MovementForm key={`${open}-${formKey}`} mode={open} data={d} busy={busy} t={t} onCancel={() => setOpen(null)}
+      onSubmit={(form, allocations, again) => {
+        const reopen = open;
+        void run(async () => {
+          const saved = await sendForm<{ id: string }>(`/api/projects/${projectId}/money-movements`, form);
+          for (const allocation of allocations) await sendJson(`/api/money-movements/${saved.id}/allocations`, "POST", allocation);
+        }, allocations.length ? t("Saved and matched to the invoices.", "تم الحفظ والمطابقة مع الفواتير.") : t("Saved.", "تم الحفظ."))
+          .then((ok) => { if (ok && again) { setOpen(reopen); setFormKey((k) => k + 1); } });
+      }}/>}
+    {open === "EXPENSE" && <ExpenseForm key={`expense-${formKey}`} data={d} busy={busy} t={t} ar={ar} onCancel={() => setOpen(null)}
+      onSubmit={(form, again) => void run(() => sendForm(`/api/projects/${projectId}/expenses`, form), t("Expense saved.", "تم حفظ المصروف."))
+        .then((ok) => { if (ok && again) { setOpen("EXPENSE"); setFormKey((k) => k + 1); } })}/>}
 
     {focus === "money" && finance && <section className="money-card" aria-labelledby="movements-title" data-testid="money-movements">
       <h2 id="movements-title">{t("Receipts and payments", "التحصيلات والمدفوعات")}</h2>
@@ -221,30 +230,70 @@ function RateFields({ t, currency, onCurrency, amount, rate, onRate }: { t: T; c
   </>;
 }
 
-function MovementForm({ mode, data, busy, t, onCancel, onSubmit }: { mode: "RECEIPT" | "PAYMENT" | "REFUND"; data: ProjectMoney; busy: boolean; t: T; onCancel: () => void; onSubmit: (form: FormData, needsApproval: boolean) => void }) {
+interface AllocationDraft { targetType: "CINV" | "SUPPLIER_INVOICE"; targetId: string; amount: string; currency: string }
+
+/**
+ * QuickBooks-style Receive payment / Pay bills: pick the party, tick the open invoices this money pays and how much
+ * of each; the amount follows the ticked rows, and anything left over stays on the party as an advance.
+ * The bank slip is optional. Save and close, or Save and new.
+ */
+function MovementForm({ mode, data, busy, t, onCancel, onSubmit }: { mode: "RECEIPT" | "PAYMENT" | "REFUND"; data: ProjectMoney; busy: boolean; t: T; onCancel: () => void; onSubmit: (form: FormData, allocations: AllocationDraft[], again: boolean) => void }) {
   const [kind, setKind] = useState<Kind>(mode === "RECEIPT" ? "CUSTOMER_RECEIPT" : mode === "PAYMENT" ? "SUPPLIER_PAYMENT" : "CUSTOMER_REFUND");
   const [currency, setCurrency] = useState(data.project.currency);
   const [amount, setAmount] = useState("");
+  const [touched, setTouched] = useState(false);
   const [rate, setRate] = useState("");
   const customerSide = kind === "CUSTOMER_RECEIPT" || kind === "CUSTOMER_REFUND";
-  const needsApproval = false; // no approval step: every saved payment counts at once
-  return <form className="money-form" data-testid="movement-form" onSubmit={(event) => { event.preventDefault(); onSubmit(new FormData(event.currentTarget), needsApproval); }}>
-    <h3>{t(KINDS[kind][0], KINDS[kind][1])}</h3>
+  const [party, setParty] = useState(customerSide ? data.customer.id : data.suppliers.length === 1 ? data.suppliers[0].id : "");
+  const targetType: AllocationDraft["targetType"] | null = kind === "CUSTOMER_RECEIPT" ? "CINV" : kind === "SUPPLIER_PAYMENT" ? "SUPPLIER_INVOICE" : null;
+  const open = useMemo(() => targetType ? data.invoices.filter((i) => i.type === targetType && i.counterpartyId === party && i.currency === currency && Number(i.outstanding) > 0) : [], [data.invoices, targetType, party, currency]);
+  const [pay, setPay] = useState<Record<string, string>>({});
+  const applied = open.reduce((x, i) => x + (Number(pay[i.id] ?? 0) || 0), 0);
+  const total = touched ? Number(amount || 0) : applied;
+  const shownAmount = touched ? amount : applied ? applied.toFixed(2) : "";
+  const advance = total - applied;
+  const toggle = (id: string, outstanding: string, on: boolean) => setPay((p) => { const n = { ...p }; if (on) n[id] = Number(outstanding).toFixed(2); else delete n[id]; return n; });
+  const submit = (event: React.FormEvent<HTMLFormElement>, again: boolean) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    form.set("amount", shownAmount);
+    const allocations = targetType ? open.filter((i) => Number(pay[i.id] ?? 0) > 0).map((i) => ({ targetType, targetId: i.id, amount: Number(pay[i.id]).toFixed(2), currency })) : [];
+    onSubmit(form, allocations, again);
+  };
+  let again = false;
+  return <form className="money-form" data-testid="movement-form" onSubmit={(event) => submit(event, again)}>
+    <h3>{kind === "CUSTOMER_RECEIPT" ? t("Receive payment", "استلام دفعة") : kind === "SUPPLIER_PAYMENT" ? t("Pay bills", "دفع فواتير الموردين") : t(KINDS[kind][0], KINDS[kind][1])}</h3>
     <div className="grid">
       {mode === "REFUND" && <label>{t("Refund type", "نوع الاسترداد")}<select name="kind" value={kind} onChange={(event) => setKind(event.target.value as Kind)}>
         <option value="CUSTOMER_REFUND">{t("We refund the customer", "نرد مبلغاً للعميل")}</option><option value="SUPPLIER_REFUND">{t("Supplier refunds us", "المورد يرد لنا مبلغاً")}</option></select></label>}
       {mode !== "REFUND" && <input type="hidden" name="kind" value={kind}/>}
       {customerSide ? <><input type="hidden" name="counterpartyId" value={data.customer.id}/><label>{t("Customer", "العميل")}<input value={data.customer.name} readOnly/></label></>
-        : <label>{t("Supplier", "المورد")}<select name="counterpartyId" required defaultValue={data.suppliers.length === 1 ? data.suppliers[0].id : ""}>
+        : <label>{t("Supplier", "المورد")}<select name="counterpartyId" required value={party} onChange={(event) => { setParty(event.target.value); setPay({}); }}>
           <option value="" disabled>{t("Choose…", "اختر…")}</option>{data.suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>}
-      <label>{t("Amount", "المبلغ")}<input name="amount" value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" required dir="ltr"/></label>
-      <RateFields t={t} currency={currency} onCurrency={setCurrency} amount={amount} rate={rate} onRate={setRate}/>
-      <label>{t("Date on the bank", "تاريخ البنك")}<input name="occurredOn" type="date" required max={today()} defaultValue={today()}/></label>
-      <label>{t("Bank reference", "مرجع البنك")}<input name="reference" required minLength={2} maxLength={80} dir="ltr"/></label>
+      <label>{customerSide ? t("Amount received", "المبلغ المستلم") : t("Amount paid", "المبلغ المدفوع")}<input name="amount" value={shownAmount} onChange={(event) => { setTouched(true); setAmount(event.target.value); }} inputMode="decimal" required dir="ltr" data-testid="movement-amount"/></label>
+      <RateFields t={t} currency={currency} onCurrency={(c) => { setCurrency(c); setPay({}); }} amount={shownAmount} rate={rate} onRate={setRate}/>
+      <label>{t("Payment date", "تاريخ الدفع")}<input name="occurredOn" type="date" required max={today()} defaultValue={today()}/></label>
+      <label>{t("Reference no.", "رقم المرجع")}<input name="reference" required minLength={2} maxLength={80} dir="ltr"/></label>
     </div>
-    <label>{t("Notes (optional)", "ملاحظات (اختياري)")}<input name="notes" maxLength={500}/></label>
-    <label>{t("Bank slip / transfer confirmation (PDF, JPG or PNG)", "إيصال البنك / تأكيد التحويل (PDF أو JPG أو PNG)")}<input name="file" type="file" required accept="application/pdf,image/jpeg,image/png"/></label>
-    <div className="money-buttons"><button type="submit" className="orb-button-filled" disabled={busy}>{t("Save", "حفظ")}</button><button type="button" onClick={onCancel}>{t("Back", "رجوع")}</button></div>
+    {targetType && <section className="money-open" aria-label={t("Outstanding transactions", "المعاملات المستحقة")} data-testid="open-invoices">
+      <h4>{t("Outstanding transactions", "المعاملات المستحقة")}</h4>
+      {open.length === 0 ? <p className="orb-muted">{t("No open invoices for this party in this currency. The amount is kept as an advance.", "لا توجد فواتير مفتوحة لهذا الطرف بهذه العملة. يُحفظ المبلغ كدفعة مقدمة.")}</p>
+        : <table><thead><tr><th/><th>{t("Invoice", "الفاتورة")}</th><th>{t("Date", "التاريخ")}</th><th className="num">{t("Original amount", "المبلغ الأصلي")}</th><th className="num">{t("Open balance", "الرصيد المفتوح")}</th><th className="num">{t("Payment", "الدفعة")}</th></tr></thead>
+          <tbody>{open.map((i) => <tr key={i.id}>
+            <td><input type="checkbox" aria-label={i.reference} checked={pay[i.id] !== undefined} onChange={(e) => toggle(i.id, i.outstanding, e.target.checked)}/></td>
+            <td><bdi>{i.reference}</bdi></td><td>{i.invoiceDate}</td><td className="num">{fmt(i.amount)}</td><td className="num">{fmt(i.outstanding)}</td>
+            <td className="num"><input className="money-pay" inputMode="decimal" dir="ltr" value={pay[i.id] ?? ""} aria-label={t(`Payment for ${i.reference}`, `دفعة ${i.reference}`)}
+              onChange={(e) => setPay((p) => ({ ...p, [i.id]: e.target.value }))}/></td></tr>)}</tbody></table>}
+      <p className="money-applied" data-testid="money-applied">{t("Amount to apply", "المبلغ المطبق")}: <bdi>{currency} {fmt(applied)}</bdi>
+        {advance > 0.004 && <> · <strong>{t("Advance kept on account", "دفعة مقدمة تبقى على الحساب")}: <bdi>{currency} {fmt(advance)}</bdi></strong></>}
+        {advance < -0.004 && <> · <strong className="money-warn">{t("The payments are more than the amount", "الدفعات أكبر من المبلغ")}</strong></>}</p>
+    </section>}
+    <label>{t("Memo (optional)", "ملاحظة (اختياري)")}<input name="notes" maxLength={500}/></label>
+    <label>{t("Attachment (optional) — bank slip or transfer confirmation", "مرفق (اختياري) — إيصال البنك أو تأكيد التحويل")}<input name="file" type="file" accept="application/pdf,image/jpeg,image/png"/></label>
+    <div className="money-buttons">
+      <button type="submit" className="orb-button-filled" disabled={busy || advance < -0.004} onClick={() => { again = false; }}>{t("Save and close", "حفظ وإغلاق")}</button>
+      <button type="submit" disabled={busy || advance < -0.004} onClick={() => { again = true; }} data-testid="save-and-new">{t("Save and new", "حفظ وجديد")}</button>
+      <button type="button" onClick={onCancel}>{t("Cancel", "إلغاء")}</button></div>
   </form>;
 }
 
@@ -265,7 +314,8 @@ function AllocateForm({ movement, invoices, busy, t, onCancel, onSubmit }: { mov
   </form>;
 }
 
-function ExpenseForm({ data, busy, t, ar, onCancel, onSubmit }: { data: ProjectMoney; busy: boolean; t: T; ar: boolean; onCancel: () => void; onSubmit: (form: FormData) => void }) {
+function ExpenseForm({ data, busy, t, ar, onCancel, onSubmit }: { data: ProjectMoney; busy: boolean; t: T; ar: boolean; onCancel: () => void; onSubmit: (form: FormData, again: boolean) => void }) {
+  let again = false;
   const [currency, setCurrency] = useState(data.project.currency);
   const [amount, setAmount] = useState("");
   const [rate, setRate] = useState("");
@@ -277,7 +327,7 @@ function ExpenseForm({ data, busy, t, ar, onCancel, onSubmit }: { data: ProjectM
     form.delete("shipment");
     if (shipment) { const [type, id] = shipment.split(":"); form.set("shipmentType", type); form.set("shipmentId", id); }
     if (payee && payee !== "OTHER") { form.set("supplierId", payee); form.delete("payeeName"); }
-    onSubmit(form);
+    onSubmit(form, again);
   }}>
     <h3>{t("Record expense", "تسجيل مصروف")}</h3>
     <div className="grid">
@@ -294,7 +344,8 @@ function ExpenseForm({ data, busy, t, ar, onCancel, onSubmit }: { data: ProjectM
     </div>
     <label>{t("Description (optional)", "الوصف (اختياري)")}<input name="description" maxLength={300}/></label>
     <label>{t("Bill or receipt (PDF, JPG or PNG)", "الفاتورة أو الإيصال (PDF أو JPG أو PNG)")}<input name="file" type="file" required accept="application/pdf,image/jpeg,image/png"/></label>
-    <div className="money-buttons"><button type="submit" className="orb-button-filled" disabled={busy}>{t("Save", "حفظ")}</button><button type="button" onClick={onCancel}>{t("Back", "رجوع")}</button></div>
+    <div className="money-buttons"><button type="submit" className="orb-button-filled" disabled={busy} onClick={() => { again = false; }}>{t("Save and close", "حفظ وإغلاق")}</button>
+      <button type="submit" disabled={busy} onClick={() => { again = true; }}>{t("Save and new", "حفظ وجديد")}</button><button type="button" onClick={onCancel}>{t("Cancel", "إلغاء")}</button></div>
   </form>;
 }
 
@@ -307,6 +358,11 @@ const STYLES = `
   .orb-money .money-buttons{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
   .orb-money .money-form{display:grid;gap:10px;padding:16px;border:1px solid var(--orb-color-outline-variant);border-radius:16px;margin-block:12px;background:var(--orb-color-surface-bright)}
   .orb-money .money-form h3{margin:0;font-size:1rem}
+  .orb-money .money-form > *{grid-column:1/-1}
+  .orb-erp.orb-money .money-open input[type=checkbox]{inline-size:18px!important;block-size:18px!important;min-height:0!important;padding:0!important}
+  .orb-money .money-open{border:1px solid var(--orb-color-outline-variant);border-radius:12px;padding:12px;overflow-x:auto}.orb-money .money-open h4{margin:0 0 8px}
+  .orb-money .money-open table{width:100%;border-collapse:collapse}.orb-money .money-open th,.orb-money .money-open td{padding:6px 8px;border-bottom:1px solid var(--orb-color-outline-variant);text-align:start}
+  .orb-money .money-open .num{text-align:end}.orb-money .money-pay{max-width:140px;text-align:end}.orb-money .money-applied{margin:8px 0 0}.orb-money .money-warn{color:var(--orb-color-error,#b3261e)}
   .orb-money .money-form label{display:grid;gap:4px;font-weight:600;font-size:.88rem}
   .orb-money .money-form .grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
   .orb-money .money-card{border:1px solid var(--orb-color-outline-variant);border-radius:16px;padding:16px;margin-block:12px}

@@ -288,16 +288,17 @@ export class PrismaMoneyStore {
 
   async recordMovement(input: {
     tenantId: string; actorId: string; projectId: string; kind: MovementKind; counterpartyId: string; amount: string; currency: string;
-    fxRate: string; occurredOn: string; reference: string; notes: string | null; document: UploadedDocument;
+    fxRate: string; occurredOn: string; reference: string; notes: string | null; document: UploadedDocument | null;
   }): Promise<MovementSummary> {
     const rule = MOVEMENT_KINDS[input.kind];
     await this.checkMovementParty(this.client, input);
-    const evidenceId = await uuid(this.client);
-    const stored = await putDocument(input.document, evidenceId);
+    // The bank slip is optional (QuickBooks-style attachment box); when given it is stored and linked like any evidence.
+    const evidenceId = input.document ? await uuid(this.client) : null;
+    const stored = input.document && evidenceId ? await putDocument(input.document, evidenceId) : null;
     return this.client.$transaction(async (tx) => {
       await this.checkMovementParty(tx, input);
       const movementId = await uuid(tx);
-      await recordDocument(tx, { evidenceId, projectId: input.projectId, actorId: input.actorId, document: input.document, stored, subjectType: "MONEY_MOVEMENT", subjectId: movementId, purpose: "BANK_SLIP", parentType: "PROJECT", parentId: input.projectId });
+      if (input.document && evidenceId && stored) await recordDocument(tx, { evidenceId, projectId: input.projectId, actorId: input.actorId, document: input.document, stored, subjectType: "MONEY_MOVEMENT", subjectId: movementId, purpose: "BANK_SLIP", parentType: "PROJECT", parentId: input.projectId });
       await tx.$executeRawUnsafe(
         `INSERT INTO "MoneyMovement" ("id","project_id","tenant_id","customer_master_id","supplier_master_id","kind","direction","amount","currency","occurred_on","reference","evidence_id","state",
                                       "aed_amount","fx_rate","fx_date","fx_source","notes","recorded_by","recorded_at")
