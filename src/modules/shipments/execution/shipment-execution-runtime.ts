@@ -27,7 +27,7 @@ import { createMoneyService, type MoneyService } from "../../money/money-service
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { PrismaProfitStore } from "../../profit/profit-store.ts";
 // @ts-expect-error Native Node TypeScript tests require source extensions.
-import { createProfitService, type ProfitService } from "../../profit/profit-service.ts";
+import { createProfitService, type ProfitService } from "../../profit/project-profit-service.ts";
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { PrismaShipmentQueueStore } from "../shipment-queue-store.ts";
 
