@@ -61,7 +61,7 @@ test("OpenAPI exposes typed operational reports without ledger or inventory conc
   const operation = api.paths["/reports/{reportType}"].get;
   assert.equal(operation.operationId, "runOperationalReport");
   assert.deepEqual(operation["x-required-roles"], ["OWNER_ADMIN", "FINANCE_VIEWER"]);
-  assert.deepEqual(operation.parameters[0].schema.enum, ["contract-fulfillment", "accounts", "project-profitability"]);
+  assert.deepEqual(operation.parameters[0].schema.enum, ["contract-fulfillment", "accounts", "project-profitability", "product-movement"]);
   assert.equal(operation.responses["200"].content["application/json"].schema.$ref, "#/components/schemas/OperationalReportResult");
   const serialized = JSON.stringify(api.components.schemas.OperationalReportResult);
   assert.equal(serialized.includes("generalLedger"), false);

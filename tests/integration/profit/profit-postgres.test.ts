@@ -92,7 +92,7 @@ integration("project profit shows expected, shipped, actual and cash margins wit
     const row = rows.find((r) => r.project.id === projectId);
     assert.equal(row?.actual.amount, "15220.40");
     assert.equal((await report.GET(t.get(`/api/reports/project-profitability`, "ops"), params({ reportType: "project-profitability" }))).status, 403);
-    assert.equal((await report.GET(t.get(`/api/reports/contract-fulfillment`, "finance"), params({ reportType: "contract-fulfillment" }))).status, 503, "reports not wired yet say so");
+    assert.equal((await report.GET(t.get(`/api/reports/contract-fulfillment`, "finance"), params({ reportType: "contract-fulfillment" }))).status, 200, "every report runs on the database");
 
     // Shipments list: everyone sees it, without prices.
     const queue = (await t.ok<{ items: Record<string, unknown>[] }>(await shipments.GET(t.get("/api/shipments", "ops")))).items.filter((s) => s.projectId === projectId);

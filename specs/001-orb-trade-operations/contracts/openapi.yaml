@@ -92,8 +92,12 @@ paths:
         required: true
         schema:
           type: string
-          enum: [contract-fulfillment, accounts, project-profitability]
+          enum: [contract-fulfillment, accounts, project-profitability, product-movement]
       - name: projectId
+        in: query
+        required: false
+        schema: { $ref: '#/components/schemas/Uuid' }
+      - name: productId
         in: query
         required: false
         schema: { $ref: '#/components/schemas/Uuid' }

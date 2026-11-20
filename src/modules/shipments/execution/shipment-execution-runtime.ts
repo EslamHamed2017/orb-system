@@ -38,6 +38,10 @@ import { createAccountsService, type AccountsService } from "../../accounts/acco
 import { PrismaClaimsClosureStore } from "../../closure/claims-closure-store.ts";
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { createClaimsClosureService, type ClaimsClosureService } from "../../closure/claims-closure-service.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { PrismaTradeReportsStore } from "../../reports/trade-reports-store.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { createTradeReportsService, type TradeReportsService } from "../../reports/trade-reports-service.ts";
 
 let service: ShipmentExecutionService | undefined;
 let money: MoneyService | undefined;
@@ -46,6 +50,12 @@ let accounts: AccountsService | undefined;
 let invoices: InvoiceService | undefined;
 let inbox: ApprovalInboxService | undefined;
 let claimsClosure: ClaimsClosureService | undefined;
+let tradeReports: TradeReportsService | undefined;
+
+export function tradeReportsService(): TradeReportsService {
+  tradeReports ??= createTradeReportsService(new PrismaTradeReportsStore(getPrismaClient() as unknown as SqlClient));
+  return tradeReports;
+}
 
 export function shipmentExecution(): ShipmentExecutionService {
   service ??= createShipmentExecutionService(new PrismaShipmentExecutionStore(getPrismaClient() as unknown as SqlClient));

@@ -21,4 +21,11 @@ export function createProductMovementsGetHandler(dependencies: ProductMovementsR
     return NextResponse.json(await dependencies.list({ request, productId, projectId, principal }), { headers: { "Cache-Control": "no-store" } });
   };
 }
-export const GET = createProductMovementsGetHandler({ authenticate: async () => null });
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { mapShipmentErrors, shipmentActor, tradeReportsService } from "../../../../../modules/shipments/execution/shipment-execution-runtime.ts";
+
+/** A product's confirmed inbound (supplier shipments) and outbound (customer shipments) movements across projects. */
+export const GET = mapShipmentErrors(createProductMovementsGetHandler({
+  authenticate: (request) => shipmentActor(request) as never,
+  list: ({ productId, projectId, principal }) => tradeReportsService().productMovements(principal as never, productId, projectId),
+}) as never);
