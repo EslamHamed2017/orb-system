@@ -25,12 +25,12 @@ test("tablet uses a compact rail", async ({ page }) => {
   await expect(page.locator('[data-navigation="bottom"]')).toBeHidden();
 });
 
-test("narrow screens use Today, Projects, Approvals and More bottom navigation", async ({ page }) => {
+test("narrow screens use Home, Sales, Expenses, Projects and More bottom navigation", async ({ page }) => {
   await open(page, 390);
   await expect(page.locator('[data-navigation="rail"]')).toBeHidden();
   const bottom = page.locator('[data-navigation="bottom"]');
   await expect(bottom).toBeVisible();
-  for (const name of [/today/i, /projects/i, /approvals/i, /more/i]) {
+  for (const name of [/home/i, /sales/i, /expenses/i, /projects/i, /more/i]) {
     const item = bottom.getByRole("link", { name }).or(bottom.getByRole("button", { name }));
     await expect(item).toBeVisible();
   }

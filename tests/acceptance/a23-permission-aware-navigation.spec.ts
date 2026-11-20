@@ -6,8 +6,8 @@ test("operations navigation hides finance and administration while preserving ro
   await page.goto("/projects?locale=en");
   const rail = page.locator('[data-navigation="rail"]');
   await expect(rail.getByRole("link", { name: "Projects" })).toHaveAttribute("href", "/projects?locale=en");
-  await expect(rail.getByRole("link", { name: "Shipments" })).toBeVisible();
-  await expect(rail.getByRole("link", { name: "Accounts" })).toHaveCount(0);
+  await expect(rail.getByRole("link", { name: "Sales" })).toHaveAttribute("href", "/masters/customers?locale=en");
+  await expect(rail.getByRole("link", { name: "Reports" })).toHaveCount(0);
   await expect(rail.getByRole("link", { name: "Admin" })).toHaveCount(0);
 });
 
@@ -15,10 +15,9 @@ test("finance navigation exposes operational accounts but not trade mutation or 
   await signInAs(page, "finance");
   await page.goto("/accounts?locale=ar");
   const rail = page.locator('[data-navigation="rail"]');
-  await expect(rail.getByRole("link", { name: "الحسابات" })).toBeVisible();
+  await expect(rail.getByRole("link", { name: "المبيعات" })).toHaveAttribute("href", "/accounts/sales-invoices?locale=ar");
+  await expect(rail.getByRole("link", { name: "المصروفات" })).toHaveAttribute("href", "/accounts/expenses?locale=ar");
   await expect(rail.getByRole("link", { name: "التقارير" })).toBeVisible();
-  await expect(rail.getByRole("link", { name: "العملاء" })).toHaveAttribute("href", "/masters/customers?locale=ar");
-  await expect(rail.getByRole("link", { name: "المنتجات" })).toHaveCount(0);
   await expect(rail.getByRole("link", { name: "الإدارة" })).toHaveCount(0);
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
 });

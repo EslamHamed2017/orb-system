@@ -42,16 +42,14 @@ test("Prisma session context resolves only a current active user, membership, an
 test("production customer routes are runtime-composed and navigation exposes Customers before Suppliers", () => {
   const collection = readFileSync("src/app/api/customers/route.ts", "utf8");
   const record = readFileSync("src/app/api/customers/[customerId]/route.ts", "utf8");
-  const navigation = readFileSync("src/ui/navigation/AppNavigation.tsx", "utf8");
+  const navigation = readFileSync("src/ui/navigation/qb-navigation.ts", "utf8");
   assert.doesNotMatch(collection + record, /const unavailable/);
   for (const seam of ["customerRuntime", "service.list", "customerRuntime().create", "service.get", "customerRuntime().update"])
     assert.ok((collection + record).includes(seam), `missing production seam ${seam}`);
-  const railCustomers = navigation.indexOf('label={label("Customers", "العملاء")}');
-  const railSuppliers = navigation.indexOf('label={label("Suppliers", "الموردون")}');
-  assert.ok(railCustomers >= 0 && railCustomers < railSuppliers);
-  const dialogCustomers = navigation.indexOf('{label("Customers", "العملاء")}</a>');
-  const dialogSuppliers = navigation.indexOf('{label("Suppliers", "الموردون")}</a>');
-  assert.ok(dialogCustomers >= 0 && dialogCustomers < dialogSuppliers);
+  // Like QuickBooks: Customers sit under Sales, Suppliers under Expenses, and Sales comes first.
+  const customers = navigation.indexOf('href: "/masters/customers", en: "Customers"');
+  const suppliers = navigation.indexOf('href: "/masters/suppliers", en: "Suppliers"');
+  assert.ok(customers >= 0 && customers < suppliers);
 });
 
 

@@ -24,7 +24,7 @@ const routes = [
   "/masters/customers", "/masters/suppliers",
   "/accounts", "/accounts/collections", "/accounts/expenses", "/accounts/sales-invoices", "/accounts/supplier-invoices", "/accounts/supplier-payments",
   "/admin/backup", "/admin/roles", "/admin/users", "/approvals", "/attachments",
-  "/customers/demo", "/documents/demo", "/evidence/demo", "/masters/products", "/products/demo/movements",
+  "/customers/demo", "/documents/demo", "/evidence/demo", "/masters/products", "/new/demo", "/products/demo/movements",
   "/projects", "/projects/new", "/projects/demo/audit", "/projects/demo/claims", "/projects/demo/closure", "/projects/demo/contracts",
   "/projects/demo/documents", "/projects/demo/expenses", "/projects/demo/money", "/projects/demo/overview", "/projects/demo/profit",
   "/projects/demo/shipments", "/projects/demo/statements", "/projects/demo/transactions",

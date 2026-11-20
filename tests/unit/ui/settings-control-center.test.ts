@@ -29,7 +29,7 @@ test("settings navigation is owner-only and fails closed", () => {
 test("settings route is a bilingual control center connected to primary navigation", () => {
   const route = readFileSync("src/app/settings/page.tsx", "utf8");
   const page = readFileSync("src/ui/features/settings/SettingsControlCenterPage.tsx", "utf8");
-  const navigation = readFileSync("src/ui/navigation/AppNavigation.tsx", "utf8");
+  const navigation = readFileSync("src/ui/navigation/qb-navigation.ts", "utf8");
   assert.match(route, /SettingsControlCenterPage/);
   assert.match(page, /Settings control center/);
   assert.match(page, /مركز التحكم في الإعدادات/);
@@ -37,6 +37,5 @@ test("settings route is a bilingual control center connected to primary navigati
   assert.match(page, /Numbering and references/);
   assert.match(page, /Print and templates/);
   assert.match(page, /data-operation-id="updateSettings"/);
-  assert.match(navigation, /href={`\/settings\$\{suffix}`}/);
-  assert.match(navigation, /label={label\("Settings", "الإعدادات"\)}/);
+  assert.match(navigation, /href: "\/settings", en: "Account and settings", ar: "الحساب والإعدادات"/);
 });

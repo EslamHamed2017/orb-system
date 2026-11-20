@@ -61,12 +61,13 @@ export function AccountsWorkspace({ locale, view, projectId }: { readonly locale
 
   return <section className="orb-erp orb-accounts" dir={ar ? "rtl" : "ltr"} aria-labelledby="accounts-title">
     <EnterpriseStyles/><style>{STYLES}</style>
-    <ErpPageHeader titleId="accounts-title" eyebrow={t("Accounts", "الحسابات")} title={view === "hub" ? t("Accounts", "الحسابات") : t(title[1], title[2])}
+    <ErpPageHeader titleId="accounts-title" eyebrow={view === "hub" ? t("Accounts", "الحسابات") : ["sales-invoices", "collections"].includes(view) ? t("Sales", "المبيعات") : t("Expenses", "المصروفات")} title={view === "hub" ? t("Accounts", "الحسابات") : t(title[1], title[2])}
       description={t("Live records of all projects for your company. Operational totals, not a general ledger.", "سجلات فعلية لكل مشاريع شركتك. أرقام تشغيلية وليست دفتر أستاذ عام.")}/>
-    <nav className="accounts-tabs" aria-label={t("Accounts sections", "أقسام الحسابات")}>
+    {/* Sales and Expenses pages get their tabs from the app menu; the overview keeps the full list. */}
+    {view === "hub" && <nav className="accounts-tabs" aria-label={t("Accounts sections", "أقسام الحسابات")}>
       {TABS.map(([v, en, a]) => <a key={v} href={q(v === "hub" ? "/accounts" : `/accounts/${v}`)} aria-current={v === view ? "page" : undefined}>{t(en, a)}</a>)}
       <a href={`/reports/accounts?locale=${locale}`}>{t("Accounts report", "تقرير الحسابات")}</a>
-    </nav>
+    </nav>}
     {projectId && <p className="orb-muted">{t("Showing one project.", "عرض مشروع واحد.")} <a href={`${view === "hub" ? "/accounts" : `/accounts/${view}`}?locale=${locale}`}>{t("Show all projects", "عرض كل المشاريع")}</a></p>}
 
     {problem ? <p role="alert" className="accounts-alert">{problem.status === 403 ? t("Accounts are for finance and owners.", "الحسابات للمالية والمالك.") : t("Accounts could not be loaded.", "تعذر تحميل الحسابات.")} {problem.status !== 403 && <button type="button" onClick={() => void load()}>{t("Try again", "حاول مرة أخرى")}</button>}</p>

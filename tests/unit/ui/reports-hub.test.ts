@@ -35,13 +35,12 @@ test("Reports hub filter action preserves locale and permission context and omit
 test("Reports is an independent bilingual primary destination with operational-only semantics", () => {
   const page = readFileSync("src/ui/features/reports/ReportsHubPage.tsx", "utf8");
   const route = readFileSync("src/app/reports/page.tsx", "utf8");
-  const navigation = readFileSync("src/ui/navigation/AppNavigation.tsx", "utf8");
+  const navigation = readFileSync("src/ui/navigation/qb-navigation.ts", "utf8");
   assert.match(route, /ReportsHubPage/);
   assert.match(page, /Reports hub/);
   assert.match(page, /مركز التقارير/);
   assert.match(page, /Operational reports/);
   assert.match(page, /تقارير تشغيلية/);
   assert.match(page, /No general ledger, stock balance or inventory valuation/);
-  assert.match(navigation, /href={`\/reports\$\{suffix}`}/);
-  assert.match(navigation, /pathname\.startsWith\("\/reports"\)/);
+  assert.match(navigation, /href: "\/reports", access: \["reports"\], prefixes: \["\/reports"\]/);
 });

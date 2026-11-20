@@ -1,8 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const locales = [
-  { locale: "en", direction: "ltr", today: /today/i, projects: /projects/i, approvals: /approvals/i },
-  { locale: "ar", direction: "rtl", today: /اليوم/, projects: /المشاريع/, approvals: /الموافقات/ },
+  { locale: "en", direction: "ltr", today: /^home$/i, projects: /^projects$/i, approvals: /^sales$/i },
+  { locale: "ar", direction: "rtl", today: /^الرئيسية$/, projects: /^المشاريع$/, approvals: /^المبيعات$/ },
 ] as const;
 const viewports = [
   { name: "desktop", width: 1440, height: 900 },
@@ -26,9 +26,9 @@ for (const language of locales) {
       await expect(page.locator("html")).toHaveAttribute("dir", language.direction);
       await expect(page.getByRole("banner")).toBeVisible();
       await expect(page.getByRole("navigation", { name: /primary|الرئيسية/i })).toBeVisible();
-      await expect(page.getByRole("link", { name: language.today })).toBeVisible();
-      await expect(page.getByRole("link", { name: language.projects })).toBeVisible();
-      await expect(page.getByRole("link", { name: language.approvals })).toBeVisible();
+      await expect(page.getByRole("link", { name: language.today }).first()).toBeVisible();
+      await expect(page.getByRole("link", { name: language.projects }).first()).toBeVisible();
+      await expect(page.getByRole("link", { name: language.approvals }).first()).toBeVisible();
 
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow, "the page must not scroll horizontally, including at 320 CSS px").toBeLessThanOrEqual(1);
