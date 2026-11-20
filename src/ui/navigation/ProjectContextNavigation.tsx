@@ -70,7 +70,7 @@ export function ProjectContextNavigation({ locale, projectId, projectLabel, curr
 
   const add = (href: string) => `${root}/${href}${href.includes("?") ? "&" : "?"}locale=${locale}`;
   const addGroups: [string, [string, string, boolean][]][] = [
-    [t("Customer", "العميل"), [[t("Invoice", "فاتورة"), "shipments?flow=sales", finance], [t("Receive payment", "استلام دفعة"), "money?new=RECEIPT", finance], [t("Refund to customer", "رد مبلغ للعميل"), "money?new=REFUND", finance], [t("Customer shipment", "شحنة للعميل"), "shipments?flow=sales", ops]]],
+    [t("Customer", "العميل"), [[t("Invoice", "فاتورة"), "invoices/new", finance], [t("Receive payment", "استلام دفعة"), "money?new=RECEIPT", finance], [t("Refund to customer", "رد مبلغ للعميل"), "money?new=REFUND", finance], [t("Customer shipment", "شحنة للعميل"), "shipments?flow=sales", ops]]],
     [t("Supplier", "المورد"), [[t("Bill", "فاتورة مورد"), "shipments?flow=supplier", finance], [t("Pay bill", "دفع فاتورة"), "money?new=PAYMENT", finance], [t("Supplier shipment", "شحنة من المورد"), "shipments?flow=supplier", ops], [t("Purchase contract", "عقد شراء"), "contracts", ops]]],
     [t("Other", "أخرى"), [[t("Expense", "مصروف"), "expenses?new=1", ops || finance], [t("Claim", "مطالبة"), "claims?new=1", ops]]],
   ];

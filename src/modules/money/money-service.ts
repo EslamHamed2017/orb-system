@@ -99,7 +99,7 @@ export function createMoneyService(store: MoneyStore) {
       return { ...money, movements: [], invoices: [], totals: [], canManageMoney: false };
     },
 
-    /** multipart/form-data: kind, counterpartyId, amount, currency, fxRate, occurredOn, reference, notes?, file (bank slip). */
+    /** multipart/form-data: kind, counterpartyId, amount, currency, fxRate, occurredOn, reference, notes?, file? (bank slip, optional). */
     async recordMovement(actor: ShipmentActor, projectId: unknown, form: FormData) {
       requireRole(actor, FINANCE);
       const kind = field(form, "kind") as MovementKind;
@@ -112,7 +112,9 @@ export function createMoneyService(store: MoneyStore) {
         occurredOn: date(field(form, "occurredOn"), "Date"), reference: text(field(form, "reference"), "Bank reference", 2, 80).toUpperCase(),
         notes: optionalText(field(form, "notes"), "Notes", 500),
       };
-      return guarded(async () => store.recordMovement({ ...input, document: await documentOf(form, "bank slip or transfer confirmation") }));
+      const file = form.get("file");
+      const hasFile = file instanceof File && file.size > 0;
+      return guarded(async () => store.recordMovement({ ...input, document: hasFile ? await documentOf(form, "bank slip or transfer confirmation") : null }));
     },
 
     async allocate(actor: ShipmentActor, movementId: unknown, body: unknown) {

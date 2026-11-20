@@ -75,7 +75,7 @@ export const NEW_MENU: readonly { readonly en: string; readonly ar: string; read
 
 /** Where each project-bound "+ New" item lands once a project is chosen. */
 export const NEW_IN_PROJECT: Readonly<Record<string, { readonly en: string; readonly ar: string; readonly path: string }>> = Object.freeze({
-  "invoice": { en: "Invoice", ar: "فاتورة", path: "shipments?flow=sales" },
+  "invoice": { en: "Invoice", ar: "فاتورة", path: "invoices/new" },
   "receive-payment": { en: "Receive payment", ar: "استلام دفعة", path: "money" },
   "customer-refund": { en: "Refund to customer", ar: "استرداد للعميل", path: "money" },
   "purchase-contract": { en: "Purchase contract", ar: "عقد شراء", path: "contracts" },
