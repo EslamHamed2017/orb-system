@@ -11,7 +11,7 @@ for (const locale of ["en", "ar"] as const) {
     await expect(breadcrumb.getByRole("link", { name: projectId })).toHaveAttribute("href", `/projects/${projectId}/overview?locale=${locale}`);
 
     const related = page.getByRole("navigation", { name: locale === "ar" ? "مساحة عمل المشروع" : "Project workspace" });
-    await expect(related.getByRole("link")).toHaveCount(9);
+    await expect(related.getByRole("link")).toHaveCount(10);
     await expect(related.getByRole("link", { name: locale === "ar" ? "العقود" : "Contracts" })).toHaveAttribute("href", `/projects/${projectId}/contracts?locale=${locale}`);
     await expect(related.getByRole("link", { name: locale === "ar" ? "حاوية الموردين" : "Supplier container" })).toHaveAttribute("href", `/projects/${projectId}/shipments?locale=${locale}#supplier-dataset`);
     await expect(related.getByRole("link", { name: locale === "ar" ? "الحسابات" : "Accounts" })).toHaveAttribute("href", `/projects/${projectId}/money?locale=${locale}`);

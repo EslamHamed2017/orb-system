@@ -34,6 +34,10 @@ import { PrismaShipmentQueueStore } from "../shipment-queue-store.ts";
 import { PrismaAccountsStore } from "../../accounts/accounts-store.ts";
 // @ts-expect-error Native Node TypeScript tests require source extensions.
 import { createAccountsService, type AccountsService } from "../../accounts/accounts-service.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { PrismaClaimsClosureStore } from "../../closure/claims-closure-store.ts";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { createClaimsClosureService, type ClaimsClosureService } from "../../closure/claims-closure-service.ts";
 
 let service: ShipmentExecutionService | undefined;
 let money: MoneyService | undefined;
@@ -41,6 +45,7 @@ let profit: ProfitService | undefined;
 let accounts: AccountsService | undefined;
 let invoices: InvoiceService | undefined;
 let inbox: ApprovalInboxService | undefined;
+let claimsClosure: ClaimsClosureService | undefined;
 
 export function shipmentExecution(): ShipmentExecutionService {
   service ??= createShipmentExecutionService(new PrismaShipmentExecutionStore(getPrismaClient() as unknown as SqlClient));
@@ -68,8 +73,13 @@ export function accountsService(): AccountsService {
   return accounts;
 }
 
+export function claimsClosureService(): ClaimsClosureService {
+  claimsClosure ??= createClaimsClosureService(new PrismaClaimsClosureStore(getPrismaClient() as unknown as SqlClient));
+  return claimsClosure;
+}
+
 export function approvalInbox(): ApprovalInboxService {
-  inbox ??= createApprovalInboxService(shipmentExecution(), new PrismaContractApprovalStore(getPrismaClient() as unknown as SqlClient), invoiceService(), new PrismaInvoiceStore(getPrismaClient() as unknown as SqlClient), moneyService());
+  inbox ??= createApprovalInboxService(shipmentExecution(), new PrismaContractApprovalStore(getPrismaClient() as unknown as SqlClient), invoiceService(), new PrismaInvoiceStore(getPrismaClient() as unknown as SqlClient), moneyService(), claimsClosureService());
   return inbox;
 }
 
@@ -114,6 +124,8 @@ export function mapShipmentErrors<A extends unknown[]>(handler: (...args: A) => 
     } catch (error) {
       if (error instanceof ShipmentProblem || error instanceof AccessProblem) return accessProblemResponse(error.status, error.code, error.detail);
       if ((error as { code?: string })?.code === "DEPENDENCY_UNAVAILABLE") return accessProblemResponse(503, "DEPENDENCY_UNAVAILABLE");
+      // The database refuses changes to a finally closed project (see migration 202611230001).
+      if (String((error as { message?: string })?.message ?? "").includes("ORB_PROJECT_CLOSED")) return accessProblemResponse(409, "STATE_CONFLICT", "This project is closed. Reopen it to make changes.");
       console.error("shipment route failed", error instanceof Error ? error.message : "unknown");
       return accessProblemResponse(500, "INTERNAL_ERROR");
     }

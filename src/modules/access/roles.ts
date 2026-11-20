@@ -262,6 +262,16 @@ const OPERATION_ROLES = Object.freeze({
     "OPERATIONS",
     "FINANCE_VIEWER"
   ],
+  "getProjectClaims": [
+    "OWNER_ADMIN",
+    "OPERATIONS",
+    "FINANCE_VIEWER"
+  ],
+  "getProjectClosure": [
+    "OWNER_ADMIN",
+    "OPERATIONS",
+    "FINANCE_VIEWER"
+  ],
   "recordMoneyMovement": [
     "OWNER_ADMIN",
     "FINANCE_VIEWER"

@@ -30,7 +30,7 @@ test("claims expose only open, review, exact outcome submission and approved app
   const actual = Object.values(api.paths).flatMap((item: any) => Object.values(item))
     .filter((operation: any) => operation?.tags?.includes("Claims"))
     .map((operation: any) => operation.operationId).sort();
-  assert.deepEqual(actual, operations.map(([, operationId]) => operationId).sort(),
+  assert.deepEqual(actual, [...operations.map(([, operationId]) => operationId), "getProjectClaims"].sort(),
     "no direct terminal, settlement, compensation, logistics, discount or netting claim command may exist");
 });
 
@@ -41,20 +41,20 @@ test("every claim mutation requires the exact aggregate version, idempotency key
   }
 });
 
-test("open input fixes claim types, parties, shipment links, optional measures and evidence", () => {
+test("open input fixes claim types, the shipment it is raised on, optional measures and the evidence file", () => {
   const open = post("/projects/{projectId}/claims");
   assert.equal(open.requestBody.required, true);
-  assert.equal(open.requestBody.content["application/json"].schema.$ref, "#/components/schemas/ClaimInput");
+  assert.equal(open.requestBody.content["multipart/form-data"].schema.$ref, "#/components/schemas/ClaimInput");
   assert.equal(open.responses["201"].$ref, "#/components/responses/Entity");
+  assert.deepEqual(api.paths["/projects/{projectId}/claims"].get["x-required-roles"], ["OWNER_ADMIN", "OPERATIONS", "FINANCE_VIEWER"]);
   const schema = api.components.schemas.ClaimInput;
-  assert.deepEqual(schema.required, ["type", "claimantId", "respondentId", "description"]);
+  assert.deepEqual(schema.required, ["type", "shipmentId", "description", "file"]);
   assert.deepEqual(schema.properties.type.enum, ["QUANTITY", "WEIGHT", "QUALITY", "DELIVERY", "PRICE", "DOCUMENT"]);
-  assert.equal(schema.properties.salesShipmentId.$ref, "#/components/schemas/Uuid");
-  assert.equal(schema.properties.supplierShipmentId.$ref, "#/components/schemas/Uuid");
+  assert.equal(schema.properties.shipmentId.$ref, "#/components/schemas/Uuid");
   assert.equal(schema.properties.quantity.$ref, "#/components/schemas/Decimal");
   assert.equal(schema.properties.amount.$ref, "#/components/schemas/Decimal");
   assert.equal(schema.properties.currency.$ref, "#/components/schemas/Currency");
-  assert.equal(schema.properties.evidenceId.$ref, "#/components/schemas/Uuid");
+  assert.equal(schema.properties.file.format, "binary");
   for (const forbidden of ["discount", "replacementLogistics", "compensation", "netting", "settlement"])
     assert.equal(schema.properties[forbidden], undefined, forbidden);
 });
@@ -76,7 +76,7 @@ test("outcome submission binds a closed exact proposal while apply accepts only 
   const proposal = api.components.schemas.ClaimOutcomeInput;
   assert.equal(proposal.additionalProperties, false);
   assert.deepEqual(proposal.required, ["outcome", "reason"]);
-  assert.deepEqual(Object.keys(proposal.properties), ["outcome", "reason", "evidenceId"]);
+  assert.deepEqual(Object.keys(proposal.properties), ["outcome", "reason", "amount", "currency", "evidenceId"]);
   assert.deepEqual(proposal.properties.outcome.enum, ["RESOLVED", "REJECTED"]);
   assert.match(proposal.description, /bound to claim version\/hash/i);
   assert.match(proposal.description, /does not change claim terminal state/i);

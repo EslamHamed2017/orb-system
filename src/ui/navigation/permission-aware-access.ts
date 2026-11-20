@@ -14,7 +14,7 @@ const NAVIGATION_ACCESS: Readonly<Record<UiRole, readonly NavigationDestination[
 const ADMINISTRATION_OPERATIONS = /(?:User|Role|Permission|Session|IsolatedRestore|Settings)/;
 const FINANCE_OPERATIONS = /(?:Invoice|Money|Settlement|Expense|Collection|Payment|Account|Profit)/;
 const OWNER_ONLY_OPERATIONS = /^(?:decideFixedApproval|finalCloseProject|reopenProject|cancelUnexecutedProject)$/;
-const OPERATIONS_OPERATIONS = /(?:Project|Contract|Shipment|Container|Master|Product|Supplier|Customer|Evidence|Document|Route|Claim|Manifest|Closure|^createDirectExpense$|^submitDirectExpense$)/;
+const OPERATIONS_OPERATIONS = /(?:Project|Contract|Shipment|Container|Master|Product|Supplier|Customer|Evidence|Document|Route|Claim|Manifest|Closure|^createDirectExpense$|^submitDirectExpense$|^submitFinalCloseForApproval$|^submitReopenForApproval$)/;
 
 function normalizeRole(role: string | null | undefined): UiRole {
   if (!role || role === "owner-admin" || role === "OWNER_ADMIN") return "owner-admin";

@@ -8,6 +8,8 @@ import type { InvoiceService } from "../invoices/invoice-service.ts";
 import type { InvoiceApprovalItem, PrismaInvoiceStore } from "../invoices/invoice-store.ts";
 import type { MoneyService } from "../money/money-service.ts";
 import type { MoneyApprovalItem } from "../money/money-store.ts";
+import type { ClaimsClosureService } from "../closure/claims-closure-service.ts";
+import type { ClaimClosureApprovalItem } from "../closure/claims-closure-store.ts";
 
 type ContractStore = Pick<PrismaContractApprovalStore, keyof PrismaContractApprovalStore>;
 type InvoiceReads = Pick<PrismaInvoiceStore, "listPendingApprovals" | "approvalSubject">;
@@ -23,15 +25,16 @@ function translate(error: unknown): never {
   throw error;
 }
 
-/** One owner inbox for every approval kind wired so far: contracts, shipment confirmations, supplier invoices, payments and expenses. */
-export function createApprovalInboxService(shipments: ShipmentExecutionService, contracts: ContractStore, invoices?: InvoiceService, invoiceReads?: InvoiceReads, money?: MoneyService) {
+/** One owner inbox for every approval kind wired so far: contracts, shipment confirmations, supplier invoices, payments, expenses, claim outcomes and project close / reopen. */
+export function createApprovalInboxService(shipments: ShipmentExecutionService, contracts: ContractStore, invoices?: InvoiceService, invoiceReads?: InvoiceReads, money?: MoneyService, claimsClosure?: ClaimsClosureService) {
   return Object.freeze({
-    async list(actor: ShipmentActor): Promise<{ items: (ApprovalInboxItem | ContractInboxItem | InvoiceApprovalItem | MoneyApprovalItem)[] }> {
+    async list(actor: ShipmentActor): Promise<{ items: (ApprovalInboxItem | ContractInboxItem | InvoiceApprovalItem | MoneyApprovalItem | ClaimClosureApprovalItem)[] }> {
       const shipmentItems = (await shipments.listApprovals(actor)).items;
       const contractItems = await contracts.listPending(actor.tenantId);
       const invoiceItems = invoiceReads ? await invoiceReads.listPendingApprovals(actor.tenantId) : [];
       const moneyItems = money ? await money.listApprovals(actor) : [];
-      return { items: [...contractItems, ...shipmentItems, ...invoiceItems, ...moneyItems].sort((a, b) => a.id.localeCompare(b.id)) };
+      const closureItems = claimsClosure ? await claimsClosure.listApprovals(actor) : [];
+      return { items: [...contractItems, ...shipmentItems, ...invoiceItems, ...moneyItems, ...closureItems].sort((a, b) => a.id.localeCompare(b.id)) };
     },
 
     async decide(actor: ShipmentActor, approvalId: unknown, body: Record<string, unknown>, idempotencyKey: string) {
@@ -45,6 +48,14 @@ export function createApprovalInboxService(shipments: ShipmentExecutionService, 
         const comment = typeof body.comment === "string" && body.comment.trim() ? body.comment.trim().slice(0, 500) : null;
         if (decision === "APPROVED" || decision === "REJECTED") {
           const result = await money.decide(actor, approvalId, { decision, comment });
+          if (result) return result;
+        }
+      }
+      if (claimsClosure) {
+        const decision = body.decision;
+        const comment = typeof body.comment === "string" && body.comment.trim() ? body.comment.trim().slice(0, 500) : null;
+        if (decision === "APPROVED" || decision === "REJECTED") {
+          const result = await claimsClosure.decide(actor, approvalId, { decision, comment });
           if (result) return result;
         }
       }

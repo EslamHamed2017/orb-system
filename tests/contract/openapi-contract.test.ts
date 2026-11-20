@@ -12,7 +12,7 @@ const HTTP_METHODS = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', '
 const ROLES = new Set(['OWNER_ADMIN', 'OPERATIONS', 'FINANCE_VIEWER']);
 const REF = '$ref';
 const roleGroups = [
-  [['OWNER_ADMIN', 'OPERATIONS', 'FINANCE_VIEWER'], ['getCurrentSession', 'listShipments', 'getProjectMoney', 'createDirectExpense', 'changeOwnPassword', 'listCustomers', 'getCustomer', 'listSuppliers', 'getSupplier', 'listProducts', 'getProduct', 'listProductMovements', 'getSupplierContainerConsolidation', 'listMasterRecords', 'listProjects', 'getProject', 'getFixedRouteChecklist', 'listEvidence', 'getEvidenceMetadata', 'viewOrDownloadEvidence', 'getDocumentGenerationStatus', 'getOperationalStatement', 'requestClosureException', 'submitFinalCloseForApproval', 'submitReopenForApproval', 'listProjectAuditEvents', 'listSupplierShipmentDatasetHistory', 'listSalesShipmentDatasetHistory', 'getOutboundManifestExactPreview', 'listOutboundSendAttempts', 'signOutCurrentSession', 'getSupplierShipmentWorkspace', 'getSalesShipmentWorkspace', 'listSupplierShipmentLines', 'getSupplierShipmentLine', 'listSalesShipmentLines', 'getSalesShipmentLine', 'getContractLineFulfillment', 'listContractLines', 'getContractLine', 'listContractLineVersions']],
+  [['OWNER_ADMIN', 'OPERATIONS', 'FINANCE_VIEWER'], ['getCurrentSession', 'listShipments', 'getProjectMoney', 'getProjectClaims', 'getProjectClosure', 'createDirectExpense', 'changeOwnPassword', 'listCustomers', 'getCustomer', 'listSuppliers', 'getSupplier', 'listProducts', 'getProduct', 'listProductMovements', 'getSupplierContainerConsolidation', 'listMasterRecords', 'listProjects', 'getProject', 'getFixedRouteChecklist', 'listEvidence', 'getEvidenceMetadata', 'viewOrDownloadEvidence', 'getDocumentGenerationStatus', 'getOperationalStatement', 'requestClosureException', 'submitFinalCloseForApproval', 'submitReopenForApproval', 'listProjectAuditEvents', 'listSupplierShipmentDatasetHistory', 'listSalesShipmentDatasetHistory', 'getOutboundManifestExactPreview', 'listOutboundSendAttempts', 'signOutCurrentSession', 'getSupplierShipmentWorkspace', 'getSalesShipmentWorkspace', 'listSupplierShipmentLines', 'getSupplierShipmentLine', 'listSalesShipmentLines', 'getSalesShipmentLine', 'getContractLineFulfillment', 'listContractLines', 'getContractLine', 'listContractLineVersions']],
   [['OWNER_ADMIN', 'OPERATIONS'], ['createCustomer', 'updateCustomer', 'createSupplier', 'updateSupplier', 'createProduct', 'updateProduct', 'createMasterRecord', 'updateMasterRecord', 'createProjectWithSalesContract', 'createPurchaseContract', 'activateProject', 'createContractAmendment', 'submitContractForApproval', 'createSupplierShipment', 'submitSupplierShipmentConfirmation', 'confirmSupplierShipment', 'createSalesShipment', 'setPrimarySupplierSource', 'requestToleranceException', 'confirmSalesShipment', 'updateRouteEvidenceOrMilestone', 'uploadEvidence', 'generateShipmentDocument', 'reviseDocument', 'submitDocumentForApproval', 'cancelDocumentRevision', 'createOutboundManifest', 'submitOutboundManifestForApproval', 'sendApprovedOutboundManifest', 'cancelOutboundManifest', 'submitDirectExpense', 'openSimpleClaim', 'moveClaimUnderReview', 'submitClaimOutcomeForApproval', 'assessProjectClosure', 'reviseSupplierShipmentDataset', 'reviseSalesShipmentDataset', 'transitionSupplierShipmentExecution', 'transitionSalesShipmentExecution', 'submitApprovedExpenseCorrection', 'applyApprovedExpenseCorrection', 'applyApprovedClaimOutcome', 'reviseOutboundManifest', 'submitSalesShipmentConfirmation', 'createSupplierShipmentLine', 'createSalesShipmentLine', 'allocateShipmentLineSource', 'createContractLine', 'updateContractLine']],
   [['OWNER_ADMIN'], ['resetUserPassword', 'listFixedApprovalInbox', 'decideFixedApproval', 'finalCloseProject', 'reopenProject', 'cancelUnexecutedProject', 'listPilotUsers', 'assignFixedPilotRoles', 'revokePilotUserSession', 'createUser', 'updateUser', 'listRoles', 'createRole', 'replaceRolePermissions', 'listPermissions', 'getBackupRecoveryStatus', 'startIsolatedRestoreTest', 'getIsolatedRestoreTest', 'listPilotUserSessions', 'getSettings', 'updateSettings']],
   [['OWNER_ADMIN', 'FINANCE_VIEWER'], ['runOperationalReport', 'getProjectMarginAndCash', 'cancelDirectExpense', 'getAccountsSummary', 'listAccountRecords', 'createSalesInvoice', 'getSalesInvoice', 'getSalesInvoicePrintData', 'cancelUnallocatedSalesInvoice', 'createSupplierInvoice', 'submitSupplierInvoice', 'confirmSupplierInvoice', 'recordMoneyMovement', 'allocateMoneyMovement', 'reverseMoneyMovement', 'reverseSettlementAllocation', 'cancelUnallocatedSupplierInvoice']],
@@ -429,7 +429,7 @@ function controlViolations(document) {
   return errors;
 }
 function operation(document, id) { return operations(document).find((entry) => entry.operation.operationId === id).operation; }
-const EXPECTED_OPENAPI_SHA256 = '46eeb4e1bfcce7fa7b0154ac2ff8617b947a7f5af397105355e5208074d33283';
+const EXPECTED_OPENAPI_SHA256 = '5bf95a776a23fbacb893535988fd960bda8439cea2c50cc5200c8cd5a3cf51cb';
 function assertAcceptedOpenApiBytes(bytes) {
   const actual = createHash('sha256').update(bytes).digest('hex');
   assert.equal(actual, EXPECTED_OPENAPI_SHA256, 'accepted OpenAPI bytes changed; expected=' + EXPECTED_OPENAPI_SHA256 + ' actual=' + actual);
@@ -499,7 +499,7 @@ test('accepted raw OpenAPI bytes are independently SHA-256 pinned', () => {
 });
 test('accepted OpenAPI 3.1 surface and every local ref are pinned', () => {
   assert.match(document.openapi, /^3\.1(?:\.|$)/); assert.equal(Object.keys(document.paths).length, 109);
-  assert.equal(operations(document).length, 129); assert.equal(acceptedLocalRefCount, 1065);
+  assert.equal(operations(document).length, 131); assert.equal(acceptedLocalRefCount, 1069);
 });
 test('route handler export inventory recognizes repository syntax and rejects method drift', () => {
   assert.deepEqual(exportedHttpMethods('export async function GET() {}\nexport const POST = handler;'), ['get', 'post']);
@@ -536,9 +536,9 @@ test('all 98 accepted paths and 112 methods are exactly backed by application ro
   assert.deepEqual(methodMismatches, [], 'application route modules must export exactly the 112 contracted HTTP methods');
 });
 test('all operations have exact operation-specific role assignments', () => {
-  assert.equal(EXPECTED_ROLES.size, 129); assert.deepEqual(contractViolations(document), []);
+  assert.equal(EXPECTED_ROLES.size, 131); assert.deepEqual(contractViolations(document), []);
   const snapshot = [...EXPECTED_ROLES].sort(([a], [b]) => a.localeCompare(b));
-  assert.equal(createHash('sha256').update(JSON.stringify(snapshot)).digest('hex'), 'd8adb79a6ffb4f110794142712382230f702a83fad3eaa0741d2a35ae54bdad1');
+  assert.equal(createHash('sha256').update(JSON.stringify(snapshot)).digest('hex'), 'f735168796d89c4d9483b0f51cf99e72316884413816c10be53b276d3a206e5a');
 });
 test('request controls have exact semantic component refs and operation inventories', () => {
   assert.equal(MUTATION_IDS.size, 80); assert.equal(CONTROL['X-CSRF-Token'].required.size, 79); assert.equal(CONTROL['If-Match'].required.size, 66);

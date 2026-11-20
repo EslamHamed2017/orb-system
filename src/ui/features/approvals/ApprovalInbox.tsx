@@ -5,7 +5,7 @@ import { fetchCurrentSession, problemOf, sendJson, type ApiProblem } from "../..
 
 type Locale = "en" | "ar";
 interface Item {
-  id: string; actionCode: string; subjectType: "CONTRACT" | "SUPPLIER" | "SALES" | "SUPPLIER_INVOICE" | "MONEY_MOVEMENT" | "EXPENSE"; subjectId: string; subjectReference: string;
+  id: string; actionCode: string; subjectType: "CONTRACT" | "SUPPLIER" | "SALES" | "SUPPLIER_INVOICE" | "MONEY_MOVEMENT" | "EXPENSE" | "CLAIM" | "PROJECT_CLOSE" | "PROJECT_REOPEN"; detail?: string; subjectId: string; subjectReference: string;
   shipmentId?: string; amount?: string; expectedAmount?: string; currency?: string; supplierName?: string; kind?: string; counterpartyName?: string; aedAmount?: string;
   contractKind?: string; projectId: string; projectReference: string; quantity: string; requesterId: string; requesterName: string; requestedAt: string | null;
 }
@@ -14,7 +14,9 @@ const KIND: Record<Item["subjectType"], [string, string]> = {
   CONTRACT: ["Contract", "عقد"], SUPPLIER: ["Supplier shipment confirmation", "تأكيد شحنة مورد"], SALES: ["Customer shipment confirmation", "تأكيد شحنة عميل"],
   SUPPLIER_INVOICE: ["Supplier invoice", "فاتورة مورد"],
   MONEY_MOVEMENT: ["Payment", "دفعة"], EXPENSE: ["Project expense", "مصروف مشروع"],
+  CLAIM: ["Claim outcome", "نتيجة مطالبة"], PROJECT_CLOSE: ["Close project", "إغلاق مشروع"], PROJECT_REOPEN: ["Reopen project", "إعادة فتح مشروع"],
 };
+const NO_QUANTITY = new Set<Item["subjectType"]>(["MONEY_MOVEMENT", "EXPENSE", "CLAIM", "PROJECT_CLOSE", "PROJECT_REOPEN"]);
 
 /** Owner inbox: every pending contract and shipment approval, with approve / reject-with-reason. */
 export function ApprovalInbox({ locale }: { readonly locale: Locale }) {
@@ -47,7 +49,9 @@ export function ApprovalInbox({ locale }: { readonly locale: Locale }) {
     } finally { setBusy(null); }
   }
 
-  const link = (item: Item) => item.subjectType === "MONEY_MOVEMENT" ? `/projects/${item.projectId}/money?locale=${locale}`
+  const link = (item: Item) => item.subjectType === "CLAIM" ? `/projects/${item.projectId}/claims?locale=${locale}`
+    : item.subjectType === "PROJECT_CLOSE" || item.subjectType === "PROJECT_REOPEN" ? `/projects/${item.projectId}/closure?locale=${locale}`
+    : item.subjectType === "MONEY_MOVEMENT" ? `/projects/${item.projectId}/money?locale=${locale}`
     : item.subjectType === "EXPENSE" ? `/projects/${item.projectId}/expenses?locale=${locale}`
     : item.subjectType === "SUPPLIER_INVOICE" ? `/supplier-shipments/${item.shipmentId}?locale=${locale}`
     : item.subjectType === "SUPPLIER" ? `/supplier-shipments/${item.subjectId}?locale=${locale}`
@@ -70,11 +74,12 @@ export function ApprovalInbox({ locale }: { readonly locale: Locale }) {
     {items.map((item) => { const own = me !== null && item.requesterId === me; return <article key={item.id} aria-labelledby={`approval-${item.id}`}>
       <header>
         <strong id={`approval-${item.id}`}>{KIND[item.subjectType][ar ? 1 : 0]}{item.contractKind ? ` (${item.contractKind === "SALES" ? t("sales", "بيع") : t("purchase", "شراء")})` : ""} · <a href={link(item)}><bdi>{item.subjectReference}</bdi></a></strong>
-        <span className="meta"><bdi>{item.projectReference}</bdi>{item.subjectType === "MONEY_MOVEMENT" || item.subjectType === "EXPENSE" ? null : <> · <bdi>{Number(item.quantity).toLocaleString("en-US", { maximumFractionDigits: 3 })} MT</bdi></>}</span>
+        <span className="meta"><bdi>{item.projectReference}</bdi>{NO_QUANTITY.has(item.subjectType) ? null : <> · <bdi>{Number(item.quantity).toLocaleString("en-US", { maximumFractionDigits: 3 })} MT</bdi></>}</span>
       </header>
       {(item.subjectType === "MONEY_MOVEMENT" || item.subjectType === "EXPENSE") && item.amount && <span className="meta">{item.subjectType === "MONEY_MOVEMENT" ? (item.kind === "CUSTOMER_REFUND" ? t("Refund to", "رد مبلغ إلى") : t("Pay", "دفع إلى")) : t("Paid to", "مدفوع إلى")} {item.counterpartyName} · <strong><bdi>{item.currency} {Number(item.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}</bdi></strong> <bdi>(AED {Number(item.aedAmount ?? 0).toLocaleString("en-US", { minimumFractionDigits: 2 })})</bdi></span>}
       {item.subjectType === "SUPPLIER_INVOICE" && item.amount && <span className="meta">{item.supplierName} · <bdi>{item.currency} {Number(item.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}</bdi>
         {item.expectedAmount && Number(item.expectedAmount) !== Number(item.amount) && <strong> · {t(`differs from contract (${Number(item.expectedAmount).toLocaleString("en-US", { minimumFractionDigits: 2 })})`, `يختلف عن العقد (${Number(item.expectedAmount).toLocaleString("en-US", { minimumFractionDigits: 2 })})`)}</strong>}</span>}
+      {item.detail && <span className="meta">{item.detail}{item.subjectType === "CLAIM" && item.amount ? <> · <strong><bdi>{item.currency} {Number(item.amount).toLocaleString("en-US", { minimumFractionDigits: 2 })}</bdi></strong></> : null}</span>}
       <span className="meta">{t("Requested by", "طلبها")} {item.requesterName}{item.requestedAt ? ` · ${new Date(item.requestedAt).toLocaleString(ar ? "ar-AE" : "en-GB", { dateStyle: "medium", timeStyle: "short" })}` : ""}</span>
       {own ? <p className="meta">{t("You requested this, so another owner must decide it.", "أنت من طلبها، لذلك يجب أن يقرر مالك آخر.")}</p>
         : rejecting === item.id ? <form onSubmit={(event: FormEvent<HTMLFormElement>) => { event.preventDefault(); void decide(item, "REJECTED", String(new FormData(event.currentTarget).get("comment") ?? "")); }}>

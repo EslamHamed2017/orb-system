@@ -14,6 +14,7 @@ export function buildProjectContextLinks(locale: ProjectContextLocale, projectId
     {key:"accounts",label:text.accounts,href:`${root}/money${suffix}`},
     {key:"expenses",label:text.expenses,href:`${root}/expenses${suffix}`},
     {key:"claims",label:text.claims,href:`${root}/claims${suffix}`},
+    {key:"closure",label:text.closure,href:`${root}/closure${suffix}`},
     {key:"audit",label:text.audit,href:`${root}/audit${suffix}`},
     {key:"reports",label:text.reports,href:`${root}/profit${suffix}`},
   ] as const;

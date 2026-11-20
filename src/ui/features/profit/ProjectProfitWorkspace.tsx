@@ -31,7 +31,7 @@ const FORMULAS_AR: Record<Key, string> = {
 const KINDS: Record<string, [string, string]> = {
   SALES_CONTRACT: ["Sales contract", "عقد البيع"], PURCHASE_CONTRACT: ["Purchase contract", "عقد شراء"], SALES_SHIPMENT: ["Customer shipment", "شحنة عميل"],
   SALES_SHIPMENT_COST: ["Cost from supplier shipment", "تكلفة من شحنة المورد"], CUSTOMER_INVOICE: ["Customer invoice", "فاتورة عميل"], SUPPLIER_INVOICE: ["Supplier invoice", "فاتورة مورد"],
-  EXPENSE: ["Expense", "مصروف"], CUSTOMER_RECEIPT: ["Receipt", "تحصيل"], CUSTOMER_REFUND: ["Refund to customer", "رد للعميل"], SUPPLIER_PAYMENT: ["Supplier payment", "دفعة مورد"], SUPPLIER_REFUND: ["Refund from supplier", "استرداد من مورد"],
+  EXPENSE: ["Expense", "مصروف"], CUSTOMER_CLAIM: ["Customer claim", "مطالبة عميل"], SUPPLIER_CLAIM: ["Supplier claim", "مطالبة على مورد"], CUSTOMER_RECEIPT: ["Receipt", "تحصيل"], CUSTOMER_REFUND: ["Refund to customer", "رد للعميل"], SUPPLIER_PAYMENT: ["Supplier payment", "دفعة مورد"], SUPPLIER_REFUND: ["Refund from supplier", "استرداد من مورد"],
 };
 const fmt = (value: string | number) => Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
