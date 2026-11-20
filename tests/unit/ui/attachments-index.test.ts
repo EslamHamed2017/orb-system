@@ -38,7 +38,7 @@ test("every pilot attachment subject maps to its exact source transaction", () =
 test("central attachment index is bilingual, authorized, filterable, and links evidence to source", () => {
   const component = readFileSync("src/ui/features/evidence/AttachmentsIndexPage.tsx", "utf8");
   const route = readFileSync("src/app/attachments/page.tsx", "utf8");
-  const navigation = readFileSync("src/ui/navigation/AppNavigation.tsx", "utf8");
+  const navigation = readFileSync("src/ui/navigation/qb-navigation.ts", "utf8");
   assert.match(route, /AttachmentsIndexPage/);
   assert.match(route, /projectId/);
   assert.match(component, /data-operation-id="listEvidence"/);
@@ -51,5 +51,5 @@ test("central attachment index is bilingual, authorized, filterable, and links e
   assert.match(component, /buildAttachmentSourceHref/);
   assert.match(component, /`\/evidence\/\${item.id}\?locale=\${locale}`/);
   assert.match(component, /`\/api\/evidence\/\${item.id}\/content\?disposition=attachment`/);
-  assert.match(navigation, /href={`\/attachments\${suffix}`}/);
+  assert.match(navigation, /href: "\/attachments", en: "Attachments", ar: "المرفقات"/);
 });

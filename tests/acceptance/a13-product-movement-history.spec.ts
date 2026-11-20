@@ -18,7 +18,7 @@ for (const locale of ["en", "ar"] as const) {
     await expect(page.getByText(ar ? "يرغاتشيفي إثيوبيا" : "Ethiopia Yirgacheffe", { exact: true })).toBeVisible();
     await expect(page.getByText(ar ? /ليست رصيد مخزون أو تقييم مخزون/ : /not a stock balance or inventory valuation/)).toBeVisible();
     await expect(page.getByRole("table").getByRole("link", { name: "OUT-0001" })).toBeVisible();
-    await expect(page.getByRole("navigation", { name: ar ? "التنقل الرئيسية" : "Primary navigation" }).first().getByRole("link", { name: ar ? "المنتجات" : "Products" })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("navigation", { name: ar ? "التنقل الرئيسية" : "Primary navigation" }).first().getByRole("link", { name: ar ? "المبيعات" : "Sales" })).toHaveAttribute("aria-current", "page");
   });
 }
 

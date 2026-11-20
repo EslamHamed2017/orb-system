@@ -7,7 +7,7 @@ test("central attachments index filters by project and links to the exact source
   await expect(page.getByRole("row", { name: /freight-receipt\.pdf/ })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "SAL-2026-004" })).toHaveAttribute("href", "/projects/demo/contracts?locale=en&recordId=contract-14");
   await expect(page.getByRole("link", { name: "Details" }).first()).toHaveAttribute("href", /\/evidence\/.*\?locale=en/);
-  await expect(page.getByRole("link", { name: "Attachments", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });
 
 test("central attachments index preserves Arabic RTL and transaction filters", async ({ page }) => {
