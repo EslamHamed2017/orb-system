@@ -1,4 +1,5 @@
-import { AttachmentsIndexPage, isAttachmentSubjectType, isAttachmentVerificationState } from "../../ui/features/evidence/AttachmentsIndexPage";
+import { AttachmentsIndexPage } from "../../ui/features/evidence/AttachmentsIndexPage";
+import { isAttachmentSubjectType, isAttachmentVerificationState } from "../../ui/features/evidence/attachments-index";
 
 type Query = { readonly locale?:string; readonly projectId?:string; readonly subjectType?:string; readonly verificationState?:string; readonly q?:string };
 export default async function AttachmentsPage({searchParams}:{readonly searchParams:Promise<Query>}){

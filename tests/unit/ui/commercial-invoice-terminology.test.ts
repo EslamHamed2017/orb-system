@@ -24,9 +24,8 @@ test("customer and supplier registers, print documents and service output use fr
   assert.doesNotMatch(files,/>فواتير الموردين</);
 });
 
-test("project documents route never shows sample attachments for a project",()=>{
+test("project documents route shows the project's live attachments, never sample data",()=>{
   const source=readFileSync("src/app/projects/[id]/documents/page.tsx","utf8");
-  assert.match(source,/NotOnDatabaseYet/);
-  assert.match(source,/current="documents"/);
-  assert.doesNotMatch(source,/AttachmentsIndexPage/);
+  assert.match(source,/<LiveAttachments projectId=\{id\}/);
+  assert.doesNotMatch(source,/ITEMS|demo/);
 });

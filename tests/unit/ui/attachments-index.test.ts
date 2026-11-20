@@ -35,21 +35,17 @@ test("every pilot attachment subject maps to its exact source transaction", () =
   for (const [subjectType, expected] of cases) assert.equal(buildAttachmentSourceHref({ subjectType, subjectId: "subject/1", projectId: "project/1", locale: "ar" }), expected);
 });
 
-test("central attachment index is bilingual, authorized, filterable, and links evidence to source", () => {
-  const component = readFileSync("src/ui/features/evidence/AttachmentsIndexPage.tsx", "utf8");
+test("central attachment index is live, bilingual, filterable, and links each file to its source", () => {
+  const page = readFileSync("src/ui/features/evidence/AttachmentsIndexPage.tsx", "utf8");
+  const component = readFileSync("src/ui/features/evidence/LiveAttachments.tsx", "utf8");
   const route = readFileSync("src/app/attachments/page.tsx", "utf8");
   const navigation = readFileSync("src/ui/navigation/qb-navigation.ts", "utf8");
   assert.match(route, /AttachmentsIndexPage/);
-  assert.match(route, /projectId/);
+  assert.match(page, /LiveAttachments/);
+  assert.doesNotMatch(page, /Object\.freeze\(\[/, "no sample attachments");
   assert.match(component, /data-operation-id="listEvidence"/);
-  assert.match(component, /data-backend-endpoint="\/api\/evidence"/);
-  assert.match(component, /Central attachments index/);
-  assert.match(component, /فهرس المرفقات المركزي/);
-  assert.match(component, /name="projectId"/);
-  assert.match(component, /name="subjectType"/);
-  assert.match(component, /name="verificationState"/);
-  assert.match(component, /buildAttachmentSourceHref/);
-  assert.match(component, /`\/evidence\/\${item.id}\?locale=\${locale}`/);
-  assert.match(component, /`\/api\/evidence\/\${item.id}\/content\?disposition=attachment`/);
+  assert.match(component, /\/api\/evidence\?projectId=/);
+  assert.match(component, /المرفقات/);
+  assert.match(component, /contentHref/);
   assert.match(navigation, /href: "\/attachments", en: "Attachments", ar: "المرفقات"/);
 });

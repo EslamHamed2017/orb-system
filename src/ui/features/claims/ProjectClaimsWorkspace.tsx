@@ -32,13 +32,13 @@ const STATES: Record<Claim["state"], [string, string, string]> = {
 };
 const fmt = (value: string | number) => Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export function ProjectClaimsWorkspace({ projectId, locale }: { readonly projectId: string; readonly locale: "en" | "ar" }) {
+export function ProjectClaimsWorkspace({ projectId, locale, startNew = false }: { readonly projectId: string; readonly locale: "en" | "ar"; readonly startNew?: boolean }) {
   const ar = locale === "ar";
   const t = (en: string, arabic: string) => (ar ? arabic : en);
   const [data, setData] = useState<Data | null>(null);
   const [loadError, setLoadError] = useState<ApiProblem | null>(null);
   const [me, setMe] = useState<{ id: string; roles: readonly string[] } | null>(null);
-  const [open, setOpen] = useState<Open>(null);
+  const [open, setOpen] = useState<Open>(startNew ? "NEW" : null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ tone: "error" | "success"; text: string } | null>(null);
 

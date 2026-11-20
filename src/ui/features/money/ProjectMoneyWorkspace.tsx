@@ -48,13 +48,13 @@ const STATES: Record<string, [string, string, string]> = {
 const fmt = (value: string | number) => Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const today = () => new Date().toISOString().slice(0, 10);
 
-export function ProjectMoneyWorkspace({ projectId, locale, focus = "money" }: { readonly projectId: string; readonly locale: "en" | "ar"; readonly focus?: "money" | "expenses" }) {
+export function ProjectMoneyWorkspace({ projectId, locale, focus = "money", initialOpen = null }: { readonly projectId: string; readonly locale: "en" | "ar"; readonly initialOpen?: "RECEIPT" | "PAYMENT" | "REFUND" | "EXPENSE" | null; readonly focus?: "money" | "expenses" }) {
   const ar = locale === "ar";
   const t = (en: string, arabic: string) => (ar ? arabic : en);
   const [data, setData] = useState<ProjectMoney | null>(null);
   const [loadError, setLoadError] = useState<ApiProblem | null>(null);
   const [me, setMe] = useState<{ id: string; roles: readonly string[] } | null>(null);
-  const [open, setOpen] = useState<Open>(null);
+  const [open, setOpen] = useState<Open>(initialOpen);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ tone: "error" | "success"; text: string } | null>(null);
 

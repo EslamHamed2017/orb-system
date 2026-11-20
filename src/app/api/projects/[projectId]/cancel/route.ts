@@ -1,5 +1,10 @@
-import { NextResponse } from "next/server";
-import type { ProjectPrincipal } from "../../route";
-export interface CancelProjectRouteDependencies { readonly authenticate: (request: Request) => Promise<ProjectPrincipal | null>; readonly cancel?: (input: { request: Request; projectId: string; principal: ProjectPrincipal; body: unknown }) => Promise<unknown> }
-export function createCancelProjectPostHandler(dependencies: CancelProjectRouteDependencies) { return async (request: Request, context: { params: Promise<{ projectId: string }> }) => { const principal = await dependencies.authenticate(request); if (!principal) return NextResponse.json({ code: "AUTHENTICATION_REQUIRED" }, { status: 401 }); if (!principal.roles.includes("OWNER_ADMIN")) return NextResponse.json({ code: "PERMISSION_DENIED" }, { status: 403 }); if (!dependencies.cancel) return NextResponse.json({ code: "DEPENDENCY_UNAVAILABLE" }, { status: 503 }); const { projectId } = await context.params; return NextResponse.json(await dependencies.cancel({ request, projectId, principal, body: await request.json() })); }; }
-export const POST = createCancelProjectPostHandler({ authenticate: async () => null });
+import { NextResponse } from "next/server.js";
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { claimsClosureService, jsonBody, mapShipmentErrors, shipmentMutationActor } from "../../../../../modules/shipments/execution/shipment-execution-runtime.ts";
+
+/** Cancels a project that has nothing live on it (owner only, with a reason). Status becomes Cancelled. */
+export const POST = mapShipmentErrors(async (request: Request, context: { params: Promise<{ projectId: string }> }) => {
+  const actor = await shipmentMutationActor(request);
+  const { projectId } = await context.params;
+  return NextResponse.json(await claimsClosureService().cancelProject(actor, projectId, await jsonBody(request)), { headers: { "Cache-Control": "no-store" } });
+});
