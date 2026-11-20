@@ -3546,6 +3546,10 @@ components:
           format: date
           description: Invoice date plus the payment terms of the party (invoices and bills only).
         overdue: { type: boolean }
+        vatAmount:
+          allOf:
+          - { $ref: '#/components/schemas/Decimal' }
+          description: Customer invoices only - the VAT included in amount.
         aedAmount:
           description: Amount in AED - USD at the 3.6725 peg and other currencies at the latest recorded payment rate - or null when no rate is known.
           oneOf:

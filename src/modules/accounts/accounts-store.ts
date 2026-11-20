@@ -13,6 +13,8 @@ export interface AccountRecord {
   readonly projectReference: string; readonly partyName: string; readonly documentId: string | null; readonly href: string;
   /** Invoices and bills: invoice date + the party's payment terms. */
   readonly dueDate?: string; readonly overdue?: boolean;
+  /** Customer invoices: the VAT included in `amount` (output tax, not income). */
+  readonly vatAmount?: string;
   /** In AED: AED as is, USD at the 3.6725 peg, other currencies at the latest rate recorded on a payment; null when no rate is known. */
   readonly aedAmount: string | null; readonly aedOutstanding: string | null;
 }
@@ -39,7 +41,7 @@ const QUERIES: Record<AccountRecordType, string> = {
     SELECT i."id"::text AS id, i."project_id"::text AS project_id, p."reference" AS project_reference, i."invoice_date" AS occurred_on, i."state"::text AS state, i."reference" AS reference,
            btrim(i."currency") AS currency, i."customer_master_id"::text AS party_id, c."legal_name" AS party_name, NULL::text AS document_id, '/sales-shipments/' || i."sales_shipment_id" AS href,
            (COALESCE((SELECT SUM(l."line_amount") FROM "SalesInvoiceLine" l WHERE l."sales_invoice_id" = i."id"), 0) + i."vat_amount")::text AS amount,
-           COALESCE((SELECT SUM(a."amount") FROM "SettlementAllocation" a WHERE a."target_type" = 'CINV' AND a."target_id" = i."id" AND a."state" = 'ACTIVE'), 0)::text AS settled, c."payment_terms_days" AS terms
+           COALESCE((SELECT SUM(a."amount") FROM "SettlementAllocation" a WHERE a."target_type" = 'CINV' AND a."target_id" = i."id" AND a."state" = 'ACTIVE'), 0)::text AS settled, c."payment_terms_days" AS terms, i."vat_amount"::text AS vat
       FROM "SalesInvoice" i JOIN "Project" p ON p."id" = i."project_id" JOIN "Customer" c ON c."id" = i."customer_master_id"
      WHERE i."tenant_id" = $1 AND ($2::uuid IS NULL OR i."project_id" = $2::uuid)`,
   SUPPLIER_INVOICE: `
@@ -110,6 +112,7 @@ export class PrismaAccountsStore {
         reference: String(reference), currency: String(currency), amount: dec(c(amount)), outstandingAmount: dec(outstanding(type, String(state), c(amount), c(settled))),
         projectReference: String(projectReference), partyName: String(partyName ?? ""), documentId: documentId ? String(documentId) : null, href: String(href),
         ...dueOf(type, day(occurredOn), r.terms, outstanding(type, String(state), c(amount), c(settled)) > 0, today),
+        ...(type === "SALES_INVOICE" ? { vatAmount: dec(c(r.vat)) } : {}),
         ...inAed(aed.get(String(currency)), c(amount), outstanding(type, String(state), c(amount), c(settled))),
       };
     });
