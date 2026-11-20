@@ -24,6 +24,15 @@ export class InvoiceStoreError extends Error {
 }
 
 export type InvoiceType = "SUPPLIER" | "SALES";
+export interface CompanyDocumentProfile {
+  readonly legalNameEn: string; readonly legalNameAr: string; readonly addressEn: string; readonly addressAr: string;
+  readonly phone: string; readonly email: string; readonly website: string; readonly trn: string; readonly licenceNo: string;
+  readonly bankName: string; readonly bankAccountName: string; readonly iban: string; readonly swift: string; readonly bankCurrency: string;
+  readonly termsEn: string; readonly termsAr: string; readonly footerEn: string; readonly footerAr: string;
+  readonly brandColor: string; readonly documentLanguage: "BILINGUAL" | "EN" | "AR"; readonly vatRegistered: boolean; readonly logoDataUrl: string | null;
+}
+export type VatTreatment = "STANDARD" | "ZERO_RATED" | "EXEMPT" | "OUT_OF_SCOPE";
+export const VAT_TREATMENTS: readonly VatTreatment[] = ["STANDARD", "ZERO_RATED", "EXEMPT", "OUT_OF_SCOPE"];
 
 export interface InvoiceSummary {
   readonly type: InvoiceType;
@@ -37,6 +46,8 @@ export interface InvoiceSummary {
   readonly currency: string;
   readonly amount: string;
   readonly expectedAmount: string;
+  /** Customer invoices: VAT treatment, rate and amount (amount = net + VAT). Null for supplier invoices. */
+  readonly vat?: { readonly treatment: VatTreatment; readonly rate: string; readonly amount: string; readonly net: string } | null;
   readonly quantity: string;
   readonly unitPrice: string;
   readonly shipmentId: string;
@@ -52,6 +63,8 @@ export interface InvoiceSummary {
 export interface SalesInvoicePrintData {
   readonly invoice: InvoiceSummary;
   readonly seller: { readonly name: string; readonly nameAr: string | null; readonly address: string | null; readonly taxNumber: string | null };
+  /** Everything from the company settings that prints on documents. */
+  readonly company: CompanyDocumentProfile;
   readonly buyer: { readonly reference: string; readonly name: string; readonly nameAr: string | null; readonly address: string | null; readonly taxNumber: string | null; readonly paymentTermsDays: number };
   readonly project: { readonly reference: string };
   readonly shipment: { readonly reference: string; readonly customerPurchaseOrder: string | null; readonly containers: readonly string[]; readonly route: string; readonly incoterm: string };
@@ -74,6 +87,8 @@ export interface InvoiceApprovalItem {
   readonly quantity: string;
   readonly amount: string;
   readonly expectedAmount: string;
+  /** Customer invoices: VAT treatment, rate and amount (amount = net + VAT). Null for supplier invoices. */
+  readonly vat?: { readonly treatment: VatTreatment; readonly rate: string; readonly amount: string; readonly net: string } | null;
   readonly currency: string;
   readonly supplierName: string;
   readonly requesterId: string;
@@ -91,6 +106,25 @@ function formatAddress(value: unknown): string | null {
   const a = value as Record<string, unknown>;
   const parts = [a.line1, a.line2, [a.postalCode, a.city].filter(Boolean).join(" "), a.region].filter((part) => typeof part === "string" && part.trim());
   return parts.length ? parts.join(", ") : null;
+}
+
+/** The company settings as printed on documents; the company name falls back to the account name. */
+export async function companyDocumentProfile(client: SqlTransaction, tenantId: string): Promise<CompanyDocumentProfile> {
+  const row = (await client.$queryRawUnsafe<Array<{ name: string; profile: { company?: Record<string, unknown>; print?: { showLogo?: boolean } } | null; logo: Buffer | null; logo_media_type: string | null }>>(
+    `SELECT t."name", p."profile", p."logo", p."logo_media_type" FROM "Tenant" t LEFT JOIN "CompanyProfile" p ON p."tenant_id" = t."id" WHERE t."id" = $1`, tenantId))[0];
+  const c = (row?.profile?.company ?? {}) as Record<string, unknown>;
+  const text = (key: string) => (typeof c[key] === "string" ? String(c[key]) : "");
+  const showLogo = row?.profile?.print?.showLogo !== false;
+  return {
+    legalNameEn: text("legalNameEn") || String(row?.name ?? ""), legalNameAr: text("legalNameAr"), addressEn: text("addressEn"), addressAr: text("addressAr"),
+    phone: text("phone"), email: text("email"), website: text("website"), trn: text("trn"), licenceNo: text("licenceNo"),
+    bankName: text("bankName"), bankAccountName: text("bankAccountName"), iban: text("iban"), swift: text("swift"), bankCurrency: text("bankCurrency"),
+    termsEn: text("termsEn"), termsAr: text("termsAr"), footerEn: text("footerEn"), footerAr: text("footerAr"),
+    brandColor: /^#[0-9a-fA-F]{6}$/.test(text("brandColor")) ? text("brandColor") : "#1f4e79",
+    documentLanguage: (["BILINGUAL", "EN", "AR"].includes(text("documentLanguage")) ? text("documentLanguage") : "BILINGUAL") as CompanyDocumentProfile["documentLanguage"],
+    vatRegistered: c.vatRegistered === true,
+    logoDataUrl: showLogo && row?.logo && row.logo_media_type ? `data:${row.logo_media_type};base64,${Buffer.from(row.logo).toString("base64")}` : null,
+  };
 }
 
 async function uuid(tx: SqlTransaction): Promise<string> {
@@ -130,7 +164,8 @@ export class PrismaInvoiceStore {
            FROM "SupplierInvoice" i JOIN "SupplierInvoiceLine" l ON l."supplier_invoice_id" = i."id" LEFT JOIN "EvidenceObject" e ON e."id" = i."evidence_id"
           WHERE i."tenant_id" = $1 AND i."id" = $2`, tenantId, invoiceId))[0]
       : (await tx.$queryRawUnsafe<Array<Record<string, unknown>>>(
-        `SELECT i."id", i."reference", i."invoice_date", i."state"::text state, i."currency", SUM(l."line_amount")::text amount, i."sales_shipment_id" shipment_id, i."project_id",
+        `SELECT i."id", i."reference", i."invoice_date", i."state"::text state, i."currency", (SUM(l."line_amount") + i."vat_amount")::text amount, i."sales_shipment_id" shipment_id, i."project_id",
+                i."vat_treatment", i."vat_rate"::text vat_rate, i."vat_amount"::text vat_amount,
                 i."approval_id", i."cancellation_reason", i."version", SUM(l."quantity")::text quantity, MAX(l."unit_price")::text unit_price, SUM(l."line_amount")::text line_amount,
                 NULL::uuid evidence_id, NULL original_filename, NULL media_type, NULL::bigint byte_length
            FROM "SalesInvoice" i JOIN "SalesInvoiceLine" l ON l."sales_invoice_id" = i."id"
@@ -148,6 +183,7 @@ export class PrismaInvoiceStore {
       paid: money(paid), outstanding: (Math.round(Number(row.amount) * 100 - Number(paid) * 100) / 100).toFixed(2),
       type, id: String(row.id), reference: String(row.reference), invoiceDate: day(row.invoice_date), state: String(row.state), currency: String(row.currency).trim(),
       amount: money(row.amount), expectedAmount: money(row.line_amount), quantity: six(row.quantity), unitPrice: six(row.unit_price),
+      vat: type === "SALES" ? { treatment: String(row.vat_treatment) as VatTreatment, rate: Number(row.vat_rate).toFixed(2), amount: money(row.vat_amount), net: money(row.line_amount) } : null,
       shipmentId: String(row.shipment_id), projectId: String(row.project_id),
       document: row.evidence_id ? { id: String(row.evidence_id), filename: String(row.original_filename), mediaType: String(row.media_type), byteLength: Number(row.byte_length) } : null,
       pendingApprovalId: pending ? String(pending.id) : null, requesterId: pending ? String(pending.requester_id) : null,
@@ -173,13 +209,14 @@ export class PrismaInvoiceStore {
          LEFT JOIN "User" u ON u."id" = i."issued_by"
         WHERE i."tenant_id" = $1 AND i."id" = $2`, tenantId, invoiceId))[0];
     if (!row) throw new InvoiceStoreError("NOT_FOUND", "Invoice not found");
-    const org = ((await this.client.$queryRawUnsafe<Array<{ organization: unknown }>>(`SELECT "organization" FROM "SystemSettings" ORDER BY "updated_at" DESC LIMIT 1`))[0]?.organization ?? {}) as Record<string, unknown>;
+    const company = await companyDocumentProfile(this.client, tenantId);
     const lines = await this.client.$queryRawUnsafe<Array<Record<string, unknown>>>(
       `SELECT "line_no", "description", "quantity"::text quantity, "unit_price"::text unit_price, "line_amount"::text line_amount FROM "SalesInvoiceLine" WHERE "sales_invoice_id" = $1 ORDER BY "line_no"`, invoiceId);
     const str = (value: unknown) => (value === null || value === undefined || value === "" ? null : String(value));
     return {
       invoice,
-      seller: { name: str(org.legalNameEn ?? org.legal_name_en ?? org.companyName) ?? "", nameAr: str(org.legalNameAr ?? org.legal_name_ar), address: str(org.address), taxNumber: str(org.taxRegistrationNumber ?? org.tax_registration_number) },
+      seller: { name: company.legalNameEn, nameAr: str(company.legalNameAr), address: str(company.addressEn), taxNumber: str(company.trn) },
+      company,
       buyer: { reference: String(row.customer_reference), name: String(row.legal_name), nameAr: str(row.legal_name_ar), address: formatAddress(row.billing_address), taxNumber: str(row.tax_registration_number), paymentTermsDays: Number(row.payment_terms_days ?? 0) },
       project: { reference: String(row.project_reference) },
       shipment: { reference: String(row.shipment_reference), customerPurchaseOrder: str(row.customer_purchase_order_reference), containers: (row.container_numbers as string[]) ?? [], route: `${row.load_location}, ${row.load_country} → ${row.destination_location}, ${row.destination_country}`, incoterm: `${row.incoterm} ${row.named_place}` },
@@ -310,7 +347,12 @@ export class PrismaInvoiceStore {
 
   // ---------------- customer (sales) invoices ----------------
 
-  async issueSalesInvoice(input: { tenantId: string; actorId: string; shipmentId: string; invoiceDate: string }): Promise<InvoiceSummary> {
+  /**
+   * VAT, decided when the invoice is issued: a company that is not VAT registered issues out-of-scope invoices; a
+   * registered one charges its standard rate to UAE customers and zero-rates customers abroad, unless the person
+   * issuing chooses another treatment. The VAT is added to what the customer owes; revenue stays net.
+   */
+  async issueSalesInvoice(input: { tenantId: string; actorId: string; shipmentId: string; invoiceDate: string; vatTreatment?: VatTreatment | null }): Promise<InvoiceSummary> {
     return this.client.$transaction(async (tx) => {
       const s = (await tx.$queryRawUnsafe<Array<Record<string, string>>>(
         `SELECT sh."project_id", sh."reference", sh."execution_state"::text execution_state, d."id" dataset_id, d."customer_id", d."quantity"::text quantity,
@@ -336,6 +378,15 @@ export class PrismaInvoiceStore {
         `INSERT INTO "SalesInvoiceLine" ("sales_invoice_id","sales_shipment_dataset_id","line_no","description","quantity","unit_price","line_amount")
          VALUES ($1,$2,1,$3,$4::numeric,$5::numeric,ROUND($4::numeric * $5::numeric, 6))`,
         invoiceId, s.dataset_id, `${s.product_name} — ${s.reference}`, s.quantity, s.unit_price);
+      const facts = (await tx.$queryRawUnsafe<Array<{ profile: Record<string, unknown> | null; country: string | null }>>(
+        `SELECT (SELECT "profile" FROM "CompanyProfile" WHERE "tenant_id" = $1) profile, c."country_code" country FROM "Customer" c WHERE c."id" = $2`, input.tenantId, s.customer_id))[0];
+      const company = (facts?.profile?.company ?? {}) as { vatRegistered?: boolean; standardVatRate?: string };
+      const treatment: VatTreatment = input.vatTreatment ?? (!company.vatRegistered ? "OUT_OF_SCOPE" : (facts?.country ?? "").toUpperCase() === "AE" ? "STANDARD" : "ZERO_RATED");
+      const rate = treatment === "STANDARD" ? Number(company.standardVatRate ?? "5") : 0;
+      await tx.$executeRawUnsafe(
+        `UPDATE "SalesInvoice" i SET "vat_treatment" = $2, "vat_rate" = $3::numeric,
+                "vat_amount" = ROUND((SELECT SUM(l."line_amount") FROM "SalesInvoiceLine" l WHERE l."sales_invoice_id" = i."id") * $3::numeric / 100, 2)
+          WHERE i."id" = $1`, invoiceId, treatment, rate.toFixed(2));
       await this.audit(tx, { tenantId: input.tenantId, projectId: s.project_id, type: "SALES", invoiceId, actorId: input.actorId, action: "ISSUED", details: { reference, invoiceDate: input.invoiceDate } });
       return this.summary(tx, input.tenantId, "SALES", invoiceId);
     });

@@ -21,5 +21,14 @@ export function createSettingsHandlers(dependencies: SettingsRouteDependencies) 
     },
   });
 }
-const handlers = createSettingsHandlers({ authenticate: async () => null });
-export const GET = handlers.GET; export const PATCH = handlers.PATCH;
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { companyProfileService, mapShipmentErrors, shipmentActor, shipmentMutationActor } from "../../../modules/shipments/execution/shipment-execution-runtime.ts";
+
+/** Company settings (Account and settings): what prints on every document. Owner only; every change keeps a history. */
+const handlers = createSettingsHandlers({
+  authenticate: async (request) => (request.method === "PATCH" ? shipmentMutationActor(request) : shipmentActor(request)) as never,
+  read: ({ principal }) => companyProfileService().get(principal as never),
+  update: ({ principal, expectedVersion, reason, patch }) => companyProfileService().update(principal as never, expectedVersion, { reason, patch }),
+});
+export const GET = mapShipmentErrors(handlers.GET);
+export const PATCH = mapShipmentErrors(handlers.PATCH);

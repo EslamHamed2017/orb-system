@@ -27,7 +27,7 @@ const QUERIES: Record<AccountRecordType, string> = {
   SALES_INVOICE: `
     SELECT i."id"::text AS id, i."project_id"::text AS project_id, p."reference" AS project_reference, i."invoice_date" AS occurred_on, i."state"::text AS state, i."reference" AS reference,
            btrim(i."currency") AS currency, i."customer_master_id"::text AS party_id, c."legal_name" AS party_name, NULL::text AS document_id, '/sales-shipments/' || i."sales_shipment_id" AS href,
-           COALESCE((SELECT SUM(l."line_amount") FROM "SalesInvoiceLine" l WHERE l."sales_invoice_id" = i."id"), 0)::text AS amount,
+           (COALESCE((SELECT SUM(l."line_amount") FROM "SalesInvoiceLine" l WHERE l."sales_invoice_id" = i."id"), 0) + i."vat_amount")::text AS amount,
            COALESCE((SELECT SUM(a."amount") FROM "SettlementAllocation" a WHERE a."target_type" = 'CINV' AND a."target_id" = i."id" AND a."state" = 'ACTIVE'), 0)::text AS settled
       FROM "SalesInvoice" i JOIN "Project" p ON p."id" = i."project_id" JOIN "Customer" c ON c."id" = i."customer_master_id"
      WHERE i."tenant_id" = $1 AND ($2::uuid IS NULL OR i."project_id" = $2::uuid)`,

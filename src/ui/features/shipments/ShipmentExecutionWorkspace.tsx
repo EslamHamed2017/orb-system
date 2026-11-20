@@ -262,6 +262,9 @@ export function ShipmentExecutionWorkspace({ kind, shipmentId, locale }: { reado
       </article>
     </div>
 
+    {kind === "SALES" && <p className="shipment-documents" data-testid="shipment-documents">
+      <a href={`/sales-shipments/${s.id}/commercial-invoice?locale=${locale}`} target="_blank" rel="noreferrer">{locale === "ar" ? "الفاتورة التجارية" : "Commercial invoice"}</a> · <a href={`/sales-shipments/${s.id}/packing-list?locale=${locale}`} target="_blank" rel="noreferrer">{locale === "ar" ? "قائمة التعبئة" : "Packing list"}</a>
+    </p>}
     <ShipmentInvoicesPanel kind={kind} shipmentId={s.id} shipmentState={s.executionState} invoices={s.invoices ?? []} locale={locale} onChanged={load}/>
 
     <section className="ship-card" aria-labelledby="timeline-title"><h2 id="timeline-title">{t("History", "السجل")}</h2>
