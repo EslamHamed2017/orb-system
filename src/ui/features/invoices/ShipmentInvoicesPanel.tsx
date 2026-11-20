@@ -18,7 +18,7 @@ export interface ShipmentInvoice {
 }
 
 const STATES: Record<string, [string, string, string]> = {
-  DRAFT: ["Draft", "مسودة", "warning"], PENDING_APPROVAL: ["Waiting for approval", "بانتظار الاعتماد", "warning"],
+  DRAFT: ["Draft", "مسودة", "warning"], PENDING_APPROVAL: ["Draft", "مسودة", "warning"],
   CONFIRMED: ["Approved", "معتمدة", "success"], ISSUED: ["Issued", "صادرة", "success"],
   REJECTED: ["Rejected", "مرفوضة", "error"], CANCELLED: ["Cancelled", "ملغاة", "error"],
 };
@@ -52,7 +52,7 @@ export function ShipmentInvoicesPanel({ kind, shipmentId, shipmentState, invoice
   const createSupplierInvoice = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    void run(() => sendForm(`/api/supplier-shipments/${shipmentId}/invoices`, form), t("Supplier invoice saved. Submit it for owner approval.", "تم حفظ فاتورة المورد. أرسلها لاعتماد المالك."));
+    void run(() => sendForm(`/api/supplier-shipments/${shipmentId}/invoices`, form), t("Supplier invoice saved. It counts from now.", "تم حفظ فاتورة المورد وتُحتسب من الآن."));
   };
   const issueSalesInvoice = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -91,11 +91,11 @@ export function ShipmentInvoicesPanel({ kind, shipmentId, shipmentState, invoice
           {invoice.state === "REJECTED" && invoice.lastDecision?.comment && <><br/><small>{invoice.lastDecision.comment}</small></>}
           {invoice.state === "CANCELLED" && invoice.cancellationReason && <><br/><small>{invoice.cancellationReason}</small></>}</td>
         <td><div className="ship-buttons">
-          {finance && invoice.type === "SUPPLIER" && invoice.state === "DRAFT" && <button type="button" data-operation-id="submitSupplierInvoice" disabled={busy} onClick={() => void run(() => sendJson(`/api/supplier-invoices/${invoice.id}/submit`, "POST", {}), t("Sent to the owner for approval.", "أُرسلت للمالك للاعتماد."))}>{t("Submit for approval", "إرسال للاعتماد")}</button>}
+          {finance && invoice.type === "SUPPLIER" && invoice.state === "DRAFT" && <button type="button" data-operation-id="submitSupplierInvoice" disabled={busy} onClick={() => void run(() => sendJson(`/api/supplier-invoices/${invoice.id}/submit`, "POST", {}), t("Invoice confirmed.", "تم تأكيد الفاتورة."))}>{t("Confirm", "تأكيد")}</button>}
           {owner && invoice.state === "PENDING_APPROVAL" && invoice.pendingApprovalId && !selfRequested && <>
             <button type="button" data-operation-id="decideFixedApproval" disabled={busy} onClick={() => void run(() => sendJson(`/api/approvals/${invoice.pendingApprovalId}/decision`, "POST", { decision: "APPROVED" }), t("Invoice approved.", "تم اعتماد الفاتورة."))}>{t("Approve", "اعتماد")}</button>
             <button type="button" data-operation-id="decideFixedApproval" onClick={() => setOpen(`REJECT:${invoice.id}`)}>{t("Reject", "رفض")}</button></>}
-          {owner && invoice.state === "PENDING_APPROVAL" && selfRequested && <small className="orb-muted">{t("Another owner must approve.", "يجب أن يعتمدها مالك آخر.")}</small>}
+          
           {invoice.type === "SALES" && invoice.state === "ISSUED" && <a href={`/sales-invoices/${invoice.id}/print?locale=${locale}`} target="_blank" rel="noreferrer">{t("Print", "طباعة")}</a>}
           {finance && ["DRAFT", "PENDING_APPROVAL", "CONFIRMED", "ISSUED"].includes(invoice.state) && <button type="button" data-danger data-operation-id={invoice.type === "SUPPLIER" ? "cancelUnallocatedSupplierInvoice" : "cancelUnallocatedSalesInvoice"} onClick={() => setOpen(`CANCEL:${invoice.id}`)}>{t("Cancel", "إلغاء")}</button>}
         </div></td>

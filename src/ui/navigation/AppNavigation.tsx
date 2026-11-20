@@ -161,7 +161,6 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
       </label>
       <span className="orb-top-spacer" />
       <a className="orb-top-action orb-language" href={`${pathname}${permissionAwareQuery(locale === "ar" ? "en" : "ar", null)}`}>{locale === "ar" ? "EN" : "ع"}</a>
-      {canOpen("approvals") && <a className="orb-top-action" href={`/approvals${suffix}`} aria-label={label("Approvals", "الاعتمادات")}><Icon name="bell" /></a>}
       {gearGroups.length > 0 && <details className="orb-gear">
         <summary className="orb-top-action" aria-label={t("Settings", "الإعدادات")}><Icon name="settings" /></summary>
         <div className="orb-gear-menu" role="menu" aria-label={t("Settings", "الإعدادات")}>

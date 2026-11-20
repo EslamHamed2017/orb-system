@@ -26,7 +26,7 @@ for (const locale of ["en","ar"] as const) test(`${locale} Today lists next step
   await expect(steps.getByRole("link",{name:ar?`تفعيل المشروع ${project.reference}`:`Activate project ${project.reference}`})).toHaveAttribute("href",`/projects/${project.id}/overview?locale=${locale}`);
   await expect(steps.getByRole("link",{name:ar?"أصدر فاتورة العميل لـ OUT-1":"Issue the customer invoice for OUT-1"})).toBeVisible();
   await expect(steps.getByRole("link",{name:ar?"IN-9 تجاوزت تاريخ الوصول":"IN-9 is past its arrival date"})).toBeVisible();
-  await expect(page.getByTestId("today-kpis")).toContainText("2");
+  await expect(page.getByTestId("today-kpis")).not.toContainText(ar?"بانتظار اعتمادك":"Waiting for your approval");
   await expect(page.getByTestId("today-profit").getByRole("link",{name:project.reference})).toHaveAttribute("href",`/projects/${project.id}/profit?locale=${locale}`);
   await expect(page.locator("body")).not.toContainText(/localStorage|this browser/i);
 });

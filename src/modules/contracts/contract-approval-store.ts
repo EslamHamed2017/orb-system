@@ -84,8 +84,10 @@ export class PrismaContractApprovalStore {
         `INSERT INTO "Approval" ("action_code","subject_type","subject_id","subject_version","subject_hash","requester_id","decision")
          VALUES ('CONTRACT_VERSION','CONTRACT',$1,$2,$3,$4,'PENDING') RETURNING "id"::text id`,
         input.contractId, Number(row.version), hash, input.actorId))[0].id;
-      await tx.$executeRawUnsafe(`UPDATE "ContractVersion" SET "state" = 'PENDING_APPROVAL', "approval_id" = $1 WHERE "id" = $2`, approvalId, row.version_id);
-      await tx.$executeRawUnsafe(`UPDATE "Contract" SET "state" = 'PENDING_APPROVAL', "version" = "version" + 1 WHERE "id" = $1`, input.contractId);
+      // No approval step: saving the contract makes it effective at once. The Approval row stays as the audit record of who saved it.
+      await tx.$executeRawUnsafe(`UPDATE "Approval" SET "decision" = 'APPROVED', "decided_at" = NOW(), "comment" = 'Saved' WHERE "id" = $1`, approvalId);
+      await tx.$executeRawUnsafe(`UPDATE "ContractVersion" SET "state" = 'APPROVED', "approval_id" = $1 WHERE "id" = $2`, approvalId, row.version_id);
+      await tx.$executeRawUnsafe(`UPDATE "Contract" SET "state" = 'APPROVED', "version" = "version" + 1 WHERE "id" = $1`, input.contractId);
     });
     return this.state(input.tenantId, input.contractId);
   }

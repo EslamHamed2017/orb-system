@@ -107,15 +107,15 @@ export function ProjectMoneyWorkspace({ projectId, locale, focus = "money" }: { 
   return shell(<>
     <ErpPageHeader titleId="money-title" eyebrow={<><bdi>{d.project.reference}</bdi><span>•</span>{d.customer.name}</>} title={title}
       description={focus === "expenses"
-        ? t("Costs paid for this project. Each expense needs its bill and an owner's approval before it counts.", "تكاليف دُفعت لهذا المشروع. كل مصروف يحتاج فاتورته واعتماد المالك قبل احتسابه.")
-        : t("Money received and paid for this project, matched to invoices. Supplier payments need an owner's approval.", "المبالغ المحصلة والمدفوعة لهذا المشروع ومطابقتها مع الفواتير. دفعات الموردين تحتاج اعتماد المالك.")}/>
+        ? t("Costs paid for this project. Each expense is saved with its bill and counts at once.", "تكاليف دُفعت لهذا المشروع. كل مصروف يُحفظ بفاتورته ويُحتسب فوراً.")
+        : t("Money received and paid for this project, matched to invoices.", "المبالغ المحصلة والمدفوعة لهذا المشروع ومطابقتها مع الفواتير.")}/>
     {notice && <p className="money-banner" data-tone={notice.tone} role={notice.tone === "error" ? "alert" : "status"}>{notice.text}</p>}
 
     {focus === "money" && finance && main && <div className="orb-summary-grid" data-testid="money-totals">
       <Kpi label={t("Received from customer", "المحصّل من العميل")} value={<bdi>{main.currency} {fmt(main.receivedFromCustomer)}</bdi>} detail={Number(main.customerAdvance) > 0 ? t(`Advance not yet matched: ${fmt(main.customerAdvance)}`, `دفعة مقدمة غير مطابقة: ${fmt(main.customerAdvance)}`) : t(`Invoiced ${fmt(main.customerInvoiced)}`, `المفوتر ${fmt(main.customerInvoiced)}`)}/>
       <Kpi label={t("Customer still owes", "المتبقي على العميل")} value={<bdi>{main.currency} {fmt(main.customerOutstanding)}</bdi>} detail={t("On issued invoices", "على الفواتير الصادرة")}/>
       <Kpi label={t("Paid to suppliers", "المدفوع للموردين")} value={<bdi>{main.currency} {fmt(main.paidToSuppliers)}</bdi>} detail={Number(main.paymentsPendingApproval) > 0 ? t(`${fmt(main.paymentsPendingApproval)} waiting for approval`, `${fmt(main.paymentsPendingApproval)} بانتظار الاعتماد`) : Number(main.supplierAdvance) > 0 ? t(`Advance not yet matched: ${fmt(main.supplierAdvance)}`, `دفعة مقدمة غير مطابقة: ${fmt(main.supplierAdvance)}`) : undefined}/>
-      <Kpi label={t("Still owed to suppliers", "المتبقي للموردين")} value={<bdi>{main.currency} {fmt(main.supplierOutstanding)}</bdi>} detail={t(`Approved expenses ${fmt(main.expensesApproved)}`, `مصروفات معتمدة ${fmt(main.expensesApproved)}`)}/>
+      <Kpi label={t("Still owed to suppliers", "المتبقي للموردين")} value={<bdi>{main.currency} {fmt(main.supplierOutstanding)}</bdi>} detail={t(`Expenses ${fmt(main.expensesApproved)}`, `المصروفات ${fmt(main.expensesApproved)}`)}/>
     </div>}
     {focus === "money" && d.totals.length > 1 && <p className="orb-muted">{t("Other currencies:", "عملات أخرى:")} {d.totals.filter((row) => row !== main).map((row) => `${row.currency} — ${t("received", "محصّل")} ${fmt(row.receivedFromCustomer)}, ${t("paid", "مدفوع")} ${fmt(row.paidToSuppliers)}`).join(" · ")}</p>}
 
@@ -131,9 +131,9 @@ export function ProjectMoneyWorkspace({ projectId, locale, focus = "money" }: { 
     </div>
 
     {(open === "RECEIPT" || open === "PAYMENT" || open === "REFUND") && <MovementForm key={open} mode={open} data={d} busy={busy} t={t} onCancel={() => setOpen(null)}
-      onSubmit={(form, needsApproval) => void run(() => sendForm(`/api/projects/${projectId}/money-movements`, form), needsApproval ? t("Saved and sent to the owner for approval.", "تم الحفظ والإرسال للمالك للاعتماد.") : t("Saved. Match it to an invoice when ready.", "تم الحفظ. طابقه مع فاتورة عند الجاهزية."))}/>}
+      onSubmit={(form, needsApproval) => void run(() => sendForm(`/api/projects/${projectId}/money-movements`, form), t("Saved. Match it to an invoice when ready.", "تم الحفظ. طابقه مع فاتورة عند الجاهزية."))}/>}
     {open === "EXPENSE" && <ExpenseForm data={d} busy={busy} t={t} ar={ar} onCancel={() => setOpen(null)}
-      onSubmit={(form) => void run(() => sendForm(`/api/projects/${projectId}/expenses`, form), t("Expense saved and sent to the owner for approval.", "تم حفظ المصروف وإرساله للمالك للاعتماد."))}/>}
+      onSubmit={(form) => void run(() => sendForm(`/api/projects/${projectId}/expenses`, form), t("Expense saved.", "تم حفظ المصروف."))}/>}
 
     {focus === "money" && finance && <section className="money-card" aria-labelledby="movements-title" data-testid="money-movements">
       <h2 id="movements-title">{t("Receipts and payments", "التحصيلات والمدفوعات")}</h2>
@@ -227,7 +227,7 @@ function MovementForm({ mode, data, busy, t, onCancel, onSubmit }: { mode: "RECE
   const [amount, setAmount] = useState("");
   const [rate, setRate] = useState("");
   const customerSide = kind === "CUSTOMER_RECEIPT" || kind === "CUSTOMER_REFUND";
-  const needsApproval = kind === "SUPPLIER_PAYMENT" || kind === "CUSTOMER_REFUND";
+  const needsApproval = false; // no approval step: every saved payment counts at once
   return <form className="money-form" data-testid="movement-form" onSubmit={(event) => { event.preventDefault(); onSubmit(new FormData(event.currentTarget), needsApproval); }}>
     <h3>{t(KINDS[kind][0], KINDS[kind][1])}</h3>
     <div className="grid">
@@ -244,8 +244,7 @@ function MovementForm({ mode, data, busy, t, onCancel, onSubmit }: { mode: "RECE
     </div>
     <label>{t("Notes (optional)", "ملاحظات (اختياري)")}<input name="notes" maxLength={500}/></label>
     <label>{t("Bank slip / transfer confirmation (PDF, JPG or PNG)", "إيصال البنك / تأكيد التحويل (PDF أو JPG أو PNG)")}<input name="file" type="file" required accept="application/pdf,image/jpeg,image/png"/></label>
-    {needsApproval && <p className="orb-muted">{t("Money going out needs an owner's approval before it counts.", "الأموال الخارجة تحتاج اعتماد المالك قبل احتسابها.")}</p>}
-    <div className="money-buttons"><button type="submit" className="orb-button-filled" disabled={busy}>{needsApproval ? t("Save and send for approval", "حفظ وإرسال للاعتماد") : t("Save", "حفظ")}</button><button type="button" onClick={onCancel}>{t("Back", "رجوع")}</button></div>
+    <div className="money-buttons"><button type="submit" className="orb-button-filled" disabled={busy}>{t("Save", "حفظ")}</button><button type="button" onClick={onCancel}>{t("Back", "رجوع")}</button></div>
   </form>;
 }
 
@@ -295,7 +294,7 @@ function ExpenseForm({ data, busy, t, ar, onCancel, onSubmit }: { data: ProjectM
     </div>
     <label>{t("Description (optional)", "الوصف (اختياري)")}<input name="description" maxLength={300}/></label>
     <label>{t("Bill or receipt (PDF, JPG or PNG)", "الفاتورة أو الإيصال (PDF أو JPG أو PNG)")}<input name="file" type="file" required accept="application/pdf,image/jpeg,image/png"/></label>
-    <div className="money-buttons"><button type="submit" className="orb-button-filled" disabled={busy}>{t("Save and send for approval", "حفظ وإرسال للاعتماد")}</button><button type="button" onClick={onCancel}>{t("Back", "رجوع")}</button></div>
+    <div className="money-buttons"><button type="submit" className="orb-button-filled" disabled={busy}>{t("Save", "حفظ")}</button><button type="button" onClick={onCancel}>{t("Back", "رجوع")}</button></div>
   </form>;
 }
 

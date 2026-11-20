@@ -23,7 +23,7 @@ const TABS: readonly [AccountsView, string, string][] = [
   ["expenses", domainTerm("expense", "en"), domainTerm("expense", "ar")],
 ];
 const STATES: Record<string, [string, string, string]> = {
-  DRAFT: ["Draft", "مسودة", "warning"], PENDING_APPROVAL: ["Waiting for approval", "بانتظار الاعتماد", "warning"], ISSUED: ["Issued", "صادرة", "success"],
+  DRAFT: ["Draft", "مسودة", "warning"], PENDING_APPROVAL: ["Draft", "مسودة", "warning"], ISSUED: ["Issued", "صادرة", "success"],
   CONFIRMED: ["Approved", "معتمدة", "success"], APPROVED: ["Approved", "معتمد", "success"], REJECTED: ["Rejected", "مرفوض", "error"], CANCELLED: ["Cancelled", "ملغى", "error"],
   PARTIALLY_ALLOCATED: ["Partly matched", "مطابق جزئياً", "warning"], FULLY_ALLOCATED: ["Matched", "مطابق", "success"], REVERSED: ["Reversed", "معكوس", "error"],
 };

@@ -29,28 +29,21 @@ integration("accounts list, summarise and report the company's own invoices, pay
   const movements = await import("../../../src/app/api/projects/[projectId]/money-movements/route.ts");
   const allocate = await import("../../../src/app/api/money-movements/[movementId]/allocations/route.ts");
   const expenses = await import("../../../src/app/api/projects/[projectId]/expenses/route.ts");
-  const decision = await import("../../../src/app/api/approvals/[approvalId]/decision/route.ts");
   const createSupplierInvoice = await import("../../../src/app/api/supplier-shipments/[shipmentId]/invoices/route.ts");
-  const submitSupplierInvoice = await import("../../../src/app/api/supplier-invoices/[invoiceId]/submit/route.ts");
   const issue = await import("../../../src/app/api/sales-shipments/[shipmentId]/sales-invoice/route.ts");
   const projectId = t.project.id, project = params({ projectId });
   const form = (fields: Record<string, string>) => { const data = new FormData(); for (const [k, v] of Object.entries(fields)) data.set(k, v); data.set("file", new File([PDF], "doc.pdf")); return data; };
-  const approve = (approvalId: string) => decision.POST(t.post(`/api/approvals/${approvalId}/decision`, "owner", { decision: "APPROVED" }) as never, params({ approvalId }));
   const records = async (type: string, who: Parameters<typeof t.get>[1] = "finance", query = "") =>
     list.GET(t.get(`/api/accounts/${type}${query}`, who), params({ recordType: type }));
   try {
     await t.confirmShipments();
     const supplierInvoice = await t.ok<{ id: string }>(await createSupplierInvoice.POST(t.multipart(`/api/supplier-shipments/${t.supplierShipment.id}/invoices`, "finance", form({ reference: "AD-ACC-1", invoiceDate: today, amount: "99849.60" })), params({ shipmentId: t.supplierShipment.id })), 201);
-    const submitted = await t.ok<{ pendingApprovalId: string }>(await submitSupplierInvoice.POST(t.post(`/api/supplier-invoices/${supplierInvoice.id}/submit`, "finance", {}), params({ invoiceId: supplierInvoice.id })));
-    await t.ok(await approve(submitted.pendingApprovalId));
     const customerInvoice = await t.ok<{ id: string; reference: string }>(await issue.POST(t.post(`/api/sales-shipments/${t.salesShipment.id}/sales-invoice`, "finance", { invoiceDate: today }), params({ shipmentId: t.salesShipment.id })), 201);
     const move = (fields: Record<string, string>) => movements.POST(t.multipart(`/api/projects/${projectId}/money-movements`, "finance", form({ currency: "USD", fxRate: "3.6725", occurredOn: today, ...fields })), project);
     const receipt = await t.ok<{ id: string }>(await move({ kind: "CUSTOMER_RECEIPT", counterpartyId: t.customer, amount: "70000", reference: "ACC-R-1" }), 201);
     await t.ok(await allocate.POST(t.post(`/api/money-movements/${receipt.id}/allocations`, "finance", { targetType: "CINV", targetId: customerInvoice.id, amount: "50000", currency: "USD" }) as never, params({ movementId: receipt.id }) as never), 201);
-    const payment = await t.ok<{ pendingApprovalId: string }>(await move({ kind: "SUPPLIER_PAYMENT", counterpartyId: t.supplier, amount: "40000", reference: "ACC-P-1" }), 201);
-    await t.ok(await approve(payment.pendingApprovalId));
-    const expense = await t.ok<{ pendingApprovalId: string }>(await expenses.POST(t.multipart(`/api/projects/${projectId}/expenses`, "ops", form({ categoryCode: "CUSTOMS", payeeName: "Jebel Ali Customs", amount: "1200", currency: "USD", fxRate: "3.6725", occurredOn: today })), project), 201);
-    await t.ok(await approve(expense.pendingApprovalId));
+    const payment = await t.ok(await move({ kind: "SUPPLIER_PAYMENT", counterpartyId: t.supplier, amount: "40000", reference: "ACC-P-1" }), 201);
+    const expense = await t.ok(await expenses.POST(t.multipart(`/api/projects/${projectId}/expenses`, "ops", form({ categoryCode: "CUSTOMS", payeeName: "Jebel Ali Customs", amount: "1200", currency: "USD", fxRate: "3.6725", occurredOn: today })), project), 201);
 
     // Registers: one record type each, own company only, with what is still open.
     const sales = (await t.ok<{ type: string; items: Rec[] }>(await records("sales-invoices"))).items.filter((r) => r.projectId === projectId);

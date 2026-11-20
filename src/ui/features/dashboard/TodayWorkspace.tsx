@@ -28,7 +28,6 @@ export function TodayWorkspace({ locale }: { readonly locale: "en" | "ar" }) {
   const [roles, setRoles] = useState<readonly string[] | null>(null);
   const [projects, setProjects] = useState<Block<Project[]>>({ status: "loading" });
   const [shipments, setShipments] = useState<Block<Shipment[]>>({ status: "loading" });
-  const [approvals, setApprovals] = useState<Block<number>>({ status: "loading" });
   const [profit, setProfit] = useState<Block<ProfitRow[]>>({ status: "loading" });
 
   useEffect(() => {
@@ -38,8 +37,6 @@ export function TodayWorkspace({ locale }: { readonly locale: "en" | "ar" }) {
       const owner = r.includes("OWNER_ADMIN"), finance = owner || r.includes("FINANCE_VIEWER");
       void getJson<{ items: Project[] }>("/api/projects").then((v) => setProjects({ status: "ready", value: v.items })).catch(() => setProjects({ status: "failed" }));
       void getJson<{ items: Shipment[] }>("/api/shipments").then((v) => setShipments({ status: "ready", value: v.items })).catch(() => setShipments({ status: "failed" }));
-      if (owner) void getJson<{ items: unknown[] }>("/api/approvals").then((v) => setApprovals({ status: "ready", value: v.items.length })).catch(() => setApprovals({ status: "failed" }));
-      else setApprovals({ status: "hidden" });
       if (finance) void getJson<{ rows: ProfitRow[] }>("/api/reports/project-profitability").then((v) => setProfit({ status: "ready", value: v.rows })).catch(() => setProfit({ status: "failed" }));
       else setProfit({ status: "hidden" });
     });
@@ -54,7 +51,7 @@ export function TodayWorkspace({ locale }: { readonly locale: "en" | "ar" }) {
   if (shipments.status === "ready") for (const s of shipments.value) {
     const href = `/${s.type === "SUPPLIER" ? "supplier" : "sales"}-shipments/${s.id}${q}`;
     const label = `${s.reference} · ${s.projectReference}`;
-    if (s.state === "DRAFT" && !s.waitingForApproval) steps.push({ key: `s-${s.id}`, title: t(`Send ${s.reference} for confirmation`, `أرسل ${s.reference} للتأكيد`), detail: `${label} · ${s.counterpartyName}`, href, tone: "info" });
+    if (s.state === "DRAFT" && !s.waitingForApproval) steps.push({ key: `s-${s.id}`, title: t(`Confirm ${s.reference}`, `أكّد ${s.reference}`), detail: `${label} · ${s.counterpartyName}`, href, tone: "info" });
     if (s.type === "SALES" && s.hasSource === false && !["CANCELLED", "REJECTED"].includes(s.state)) steps.push({ key: `src-${s.id}`, title: t(`Choose the source supplier shipment for ${s.reference}`, `اختر شحنة المورد المصدر لـ ${s.reference}`), detail: label, href, tone: "warning" });
     if (finance && ["CONFIRMED", "IN_TRANSIT", "DELIVERED", "RECEIVED"].includes(s.state) && !s.invoiceState) steps.push({ key: `i-${s.id}`, title: s.type === "SALES" ? t(`Issue the customer invoice for ${s.reference}`, `أصدر فاتورة العميل لـ ${s.reference}`) : t(`Record the supplier invoice for ${s.reference}`, `سجّل فاتورة المورد لـ ${s.reference}`), detail: `${label} · ${s.counterpartyName}`, href, tone: "info" });
     if (s.state === "IN_TRANSIT" && s.estimatedArrival) {
@@ -76,7 +73,6 @@ export function TodayWorkspace({ locale }: { readonly locale: "en" | "ar" }) {
     <div className="orb-summary-grid" data-testid="today-kpis">
       <Kpi label={t("Active projects", "المشاريع النشطة")} value={active === null ? "—" : String(active)} detail={<a href={`/projects${q}`}>{t("See all", "عرض الكل")}</a>}/>
       <Kpi label={t("Shipments in transit", "الشحنات في الطريق")} value={moving === null ? "—" : String(moving)} detail={<a href={`/shipments${q}`}>{t("See all", "عرض الكل")}</a>}/>
-      {approvals.status !== "hidden" && <Kpi label={t("Waiting for your approval", "بانتظار اعتمادك")} value={approvals.status === "ready" ? String(approvals.value) : "—"} detail={<a href={`/approvals${q}`}>{t("Review", "مراجعة")}</a>}/>}
       <Kpi label={t("Next steps", "الخطوات التالية")} value={loading ? "—" : String(steps.length)}/>
     </div>
 

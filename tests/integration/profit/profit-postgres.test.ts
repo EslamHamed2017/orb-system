@@ -37,13 +37,10 @@ integration("project profit shows expected, shipped, actual and cash margins wit
   const movements = await import("../../../src/app/api/projects/[projectId]/money-movements/route.ts");
   const allocate = await import("../../../src/app/api/money-movements/[movementId]/allocations/route.ts");
   const expenses = await import("../../../src/app/api/projects/[projectId]/expenses/route.ts");
-  const decision = await import("../../../src/app/api/approvals/[approvalId]/decision/route.ts");
   const createSupplierInvoice = await import("../../../src/app/api/supplier-shipments/[shipmentId]/invoices/route.ts");
-  const submitSupplierInvoice = await import("../../../src/app/api/supplier-invoices/[invoiceId]/submit/route.ts");
   const issue = await import("../../../src/app/api/sales-shipments/[shipmentId]/sales-invoice/route.ts");
   const projectId = t.project.id, project = params({ projectId });
   const form = (fields: Record<string, string>) => { const data = new FormData(); for (const [k, v] of Object.entries(fields)) data.set(k, v); data.set("file", new File([PDF], "doc.pdf")); return data; };
-  const approve = (approvalId: string) => decision.POST(t.post(`/api/approvals/${approvalId}/decision`, "owner", { decision: "APPROVED" }) as never, params({ approvalId }));
   const getProfit = async (who: Parameters<typeof t.get>[1]) => profit.GET(t.get(`/api/projects/${projectId}/profit`, who) as never, project as never);
   try {
     // Before anything is shipped: only the contracts count.
@@ -58,39 +55,34 @@ integration("project profit shows expected, shipped, actual and cash margins wit
 
     await t.confirmShipments();
     const supplierInvoice = await t.ok<{ id: string }>(await createSupplierInvoice.POST(t.multipart(`/api/supplier-shipments/${t.supplierShipment.id}/invoices`, "finance", form({ reference: "AD-1", invoiceDate: today, amount: "99849.60" })), params({ shipmentId: t.supplierShipment.id })), 201);
-    const submitted = await t.ok<{ pendingApprovalId: string }>(await submitSupplierInvoice.POST(t.post(`/api/supplier-invoices/${supplierInvoice.id}/submit`, "finance", {}), params({ invoiceId: supplierInvoice.id })));
-    await t.ok(await approve(submitted.pendingApprovalId));
     const customerInvoice = await t.ok<{ id: string }>(await issue.POST(t.post(`/api/sales-shipments/${t.salesShipment.id}/sales-invoice`, "finance", { invoiceDate: today }), params({ shipmentId: t.salesShipment.id })), 201);
 
     const move = (fields: Record<string, string>) => movements.POST(t.multipart(`/api/projects/${projectId}/money-movements`, "finance", form({ currency: "USD", fxRate: "3.6725", occurredOn: today, ...fields })), project);
     const receipt = await t.ok<{ id: string }>(await move({ kind: "CUSTOMER_RECEIPT", counterpartyId: t.customer, amount: "50000", reference: "R-1" }), 201);
     await t.ok(await allocate.POST(t.post(`/api/money-movements/${receipt.id}/allocations`, "finance", { targetType: "CINV", targetId: customerInvoice.id, amount: "50000", currency: "USD" }) as never, params({ movementId: receipt.id }) as never), 201);
-    const payment = await t.ok<{ pendingApprovalId: string }>(await move({ kind: "SUPPLIER_PAYMENT", counterpartyId: t.supplier, amount: "60000", reference: "P-1" }), 201);
-    await t.ok(await approve(payment.pendingApprovalId));
+    const payment = await t.ok(await move({ kind: "SUPPLIER_PAYMENT", counterpartyId: t.supplier, amount: "60000", reference: "P-1" }), 201);
     const spend = (fields: Record<string, string>) => expenses.POST(t.multipart(`/api/projects/${projectId}/expenses`, "ops", form({ occurredOn: today, payeeName: "Gulf Forwarders", ...fields })), project);
-    const freight = await t.ok<{ pendingApprovalId: string }>(await spend({ categoryCode: "FREIGHT", amount: "1850", currency: "USD", fxRate: "3.6725" }), 201);
-    const fees = await t.ok<{ pendingApprovalId: string }>(await spend({ categoryCode: "DOCUMENTATION", amount: "734.50", currency: "AED", fxRate: "1" }), 201);
+    const freight = await t.ok(await spend({ categoryCode: "FREIGHT", amount: "1850", currency: "USD", fxRate: "3.6725" }), 201);
+    const fees = await t.ok(await spend({ categoryCode: "DOCUMENTATION", amount: "734.50", currency: "AED", fxRate: "1" }), 201);
     await spend({ categoryCode: "STORAGE", amount: "90", currency: "USD", fxRate: "3.6725" });
-    await t.ok(await approve(freight.pendingApprovalId));
-    await t.ok(await approve(fees.pendingApprovalId));
 
     p = await t.ok<Profit>(await getProfit("finance"));
     assert.deepEqual(p.rate, { aedPerUnit: "3.6725", source: "RECORDED_AVERAGE" });
     assert.deepEqual({ revenue: p.measures.shipped.revenue, cost: p.measures.shipped.cost, amount: p.measures.shipped.amount }, { revenue: "117120.00", cost: "99849.60", amount: "17270.40" });
-    assert.deepEqual({ revenue: p.measures.actual.revenue, cost: p.measures.actual.cost, amount: p.measures.actual.amount }, { revenue: "117120.00", cost: "101899.60", amount: "15220.40" });
-    assert.equal(p.actualOperationalMargin.amount, "15220.40");
-    assert.equal(p.measures.actual.marginPercent, "13.0");
+    assert.deepEqual({ revenue: p.measures.actual.revenue, cost: p.measures.actual.cost, amount: p.measures.actual.amount }, { revenue: "117120.00", cost: "101989.60", amount: "15130.40" });
+    assert.equal(p.actualOperationalMargin.amount, "15130.40");
+    assert.equal(p.measures.actual.marginPercent, "12.9");
     assert.deepEqual({ amount: p.measures.cash.amount, aed: p.measures.cash.aedAmount }, { amount: "-10000.00", aed: "-36725.00" });
     assert.equal(p.measures.actual.notIncluded, 0);
     const fee = p.sources.find((s) => s.measure === "actual" && s.kind === "EXPENSE" && s.reference === "Documents and certificates");
     assert.equal(fee?.projectAmount, "200.00", "AED expense converted with the project rate");
-    assert.ok(p.warnings.some((w) => w.includes("waiting for approval")), "pending expense is flagged, not counted");
+    assert.equal(p.sources.filter((s) => s.measure === "actual" && s.kind === "EXPENSE").length, 3, "every saved expense counts at once — no approval step");
     assert.ok(p.formulaVersion);
 
     // Portfolio report.
     const rows = (await t.ok<{ rows: { project: { id: string }; actual: Measure; cash: Measure }[] }>(await report.GET(t.get(`/api/reports/project-profitability`, "finance"), params({ reportType: "project-profitability" })))).rows;
     const row = rows.find((r) => r.project.id === projectId);
-    assert.equal(row?.actual.amount, "15220.40");
+    assert.equal(row?.actual.amount, "15130.40");
     assert.equal((await report.GET(t.get(`/api/reports/project-profitability`, "ops"), params({ reportType: "project-profitability" }))).status, 403);
     assert.equal((await report.GET(t.get(`/api/reports/contract-fulfillment`, "finance"), params({ reportType: "contract-fulfillment" }))).status, 200, "every report runs on the database");
 

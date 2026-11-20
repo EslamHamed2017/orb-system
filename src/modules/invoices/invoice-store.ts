@@ -271,6 +271,7 @@ export class PrismaInvoiceStore {
          VALUES ($1,$2,$3,1,$4,$5::numeric,$6::numeric,ROUND($5::numeric * $6::numeric, 6))`,
         invoiceId, input.shipmentId, s.dataset_id, `${s.product_name} — ${s.reference}`, s.quantity, s.unit_price);
       await this.audit(tx, { tenantId: input.tenantId, projectId: s.project_id, type: "SUPPLIER", invoiceId, actorId: input.actorId, action: "CREATED", details: { reference: input.reference, amount: input.amount, evidenceId } });
+      await this.confirmSupplierInvoiceTx(tx, input.tenantId, input.actorId, invoiceId);
       return this.summary(tx, input.tenantId, "SUPPLIER", invoiceId);
     }).catch((error: { code?: string; meta?: unknown; message?: string }) => {
       if (String(error?.message ?? "").includes("SupplierInvoice_one_active_per_shipment")) throw new InvoiceStoreError("CONFLICT", "This shipment already has an active supplier invoice.");
@@ -300,16 +301,21 @@ export class PrismaInvoiceStore {
     return row;
   }
 
+  /** A bill counts as soon as it is saved: no approval step. The Approval row records who confirmed it, bound to the bill's content hash. */
+  private async confirmSupplierInvoiceTx(tx: SqlTransaction, tenantId: string, actorId: string, invoiceId: string) {
+    const invoice = await this.lockSupplierInvoice(tx, tenantId, invoiceId);
+    if (invoice.state !== "DRAFT") throw new InvoiceStoreError("CONFLICT", invoice.state === "CONFIRMED" ? "This bill is already confirmed." : "Only a draft bill can be confirmed.");
+    const approvalId = (await tx.$queryRawUnsafe<Array<{ id: string }>>(
+      `INSERT INTO "Approval" ("action_code","subject_type","subject_id","subject_version","subject_hash","requester_id","decision","decided_at","comment")
+       VALUES ('SUPPLIER_INVOICE_CONFIRMATION','SUPPLIER_INVOICE',$1,$2,$3,$4,'APPROVED',NOW(),'Saved') RETURNING "id"::text id`,
+      invoiceId, Number(invoice.version) + 1, createHash("sha256").update(String(invoice.json)).digest("hex"), actorId))[0].id;
+    await tx.$executeRawUnsafe(`UPDATE "SupplierInvoice" SET "state" = 'CONFIRMED', "approval_id" = $2, "version" = "version" + 1 WHERE "id" = $1`, invoiceId, approvalId);
+    await this.audit(tx, { tenantId, projectId: String(invoice.project_id), type: "SUPPLIER", invoiceId, actorId, action: "APPROVED", details: { approvalId, comment: "Saved" } });
+  }
+
   async submitSupplierInvoice(input: { tenantId: string; actorId: string; invoiceId: string }): Promise<InvoiceSummary> {
     return this.client.$transaction(async (tx) => {
-      const invoice = await this.lockSupplierInvoice(tx, input.tenantId, input.invoiceId);
-      if (invoice.state !== "DRAFT") throw new InvoiceStoreError("CONFLICT", invoice.state === "PENDING_APPROVAL" ? "This invoice is already waiting for approval." : "Only a draft invoice can be submitted.");
-      const approvalId = (await tx.$queryRawUnsafe<Array<{ id: string }>>(
-        `INSERT INTO "Approval" ("action_code","subject_type","subject_id","subject_version","subject_hash","requester_id","decision")
-         VALUES ('SUPPLIER_INVOICE_CONFIRMATION','SUPPLIER_INVOICE',$1,$2,$3,$4,'PENDING') RETURNING "id"::text id`,
-        input.invoiceId, Number(invoice.version) + 1, createHash("sha256").update(String(invoice.json)).digest("hex"), input.actorId))[0].id;
-      await tx.$executeRawUnsafe(`UPDATE "SupplierInvoice" SET "state" = 'PENDING_APPROVAL', "approval_id" = $2, "version" = "version" + 1 WHERE "id" = $1`, input.invoiceId, approvalId);
-      await this.audit(tx, { tenantId: input.tenantId, projectId: String(invoice.project_id), type: "SUPPLIER", invoiceId: input.invoiceId, actorId: input.actorId, action: "SUBMITTED", details: { approvalId } });
+      await this.confirmSupplierInvoiceTx(tx, input.tenantId, input.actorId, input.invoiceId);
       return this.summary(tx, input.tenantId, "SUPPLIER", input.invoiceId);
     });
   }

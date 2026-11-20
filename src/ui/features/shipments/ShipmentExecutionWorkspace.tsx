@@ -37,8 +37,8 @@ const STATES: Record<string, [string, string]> = {
   DELIVERED: ["Delivered", "مسلّمة"], CANCELLED: ["Cancelled", "ملغاة"], REJECTED: ["Rejected", "مرفوضة"],
 };
 const HISTORY: Record<string, [string, string]> = {
-  DATASET_REVISED: ["Shipment details edited", "تعديل بيانات الشحنة"], CONFIRMATION_SUBMITTED: ["Submitted for approval", "أُرسلت للاعتماد"],
-  CONFIRMATION_APPROVED: ["Approved and confirmed", "اعتُمدت وتأكدت"], CONFIRMATION_REJECTED: ["Approval rejected", "رُفض الاعتماد"],
+  DATASET_REVISED: ["Shipment details edited", "تعديل بيانات الشحنة"], CONFIRMATION_SUBMITTED: ["Sent for confirmation", "أُرسلت للتأكيد"],
+  CONFIRMATION_APPROVED: ["Confirmed", "تأكدت"], CONFIRMATION_REJECTED: ["Returned to draft", "أُعيدت كمسودة"],
   STATE_CHANGED: ["Status changed", "تغيير الحالة"], PRIMARY_SOURCE_SET: ["Source supplier shipment set", "تحديد شحنة المورد المصدر"],
 };
 
@@ -147,11 +147,11 @@ export function ShipmentExecutionWorkspace({ kind, shipmentId, locale }: { reado
 
     {s.pendingApproval && <p className="ship-banner" data-tone="warning" role="status">{t(`Waiting for owner approval — requested by ${s.pendingApproval.requesterName} on ${when(s.pendingApproval.requestedAt, ar)}.`, `بانتظار اعتماد المالك — طلبها ${s.pendingApproval.requesterName} في ${when(s.pendingApproval.requestedAt, ar)}.`)}</p>}
     {!s.pendingApproval && s.lastDecision?.decision === "REJECTED" && s.executionState === "DRAFT" && <p className="ship-banner" data-tone="error" role="status">{t(`Approval was rejected by ${s.lastDecision.approverName ?? "the owner"}: ${s.lastDecision.comment ?? ""}. Correct the shipment and submit again.`, `رفض ${s.lastDecision.approverName ?? "المالك"} الاعتماد: ${s.lastDecision.comment ?? ""}. صحّح الشحنة وأعد الإرسال.`)}</p>}
-    {kind === "SALES" && s.executionState === "DRAFT" && !s.primarySource && <p className="ship-banner" role="note">{t("Before submitting, choose the supplier shipment this customer shipment is sourced from.", "قبل الإرسال، اختر شحنة المورد التي تُغذّي شحنة العميل هذه.")}</p>}
+    {kind === "SALES" && s.executionState === "DRAFT" && !s.primarySource && <p className="ship-banner" role="note">{t("Before confirming, choose the supplier shipment this customer shipment is sourced from.", "قبل التأكيد، اختر شحنة المورد التي تُغذّي شحنة العميل هذه.")}</p>}
     {notice && <p className="ship-banner" data-tone={notice.tone} role={notice.tone === "error" ? "alert" : "status"}>{notice.text}</p>}
 
     {s.availableActions.length > 0 && <div className="ship-actions" role="group" aria-label={t("Shipment actions", "إجراءات الشحنة")}>
-      {can("SUBMIT_CONFIRMATION") && <button type="button" data-primary data-operation-id={kind === "SUPPLIER" ? "submitSupplierShipmentConfirmation" : "submitSalesShipmentConfirmation"} disabled={busy} onClick={() => void run(() => post("/submit", {}), t("Sent to the owner for approval.", "أُرسلت للمالك للاعتماد."))}>{t("Submit for approval", "إرسال للاعتماد")}</button>}
+      {can("SUBMIT_CONFIRMATION") && <button type="button" data-primary data-operation-id={kind === "SUPPLIER" ? "submitSupplierShipmentConfirmation" : "submitSalesShipmentConfirmation"} disabled={busy} onClick={() => void run(() => post("/submit", {}), t("Shipment confirmed.", "تم تأكيد الشحنة."))}>{t("Confirm shipment", "تأكيد الشحنة")}</button>}
       {can("APPROVE_CONFIRMATION") && <button type="button" data-primary data-operation-id="decideFixedApproval" disabled={busy} onClick={() => void run(() => sendJson(`/api/approvals/${s.pendingApproval!.id}/decision`, "POST", { decision: "APPROVED" }), t("Approved — the shipment is confirmed.", "تم الاعتماد — الشحنة مؤكدة."))}>{t("Approve and confirm", "اعتماد وتأكيد")}</button>}
       {can("REJECT_CONFIRMATION") && <button type="button" data-danger onClick={() => setOpen("REJECT_CONFIRMATION")} data-operation-id="decideFixedApproval">{t("Reject request", "رفض الطلب")}</button>}
       {can("START_TRANSIT") && <button type="button" data-primary onClick={() => setOpen("START_TRANSIT")} data-operation-id={kind === "SUPPLIER" ? "transitionSupplierShipmentExecution" : "transitionSalesShipmentExecution"}>{t("Mark in transit", "تسجيل قيد الشحن")}</button>}

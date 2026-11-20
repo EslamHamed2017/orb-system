@@ -4,7 +4,7 @@ import test from "node:test";
 
 /**
  * Shipment execution on PostgreSQL through the real route handlers:
- * create project + contracts + shipments → edit draft → submit → owner approval → transit → arrival,
+ * create project + contracts + shipments → edit draft → confirm (no approval step) → transit → arrival,
  * plus separation of duties, stale versions, idempotent retries, cancellation and tenant isolation.
  */
 const databaseUrl = process.env.ORB_TEST_DATABASE_URL;
@@ -61,24 +61,15 @@ integration("supplier and customer shipments run the full approval and execution
     const purchaseContract = (await withPurchase.json() as { purchaseContracts: { id: string; activeVersion: { id: string } }[] }).purchaseContracts[0];
     const activated = await activate.POST(post(`/api/projects/${project.id}/activate`, "ops", {}, { "if-match": '"2"' }), params({ projectId: project.id }));
     assert.equal(activated.status, 200, await activated.clone().text());
-    // Contracts go through the owner approval inbox before any shipment can be created against them.
+    // Confirming a contract makes it effective at once (no approval step); shipments need a confirmed contract.
     const submitContract = await import("../../../src/app/api/contracts/[contractId]/submit/route.ts");
-    const inboxRoute = await import("../../../src/app/api/approvals/route.ts");
-    const decisionRoute = await import("../../../src/app/api/approvals/[approvalId]/decision/route.ts");
     const blocked = await createSupplierShipment.POST(post(`/api/projects/${project.id}/supplier-shipments`, "ops", {}, { "if-match": '"3"' }), params({ projectId: project.id }));
-    assert.ok(blocked.status >= 400, "no shipment against an unapproved contract");
+    assert.ok(blocked.status >= 400, "no shipment against an unconfirmed contract");
     for (const contractId of [project.salesContract.id, purchaseContract.id]) {
       const submitted = await submitContract.POST(post(`/api/contracts/${contractId}/submit`, "ops", {}), params({ contractId }));
       assert.equal(submitted.status, 202, await submitted.clone().text());
-      assert.equal((await submitted.json() as { versionState: string }).versionState, "PENDING_APPROVAL");
-      assert.equal((await submitContract.POST(post(`/api/contracts/${contractId}/submit`, "ops", {}), params({ contractId }))).status, 409, "already pending");
-    }
-    const contractInbox = (await (await inboxRoute.GET(get("/api/approvals", "owner") as never)).json() as { items: { id: string; subjectType: string; subjectId: string }[] }).items.filter((item) => item.subjectType === "CONTRACT");
-    assert.equal(contractInbox.length, 2);
-    for (const item of contractInbox) {
-      const decided = await decisionRoute.POST(post(`/api/approvals/${item.id}/decision`, "owner", { decision: "APPROVED" }) as never, params({ approvalId: item.id }));
-      assert.equal(decided.status, 200, await decided.clone().text());
-      assert.equal((await decided.json() as { contract: { state: string; versionState: string } }).contract.versionState, "APPROVED");
+      assert.equal((await submitted.json() as { versionState: string }).versionState, "APPROVED");
+      assert.equal((await submitContract.POST(post(`/api/contracts/${contractId}/submit`, "ops", {}), params({ contractId }))).status, 409, "already confirmed");
     }
     const transport = { mode: "SEA", carrierName: "Ocean Line", reference: "BOOK-88", estimatedDepartureAt: "2026-12-01T00:00:00Z", estimatedArrivalAt: "2026-12-12T00:00:00Z" };
     const inbound = await createSupplierShipment.POST(post(`/api/projects/${project.id}/supplier-shipments`, "ops", { purchaseContractId: purchaseContract.id, purchaseContractVersionId: purchaseContract.activeVersion.id, supplierId: supplier, reference: `IN-${tenant.slice(-6).toUpperCase()}`, coffeeSpecificationId: product, supplierLotReference: "LOT-1", quantity: "20", bagCount: 320, bagWeight: "60", netWeight: "19200", grossWeight: "19400", origin: { countryCode: "YE", name: "Sana'a" }, loadLocation: { countryCode: "YE", name: "Aden Port" }, destination: { countryCode: "AE", name: "Jebel Ali Port" }, incoterm: "FOB", namedPlace: "Aden", containerNumbers: ["MSCU1234567"], sealNumbers: ["SL-991"], transport }, { "if-match": '"3"' }), params({ projectId: project.id }));
@@ -99,10 +90,8 @@ integration("supplier and customer shipments run the full approval and execution
     const salesSubmit = await import("../../../src/app/api/sales-shipments/[shipmentId]/submit/route.ts");
     const salesTransition = await import("../../../src/app/api/sales-shipments/[shipmentId]/execution-transitions/route.ts");
     const approvals = await import("../../../src/app/api/approvals/route.ts");
-    const decision = await import("../../../src/app/api/approvals/[approvalId]/decision/route.ts");
-    const inId = params({ shipmentId: supplierShipmentId }), outId = params({ shipmentId: salesShipmentId });
+      const inId = params({ shipmentId: supplierShipmentId }), outId = params({ shipmentId: salesShipmentId });
     type View = { version: number; executionState: string; availableActions: string[]; dataset: { revisionNo: number; quantity: string; state: string; containerNumbers: string[] }; revisions: unknown[]; pendingApproval: { id: string } | null; lastDecision: { decision: string; comment: string | null } | null; events: { fromState: string; toState: string; reason: string | null }[]; history: { action: string }[]; quantities: { remaining: string }; primarySource: { id: string } | null };
-    const readDecision = async (response: Response) => { assert.ok(response.status < 300, `${response.status} ${await response.clone().text()}`); return (await response.json() as { shipment: View }).shipment; };
     const read = async (response: Response) => { assert.ok(response.status < 300, `${response.status} ${await response.clone().text()}`); return await response.json() as View; };
 
     // Detail: everyone in the tenant can read; another tenant gets 404.
@@ -124,34 +113,16 @@ integration("supplier and customer shipments run the full approval and execution
     const stale = await supplierDatasets.POST(post(`/api/supplier-shipments/${supplierShipmentId}/datasets`, "ops", { expectedVersion: view.version - 1, reason: "Old screen", changes: { notes: "x" } }), inId);
     assert.equal(stale.status, 412);
 
-    // Confirm before approval is refused; submit; finance cannot submit.
-    assert.equal((await supplierConfirm.POST(post(`/api/supplier-shipments/${supplierShipmentId}/confirm`, "ops", {}), inId)).status, 409);
+    // Confirming is one step (no approval): finance cannot confirm; operations confirms and the shipment is CONFIRMED at once.
+    assert.equal((await supplierConfirm.POST(post(`/api/supplier-shipments/${supplierShipmentId}/confirm`, "ops", {}), inId)).status, 409, "not confirmed yet");
     assert.equal((await supplierSubmit.POST(post(`/api/supplier-shipments/${supplierShipmentId}/submit`, "finance", { expectedVersion: view.version }), inId)).status, 403);
     view = await read(await supplierSubmit.POST(post(`/api/supplier-shipments/${supplierShipmentId}/submit`, "ops", { expectedVersion: view.version }), inId));
-    assert.ok(view.pendingApproval);
-    assert.equal(view.dataset.state, "PENDING_APPROVAL");
-    assert.ok(!view.availableActions.includes("REVISE"), "no edits while waiting for approval");
-    assert.equal((await supplierDatasets.POST(post(`/api/supplier-shipments/${supplierShipmentId}/datasets`, "ops", { expectedVersion: view.version, reason: "Late change", changes: { notes: "x" } }), inId)).status, 409);
-
-    // Inbox: owners only.
-    assert.equal((await approvals.GET(get("/api/approvals", "ops") as never)).status, 403);
-    const inbox = await (await approvals.GET(get("/api/approvals", "owner") as never)).json() as { items: { id: string; subjectId: string }[] };
-    assert.ok(inbox.items.some((item) => item.subjectId === supplierShipmentId));
-
-    // Owner rejects with a reason → back to draft; ops edits and resubmits; owner approves → confirmed.
-    const approvalId = view.pendingApproval!.id;
-    assert.equal((await decision.POST(post(`/api/approvals/${approvalId}/decision`, "owner", { decision: "REJECTED" }) as never, params({ approvalId }))).status, 422, "rejection needs a reason");
-    view = await readDecision(await decision.POST(post(`/api/approvals/${approvalId}/decision`, "owner", { decision: "REJECTED", comment: "Seal number missing" }) as never, params({ approvalId })));
-    assert.equal(view.executionState, "DRAFT");
-    assert.equal(view.lastDecision?.decision, "REJECTED");
-    assert.equal(view.dataset.state, "DRAFT");
-    view = await read(await supplierDatasets.POST(post(`/api/supplier-shipments/${supplierShipmentId}/datasets`, "ops", { expectedVersion: view.version, reason: "Added second seal", changes: { sealNumbers: ["SL-991", "SL-992"] } }), inId));
-    view = await read(await supplierSubmit.POST(post(`/api/supplier-shipments/${supplierShipmentId}/submit`, "ops", { expectedVersion: view.version }), inId));
-    const secondApproval = view.pendingApproval!.id;
-    view = await readDecision(await decision.POST(post(`/api/approvals/${secondApproval}/decision`, "owner", { decision: "APPROVED" }) as never, params({ approvalId: secondApproval })));
+    assert.equal(view.pendingApproval, null);
     assert.equal(view.executionState, "CONFIRMED");
     assert.equal(view.dataset.state, "APPROVED");
-    assert.equal((await decision.POST(post(`/api/approvals/${secondApproval}/decision`, "owner", { decision: "APPROVED" }) as never, params({ approvalId: secondApproval }))).status, 409, "already decided");
+    assert.equal((await approvals.GET(get("/api/approvals", "ops") as never)).status, 403);
+    const inbox = await (await approvals.GET(get("/api/approvals", "owner") as never)).json() as { items: { id: string; subjectId: string }[] };
+    assert.ok(!inbox.items.some((item) => item.subjectId === supplierShipmentId), "nothing waits for approval");
     assert.equal((await supplierConfirm.POST(post(`/api/supplier-shipments/${supplierShipmentId}/confirm`, "ops", {}), inId)).status, 200);
 
     // Transit with an idempotent retry, then arrival. Invalid jumps are refused.
@@ -165,18 +136,13 @@ integration("supplier and customer shipments run the full approval and execution
     assert.deepEqual(view.events.map((event) => `${event.fromState}->${event.toState}`), ["IN_TRANSIT->RECEIVED", "CONFIRMED->IN_TRANSIT", "DRAFT->CONFIRMED"]);
     assert.deepEqual(view.availableActions, []);
 
-    // ---- customer shipment: needs a source; self-approval refused; cancel needs a reason ----
+    // ---- customer shipment: needs a source; confirming is one step; cancel needs a reason ----
     let sale = await read(await salesDetail.GET(get(`/api/sales-shipments/${salesShipmentId}`, "owner"), outId));
     assert.ok(!sale.availableActions.includes("SUBMIT_CONFIRMATION"), "no source yet");
     assert.equal((await salesSubmit.POST(post(`/api/sales-shipments/${salesShipmentId}/submit`, "owner", { expectedVersion: sale.version }), outId)).status, 422);
     sale = await read(await salesSource.PUT(put(`/api/sales-shipments/${salesShipmentId}/primary-source`, "owner", { expectedVersion: sale.version, supplierShipmentId }), outId));
     assert.equal(sale.primarySource?.id, supplierShipmentId);
     sale = await read(await salesSubmit.POST(post(`/api/sales-shipments/${salesShipmentId}/submit`, "owner", { expectedVersion: sale.version }), outId));
-    assert.ok(!sale.availableActions.includes("APPROVE_CONFIRMATION"), "the requester cannot approve");
-    const salesApproval = sale.pendingApproval!.id;
-    const selfApproval = await decision.POST(post(`/api/approvals/${salesApproval}/decision`, "owner", { decision: "APPROVED" }) as never, params({ approvalId: salesApproval }));
-    assert.equal(selfApproval.status, 422);
-    sale = await readDecision(await decision.POST(post(`/api/approvals/${salesApproval}/decision`, "owner2", { decision: "APPROVED", comment: "OK" }) as never, params({ approvalId: salesApproval })));
     assert.equal(sale.executionState, "CONFIRMED");
     assert.equal((await salesTransition.POST(post(`/api/sales-shipments/${salesShipmentId}/execution-transitions`, "ops", { expectedVersion: sale.version, toState: "CANCELLED" }), outId)).status, 422, "cancel needs a reason");
     sale = await read(await salesTransition.POST(post(`/api/sales-shipments/${salesShipmentId}/execution-transitions`, "ops", { expectedVersion: sale.version, toState: "CANCELLED", reason: "Buyer postponed the order" }), outId));
@@ -191,7 +157,7 @@ integration("supplier and customer shipments run the full approval and execution
 
     // Audit trail covers every command.
     const actions = (await sql.query('SELECT "action" FROM "ShipmentAuditEvent" WHERE "tenant_id" = $1', [tenant])).rows.map((row) => row.action);
-    for (const action of ["DATASET_REVISED", "CONFIRMATION_SUBMITTED", "CONFIRMATION_REJECTED", "CONFIRMATION_APPROVED", "STATE_CHANGED", "PRIMARY_SOURCE_SET"]) assert.ok(actions.includes(action), `missing ${action}`);
+    for (const action of ["DATASET_REVISED", "CONFIRMATION_APPROVED", "STATE_CHANGED", "PRIMARY_SOURCE_SET"]) assert.ok(actions.includes(action), `missing ${action}`);
   } finally {
     await sql.end();
     const { getPrismaClient } = await import("../../../src/platform/database/prisma-client.ts");

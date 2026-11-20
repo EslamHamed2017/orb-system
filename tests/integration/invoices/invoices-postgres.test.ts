@@ -31,14 +31,13 @@ async function useMemoryStorageUnlessConfigured() {
 const PDF = Buffer.from("%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n");
 const pdfFile = (name = "supplier-invoice.pdf") => new File([PDF], name, { type: "application/pdf" });
 
-integration("supplier invoices need the document and owner approval; customer invoices are issued from the shipment", async () => {
+integration("supplier invoices need the document and count once saved; customer invoices are issued from the shipment", async () => {
   await useMemoryStorageUnlessConfigured();
   const t = await buildTrade(databaseUrl!);
   const createSupplierInvoice = await import("../../../src/app/api/supplier-shipments/[shipmentId]/invoices/route.ts");
   const submit = await import("../../../src/app/api/supplier-invoices/[invoiceId]/submit/route.ts");
   const confirm = await import("../../../src/app/api/supplier-invoices/[invoiceId]/confirm/route.ts");
   const cancel = await import("../../../src/app/api/supplier-invoices/[invoiceId]/cancel/route.ts");
-  const decision = await import("../../../src/app/api/approvals/[approvalId]/decision/route.ts");
   const inbox = await import("../../../src/app/api/approvals/route.ts");
   const issue = await import("../../../src/app/api/sales-shipments/[shipmentId]/sales-invoice/route.ts");
   const salesInvoice = await import("../../../src/app/api/sales-invoices/[invoiceId]/route.ts");
@@ -63,7 +62,7 @@ integration("supplier invoices need the document and owner approval; customer in
 
     // Finance records the supplier invoice with its PDF; the line is shipment qty × contract price.
     const draft = await t.ok<Invoice>(await createSupplierInvoice.POST(t.multipart(`/api/supplier-shipments/${t.supplierShipment.id}/invoices`, "finance", form(fields)), inId), 201);
-    assert.equal(draft.state, "DRAFT");
+    assert.equal(draft.state, "CONFIRMED", "a bill counts as soon as it is saved");
     assert.equal(draft.quantity, "19.200000");
     assert.equal(draft.unitPrice, "5200.500000");
     assert.equal(draft.expectedAmount, "99849.60");
@@ -82,27 +81,19 @@ integration("supplier invoices need the document and owner approval; customer in
     assert.equal(Number(stored.byte_length), PDF.byteLength);
     assert.ok(stored.object_version_id);
 
-    // Submit → owner rejects → REJECTED; a new invoice can then be recorded and approved.
-    assert.equal((await confirm.POST(t.post(`/api/supplier-invoices/${draft.id}/confirm`, "finance", {}), params({ invoiceId: draft.id }))).status, 409);
-    const pending = await t.ok<Invoice>(await submit.POST(t.post(`/api/supplier-invoices/${draft.id}/submit`, "finance", {}), params({ invoiceId: draft.id })));
-    assert.equal(pending.state, "PENDING_APPROVAL");
-    const items = (await t.ok<{ items: { id: string; subjectType: string; subjectId: string; amount?: string }[] }>(await inbox.GET(t.get("/api/approvals", "owner") as never))).items;
-    assert.ok(items.some((item) => item.subjectType === "SUPPLIER_INVOICE" && item.subjectId === draft.id && item.amount === "99849.60"));
-    const rejected = await t.ok<{ invoice: Invoice }>(await decision.POST(t.post(`/api/approvals/${pending.pendingApprovalId}/decision`, "owner", { decision: "REJECTED", comment: "Bank details missing" }) as never, params({ approvalId: pending.pendingApprovalId! })));
-    assert.equal(rejected.invoice.state, "REJECTED");
+    // No approval step: the bill counts as soon as it is saved. A wrong bill is cancelled with a reason and recorded again.
+    assert.equal((await submit.POST(t.post(`/api/supplier-invoices/${draft.id}/submit`, "finance", {}), params({ invoiceId: draft.id }))).status, 409, "already confirmed");
+    const items = (await t.ok<{ items: { subjectId: string }[] }>(await inbox.GET(t.get("/api/approvals", "owner") as never))).items;
+    assert.ok(!items.some((item) => item.subjectId === draft.id), "nothing waits for approval");
+    assert.equal((await cancel.POST(t.post(`/api/supplier-invoices/${draft.id}/cancel`, "finance", {}), params({ invoiceId: draft.id }))).status, 422, "cancelling needs a reason");
+    assert.equal((await t.ok<Invoice>(await cancel.POST(t.post(`/api/supplier-invoices/${draft.id}/cancel`, "finance", { reason: "Bank details missing" }), params({ invoiceId: draft.id })))).state, "CANCELLED");
     const second = await t.ok<Invoice>(await createSupplierInvoice.POST(t.multipart(`/api/supplier-shipments/${t.supplierShipment.id}/invoices`, "finance", form({ ...fields, reference: "AD-2026-0091-R" }, pdfFile("corrected.pdf"))), inId), 201);
-    const secondPending = await t.ok<Invoice>(await submit.POST(t.post(`/api/supplier-invoices/${second.id}/submit`, "owner", {}), params({ invoiceId: second.id })));
-    assert.equal((await decision.POST(t.post(`/api/approvals/${secondPending.pendingApprovalId}/decision`, "owner", { decision: "APPROVED" }) as never, params({ approvalId: secondPending.pendingApprovalId! }))).status, 422, "requester cannot approve");
-    const confirmed = await t.ok<{ invoice: Invoice }>(await decision.POST(t.post(`/api/approvals/${secondPending.pendingApprovalId}/decision`, "owner2", { decision: "APPROVED" }) as never, params({ approvalId: secondPending.pendingApprovalId! })));
-    assert.equal(confirmed.invoice.state, "CONFIRMED");
+    assert.equal(second.state, "CONFIRMED");
     assert.equal((await t.ok<Invoice>(await confirm.POST(t.post(`/api/supplier-invoices/${second.id}/confirm`, "finance", {}), params({ invoiceId: second.id })))).state, "CONFIRMED");
 
     // The shipment detail lists its invoices.
     const detail = await t.ok<{ invoices: Invoice[] }>(await supplierDetail.GET(t.get(`/api/supplier-shipments/${t.supplierShipment.id}`, "ops"), inId));
-    assert.deepEqual(detail.invoices.map((invoice) => invoice.state), ["CONFIRMED", "REJECTED"]);
-
-    // Cancel needs a reason.
-    assert.equal((await cancel.POST(t.post(`/api/supplier-invoices/${second.id}/cancel`, "finance", {}), params({ invoiceId: second.id }))).status, 422);
+    assert.deepEqual(detail.invoices.map((invoice) => invoice.state), ["CONFIRMED", "CANCELLED"]);
 
     // ---- customer invoice ----
     assert.equal((await issue.POST(t.post(`/api/sales-shipments/${t.salesShipment.id}/sales-invoice`, "ops", { invoiceDate: "2026-11-19" }), outId)).status, 403);
@@ -124,7 +115,7 @@ integration("supplier invoices need the document and owner approval; customer in
     assert.notEqual(reissued.reference, issued.reference, "numbers are never reused");
 
     const actions = (await t.sql.query(`SELECT "action" FROM "InvoiceAuditEvent" WHERE "tenant_id" = $1`, [t.tenant])).rows.map((row) => row.action);
-    for (const action of ["CREATED", "SUBMITTED", "REJECTED", "APPROVED", "ISSUED", "CANCELLED"]) assert.ok(actions.includes(action), `missing ${action}`);
+    for (const action of ["CREATED", "APPROVED", "ISSUED", "CANCELLED"]) assert.ok(actions.includes(action), `missing ${action}`);
   } finally {
     await t.sql.end();
     const { getPrismaClient } = await import("../../../src/platform/database/prisma-client.ts");
