@@ -1618,6 +1618,22 @@ paths:
       - FINANCE_VIEWER
       summary: Get project margin and cash
   /projects/{projectId}/claims:
+    get:
+      tags:
+      - Claims
+      operationId: getProjectClaims
+      parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: Read project claims, their outcomes and the shipments a claim can be raised on
     post:
       tags:
       - Claims
@@ -1630,7 +1646,7 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
               $ref: '#/components/schemas/ClaimInput'
       responses:
@@ -1701,6 +1717,22 @@ paths:
       - OPERATIONS
       summary: Submit claim outcome for approval
   /projects/{projectId}/closure-assessment:
+    get:
+      tags:
+      - Closure
+      operationId: getProjectClosure
+      parameters:
+      - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          $ref: '#/components/responses/Entity'
+        default:
+          $ref: '#/components/responses/Problem'
+      x-required-roles:
+      - OWNER_ADMIN
+      - OPERATIONS
+      - FINANCE_VIEWER
+      summary: Read project closure state, the latest closure check with its open items, and any pending close or reopen
     post:
       tags:
       - Closure
@@ -4110,15 +4142,14 @@ components:
           $ref: '#/components/schemas/Currency'
     ClaimInput:
       type: object
+      description: Sent as multipart/form-data with the evidence file. The claim side follows the shipment. A customer shipment gives a customer claim against us, a supplier shipment gives our claim against the supplier.
       required:
       - type
-      - claimantId
-      - respondentId
+      - shipmentId
       - description
+      - file
       properties:
-        salesShipmentId:
-          $ref: '#/components/schemas/Uuid'
-        supplierShipmentId:
+        shipmentId:
           $ref: '#/components/schemas/Uuid'
         type:
           type: string
@@ -4129,10 +4160,6 @@ components:
           - DELIVERY
           - PRICE
           - DOCUMENT
-        claimantId:
-          $ref: '#/components/schemas/Uuid'
-        respondentId:
-          $ref: '#/components/schemas/Uuid'
         description:
           type: string
           minLength: 3
@@ -4142,8 +4169,9 @@ components:
           $ref: '#/components/schemas/Decimal'
         currency:
           $ref: '#/components/schemas/Currency'
-        evidenceId:
-          $ref: '#/components/schemas/Uuid'
+        file:
+          type: string
+          format: binary
     ClosureAssessment:
       type: object
       required:
@@ -4262,9 +4290,13 @@ components:
         reason:
           type: string
           minLength: 3
+        amount:
+          $ref: '#/components/schemas/Decimal'
+        currency:
+          $ref: '#/components/schemas/Currency'
         evidenceId:
           $ref: '#/components/schemas/Uuid'
-      description: Proposed terminal outcome, bound to claim version/hash. Submission does not change claim terminal state.
+      description: Proposed terminal outcome, bound to claim version/hash. RESOLVED (settled) carries the settled amount; REJECTED covers rejected or withdrawn claims. Submission does not change claim terminal state. Owner approval applies it.
     OutboundBody:
       type: object
       additionalProperties: false

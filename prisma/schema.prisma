@@ -90,8 +90,8 @@ model Claim {
   sales_shipment_id                String?                @db.Uuid
   supplier_shipment_id             String?                @db.Uuid
   type                             ClaimType
-  claimant_id                      String                 @db.Uuid
-  respondent_id                    String                 @db.Uuid
+  claimant_id                      String?                @db.Uuid
+  respondent_id                    String?                @db.Uuid
   description                      String
   quantity                         Decimal?               @db.Decimal(20, 6)
   amount                           Decimal?               @db.Decimal(20, 6)
@@ -99,12 +99,20 @@ model Claim {
   state                            ClaimState             @default(OPEN)
   evidence_id                      String?                @db.Uuid
   version                          Int                    @default(1)
+  tenant_id          String?   @db.Uuid
+  side               String?
+  customer_master_id String?   @db.Uuid
+  supplier_master_id String?   @db.Uuid
+  opened_by          String?   @db.Uuid
+  opened_at          DateTime? @db.Timestamptz(6)
+  settled_amount     Decimal?  @db.Decimal(20, 6)
+  closed_at          DateTime? @db.Timestamptz(6)
   EvidenceObject                   EvidenceObject?        @relation(fields: [evidence_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_130_Claim")
   Project                          Project                @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_46_Claim")
   SalesShipment                    SalesShipment?         @relation(fields: [sales_shipment_id, project_id], references: [id, project_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_47_Claim")
   SupplierShipment                 SupplierShipment?      @relation(fields: [supplier_shipment_id, project_id], references: [id, project_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_48_Claim")
-  Party_Claim_claimant_idToParty   Party                  @relation("Claim_claimant_idToParty", fields: [claimant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_49_Claim")
-  Party_Claim_respondent_idToParty Party                  @relation("Claim_respondent_idToParty", fields: [respondent_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_50_Claim")
+  Party_Claim_claimant_idToParty   Party?                 @relation("Claim_claimant_idToParty", fields: [claimant_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_49_Claim")
+  Party_Claim_respondent_idToParty Party?                 @relation("Claim_respondent_idToParty", fields: [respondent_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_50_Claim")
   ClaimOutcomeProposal             ClaimOutcomeProposal[]
 }
 
@@ -112,6 +120,10 @@ model Claim {
 /// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
 model ClaimOutcomeProposal {
   id               String          @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  tenant_id   String?   @db.Uuid
+  amount      Decimal?  @db.Decimal(20, 6)
+  proposed_by String?   @db.Uuid
+  proposed_at DateTime? @db.Timestamptz(6)
   claim_id         String          @db.Uuid
   claim_version    Int
   proposed_outcome ClaimOutcome
@@ -130,6 +142,8 @@ model ClaimOutcomeProposal {
 /// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
 model ClosureAssessment {
   id                            String           @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  tenant_id   String?   @db.Uuid
+  assessed_by String?   @db.Uuid
   project_id                    String           @db.Uuid
   project_version               Int
   assessed_at                   DateTime         @db.Timestamptz(6)
@@ -149,6 +163,9 @@ model ClosureAssessment {
 /// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
 model ClosureBlocker {
   id                     String            @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  exception_reason String?
+  exception_by     String?   @db.Uuid
+  exception_at     DateTime? @db.Timestamptz(6)
   assessment_id          String            @db.Uuid
   code                   String
   subject_type           String
@@ -722,6 +739,12 @@ model Project {
   final_state                                          ProjectFinalState        @default(OPEN)
   management_currency                                  String                   @db.Char(3)
   version                                              Int                      @default(1)
+  closed_at             DateTime? @db.Timestamptz(6)
+  closed_by             String?   @db.Uuid
+  closure_assessment_id String?   @db.Uuid
+  reopened_at           DateTime? @db.Timestamptz(6)
+  reopened_by           String?   @db.Uuid
+  reopen_reason         String?
   created_at                                           DateTime                 @default(now()) @db.Timestamptz(6)
   updated_at                                           DateTime                 @updatedAt @db.Timestamptz(6)
   Tenant                                               Tenant?                  @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -1956,4 +1979,18 @@ model MoneyAuditEvent {
 
   @@index([subject_type, subject_id, occurred_at], map: "MoneyAuditEvent_subject_idx")
   @@index([tenant_id, project_id, occurred_at], map: "MoneyAuditEvent_project_idx")
+}
+
+model ClaimClosureAuditEvent {
+  id           String   @id @default(dbgenerated("orb_uuidv7()")) @db.Uuid
+  tenant_id    String   @db.Uuid
+  project_id   String   @db.Uuid
+  subject_type String
+  subject_id   String   @db.Uuid
+  actor_id     String   @db.Uuid
+  action       String
+  occurred_at  DateTime @default(now()) @db.Timestamptz(6)
+  details      Json     @default("{}")
+
+  @@index([tenant_id, project_id, occurred_at], map: "ClaimClosureAuditEvent_project_idx")
 }

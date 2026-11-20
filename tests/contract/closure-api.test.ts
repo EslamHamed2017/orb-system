@@ -29,7 +29,8 @@ test("closure exposes exactly assessment, exception, submit/apply final-close an
   const actual = Object.values(api.paths).flatMap((item: any) => Object.values(item))
     .filter((operation: any) => operation?.tags?.includes("Closure"))
     .map((operation: any) => operation.operationId).sort();
-  assert.deepEqual(actual, operations.map(([, id]) => id).sort());
+  assert.deepEqual(actual, [...operations.map(([, id]) => id), "getProjectClosure"].sort());
+  assert.deepEqual(api.paths["/projects/{projectId}/closure-assessment"].get["x-required-roles"], ["OWNER_ADMIN", "OPERATIONS", "FINANCE_VIEWER"]);
 });
 
 test("every closure mutation requires exact Project version, idempotency and CSRF controls", () => {

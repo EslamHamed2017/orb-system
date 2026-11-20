@@ -7,6 +7,7 @@ import type { SqlClient } from "../shipments/execution/shipment-execution-store.
  *   Shipped  = confirmed customer shipments at the sales price
  *              − the same quantities at the purchase price of each shipment's source supplier shipment
  *   Actual   = issued customer invoices − approved supplier invoices − approved expenses
+ *              − settled customer claims (they lower revenue) + settled supplier claims (they lower cost)
  *   Cash     = received from the customer − refunds to the customer − paid to suppliers + refunds from suppliers
  *
  * Currency: documents in the project currency count as they are. Documents in another currency are converted
@@ -23,7 +24,7 @@ export type MeasureKey = "expected" | "shipped" | "actual" | "cash";
 
 export interface ProfitSource {
   readonly measure: MeasureKey;
-  readonly kind: "SALES_CONTRACT" | "PURCHASE_CONTRACT" | "SALES_SHIPMENT" | "SALES_SHIPMENT_COST" | "CUSTOMER_INVOICE" | "SUPPLIER_INVOICE" | "EXPENSE"
+  readonly kind: "SALES_CONTRACT" | "PURCHASE_CONTRACT" | "SALES_SHIPMENT" | "SALES_SHIPMENT_COST" | "CUSTOMER_INVOICE" | "SUPPLIER_INVOICE" | "EXPENSE" | "CUSTOMER_CLAIM" | "SUPPLIER_CLAIM"
     | "CUSTOMER_RECEIPT" | "CUSTOMER_REFUND" | "SUPPLIER_PAYMENT" | "SUPPLIER_REFUND";
   readonly id: string;
   readonly reference: string;
@@ -62,7 +63,7 @@ const two = (value: number) => (Math.round(value * 100) / 100).toFixed(2);
 const FORMULAS: Record<MeasureKey, string> = {
   expected: "Sales contract value − purchase contract values (quantity × unit price of the active versions)",
   shipped: "Confirmed customer shipments × sales price − the same quantities × purchase price of their source supplier shipments",
-  actual: "Issued customer invoices − approved supplier invoices − approved expenses",
+  actual: "Issued customer invoices − approved supplier invoices − approved expenses − settled customer claims + settled supplier claims",
   cash: "Received from customer − refunds to customer − paid to suppliers + refunds from suppliers",
 };
 
@@ -83,7 +84,7 @@ export class PrismaProfitStore {
     if (!project) return null;
     const X = project.currency;
 
-    const [contracts, shipments, salesInvoices, supplierInvoices, expenses, movements] = await Promise.all([
+    const [contracts, shipments, salesInvoices, supplierInvoices, expenses, movements, claims] = await Promise.all([
       q<Record<string, string>>(
         `SELECT k."id", k."kind"::text kind, k."reference", v."quantity"::text quantity, v."unit_price"::text unit_price, btrim(v."currency") currency, COALESCE(s."registered_name", '') supplier
            FROM "Contract" k JOIN "ContractVersion" v ON v."id" = k."active_version_id" LEFT JOIN "Supplier" s ON s."id" = k."counterparty_supplier_id"
@@ -113,6 +114,12 @@ export class PrismaProfitStore {
                 COALESCE(c."legal_name", s."registered_name") party
            FROM "MoneyMovement" m LEFT JOIN "Customer" c ON c."id" = m."customer_master_id" LEFT JOIN "Supplier" s ON s."id" = m."supplier_master_id"
           WHERE m."tenant_id" = $1 AND m."project_id" = $2 AND m."state"::text IN ('CONFIRMED', 'PARTIALLY_ALLOCATED', 'FULLY_ALLOCATED') ORDER BY m."occurred_on", m."id"`),
+      q<Record<string, string>>(
+        `SELECT c."id", c."side", c."state"::text state, c."settled_amount"::text amount, btrim(c."currency") currency,
+                COALESCE(ss."reference", sp."reference") reference, COALESCE(cu."legal_name", su."registered_name") party
+           FROM "Claim" c LEFT JOIN "SalesShipment" ss ON ss."id" = c."sales_shipment_id" LEFT JOIN "SupplierShipment" sp ON sp."id" = c."supplier_shipment_id"
+           LEFT JOIN "Customer" cu ON cu."id" = c."customer_master_id" LEFT JOIN "Supplier" su ON su."id" = c."supplier_master_id"
+          WHERE c."tenant_id" = $1 AND c."project_id" = $2 AND c."state"::text IN ('OPEN', 'UNDER_REVIEW', 'RESOLVED') ORDER BY c."id"`),
     ]);
 
     // Project rate: AED per unit of the project currency.
@@ -165,6 +172,13 @@ export class PrismaProfitStore {
     const pendingExpenses = expenses.filter((x) => x.state === "PENDING_APPROVAL");
     if (pendingExpenses.length) warnings.push(`${pendingExpenses.length} expense(s) are waiting for approval and are not in Actual yet.`);
     for (const x of expenses.filter((e) => e.state === "APPROVED")) add("actual", "EXPENSE", -1, { id: x.id, reference: x.category, description: x.payee, amount: Number(x.amount), currency: x.currency, aed: Number(x.aed_amount), href: `/projects/${pid}/expenses` });
+    // A settled claim moves Actual: a customer claim lowers revenue, a supplier claim lowers cost.
+    for (const c of claims.filter((r) => r.state === "RESOLVED" && Number(r.amount) > 0)) {
+      if (c.side === "CUSTOMER") add("actual", "CUSTOMER_CLAIM", 1, { id: c.id, reference: c.reference, description: `Settled customer claim · ${c.party}`, amount: -Number(c.amount), currency: c.currency, href: `/projects/${pid}/claims` });
+      else add("actual", "SUPPLIER_CLAIM", -1, { id: c.id, reference: c.reference, description: `Settled supplier claim · ${c.party}`, amount: -Number(c.amount), currency: c.currency, href: `/projects/${pid}/claims` });
+    }
+    const openClaims = claims.filter((r) => r.state !== "RESOLVED").length;
+    if (openClaims) warnings.push(`${openClaims} claim(s) are still open and are not in Actual yet.`);
     const MOVES: Record<string, [ProfitSource["kind"], 1 | -1, string]> = {
       CUSTOMER_RECEIPT: ["CUSTOMER_RECEIPT", 1, "Received from"], CUSTOMER_REFUND: ["CUSTOMER_REFUND", -1, "Refunded to"],
       SUPPLIER_PAYMENT: ["SUPPLIER_PAYMENT", -1, "Paid to"], SUPPLIER_REFUND: ["SUPPLIER_REFUND", 1, "Refund from"],

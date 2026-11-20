@@ -1,0 +1,25 @@
+{
+  "cookies": [
+    {
+      "name": "__Host-orb_session",
+      "value": "NeNuhooxpf2UIXzGkfmxvowwsZSEkctYSflc5QeYC9U",
+      "domain": "127.0.0.1",
+      "path": "/",
+      "expires": 1795207551.868,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Strict"
+    },
+    {
+      "name": "__Host-orb_csrf",
+      "value": "32ae2c23dc9b69cbdfc058823b562b50c0af0484ede828c859fbe3d2f5b96176",
+      "domain": "127.0.0.1",
+      "path": "/",
+      "expires": 1795207551.868,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Strict"
+    }
+  ],
+  "origins": []
+}
