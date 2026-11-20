@@ -38,9 +38,12 @@ export const GEAR: readonly { readonly en: string; readonly ar: string; readonly
   ] },
   { en: "Lists", ar: "القوائم", links: [
     { key: "products", href: "/masters/coffee", en: "Products and services", ar: "المنتجات والخدمات", access: ["products"] },
+    { key: "customers", href: "/masters/customers", en: "Customers", ar: "العملاء", access: ["customers"] },
+    { key: "suppliers", href: "/masters/suppliers", en: "Suppliers", ar: "الموردون", access: ["products", "accounts"] },
     { key: "attachments", href: "/attachments", en: "Attachments", ar: "المرفقات", access: ["documents"] },
   ] },
   { en: "Tools", ar: "الأدوات", links: [
+    { key: "audit-log", href: "/admin/audit-log", en: "Audit log", ar: "سجل التدقيق", access: ["admin"] },
     { key: "backup", href: "/admin/backup", en: "Backup and restore", ar: "النسخ الاحتياطي والاستعادة", access: ["admin"] },
   ] },
 ]);
