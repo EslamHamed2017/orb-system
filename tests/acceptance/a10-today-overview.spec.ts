@@ -1,7 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const LEGACY_PROJECT={id:"legacy-project-1",code:"ORB-P-0001",customer:"Atlas Foods",reference:"AF-101",contractReference:"SC-44",startDate:"2026-11-14",commodity:"Coffee",quantity:"20",unit:"MT",currency:"USD",unitPrice:"4200",value:84000,origin:"Mombasa",destination:"Dubai",status:"SETUP",createdAt:"2026-11-14T12:00:00.000Z",updatedAt:"2026-11-14T12:00:00.000Z"};
-async function createProject(page:Page,locale:"en"|"ar"="en"):Promise<string>{await page.goto(`/sign-in?locale=${locale}`);await page.evaluate(project=>localStorage.setItem("orb.user-projects.owner-1.v1",JSON.stringify([project])),LEGACY_PROJECT);const path=`/projects/${LEGACY_PROJECT.id}/overview`;await page.goto(`${path}?locale=${locale}`);await expect(page.getByRole("heading",{level:1,name:"Atlas Foods"})).toBeVisible();return path}
 
 const project={id:"33333333-3333-7333-8333-333333333333",reference:"ORB-PRJ-2026-000001",lifecycleState:"DRAFT",managementCurrency:"USD",version:1,customer:{id:"11111111-1111-7111-8111-111111111111",reference:"CUS-001",legalName:"Northstar Roasters",legalNameAr:"محمصة نورث ستار"},salesContract:{id:"44444444-4444-7444-8444-444444444444",reference:"ORB-SC-2026-000001",state:"DRAFT",version:1,activeVersion:{revisionNo:1,effectiveDate:"2026-11-17",product:{id:"22222222-2222-7222-8222-222222222222",reference:"PROD-001",nameEn:"Yemen Matari",nameAr:"مطري يمني"},quantity:"100.000000",unitPrice:"4250.000000",currency:"USD",route:"FOREIGN_TO_FOREIGN",incoterm:"FOB",namedPlace:"Jebel Ali",paymentTerms:"30 days",documentTerms:"Original BL",tolerances:{quantityUnder:"0.000000",quantityOver:"0.000000",netWeightUnder:"0.000000",netWeightOver:"0.000000",grossWeightUnder:"0.000000",grossWeightOver:"0.000000"}}},purchaseContracts:[]};
 function fulfill(page:any,items:any[]){return page.route("**/api/projects",(route:any)=>route.fulfill({status:200,headers:{"x-orb-project-write-permitted":"true"},contentType:"application/json",body:JSON.stringify({items,nextCursor:null})}))}
@@ -10,324 +8,39 @@ test("persisted project register searches shared project, customer, contract, an
 test("Arabic persisted project register is RTL and mobile-safe",async({page})=>{await fulfill(page,[project]);await page.setViewportSize({width:390,height:844});await page.goto("/projects?locale=ar");await expect(page.locator("main > section")).toHaveAttribute("dir","rtl");await expect(page.getByText("مطري يمني",{exact:true})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth)).toBeLessThanOrEqual(1)});
 test("project service failure is truthful and keyboard-recoverable",async({page})=>{let failing=true;await page.route("**/api/projects",route=>route.fulfill(failing?{status:503,body:"unavailable"}:{status:200,headers:{"x-orb-project-write-permitted":"true"},contentType:"application/json",body:JSON.stringify({items:[],nextCursor:null})}));await page.goto("/projects?locale=en");await expect(page.locator("main [role=alert]")).toContainText("Project service is unavailable.");const retry=page.getByRole("button",{name:"Retry"});await retry.focus();await expect(retry).toBeFocused();failing=false;await retry.press("Enter");await expect(page.getByRole("heading",{name:"No projects registered yet"})).toBeVisible()});
 
-for (const locale of ["en", "ar"] as const) test(`${locale} bounded flow uses route direction and business copy`, async ({ page }) => {
-  await createProject(page, locale);
-  await expect(page.locator("html")).toHaveAttribute("dir", locale === "ar" ? "rtl" : "ltr");
-  await expect(page.locator("body")).toContainText(locale === "ar" ? "مسار دورة العمل" : "Lifecycle tasks");
-  await expect(page.locator("body")).not.toContainText(/SETUP|ACTIVE|CLOSED|[a-f0-9]{32}/);
+const shipment=(over:Record<string,unknown>)=>({type:"SALES",id:"44444444-4444-7444-8444-444444444444",reference:"OUT-1",projectId:project.id,projectReference:project.reference,counterpartyName:"Northstar Roasters",quantity:"19.200",state:"CONFIRMED",estimatedDeparture:null,estimatedArrival:null,waitingForApproval:false,hasSource:true,invoiceState:null,...over});
+async function stubToday(page:Page,options:{shipments?:unknown[];failShipments?:boolean}={}){
+  await fulfill(page,[project]);
+  await page.route("**/api/shipments",(route:any)=>options.failShipments?route.fulfill({status:503,contentType:"application/problem+json",body:JSON.stringify({status:503,code:"DEPENDENCY_UNAVAILABLE"})}):route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({items:options.shipments??[]})}));
+  await page.route("**/api/approvals",(route:any)=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({items:[{id:"a1"},{id:"a2"}]})}));
+  await page.route("**/api/reports/project-profitability",(route:any)=>route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({rows:[{project:{id:project.id,reference:project.reference,customerName:"Northstar Roasters",lifecycleState:"ACTIVE",currency:"USD"},warnings:0,expected:{amount:"89950.00",marginPercent:"14.7"},shipped:{amount:"17270.40",marginPercent:"14.7"},actual:{amount:"15220.40",marginPercent:"13.0"},cash:{amount:"-10000.00",marginPercent:null}}]})}));
+}
+
+for (const locale of ["en","ar"] as const) test(`${locale} Today lists next steps from live projects and shipments`,async({page})=>{
+  const ar=locale==="ar";
+  await stubToday(page,{shipments:[shipment({}),shipment({id:"55555555-5555-7555-8555-555555555555",type:"SUPPLIER",reference:"IN-9",state:"IN_TRANSIT",estimatedArrival:"2000-01-01",invoiceState:"CONFIRMED",hasSource:null})]});
+  await page.goto(`/?locale=${locale}`);
+  await expect(page.locator("html")).toHaveAttribute("dir",ar?"rtl":"ltr");
+  await expect(page.getByRole("heading",{level:1,name:ar?"اليوم":"Today"})).toBeVisible();
+  const steps=page.getByTestId("today-steps");
+  await expect(steps.getByRole("link",{name:ar?`تفعيل المشروع ${project.reference}`:`Activate project ${project.reference}`})).toHaveAttribute("href",`/projects/${project.id}/overview?locale=${locale}`);
+  await expect(steps.getByRole("link",{name:ar?"أصدر فاتورة العميل لـ OUT-1":"Issue the customer invoice for OUT-1"})).toBeVisible();
+  await expect(steps.getByRole("link",{name:ar?"IN-9 تجاوزت تاريخ الوصول":"IN-9 is past its arrival date"})).toBeVisible();
+  await expect(page.getByTestId("today-kpis")).toContainText("2");
+  await expect(page.getByTestId("today-profit").getByRole("link",{name:project.reference})).toHaveAttribute("href",`/projects/${project.id}/profit?locale=${locale}`);
+  await expect(page.locator("body")).not.toContainText(/localStorage|this browser/i);
 });
 
-
-test("project setup can be completed and advances the persisted Today action", async ({ page }) => {
-  const detailPath = await createProject(page);
-  await page.getByRole("button", { name: "Complete project setup" }).click();
-  await expect(page.locator("#setup-editor-title")).toHaveText("Complete project setup");
-  await expect(page.locator('[name="setupCustomer"]')).toHaveValue("Atlas Foods");
-  await expect(page.locator('[name="salesContractReference"]')).toHaveValue("SC-44");
-  await page.locator('[name="setupCustomer"]').fill("Atlas Coffee Trading");
-  await page.locator('[name="supplier"]').fill("Coast Exporters");
-  await page.locator('[name="purchaseContractReference"]').fill("PC-17");
-  await page.getByRole("button", { name: "Save setup" }).click();
-  await expect(page.getByText("Active", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Atlas Coffee Trading" })).toBeVisible();
-  await expect(page.locator("#project-data")).toContainText("Coast Exporters");
-  await expect(page.locator("#project-data")).toContainText("PC-17");
-  await expect(page.locator("#lifecycle")).toContainText("Setup complete");
-  await page.reload();
-  await expect(page).toHaveURL(new RegExp(detailPath));
-  await expect(page.getByRole("heading", { name: "Atlas Coffee Trading" })).toBeVisible();
+test("Today stays usable and truthful when shipments cannot be loaded",async({page})=>{
+  await stubToday(page,{failShipments:true});
   await page.goto("/?locale=en");
-  await expect(page.getByRole("heading", { name: "Record supplier shipment" })).toBeVisible();
+  await expect(page.getByTestId("today-steps").getByRole("alert")).toContainText("Some records could not be loaded");
+  await expect(page.getByTestId("today-steps").getByRole("link",{name:`Activate project ${project.reference}`})).toBeVisible();
 });
 
-
-test("stale setup form cannot overwrite a project closed in another session", async ({ page }) => {
-  await createProject(page);
-  await page.getByRole("button", { name: "Complete project setup" }).click();
-  await page.evaluate(() => {
-    const key = "orb.user-projects.owner-1.v1";
-    const records = JSON.parse(localStorage.getItem(key) ?? "[]");
-    const updatedAt = new Date(new Date(records[0].updatedAt).getTime() + 1_000).toISOString();
-    records[0] = { ...records[0], status: "CLOSED", customer: "Newer customer", updatedAt };
-    localStorage.setItem(key, JSON.stringify(records));
-  });
-  await page.locator('[name="supplier"]').fill("Coast Exporters");
-  await page.locator('[name="purchaseContractReference"]').fill("PC-17");
-  await page.getByRole("button", { name: "Save setup" }).click();
-  await expect(page.locator("form").getByRole("alert")).toContainText("Setup could not be saved");
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("orb.user-projects.owner-1.v1") ?? "[]")[0]);
-  expect(saved.status).toBe("CLOSED");
-  expect(saved.customer).toBe("Newer customer");
-});
-
-
-test("active project records supplier and customer shipments and Today advances truthfully", async ({ page }) => {
-  const detailPath = await createProject(page);
-  await page.getByRole("button", { name: "Complete project setup" }).click();
-  await page.locator('[name="supplier"]').fill("Coast Exporters");
-  await page.locator('[name="purchaseContractReference"]').fill("PC-17");
-  await page.getByRole("button", { name: "Save setup" }).click();
-  await expect(page.locator("#supplier-shipment-title")).toHaveText("Record supplier shipment");
-  await page.locator('[name="shipmentReference"]').fill("SS-001");
-  await page.locator('[name="expectedArrival"]').fill("2026-12-02");
-  await page.locator('[name="shipmentQuantity"]').fill("12");
-  await page.getByRole("button", { name: "Save supplier shipment" }).click();
-  await expect(page.locator("#supplier-shipment").getByText("Saved shipment", { exact: true })).toBeVisible();
-  await expect(page.locator("#supplier-shipment").getByText("Next operational step", { exact: true })).toHaveCount(0);
-  await expect(page.locator("#supplier-shipment")).toContainText("SS-001");
-  await expect(page.locator("#supplier-shipment")).toContainText("12 MT");
-  await expect(page.locator("#customer-shipment-title")).toHaveText("Record customer shipment");
-  await page.locator('[name="customerShipmentReference"]').fill("CS-001");
-  await page.locator('[name="plannedDispatchDate"]').fill("2026-12-05");
-  await page.locator('[name="customerShipmentQuantity"]').fill("10");
-  await page.getByRole("button", { name: "Save customer shipment" }).click();
-  await expect(page.locator("#customer-shipment")).toContainText("CS-001");
-  await expect(page.locator("#supplier-shipment")).toContainText("The supplier shipment is saved with the recorded customer shipment in this bounded flow.");
-  await expect(page.locator("#customer-shipment")).toContainText("10 MT");
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.reload();
-  await expect(page).toHaveURL(new RegExp(detailPath));
-  await expect(page.locator("#supplier-shipment")).toContainText("SS-001");
-  await expect(page.locator("#customer-shipment")).toContainText("CS-001");
-  const mobileGeometry = await page.evaluate(() => {
-    const main = document.querySelector(".orb-main")!.getBoundingClientRect();
-    const nav = document.querySelector('[data-navigation="bottom"]')!.getBoundingClientRect();
-    return { mainBottom: Math.round(main.bottom), navTop: Math.round(nav.top) };
-  });
-  expect(mobileGeometry.mainBottom).toBeLessThanOrEqual(mobileGeometry.navTop);
-  await page.goto("/?locale=en");
-  await expect(page.getByRole("heading", { name: "Review shipment handover" })).toBeVisible();
-  await expect(page.locator("body")).toContainText("CS-001");
-  await page.getByRole("link", { name: "Review shipment handover" }).click();
-  await expect(page.locator("#customer-shipment")).toContainText("Data exists only in this browser. It is not synchronized or backed up. Clearing browser data removes it.");
-  await expect(page.locator("#customer-shipment").getByText("Review step", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Mark handover reviewed" }).click();
-  await expect(page.locator("#supplier-finance-title").getByText("Record supplier invoice", { exact: true })).toBeVisible();
-  await page.locator('[name="supplierInvoiceReference"]').fill("SI-001");
-  await page.locator('[name="supplierInvoiceDate"]').fill("2026-12-05");
-  await page.locator('[name="supplierInvoiceAmount"]').fill("50400");
-  await page.getByRole("button", { name: "Save supplier invoice" }).click();
-  await expect(page.locator("#supplier-finance")).toContainText("SI-001");
-  await expect(page.locator("#supplier-finance-title").getByText("Record supplier payment", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Correct invoice" })).toBeVisible();
-  await page.locator('[name="supplierPaymentReference"]').fill("PAY-001");
-  await page.locator('[name="supplierPaymentDate"]').fill("2026-12-06");
-  await page.locator('[name="supplierPaymentAmount"]').fill("50400");
-  await page.getByRole("button", { name: "Save supplier payment" }).click();
-  await expect(page.locator("#supplier-finance")).toContainText("PAY-001");
-  await expect(page.locator("#supplier-finance")).toContainText("Recorded only — ORB did not initiate or execute a bank transfer");
-  await expect(page.locator("#supplier-finance-title").getByText("Invoice and payment recorded", { exact: true })).toBeVisible();
-  await expect(page.locator("#customer-finance-title").getByText("Record customer invoice", { exact: true })).toBeVisible();
-  await page.locator('[name="customerInvoiceReference"]').fill("CI-001");
-  await page.locator('[name="customerInvoiceDate"]').fill("2026-12-06");
-  await page.locator('[name="customerInvoiceAmount"]').fill("84000");
-  await page.getByRole("button", { name: "Save customer invoice" }).click();
-  await expect(page.locator("#customer-finance")).toContainText("CI-001");
-  await expect(page.locator("#customer-finance")).toContainText("Remaining balance");
-  await page.locator('[name="customerCollectionReference"]').fill("COL-001");
-  await page.locator('[name="customerCollectionDate"]').fill("2026-12-07");
-  await page.locator('[name="customerCollectionAmount"]').fill("30000");
-  await page.getByRole("button", { name: "Save collection" }).click();
-  await expect(page.locator("#customer-finance")).toContainText("54,000 USD");
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await page.screenshot({ path: "artifacts/product-customer-collection-20261114/desktop-en-partial.png", fullPage: true });
-  await page.goto("/?locale=en");
-  await expect(page.getByRole("heading", { name: "Record customer collection" })).toBeVisible();
-  await expect(page.getByText("Customer finance", { exact: true })).toBeVisible();
-  await expect(page.locator("body")).toContainText("54,000 USD remains");
-  await page.goto(`${detailPath}?locale=en#customer-finance`);
-  await page.locator('[name="customerCollectionReference"]').fill("COL-002");
-  await page.locator('[name="customerCollectionDate"]').fill("2026-12-08");
-  await page.locator('[name="customerCollectionAmount"]').fill("54000");
-  await page.getByRole("button", { name: "Save collection" }).click();
-  await expect(page.locator("#customer-finance-title").getByText("Customer invoice collected", { exact: true })).toBeVisible();
-  await expect(page.locator("#customer-finance")).toContainText("Recorded only — ORB did not connect to a bank or execute a transfer");
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({ path: "artifacts/product-customer-collection-20261114/mobile-en-collected.png", fullPage: true });
-  await page.reload();
-  await expect(page.locator("#customer-finance-title").getByText("Customer invoice collected", { exact: true })).toBeVisible();
-  await page.goto("/?locale=en");
-  await expect(page.getByRole("heading", { name: "Record project expense" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Record project expense" })).toHaveAttribute("href", /\/expenses\?locale=en$/);
-  await page.getByRole("link", { name: "Record project expense" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "Project expenses" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "No expenses recorded" })).toBeVisible();
-  await expect(page.locator("body")).not.toContainText(/DEMO|Demo Freight|1,250\.00/);
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await page.screenshot({ path: "artifacts/product-project-expense-20261114/desktop-en-empty.png", fullPage: true });
-  await page.locator('[name="reference"]').fill("EXP-001");
-  await page.locator('[name="occurredOn"]').fill("2026-12-09");
-  await page.locator('[name="category"]').fill("Freight");
-  await page.locator('[name="vendor"]').fill("Harbour Services");
-  await page.locator('[name="amount"]').fill("1250.50");
-  await page.getByRole("button", { name: "Save expense" }).click();
-  await expect(page.getByText("Expense saved in this browser.", { exact: true })).toBeVisible();
-  await expect(page.locator("body")).toContainText("EXP-001");
-  await expect(page.locator("body")).toContainText("1,250.5 USD");
-  await page.setViewportSize({ width: 390, height: 844 });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
-  const expenseGeometry = await page.evaluate(() => {
-    const main = document.querySelector(".orb-main")!.getBoundingClientRect();
-    const nav = document.querySelector('[data-navigation="bottom"]')!.getBoundingClientRect();
-    return { mainBottom: Math.round(main.bottom), navTop: Math.round(nav.top) };
-  });
-  expect(expenseGeometry.mainBottom).toBeLessThanOrEqual(expenseGeometry.navTop);
-  await page.screenshot({ path: "artifacts/product-project-expense-20261114/mobile-en-recorded.png", fullPage: true });
-  await page.reload();
-  await expect(page.locator("body")).toContainText("EXP-001");
-  await page.goto(`${detailPath}?locale=en`);
-  await expect(page.locator("#lifecycle")).toContainText("1 expense recorded");
-  await expect(page.getByRole("heading", { name: "Expenses recorded" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Project expenses" })).toBeVisible();
-  await page.goto(`${detailPath.replace(/\/overview$/, "/expenses")}?locale=en&role=finance-viewer`);
-  await expect(page.getByText("Read-only view", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Save expense" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Remove to correct" })).toHaveCount(0);
-  await page.goto(`${detailPath}?locale=en`);
-  page.once("dialog", (dialog) => dialog.accept());
-  await page.getByRole("button", { name: "Correct invoice or payment" }).click();
-  await expect(page.locator("#supplier-finance-title").getByText("Record supplier invoice", { exact: true })).toBeVisible();
-  await page.goto("/?locale=en");
-  await expect(page.getByRole("heading", { name: "Record supplier invoice" })).toBeVisible();
-  await page.goto(`${detailPath}?locale=en`);
-  await page.evaluate(() => {
-    const key = "orb.user-projects.owner-1.v1";
-    const records = JSON.parse(localStorage.getItem(key) ?? "[]");
-    const updatedAt = new Date(new Date(records[0].updatedAt).getTime() + 1_000).toISOString();
-    records[0] = { ...records[0], status: "CLOSED", updatedAt };
-    localStorage.setItem(key, JSON.stringify(records));
-  });
-  await page.reload();
-  await expect(page.getByRole("heading", { level: 1, name: "Atlas Foods" })).toBeVisible();
-  await expect(page.getByText("Closed", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Project closed" })).toBeVisible();
-  await expect(page.locator("body")).not.toContainText("The supplier invoice and its full payment are recorded");
-  await expect(page.getByRole("heading", { name: "Project could not be opened" })).toHaveCount(0);
-});
-
-test("stale customer shipment form cannot overwrite a newer stored shipment", async ({ page }) => {
-  await createProject(page);
-  await page.getByRole("button", { name: "Complete project setup" }).click();
-  await page.locator('[name="supplier"]').fill("Coast Exporters");
-  await page.locator('[name="purchaseContractReference"]').fill("PC-17");
-  await page.getByRole("button", { name: "Save setup" }).click();
-  await page.locator('[name="shipmentReference"]').fill("SS-001");
-  await page.locator('[name="expectedArrival"]').fill("2026-12-02");
-  await page.locator('[name="shipmentQuantity"]').fill("12");
-  await page.getByRole("button", { name: "Save supplier shipment" }).click();
-  await expect(page.locator('[name="customerShipmentReference"]')).toBeVisible();
-  await page.evaluate(() => {
-    const key = "orb.user-projects.owner-1.v1";
-    const records = JSON.parse(localStorage.getItem(key) ?? "[]");
-    const updatedAt = new Date(new Date(records[0].updatedAt).getTime() + 1_000).toISOString();
-    records[0] = { ...records[0], customerShipment: { reference: "CS-NEWER", plannedDispatchDate: "2026-12-06", quantity: "8" }, updatedAt };
-    localStorage.setItem(key, JSON.stringify(records));
-  });
-  await page.locator('[name="customerShipmentReference"]').fill("CS-STALE");
-  await page.locator('[name="plannedDispatchDate"]').fill("2026-12-05");
-  await page.locator('[name="customerShipmentQuantity"]').fill("10");
-  await page.getByRole("button", { name: "Save customer shipment" }).click();
-  await expect(page.locator("#customer-shipment").getByRole("alert")).toContainText("Customer shipment could not be saved");
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("orb.user-projects.owner-1.v1") ?? "[]")[0]);
-  expect(saved.customerShipment.reference).toBe("CS-NEWER");
-});
-
-
-test("stale handover review cannot overwrite a project changed in another session", async ({ page }) => {
-  await createProject(page);
-  await page.getByRole("button", { name: "Complete project setup" }).click();
-  await page.locator('[name="supplier"]').fill("Coast Exporters");
-  await page.locator('[name="purchaseContractReference"]').fill("PC-17");
-  await page.getByRole("button", { name: "Save setup" }).click();
-  await page.locator('[name="shipmentReference"]').fill("SS-001");
-  await page.locator('[name="expectedArrival"]').fill("2026-12-02");
-  await page.locator('[name="shipmentQuantity"]').fill("12");
-  await page.getByRole("button", { name: "Save supplier shipment" }).click();
-  await page.locator('[name="customerShipmentReference"]').fill("CS-001");
-  await page.locator('[name="plannedDispatchDate"]').fill("2026-12-05");
-  await page.locator('[name="customerShipmentQuantity"]').fill("10");
-  await page.getByRole("button", { name: "Save customer shipment" }).click();
-  await page.evaluate(() => {
-    const key = "orb.user-projects.owner-1.v1";
-    const records = JSON.parse(localStorage.getItem(key) ?? "[]");
-    const updatedAt = new Date(new Date(records[0].updatedAt).getTime() + 1_000).toISOString();
-    records[0] = { ...records[0], status: "CLOSED", updatedAt };
-    localStorage.setItem(key, JSON.stringify(records));
-  });
-  await page.getByRole("button", { name: "Mark handover reviewed" }).click();
-  await expect(page.locator("#customer-shipment").getByRole("alert")).toContainText("Handover review could not be saved");
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("orb.user-projects.owner-1.v1") ?? "[]")[0]);
-  expect(saved.status).toBe("CLOSED");
-  expect(saved.customerShipmentReviewedAt).toBeUndefined();
-});
-
-test("Arabic shipment actions disclose local-only risk and complete in RTL", async ({ page }) => {
-  await createProject(page, "ar");
-  await page.getByRole("button", { name: "إكمال إعداد المشروع" }).click();
-  await page.locator('[name="supplier"]').fill("Coast Exporters");
-  await page.locator('[name="purchaseContractReference"]').fill("PC-17");
-  await page.getByRole("button", { name: "حفظ الإعداد" }).click();
-  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  await expect(page.locator("#supplier-shipment")).toContainText("البيانات موجودة في هذا المتصفح فقط، ولا تتم مزامنتها أو نسخها احتياطياً، ومسح بيانات المتصفح يحذفها.");
-  await page.locator('[name="shipmentReference"]').fill("SS-AR-001");
-  await page.locator('[name="expectedArrival"]').fill("2026-12-02");
-  await page.locator('[name="shipmentQuantity"]').fill("12");
-  await page.getByRole("button", { name: "حفظ شحنة المورد" }).click();
-  await expect(page.locator("#supplier-shipment").getByText("شحنة محفوظة", { exact: true })).toBeVisible();
-  await page.locator('[name="customerShipmentReference"]').fill("CS-AR-001");
-  await page.locator('[name="plannedDispatchDate"]').fill("2026-12-05");
-  await page.locator('[name="customerShipmentQuantity"]').fill("10");
-  await page.getByRole("button", { name: "حفظ شحنة العميل" }).click();
-  await expect(page.locator("#customer-shipment").getByText("خطوة المراجعة", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "تأكيد مراجعة التسليم" }).click();
-  await expect(page.locator("#supplier-finance-title").getByText("تسجيل فاتورة المورد", { exact: true })).toBeVisible();
-  await page.locator('[name="supplierInvoiceReference"]').fill("SI-AR-001");
-  await page.locator('[name="supplierInvoiceDate"]').fill("2026-12-05");
-  await page.locator('[name="supplierInvoiceAmount"]').fill("50400");
-  await page.getByRole("button", { name: "حفظ فاتورة المورد" }).click();
-  await page.locator('[name="supplierPaymentReference"]').fill("PAY-AR-001");
-  await page.locator('[name="supplierPaymentDate"]').fill("2026-12-06");
-  await page.locator('[name="supplierPaymentAmount"]').fill("50400");
-  await page.getByRole("button", { name: "حفظ دفعة المورد" }).click();
-  await expect(page.locator("#supplier-finance")).toContainText("مسجلة فقط — لم يبدأ ORB أي تحويل بنكي ولم ينفذه");
-  await expect(page.locator("#supplier-finance-title").getByText("تم تسجيل الفاتورة والدفعة", { exact: true })).toBeVisible();
-  await expect(page.locator("#customer-finance-title").getByText("تسجيل فاتورة العميل", { exact: true })).toBeVisible();
-  await page.locator('[name="customerInvoiceReference"]').fill("CI-AR-001");
-  await page.locator('[name="customerInvoiceDate"]').fill("2026-12-06");
-  await page.locator('[name="customerInvoiceAmount"]').fill("84000");
-  await page.getByRole("button", { name: "حفظ فاتورة العميل" }).click();
-  await page.locator('[name="customerCollectionReference"]').fill("COL-AR-001");
-  await page.locator('[name="customerCollectionDate"]').fill("2026-12-07");
-  await page.locator('[name="customerCollectionAmount"]').fill("30000");
-  await page.getByRole("button", { name: "حفظ التحصيل" }).click();
-  await expect(page.locator("#customer-finance")).toContainText("COL-AR-001");
-  await page.screenshot({ path: "artifacts/product-customer-collection-20261114/desktop-ar-partial.png", fullPage: true });
-  await page.locator('[name="customerCollectionReference"]').fill("COL-AR-002");
-  await page.locator('[name="customerCollectionDate"]').fill("2026-12-08");
-  await page.locator('[name="customerCollectionAmount"]').fill("54000");
-  await page.getByRole("button", { name: "حفظ التحصيل" }).click();
-  await expect(page.locator("#customer-finance-title").getByText("تم تحصيل فاتورة العميل", { exact: true })).toBeVisible();
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({ path: "artifacts/product-customer-collection-20261114/mobile-ar-collected.png", fullPage: true });
-  await page.goto("/?locale=ar");
-  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
-  await expect(page.getByText("ابدأ بالخطوة المطلوبة التالية لكل مشروع يحتاج إلى عمل.", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "تسجيل مصروف للمشروع" })).toBeVisible();
-  await page.getByRole("link", { name: "تسجيل مصروف للمشروع" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "مصروفات المشروع" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "لا توجد مصروفات مسجلة" })).toBeVisible();
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await page.screenshot({ path: "artifacts/product-project-expense-20261114/desktop-ar-empty.png", fullPage: true });
-  await page.locator('[name="reference"]').fill("EXP-AR-001");
-  await page.locator('[name="occurredOn"]').fill("2026-12-09");
-  await page.locator('[name="category"]').fill("شحن");
-  await page.locator('[name="vendor"]').fill("خدمات الميناء");
-  await page.locator('[name="amount"]').fill("1250.50");
-  await page.getByRole("button", { name: "حفظ المصروف" }).click();
-  await expect(page.getByText("تم حفظ المصروف في هذا المتصفح.", { exact: true })).toBeVisible();
-  await expect(page.locator("body")).toContainText("EXP-AR-001");
-  await expect(page.locator("body")).not.toContainText(/EXTERNAL_SEND|OUTBOUND_MANIFEST|[a-f0-9]{32}/);
-  await page.setViewportSize({ width: 390, height: 844 });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
-  await page.screenshot({ path: "artifacts/product-project-expense-20261114/mobile-ar-recorded.png", fullPage: true });
+for (const locale of ["en","ar"] as const) test(`${locale} links to browser-only test projects explain where projects live now`,async({page})=>{
+  await page.goto(`/projects/legacy-project-1/overview?locale=${locale}`);
+  await expect(page.locator("html")).toHaveAttribute("dir",locale==="ar"?"rtl":"ltr");
+  await expect(page.getByRole("heading",{level:1,name:locale==="ar"?"المشروع غير موجود":"Project not found"})).toBeVisible();
+  await expect(page.getByRole("link",{name:locale==="ar"?"فتح المشاريع":"Open projects"})).toHaveAttribute("href",`/projects?locale=${locale}`);
 });

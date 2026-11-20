@@ -5,7 +5,7 @@ import test from "node:test";
 const overview=readFileSync("src/ui/features/projects/ProjectOverviewSummary.tsx","utf8");
 const route=readFileSync("src/app/projects/[id]/overview/page.tsx","utf8");
 const cards=readFileSync("src/ui/features/profit/ProfitCards.tsx","utf8");
-const report=readFileSync("src/ui/features/reports/ProjectProfitabilityReportPage.tsx","utf8");
+const report=readFileSync("src/ui/features/reports/ProfitabilityReportLive.tsx","utf8");
 
 test("project overview exposes the approved action and operational KPI hierarchy",()=>{
   for(const phrase of ["Add to project","Sales invoiced","Supplier invoiced","Approved expenses","Customer outstanding","Supplier outstanding","Actual operational margin","Cash position"]) assert.match(overview,new RegExp(phrase));
@@ -23,9 +23,8 @@ test("profit cards name the approved commercial documents in committed and actua
   assert.doesNotMatch(cards,/customer invoices - supplier invoices/);
 });
 
-test("project profitability report links invoiced values to their source transaction registers",()=>{
-  assert.match(report,/Sales invoiced/);
-  assert.match(report,/Supplier invoiced/);
-  assert.match(report,/CUSTOMER_COMMERCIAL_INVOICE/);
-  assert.match(report,/SUPPLIER_COMMERCIAL_INVOICE/);
+test("project profitability report reads live margins and links each project to its profit sources",()=>{
+  assert.match(report,/\/api\/reports\/project-profitability/);
+  assert.match(report,/\/projects\/\$\{r\.project\.id\}\/profit/);
+  assert.doesNotMatch(report,/ROWS\s*:|project-orion/);
 });

@@ -2,7 +2,8 @@ import { ClaimWorkspace } from "../../../../ui/features/claims/ClaimWorkspace";
 import { SalesShipmentClaimsPanel } from "../../../../ui/features/claims/SalesShipmentClaimsPanel";
 import { ProjectContextNavigation } from "../../../../ui/navigation/ProjectContextNavigation";
 import { EnterpriseStyles, ErpPageHeader, Kpi } from "../../../../ui/features/admin/EnterpriseUx";
-import { SavedProjectClaims } from "../../../../ui/features/projects/SavedProjectClaims";
+import { RetiredBrowserProject } from "../../../../ui/features/projects/RetiredBrowserProject"
+import { isSavedProjectId } from "../../../../ui/features/money/saved-project-id";
 
 type Query = Readonly<{ locale?: string; demoState?: string; role?: string }>;
 type DemoState = "open" | "pending" | "rejected" | "approved" | "resolved";
@@ -11,7 +12,7 @@ const states = new Set<DemoState>(["open", "pending", "rejected", "approved", "r
 export default async function ClaimsPage({ params, searchParams }: { readonly params: Promise<{ id: string }>; readonly searchParams: Promise<Query> }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const locale = query.locale === "ar" ? "ar" : "en";
-  if (id !== "demo") return <SavedProjectClaims id={id} locale={locale} />;
+  if (id !== "demo") return <RetiredBrowserProject locale={locale} feature="claims" projectId={isSavedProjectId(id) ? id : undefined} />;
   const ar = locale === "ar";
   const demoState = states.has(query.demoState as DemoState) ? query.demoState as DemoState : "open";
   return <section aria-labelledby="claims-title" dir={ar ? "rtl" : "ltr"} className="orb-erp"><EnterpriseStyles/><ProjectContextNavigation locale={locale} projectId={id} current="claims"/><ErpPageHeader titleId="claims-title" eyebrow={<><bdi>{id}</bdi><span>•</span>{ar ? "الرقابة والاستثناءات" : "Controls & exceptions"}</>} title={ar ? "المطالبات البسيطة" : "Simple claims"} description={ar ? "إدارة المطالبة من الفتح حتى النتيجة النهائية المعتمدة، بدون تجاوز ضوابط الموافقة." : "Manage claims from opening to an approved terminal outcome without bypassing approval controls."} meta={<span className="orb-chip" data-tone={demoState === "resolved" ? "success" : "warning"}>{demoState.toUpperCase()}</span>}/><div className="orb-summary-grid"><Kpi label={ar ? "المطالبات المفتوحة" : "Open claims"} value={demoState === "resolved" ? "0" : "1"}/><Kpi label={ar ? "قيد المراجعة" : "Under review"} value={demoState === "open" ? "0" : "1"}/><Kpi label={ar ? "مبلغ التعرض" : "Exposure"} value={<bdi>USD 0.00</bdi>}/><Kpi label={ar ? "مانع إغلاق" : "Close blocker"} value={demoState === "resolved" ? (ar ? "لا" : "No") : (ar ? "نعم" : "Yes")}/></div><ClaimWorkspace locale={locale} demoState={demoState} projectId={id} canUpload={query.role !== "finance-viewer"}/><SalesShipmentClaimsPanel locale={locale}/></section>;

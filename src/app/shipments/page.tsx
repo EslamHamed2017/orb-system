@@ -1,7 +1,6 @@
-import { SavedShipmentsWorkQueue } from "../../ui/features/shipments/SavedShipmentsWorkQueue";
+import { ShipmentsQueue } from "../../ui/features/shipments/ShipmentsQueue";
 
-export default async function ShipmentsPage({ searchParams }: { readonly searchParams: Promise<{ locale?: string; role?: string }> }) {
+export default async function ShipmentsPage({ searchParams }: { readonly searchParams: Promise<{ locale?: string }> }) {
   const query = await searchParams;
-  const locale = query.locale === "ar" ? "ar" : "en";
-  return <SavedShipmentsWorkQueue locale={locale} role={query.role?.trim() || undefined} />;
+  return <ShipmentsQueue locale={query.locale === "ar" ? "ar" : "en"} />;
 }

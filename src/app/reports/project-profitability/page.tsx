@@ -1,1 +1,8 @@
-import{ProjectProfitabilityReportPage}from"../../../ui/features/reports/ProjectProfitabilityReportPage";type Query={readonly locale?:string;readonly role?:string;readonly projectId?:string;readonly from?:string;readonly to?:string;readonly q?:string};export default async function ProjectProfitabilityReportRoute({searchParams}:{readonly searchParams:Promise<Query>}){const q=await searchParams;return <ProjectProfitabilityReportPage locale={q.locale==="ar"?"ar":"en"} role={q.role} projectId={q.projectId} from={q.from} to={q.to} query={q.q??""}/>;}
+import { ProfitabilityReportLive } from "../../../ui/features/reports/ProfitabilityReportLive";
+
+type Query = { readonly locale?: string; readonly q?: string };
+
+export default async function ProjectProfitabilityReportRoute({ searchParams }: { readonly searchParams: Promise<Query> }) {
+  const q = await searchParams;
+  return <ProfitabilityReportLive locale={q.locale === "ar" ? "ar" : "en"} initialQuery={q.q ?? ""} />;
+}

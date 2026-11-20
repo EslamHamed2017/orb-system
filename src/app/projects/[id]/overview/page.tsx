@@ -1,6 +1,6 @@
 import { createInMemoryProjectOverviewQuery, REQUIRED_PROJECT_OVERVIEW_ADAPTERS } from "../../../../modules/projects/project-overview-query";
 import { ProjectOverviewSummary } from "../../../../ui/features/projects/ProjectOverviewSummary";
-import { SavedProjectDetail } from "../../../../ui/features/projects/SavedProjectDetail";
+import { RetiredBrowserProject } from "../../../../ui/features/projects/RetiredBrowserProject";
 import { ProjectWorkspacePage } from "../../../../ui/features/projects/ProjectWorkspacePage";
 const data: Record<string, unknown> = {
   project: { id: "demo", code: "ORB-P-0001", state: "ACTIVE", version: 7, customerName: "Pilot Customer" },
@@ -19,7 +19,7 @@ export default async function OverviewPage({ params, searchParams }: { params: P
   if (id !== "demo") {
     const decodedId = decodeURIComponent(id);
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(decodedId)) return <ProjectWorkspacePage id={decodedId} locale={locale} view="overview" />;
-    return <SavedProjectDetail id={decodedId} locale={locale} role={query.role?.trim() || undefined} canMutate={query.role !== "finance-viewer"} />;
+    return <RetiredBrowserProject locale={locale} />;
   }
   const overview = await createInMemoryProjectOverviewQuery({ adapters }).getProjectOverview({ projectId: id, principal: { userId: "owner-1", roles: ["OWNER_ADMIN"] } });
   return <div dir={ar ? "rtl" : "ltr"}><ProjectOverviewSummary locale={locale} overview={overview} /></div>;
