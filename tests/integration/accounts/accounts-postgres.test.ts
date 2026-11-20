@@ -49,6 +49,10 @@ integration("accounts list, summarise and report the company's own invoices, pay
     const sales = (await t.ok<{ type: string; items: Rec[] }>(await records("sales-invoices"))).items.filter((r) => r.projectId === projectId);
     assert.deepEqual(sales.map((r) => [r.reference, r.state, r.amount, r.outstandingAmount, r.partyName]), [[customerInvoice.reference, "ISSUED", "117120.000000", "67120.000000", "Hamburg Roasters GmbH"]]);
     assert.equal(sales[0].href, `/sales-shipments/${t.salesShipment.id}`);
+    const [due] = sales as unknown as { dueDate: string; overdue: boolean; aedAmount: string; aedOutstanding: string }[];
+    assert.match(due.dueDate, /^\d{4}-\d{2}-\d{2}$/, "invoice date plus the customer's payment terms");
+    assert.equal(due.overdue, false);
+    assert.deepEqual([due.aedAmount, due.aedOutstanding], ["430123.200000", "246498.200000"], "USD at the 3.6725 peg");
     const supplier = (await t.ok<{ items: Rec[] }>(await records("supplier-invoices"))).items.filter((r) => r.projectId === projectId);
     assert.deepEqual(supplier.map((r) => [r.reference, r.outstandingAmount]), [["AD-ACC-1", "99849.600000"]]);
     assert.ok(supplier[0].documentId, "the supplier's PDF opens from the register");
@@ -70,6 +74,8 @@ integration("accounts list, summarise and report the company's own invoices, pay
     // Summary per currency for this project.
     const s = await t.ok<{ recordCount: number; currencySections: Record<string, string>[] }>(await summary.GET(t.get(`/api/accounts/summary?projectId=${projectId}`, "finance")));
     assert.equal(s.recordCount, 5);
+    const bar = (s as unknown as { aed: Record<string, string | number> }).aed;
+    assert.deepEqual([bar.salesOpen, bar.salesOverdue, bar.supplierOpen, bar.unconverted], ["246498.200000", "0.000000", "366697.660000", 0], "money bar in AED");
     assert.deepEqual(s.currencySections.find((x) => x.currency === "USD"), {
       currency: "USD", salesInvoiced: "117120.000000", salesOutstanding: "67120.000000", supplierInvoiced: "99849.600000", supplierOutstanding: "99849.600000",
       collections: "70000.000000", supplierPayments: "40000.000000", expenses: "1200.000000", netOperationalCash: "28800.000000",

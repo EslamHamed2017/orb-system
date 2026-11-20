@@ -3541,6 +3541,20 @@ components:
           - { $ref: '#/components/schemas/Uuid' }
           - { type: 'null' }
         href: { type: string, minLength: 1 }
+        dueDate:
+          type: string
+          format: date
+          description: Invoice date plus the payment terms of the party (invoices and bills only).
+        overdue: { type: boolean }
+        aedAmount:
+          description: Amount in AED - USD at the 3.6725 peg and other currencies at the latest recorded payment rate - or null when no rate is known.
+          oneOf:
+          - { $ref: '#/components/schemas/Decimal' }
+          - { type: 'null' }
+        aedOutstanding:
+          oneOf:
+          - { $ref: '#/components/schemas/Decimal' }
+          - { type: 'null' }
     AccountRecordPage:
       type: object
       additionalProperties: false
@@ -3584,6 +3598,21 @@ components:
         currencySections:
           type: array
           items: { $ref: '#/components/schemas/AccountsCurrencySummary' }
+        aed: { $ref: '#/components/schemas/AccountsAedBar' }
+    AccountsAedBar:
+      type: object
+      additionalProperties: false
+      description: Money bar totals in AED - open, overdue and paid in the last 30 days.
+      required: [salesOpen, salesOverdue, salesPaid30, supplierOpen, supplierOverdue, supplierPaid30, expenses30, unconverted]
+      properties:
+        salesOpen: { $ref: '#/components/schemas/Decimal' }
+        salesOverdue: { $ref: '#/components/schemas/Decimal' }
+        salesPaid30: { $ref: '#/components/schemas/Decimal' }
+        supplierOpen: { $ref: '#/components/schemas/Decimal' }
+        supplierOverdue: { $ref: '#/components/schemas/Decimal' }
+        supplierPaid30: { $ref: '#/components/schemas/Decimal' }
+        expenses30: { $ref: '#/components/schemas/Decimal' }
+        unconverted: { type: integer, minimum: 0 }
     ProductStatus:
       type: string
       enum: [ACTIVE, INACTIVE]

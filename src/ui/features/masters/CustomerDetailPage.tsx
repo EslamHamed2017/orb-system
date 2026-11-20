@@ -1,5 +1,6 @@
 "use client";
 
+import { PartyTransactions } from "./PartyTransactions";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import styles from "./ProductsMasterPage.module.css";
 import { ISO_COUNTRY_CODES } from "../../../modules/customers/country-codes";
@@ -113,6 +114,7 @@ export function CustomerDetailPage({ customerId, locale, role }: { readonly cust
           if (!window.confirm(confirmation)) return;
           void patch({ status: archiving ? "INACTIVE" : "ACTIVE" }, archiving ? (ar ? "أرشف الخادم العميل." : "Customer archived by the server.") : (ar ? "أعاد الخادم تفعيل العميل." : "Customer reactivated by the server."));
         }}>{customer.status === "ACTIVE" ? (ar ? "أرشفة العميل" : "Archive customer") : (ar ? "إعادة تفعيل العميل" : "Reactivate customer")}</button>}</section>
+        <PartyTransactions kind="customer" partyId={customerId} locale={locale}/>
       </>}
   </section>;
 }
