@@ -1,1 +1,8 @@
-import{AccountsOperationalReportPage}from"../../../ui/features/reports/AccountsOperationalReportPage";import type{AccountReportTypeFilter}from"../../../ui/features/reports/accounts-profitability-reports";type Query={readonly locale?:string;readonly role?:string;readonly projectId?:string;readonly accountType?:string;readonly from?:string;readonly to?:string;readonly q?:string};const TYPES=new Set(["SALES_INVOICE","SUPPLIER_INVOICE","COLLECTION","SUPPLIER_PAYMENT","EXPENSE"]);export default async function AccountsReportRoute({searchParams}:{readonly searchParams:Promise<Query>}){const q=await searchParams,accountType:AccountReportTypeFilter=TYPES.has(q.accountType??"")?q.accountType as AccountReportTypeFilter:"ALL";return <AccountsOperationalReportPage locale={q.locale==="ar"?"ar":"en"} role={q.role} projectId={q.projectId} accountType={accountType} from={q.from} to={q.to} query={q.q??""}/>;}
+import { AccountsReportLive } from "../../../ui/features/reports/AccountsReportLive";
+
+type Query = { readonly locale?: string; readonly from?: string; readonly to?: string };
+
+export default async function AccountsReportRoute({ searchParams }: { readonly searchParams: Promise<Query> }) {
+  const q = await searchParams;
+  return <AccountsReportLive locale={q.locale === "ar" ? "ar" : "en"} from={q.from} to={q.to} />;
+}

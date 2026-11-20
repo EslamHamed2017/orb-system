@@ -25,13 +25,8 @@ test("pilot transaction attachment panel is bilingual, accessible, and permissio
 });
 
 test("every displayed expense and claim exposes an exactly bound attachment panel", () => {
-  const expenses = readFileSync("src/ui/features/accounts/ProjectExpensesPage.tsx", "utf8");
-  assert.match(expenses, /PilotTransactionAttachmentPanel/);
-  assert.match(expenses, /items.map\(\(item/);
-  assert.match(expenses, /subjectType="EXPENSE"/);
-  assert.match(expenses, /subjectId={item.id}/);
-  assert.match(expenses, /projectId={item.projectId}/);
-  assert.match(expenses, /canUpload={canUpload}/);
+  const expenses = readFileSync("src/ui/features/accounts/AccountsWorkspace.tsx", "utf8");
+  assert.match(expenses, /\/api\/evidence\/\$\{r\.documentId\}\/content/, "every recorded bill opens from the accounts list");
 
   const claims = readFileSync("src/ui/features/claims/ClaimWorkspace.tsx", "utf8");
   assert.match(claims, /PilotTransactionAttachmentPanel/);
@@ -43,8 +38,7 @@ test("every displayed expense and claim exposes an exactly bound attachment pane
 
 test("expense register preserves role context without exposing attachment upload controls", () => {
   const expenseRoute = readFileSync("src/app/accounts/expenses/page.tsx", "utf8");
-  assert.match(expenseRoute, /role\?: string/);
-  assert.match(expenseRoute, /canUpload={query\.role !== "finance-viewer"}/);
+  assert.doesNotMatch(expenseRoute, /role\?: string|canUpload/, "accounts registers are read-only and never trust a role query parameter");
 
   const claimRoute = readFileSync("src/app/projects/[id]/claims/page.tsx", "utf8");
   assert.match(claimRoute, /role\?: string/);

@@ -24,4 +24,11 @@ export function createAccountsListGetHandler(dependencies: AccountsListRouteDepe
     return NextResponse.json(await dependencies.list({ request, principal, type, ...(projectId ? { projectId } : {}) }), { headers: { "Cache-Control": "no-store" } });
   };
 }
-export const GET = createAccountsListGetHandler({ authenticate: async () => null });
+// @ts-expect-error Native Node TypeScript tests require source extensions.
+import { accountsService, mapShipmentErrors, shipmentActor } from "../../../../modules/shipments/execution/shipment-execution-runtime.ts";
+
+/** Company-scoped account records of one type, optionally for one project (Owner and Finance). */
+export const GET = mapShipmentErrors(createAccountsListGetHandler({
+  authenticate: (request) => shipmentActor(request) as never,
+  list: ({ principal, type, projectId }) => accountsService().list(principal as never, type, projectId),
+}) as never);

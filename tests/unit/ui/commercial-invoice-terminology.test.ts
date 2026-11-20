@@ -12,11 +12,10 @@ test("approved invoice terms match the frozen bilingual domain terminology",()=>
 
 test("customer and supplier registers, print documents and service output use frozen invoice copy",()=>{
   const files=[
-    "src/ui/features/accounts/ProjectSalesInvoicesPage.tsx",
-    "src/ui/features/accounts/ProjectSupplierInvoicesPage.tsx",
-    "src/ui/features/accounts/InvoicePrintDocument.tsx",
+    "src/platform/i18n/domain-terminology.ts",
+    "src/ui/features/accounts/AccountsWorkspace.tsx",
+    "src/ui/features/invoices/ShipmentInvoicesPanel.tsx",
     "src/modules/invoices/sales-invoice-service.ts",
-    "src/ui/features/accounts/accounts-hub.ts",
   ].map(x=>readFileSync(x,"utf8")).join("\n");
   for(const phrase of ["Sales invoice","Supplier invoice","فاتورة مبيعات","فاتورة مورد"]) assert.match(files,new RegExp(phrase));
   assert.doesNotMatch(files,/>Sales invoices</);

@@ -9,9 +9,9 @@ test("isolated infrastructure is ready and current route states remain truthful"
   const lifecycle = [
     "/masters/customers", "/masters/suppliers", "/masters/products", "/projects/demo/overview",
     "/projects/demo/contracts", "/supplier-shipments/demo", "/sales-shipments/demo",
-    "/accounts/sales-invoices?projectId=00000000-0000-7000-8000-000000000201", "/accounts/supplier-invoices?projectId=project-1",
-    "/accounts/collections?projectId=project-1", "/accounts/supplier-payments?projectId=project-1",
-    "/accounts/expenses?projectId=project-1", "/attachments", "/reports/product-movement",
+    "/accounts/sales-invoices?projectId=00000000-0000-7000-8000-000000000201", "/accounts/supplier-invoices?projectId=00000000-0000-7000-8000-000000000201",
+    "/accounts/collections?projectId=00000000-0000-7000-8000-000000000201", "/accounts/supplier-payments?projectId=00000000-0000-7000-8000-000000000201",
+    "/accounts/expenses?projectId=00000000-0000-7000-8000-000000000201", "/attachments", "/reports/product-movement",
     "/projects/demo/closure",
   ] as const;
   for (const route of lifecycle) {
@@ -33,17 +33,16 @@ test("isolated infrastructure is ready and current route states remain truthful"
   await expect(page.getByText("Remaining quantity", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("progressbar")).toHaveCount(2);
 
-  await page.goto("/accounts/sales-invoices?projectId=00000000-0000-7000-8000-000000000201&locale=en");
-  await expect(page.getByRole("heading", { level: 1, name: "Sales invoices" })).toBeVisible();
-  await expect(page.getByText("Sales shipment").first()).toBeVisible();
-  await expect(page.getByRole("link", { name: "ORB-R1-SAL-100MT" })).toBeVisible();
-  await expect(page.getByText(/attachment/i).first()).toBeVisible();
-
-  await page.goto("/accounts/supplier-invoices?projectId=project-1&locale=en");
-  await expect(page.getByRole("heading", { level: 1, name: "Supplier invoices" })).toBeVisible();
-  await expect(page.getByText("Supplier container").first()).toBeVisible();
-  await expect(page.getByRole("link", { name: "supplier-container-1" })).toBeVisible();
-  await expect(page.getByText(/attachment/i).first()).toBeVisible();
+  // Accounts read the signed-in company's live records; the acceptance owner's company may have none yet.
+  for (const [view, heading] of [["sales-invoices", "Sales invoice"], ["supplier-invoices", "Supplier invoice"], ["collections", "Collection"]] as const) {
+    await page.goto(`/accounts/${view}?projectId=00000000-0000-7000-8000-000000000201&locale=en`);
+    await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
+    await expect(page.getByText("Showing one project.")).toBeVisible();
+    await expect(page.getByTestId("accounts-records").or(page.getByText("Nothing recorded yet."))).toBeVisible();
+    await expect(page.locator("body")).not.toContainText(/could not be loaded|for finance and owners/i);
+  }
+  await page.goto("/accounts?locale=en");
+  await expect(page.getByRole("heading", { level: 1, name: "Accounts" })).toBeVisible();
 
   await page.goto("/reports/product-movement?locale=en");
   await expect(page.locator("body")).toContainText(/not a stock balance or inventory valuation/i);

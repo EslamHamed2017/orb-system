@@ -1,9 +1,8 @@
-import { ProjectMoneyMovementsPage } from "../../../ui/features/accounts/ProjectMoneyMovementsPage";
+import { AccountsWorkspace } from "../../../ui/features/accounts/AccountsWorkspace";
 
-type Query = { readonly locale?: string; readonly projectId?: string; readonly role?: string };
-export default async function SupplierPaymentsPage({ searchParams }: { readonly searchParams: Promise<Query> }) {
+type Query = { readonly locale?: string; readonly projectId?: string };
+
+export default async function AccountsRecordsPage({ searchParams }: { readonly searchParams: Promise<Query> }) {
   const query = await searchParams;
-  const locale = query.locale === "ar" ? "ar" : "en";
-  const projectId = query.projectId?.trim() || undefined;
-  return <ProjectMoneyMovementsPage locale={locale} projectId={projectId} type="SUPPLIER_PAYMENT" canUpload={query.role !== "finance-viewer"} />;
+  return <AccountsWorkspace locale={query.locale === "ar" ? "ar" : "en"} view="supplier-payments" projectId={query.projectId?.trim() || undefined} />;
 }
