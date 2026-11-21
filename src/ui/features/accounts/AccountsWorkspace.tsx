@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Checkbox, Tag } from "antd";
+import { useCallback, useEffect, useState } from "react";
+import { OrbTable, type OrbColumn, type OrbSummaryRow } from "../../components/orb-table/OrbTable";
 import { EnterpriseStyles, ErpPageHeader, Kpi } from "../admin/EnterpriseUx";
 import { problemOf, type ApiProblem } from "../../session-client";
 import { domainTerm } from "../../../platform/i18n/domain-terminology";
@@ -29,6 +31,9 @@ const STATES: Record<string, [string, string, string]> = {
   CONFIRMED: ["Approved", "معتمدة", "success"], APPROVED: ["Approved", "معتمد", "success"], REJECTED: ["Rejected", "مرفوض", "error"], CANCELLED: ["Cancelled", "ملغى", "error"],
   PARTIALLY_ALLOCATED: ["Partly matched", "مطابق جزئياً", "warning"], FULLY_ALLOCATED: ["Matched", "مطابق", "success"], REVERSED: ["Reversed", "معكوس", "error"],
 };
+const TONE: Record<string, string> = { success: "success", warning: "warning", error: "error" };
+/** Money is summed in whole cents so totals never drift. */
+const sumCents = (rows: readonly Record_[], pick: (r: Record_) => string | null | undefined) => rows.reduce((acc, r) => { const v = pick(r); return v === null || v === undefined ? acc : acc + Math.round(Number(v) * 100); }, 0);
 const fmt = (value: string | number) => Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function AccountsWorkspace({ locale, view, projectId }: { readonly locale: "en" | "ar"; readonly view: AccountsView; readonly projectId?: string }) {
@@ -38,7 +43,6 @@ export function AccountsWorkspace({ locale, view, projectId }: { readonly locale
   const [sections, setSections] = useState<Section[] | null>(null);
   const [problem, setProblem] = useState<ApiProblem | null>(null);
   const [bar, setBar] = useState<AedBar | null>(null);
-  const [query, setQuery] = useState("");
   const [openOnly, setOpenOnly] = useState(false);
   const scope = projectId ? `projectId=${encodeURIComponent(projectId)}` : "";
   const load = useCallback(async () => {
@@ -55,14 +59,6 @@ export function AccountsWorkspace({ locale, view, projectId }: { readonly locale
   }, [view, scope]);
   useEffect(() => { void load(); }, [load]);
 
-  const shown = useMemo(() => (records ?? []).filter((r) => (!openOnly || Number(r.outstandingAmount) > 0)
-    && (!query.trim() || `${r.reference} ${r.projectReference} ${r.partyName}`.toLowerCase().includes(query.trim().toLowerCase()))), [records, query, openOnly]);
-  const totals = useMemo(() => {
-    const by = new Map<string, [number, number]>();
-    for (const r of shown.filter((x) => !["CANCELLED", "REJECTED", "REVERSED"].includes(x.state))) { const v = by.get(r.currency) ?? [0, 0]; by.set(r.currency, [v[0] + Math.round(Number(r.amount) * 100), v[1] + Math.round(Number(r.outstandingAmount) * 100)]); }
-    return [...by.entries()].sort();
-  }, [shown]);
-  const aedTotal = useMemo(() => shown.filter((x) => !["CANCELLED", "REJECTED", "REVERSED"].includes(x.state)).reduce((acc, r) => r.aedAmount === null ? acc : [acc[0] + Math.round(Number(r.aedAmount) * 100), acc[1] + Math.round(Number(r.aedOutstanding ?? 0) * 100)], [0, 0]), [shown]);
   const invoices = view === "sales-invoices" || view === "supplier-invoices";
   const sales = view === "sales-invoices" || view === "collections";
   const action = (r: Record_) => {
@@ -72,9 +68,45 @@ export function AccountsWorkspace({ locale, view, projectId }: { readonly locale
     if (view === "collections" || view === "supplier-payments") return <a href={`/money-movements/${r.id}/print?projectId=${r.projectId}&locale=${locale}`} target="_blank" rel="noreferrer">{t("Print", "طباعة")}</a>;
     return <a href={`${r.href}?locale=${locale}`}>{t("View", "عرض")}</a>;
   };
-  const q = (path: string) => `${path}?locale=${locale}${projectId ? `&projectId=${encodeURIComponent(projectId)}` : ""}`;
   const title = TABS.find(([v]) => v === view)!;
   const openLabel = view === "sales-invoices" || view === "supplier-invoices" ? t("Open balance", "الرصيد المفتوح") : view === "expenses" ? null : t("Unmatched", "غير مطابق");
+  const partyTitle = view === "sales-invoices" || view === "collections" ? t("Customer", "العميل") : view === "expenses" ? t("Paid to", "المدفوع له") : t("Supplier", "المورد");
+  const live = (r: Record_) => !["CANCELLED", "REJECTED", "REVERSED"].includes(r.state);
+  const stateOptions = [...new Set(Object.values(STATES).map(([en, a]) => (ar ? a : en)))].map((label) => ({ value: label, label }));
+  const stateLabel = (r: Record_) => { const st = STATES[r.state] ?? [r.state, r.state, "warning"]; return st[ar ? 1 : 0]; };
+  const columns: OrbColumn<Record_>[] = [
+    { key: "date", title: t("Date", "التاريخ"), kind: "date", value: (r) => r.occurredOn, render: (r) => <bdi className="acc-nowrap">{r.occurredOn}</bdi>, mobile: "meta" },
+    { key: "reference", title: view === "expenses" ? t("Category", "الفئة") : t("Reference", "المرجع"), value: (r) => r.reference, locked: true, mobile: "meta",
+      render: (r) => <><a href={`${r.href}?locale=${locale}`}><bdi>{r.reference}</bdi></a>{r.documentId && <> <small><a href={`/api/evidence/${r.documentId}/content`} target="_blank" rel="noreferrer">{t("Document", "المستند")}</a></small></>}</> },
+    { key: "project", title: t("Project", "المشروع"), kind: "enum", groupable: true, value: (r) => r.projectReference, mobile: "meta",
+      render: (r) => <a href={`/projects/${r.projectId}/overview?locale=${locale}`}><bdi>{r.projectReference}</bdi></a> },
+    { key: "party", title: partyTitle, kind: "enum", groupable: true, value: (r) => r.partyName, mobile: "title" },
+    { key: "status", title: t("Status", "الحالة"), kind: "enum", groupable: true, options: stateOptions, value: stateLabel, mobile: "status",
+      render: (r) => { const st = STATES[r.state] ?? [r.state, r.state, "warning"]; return <Tag bordered={false} color={TONE[st[2]]}>{st[ar ? 1 : 0]}</Tag>; } },
+    { key: "currency", title: t("Currency", "العملة"), kind: "enum", groupable: true, hiddenByDefault: true, value: (r) => r.currency },
+    { key: "amount", title: t("Amount", "المبلغ"), kind: "number", align: "right", value: (r) => Number(r.amount), mobile: "amount",
+      render: (r) => <bdi className="acc-nowrap"><small className="orb-muted">{r.currency}</small> {fmt(r.amount)}</bdi> },
+    ...(openLabel ? [{ key: "open", title: openLabel, kind: "number" as const, align: "right" as const, value: (r: Record_) => Number(r.outstandingAmount),
+      render: (r: Record_) => Number(r.outstandingAmount) > 0 ? <strong><bdi>{fmt(r.outstandingAmount)}</bdi></strong> : "—" }] : []),
+    { key: "aed", title: t("Amount (AED)", "المبلغ (درهم)"), kind: "number", align: "right", value: (r) => (r.aedAmount === null ? null : Number(r.aedAmount)),
+      render: (r) => (r.aedAmount === null ? "—" : <bdi>{fmt(r.aedAmount)}</bdi>), total: (rows) => <bdi>{fmt(sumCents(rows.filter(live), (r) => r.aedAmount) / 100)}</bdi> },
+    ...(openLabel ? [{ key: "aedOpen", title: t(`${openLabel} (AED)`, `${openLabel} (درهم)`), kind: "number" as const, align: "right" as const, hiddenByDefault: true, value: (r: Record_) => (r.aedOutstanding === null ? null : Number(r.aedOutstanding)),
+      render: (r: Record_) => (r.aedOutstanding === null ? "—" : <bdi>{fmt(r.aedOutstanding)}</bdi>), total: (rows: readonly Record_[]) => <bdi>{fmt(sumCents(rows.filter(live), (r) => r.aedOutstanding) / 100)}</bdi> }] : []),
+    ...(invoices ? [{ key: "due", title: t("Due date", "تاريخ الاستحقاق"), kind: "date" as const, value: (r: Record_) => r.dueDate ?? "",
+      render: (r: Record_) => <span className="acc-nowrap">{r.dueDate ? <bdi>{r.dueDate}</bdi> : ""}{r.overdue && <> <Tag bordered={false} color="error">{t("Overdue", "متأخرة")}</Tag></>}</span> }] : []),
+    { key: "action", title: t("Action", "الإجراء"), exportable: false, value: () => "", render: (r) => <span className="acc-nowrap">{action(r)}</span>, mobile: "action" },
+  ];
+  const summaryRows = (rows: readonly Record_[]): OrbSummaryRow[] => {
+    const by = new Map<string, Record_[]>();
+    for (const r of rows.filter(live)) (by.get(r.currency) ?? by.set(r.currency, []).get(r.currency)!).push(r);
+    return [
+      ...[...by.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([cur, list]) => ({ key: cur, label: <>{t("Total", "الإجمالي")} <bdi>{cur}</bdi></>,
+        cells: { amount: <bdi>{fmt(sumCents(list, (r) => r.amount) / 100)}</bdi>, ...(openLabel ? { open: <bdi>{fmt(sumCents(list, (r) => r.outstandingAmount) / 100)}</bdi> } : {}) } })),
+      { key: "aed", testId: "accounts-aed-total", label: t("Total in AED", "الإجمالي بالدرهم"),
+        cells: { aed: <bdi>AED {fmt(sumCents(rows.filter(live), (r) => r.aedAmount) / 100)}</bdi>, ...(openLabel ? { aedOpen: <bdi>{fmt(sumCents(rows.filter(live), (r) => r.aedOutstanding) / 100)}</bdi> } : {}) } },
+    ];
+  };
+  const q = (path: string) => `${path}?locale=${locale}${projectId ? `&projectId=${encodeURIComponent(projectId)}` : ""}`;
 
   return <section className="orb-erp orb-accounts" dir={ar ? "rtl" : "ltr"} aria-labelledby="accounts-title">
     <EnterpriseStyles/><style>{STYLES}</style>
@@ -102,28 +134,21 @@ export function AccountsWorkspace({ locale, view, projectId }: { readonly locale
           </div>
         </section>))
       : <>
-        <div className="accounts-tools">
-          <label>{t("Search", "بحث")}<input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Reference, project or party", "مرجع أو مشروع أو طرف")}/></label>
-          {openLabel && <label className="accounts-check"><input type="checkbox" checked={openOnly} onChange={(e) => setOpenOnly(e.target.checked)}/>{view === "sales-invoices" || view === "supplier-invoices" ? t("Only unpaid", "غير المدفوعة فقط") : t("Only unmatched", "غير المطابقة فقط")}</label>}
-        </div>
-        {records === null ? <p role="status" aria-busy="true">{t("Loading…", "جارٍ التحميل…")}</p>
-          : shown.length === 0 ? <p className="orb-muted">{records.length === 0 ? t("Nothing recorded yet.", "لم يُسجّل شيء بعد.") : t("No records match.", "لا توجد سجلات مطابقة.")}</p>
-          : <div className="accounts-scroll" data-testid="accounts-records"><table>
-            <thead><tr><th>{t("Date", "التاريخ")}</th><th>{view === "expenses" ? t("Category", "الفئة") : t("Reference", "المرجع")}</th><th>{t("Project", "المشروع")}</th><th>{view === "sales-invoices" || view === "collections" ? t("Customer", "العميل") : view === "expenses" ? t("Paid to", "المدفوع له") : t("Supplier", "المورد")}</th><th>{t("Status", "الحالة")}</th><th>{t("Amount", "المبلغ")}</th>{openLabel && <th>{openLabel}</th>}{invoices && <th>{t("Due date", "تاريخ الاستحقاق")}</th>}<th>{t("Action", "الإجراء")}</th></tr></thead>
-            <tbody>{shown.map((r) => { const st = STATES[r.state] ?? [r.state, r.state, "warning"]; return <tr key={r.id}>
-              <td><bdi>{r.occurredOn}</bdi></td>
-              <td><a href={`${r.href}?locale=${locale}`}><bdi>{r.reference}</bdi></a>{r.documentId && <><br/><small><a href={`/api/evidence/${r.documentId}/content`} target="_blank" rel="noreferrer">{t("Document", "المستند")}</a></small></>}</td>
-              <td><a href={`/projects/${r.projectId}/overview?locale=${locale}`}><bdi>{r.projectReference}</bdi></a></td>
-              <td>{r.partyName}</td>
-              <td><span className="orb-chip" data-tone={st[2]}>{st[ar ? 1 : 0]}</span></td>
-              <td><bdi>{r.currency} {fmt(r.amount)}</bdi></td>
-              {openLabel && <td>{Number(r.outstandingAmount) > 0 ? <strong><bdi>{fmt(r.outstandingAmount)}</bdi></strong> : "—"}</td>}
-              {invoices && <td className="acc-nowrap">{r.dueDate ? <bdi>{r.dueDate}</bdi> : ""}{r.overdue && <> <span className="orb-chip" data-tone="error">{t("Overdue", "متأخرة")}</span></>}</td>}
-              <td className="acc-nowrap">{action(r)}</td>
-            </tr>; })}</tbody>
-            <tfoot>{totals.map(([cur, [amount, open]]) => <tr key={cur}><th colSpan={5}>{t("Total", "الإجمالي")} <bdi>{cur}</bdi></th><th><bdi>{fmt(amount / 100)}</bdi></th>{openLabel && <th><bdi>{fmt(open / 100)}</bdi></th>}{invoices && <th/>}<th/></tr>)}
-              <tr className="acc-aed" data-testid="accounts-aed-total"><th colSpan={5}>{t("Total in AED", "الإجمالي بالدرهم")}</th><th><bdi>AED {fmt(aedTotal[0] / 100)}</bdi></th>{openLabel && <th><bdi>{fmt(aedTotal[1] / 100)}</bdi></th>}{invoices && <th/>}<th/></tr></tfoot>
-          </table></div>}
+        <OrbTable<Record_>
+          id={`accounts-${view}`}
+          locale={locale}
+          rows={records}
+          rowKey={(r) => r.id}
+          rowHref={(r) => `${r.href}?locale=${locale}`}
+          testId="accounts-records"
+          exportName={t(...(PAGE_TITLES[view] ?? [title[1], title[2]]))}
+          emptyText={t("Nothing recorded yet.", "لم يُسجّل شيء بعد.")}
+          noMatchText={t("No records match.", "لا توجد سجلات مطابقة.")}
+          extraFilter={openOnly ? (r) => Number(r.outstandingAmount) > 0 : undefined}
+          quickFilters={openLabel && <Checkbox checked={openOnly} onChange={(e) => setOpenOnly(e.target.checked)}>{view === "sales-invoices" || view === "supplier-invoices" ? t("Only unpaid", "غير المدفوعة فقط") : t("Only unmatched", "غير المطابقة فقط")}</Checkbox>}
+          columns={columns}
+          summary={summaryRows}
+        />
       </>}
   </section>;
 }

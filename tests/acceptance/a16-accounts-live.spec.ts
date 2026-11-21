@@ -51,9 +51,9 @@ for (const locale of ["en", "ar"] as const) {
     await page.goto(`/accounts/supplier-invoices?locale=${locale}`);
     await expect(page.getByTestId("accounts-records").getByRole("link", { name: ar ? "المستند" : "Document" })).toHaveAttribute("href", "/api/evidence/66666666-6666-7666-8666-666666666666/content");
     await page.goto(`/accounts/sales-invoices?locale=${locale}`);
-    await expect(page.getByTestId("accounts-records").locator("tbody tr")).toHaveCount(2);
+    await expect(page.getByTestId("accounts-records").locator("[data-row]")).toHaveCount(2);
     await page.getByLabel(ar ? "غير المدفوعة فقط" : "Only unpaid").check();
-    await expect(page.getByTestId("accounts-records").locator("tbody tr")).toHaveCount(1);
+    await expect(page.getByTestId("accounts-records").locator("[data-row]")).toHaveCount(1);
   });
 }
 
