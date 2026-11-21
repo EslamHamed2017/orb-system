@@ -9,6 +9,7 @@ import { AsyncState, type AsyncStateName } from "../components/AsyncState";
 import { AccountMenu } from "./AccountMenu";
 import { fetchCurrentSession, sendJson, signInUrl, type CurrentSession } from "../session-client";
 import { GEAR, NEW_MENU, SECTIONS, allowed, sectionFor, sectionHref } from "./qb-navigation";
+import { CommandPalette, type PaletteItem } from "./CommandPalette";
 
 type Locale = "ar" | "en";
 type IconName = "today" | "projects" | "approvals" | "products" | "shipments" | "finance" | "expenses" | "documents" | "reports" | "admin" | "settings" | "search" | "help" | "bell" | "menu" | "plus";
@@ -56,6 +57,12 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
   // Roles come from the signed-in session on the server, never from the URL.
   const [session, setSession] = useState<CurrentSession | null>(null);
   const [sessionVersion, setSessionVersion] = useState(0);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setPaletteOpen(true); } };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const roles: readonly string[] = session?.roles ?? [];
   const role = roles.includes("OWNER_ADMIN") ? "OWNER_ADMIN" : roles.length === 1 ? roles[0] : roles.length > 1 ? "MULTIPLE" : "PENDING";
   const suffix = permissionAwareQuery(locale, null);
@@ -133,6 +140,16 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
       </nav>
     : null;
   const gearGroups = GEAR.map((group) => ({ ...group, links: group.links.filter((link) => allowed(link.access, canOpen)) })).filter((group) => group.links.length);
+  const paletteItems: PaletteItem[] = [
+    ...NEW_MENU.flatMap((column) => column.items.filter((item) => allowed(item.access, canOpen)).map((item) => ({ key: `new-${item.key}`, group: "new" as const, label: t(`New ${item.en.toLowerCase()}`, `${item.ar} جديد`), hint: t(column.en, column.ar), href: `${item.href}${suffix}` }))),
+    ...SECTIONS.flatMap((section) => {
+      const pages = section.pages?.filter((page) => allowed(page.access, canOpen)) ?? [];
+      if (pages.length) return pages.map((page) => ({ key: `go-${page.key}`, group: "go" as const, label: t(page.en, page.ar), hint: t(section.en, section.ar), href: `${page.href}${suffix}` }));
+      const href = sectionHref(section, canOpen);
+      return href ? [{ key: `go-${section.key}`, group: "go" as const, label: t(section.en, section.ar), href: `${href}${suffix}` }] : [];
+    }),
+    ...GEAR.flatMap((group) => group.links.filter((link) => allowed(link.access, canOpen)).map((link) => ({ key: `set-${link.key}`, group: "settings" as const, label: t(link.en, link.ar), hint: t(group.en, group.ar), href: `${link.href}${suffix}` }))),
+  ];
   const newColumns = NEW_MENU.map((column) => ({ ...column, items: column.items.filter((item) => allowed(item.access, canOpen)) })).filter((column) => column.items.length);
 
   return <div className="orb-shell" dir={direction}>
@@ -157,7 +174,8 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
       </details>}
       <label className="orb-global-search">
         <span className="orb-sr-only">{label("Search ORB", "البحث في ORB")}</span><Icon name="search" />
-        <input type="search" placeholder={label("Search projects, invoices, customers…", "ابحث في المشاريع والفواتير والعملاء…")} />
+        <input type="search" placeholder={label("Search or jump to…", "ابحث أو انتقل إلى…")} readOnly onClick={() => setPaletteOpen(true)} onKeyDown={(e) => { if (e.key !== "Tab" && e.key !== "Shift") { e.preventDefault(); setPaletteOpen(true); } }} />
+        <kbd aria-hidden="true">Ctrl K</kbd>
       </label>
       <span className="orb-top-spacer" />
       <a className="orb-top-action orb-language" href={`${pathname}${permissionAwareQuery(locale === "ar" ? "en" : "ar", null)}`}>{locale === "ar" ? "EN" : "ع"}</a>
@@ -178,6 +196,7 @@ export function AppNavigation({ children }: { readonly children: ReactNode }) {
       {sectionLinks.slice(0, 4)}
       <button className="orb-more" ref={moreRef} type="button" onClick={openMore}><Icon name="menu" /><span>{copy.more}</span></button>
     </nav>
+    <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} items={paletteItems} locale={locale}/>
     <dialog className="orb-dialog" ref={dialogRef} aria-labelledby="orb-more-title" onClose={() => moreRef.current?.focus()}>
       <h2 id="orb-more-title">{copy.menuTitle}</h2><p>{copy.shellTitle}</p>
       <nav className="orb-dialog-links" aria-label={label("More destinations", "وجهات إضافية")}>

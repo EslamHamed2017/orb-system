@@ -5,6 +5,7 @@ import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { OrbThemeProvider } from "../ui/theme/orb-theme";
 import { AntProvider } from "../ui/theme/AntProvider";
 import "../ui/theme/tokens.css";
+import "../ui/theme/density.css";
 
 export const metadata: Metadata = {
   title: { default: "ORB Trade Operations", template: "%s · ORB" },
