@@ -37,9 +37,12 @@ for (const language of locales) {
       const interactive = page.locator('a:visible, button:visible, input:visible, select:visible, [role="button"]:visible');
       const count = await interactive.count();
       expect(count).toBeGreaterThan(0);
+      // Touch screens and narrow windows keep the 48px touch floor; a desktop with a mouse is accounting-dense
+      // (32px floor, above the WCAG 2.2 AA 24px target size) — docs/UI-AND-WORKFLOW-STANDARD.md §2.
+      const floor = viewport.width >= 900 ? 32 : 48;
       for (let index = 0; index < count; index++) {
         const box = await interactive.nth(index).boundingBox();
-        if (box) expect(Math.min(box.width, box.height), `interactive element ${index} is below 48px`).toBeGreaterThanOrEqual(48);
+        if (box) expect(Math.min(box.width, box.height), `interactive element ${index} is below ${floor}px`).toBeGreaterThanOrEqual(floor);
       }
     });
   }
