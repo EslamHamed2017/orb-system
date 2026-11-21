@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Suspense, type ReactNode } from "react";
 import { AppNavigation } from "../ui/navigation/AppNavigation";
+import { AntdRegistry } from "@ant-design/nextjs-registry";
 import { OrbThemeProvider } from "../ui/theme/orb-theme";
+import { AntProvider } from "../ui/theme/AntProvider";
 import "../ui/theme/tokens.css";
 
 export const metadata: Metadata = {
@@ -12,11 +14,15 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return <html lang="en" dir="ltr">
     <body>
-      <OrbThemeProvider>
-        <Suspense fallback={<div className="orb-main" role="status" aria-busy="true">Loading ORB…</div>}>
-          <AppNavigation>{children}</AppNavigation>
-        </Suspense>
-      </OrbThemeProvider>
+      <AntdRegistry hashPriority="high">
+        <OrbThemeProvider>
+          <Suspense fallback={<div className="orb-main" role="status" aria-busy="true">Loading ORB…</div>}>
+            <AntProvider>
+              <AppNavigation>{children}</AppNavigation>
+            </AntProvider>
+          </Suspense>
+        </OrbThemeProvider>
+      </AntdRegistry>
     </body>
   </html>;
 }
